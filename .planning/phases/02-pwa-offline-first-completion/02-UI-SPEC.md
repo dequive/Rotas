@@ -37,14 +37,14 @@ CSS variable system. Do not introduce any new design system tooling.
 ## Spacing Scale
 
 The existing codebase uses an informal 8-point scale with values 4, 6, 8, 10, 12, 14, 20, 24, 32.
-Declared tokens for new components in this phase:
+Declared tokens for new components in this phase use only canonical 8-point values:
 
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs    | 4px   | Icon gaps, counter prefix spacing |
-| sm    | 8px   | Inline gap between banner icon and text |
-| md    | 12px  | Banner vertical padding (matches existing `.offline-bar` padding: 14px — use 12px vertical for the new sticky banner) |
-| lg    | 16px  | Banner horizontal padding |
+| sm    | 8px   | Inline gap between banner icon and text; banner vertical padding |
+| md    | 16px  | Banner horizontal padding |
+| lg    | 24px  | Section spacing (existing screens, not new in this phase) |
 | xl    | 32px  | Not used in this phase |
 | 2xl   | 48px  | Not used in this phase |
 | 3xl   | 64px  | Not used in this phase |
@@ -52,6 +52,8 @@ Declared tokens for new components in this phase:
 Exceptions:
 - Touch targets: minimum 44px height on all interactive elements (existing `.icon-btn` already at 44px). The "Verificar atualizações" button inside the banner must be min-height 32px as a secondary inline action.
 - Banner height: fixed 48px min-height to prevent layout shift between banner states.
+
+Banner padding: `padding: 8px 16px` — 8px vertical (`sm`) + 16px horizontal (`md`).
 
 ---
 
@@ -62,17 +64,18 @@ All type is set in the system font stack `Arial, Helvetica, sans-serif` inherite
 | Role    | Size | Weight | Line Height |
 |---------|------|--------|-------------|
 | Body    | 14px | 400    | 1.4         |
-| Label   | 13px | 800    | 1.0         |
+| Label   | 12px | 800    | 1.0         |
 | Heading | 18px | 800    | 1.2         |
 | Display | 24px | 800    | 1.2         |
 
-Source: extracted from existing `.top h1` (24px/800), `.panel h2` (18px), `font-size: 13px` labels,
-and `body` default (14px inferred from browser reset + existing proportions).
+Source: extracted from existing `.top h1` (24px/800), `.panel h2` (18px), and `body` default
+(14px inferred from browser reset + existing proportions). Label size reduced from 13px to 12px
+to maintain clear hierarchy with Body at 14px (minimum 2px step between adjacent roles).
 
 Banner text specifically:
-- Status message: 13px, weight 800 (matches `.offline-bar` existing `font-weight: 800`)
-- Counter "X registos pendentes": 13px, weight 800, same line as status message
-- "Verificar atualizações" button: 13px, weight 800
+- Status message: 12px, weight 800 (matches `.offline-bar` existing `font-weight: 800`)
+- Counter "X registos pendentes": 12px, weight 800, same line as status message
+- "Verificar atualizações" button: 12px, weight 800
 
 ---
 
@@ -111,6 +114,30 @@ Source for update-available: reuse existing `.pairing-instructions` blue palette
 
 ---
 
+## Visual Focal Points
+
+### Primary Driver Screen (Dashboard)
+
+The dashboard header / trip status card is the primary focal element on the driver's main screen.
+It occupies the top portion of the `.phone-shell` flex column and communicates the most critical
+state: whether a trip is active, the current trip name, and elapsed distance/time counters.
+All other cards below it (fuel, stops, checklist) are secondary content layers.
+
+The primary focal hierarchy on the dashboard is:
+1. Trip status card / header (`.top` section with `.top h1`) — Display 24px, weight 800
+2. Action buttons (`.primary-action`) — accent blue, full-width, high contrast
+3. Secondary cards/panels — white surface on `--soft` background
+
+### SyncStatusBanner
+
+The `SyncStatusBanner` is a secondary status layer mounted at the bottom of `.phone-shell`
+(`margin-top: auto`). It is subordinate to the dashboard focal hierarchy — it provides ambient
+status without competing for the driver's primary attention. When `idle`, it is hidden entirely.
+When visible, its color-coded background (orange/green/red/blue) signals urgency without requiring
+the driver to read the text first.
+
+---
+
 ## Component Inventory
 
 ### SyncStatusBanner
@@ -139,7 +166,7 @@ from `App.tsx` and replaced by `<SyncStatusBanner />` mounted at the same positi
   └── .sync-banner__action    (optional: "Verificar atualizações" button — only in update_available state)
 ```
 
-**Layout:** `display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; min-height: 48px;`
+**Layout:** `display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; min-height: 48px;`
 
 **Transition:** `background-color 0.2s ease, color 0.2s ease` — smooth color cross-fade between states.
 No slide animation. The banner occupies fixed space at the bottom of the shell; it does not
@@ -176,11 +203,11 @@ File: `apps/driver/public/manifest.webmanifest`
 | `display` | "standalone" | ROADMAP PWA-02 |
 | `start_url` | "/" | — |
 | `theme_color` | "#102033" | D-11 (matches `--nav`) |
-| `background_color` | "#f5f7fa" | D-11 (matches `--soft`) |
+| `background_color` | "#f5f7fa` | D-11 (matches `--soft`) |
 | `lang` | "pt" | — |
 | `icons` | 192x192 + 512x512 PNG | D-12 |
 
-Icon design contract (placeholder, replaceble without replanning):
+Icon design contract (placeholder, replaceable without replanning):
 - 192x192 PNG: letter "R", Helvetica Bold or Arial Bold, white, centered on `#102033` background
 - 512x512 PNG: same composition, scaled
 - Generated as SVG then rasterized: `<rect fill="#102033" width="192" height="192"/>` + `<text fill="white" font-family="Arial,sans-serif" font-weight="800" font-size="110" x="96" y="140" text-anchor="middle">R</text>`
@@ -205,7 +232,8 @@ All copy is in Portuguese (pt-MZ). No English strings in user-facing text.
 | Banner — update button | "Verificar atualizações" |
 | Empty state — no active trip (existing, confirm) | "Sem viagem activa" + "Nova viagem" CTA |
 | Primary CTA — start trip | "Nova viagem" |
-| Primary CTA — save action | "Guardar" (with Save icon) |
+| Primary CTA — save fuel form | "Guardar abastecimento" (with Save icon) |
+| Primary CTA — save stop form | "Guardar paragem" (with Save icon) |
 | Error — network fail on bootstrap | "Sem rede — a trabalhar offline." |
 | Error — invalid odometer | "Informe uma quilometragem válida." |
 | Error — invalid fuel liters | "Informe os litros abastecidos." |

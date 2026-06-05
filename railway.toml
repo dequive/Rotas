@@ -1,0 +1,16 @@
+[deploy]
+# DEPLOY-04: Alembic migrations run BEFORE the new server version accepts traffic.
+# alembic/env.py reads DATABASE_URL from environment and auto-converts asyncpg → psycopg scheme.
+# IMPORTANT: Set DATABASE_URL in Railway env vars as postgresql+asyncpg://... (NOT postgresql://).
+preDeployCommand = ["alembic upgrade head"]
+
+# DEPLOY-02: Start command runs from repo root. backend/__init__.py makes this module path work.
+# Railway sets $PORT automatically — do not hardcode the port.
+startCommand = "uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT"
+
+# Health check: Railway waits for /health to return 200 before routing traffic.
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

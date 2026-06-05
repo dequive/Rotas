@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     # D-04: DATABASE_URL is required — app must refuse startup if absent.
     database_url: str = Field(validation_alias="DATABASE_URL")
 
+    # D-18: Admin DB for ARQ worker — uses rotas_admin role (BYPASSRLS)
+    # Default falls back to DATABASE_URL so local dev works without two URLs
+    admin_database_url: str = Field(default="", validation_alias="ADMIN_DATABASE_URL")
+    redis_host: str = Field(default="localhost", validation_alias="REDIS_HOST")
+    redis_port: int = Field(default=6381, validation_alias="REDIS_PORT")
+
     access_token_minutes: int = 15
     refresh_token_days: int = 30
 
@@ -26,6 +32,10 @@ class Settings(BaseSettings):
         default="redis://localhost:6381",
         validation_alias="REDIS_URL",
     )
+
+    @property
+    def resolved_admin_database_url(self) -> str:
+        return self.admin_database_url if self.admin_database_url else self.database_url
 
     model_config = SettingsConfigDict(
         env_file=(".env", "../.env"),

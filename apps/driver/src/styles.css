@@ -1,0 +1,675 @@
+:root {
+  color-scheme: light;
+  --ink: #172033;
+  --muted: #667085;
+  --line: #d8dee8;
+  --soft: #f5f7fa;
+  --panel: #ffffff;
+  --nav: #102033;
+  --blue: #2563eb;
+  --green: #16794c;
+  --orange: #b45309;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #e9edf3;
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button {
+  font: inherit;
+}
+
+.phone-shell {
+  min-height: 100vh;
+  width: 100vw;
+  max-width: min(390px, 100vw);
+  margin: 0;
+  background: var(--soft);
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+.top {
+  background: var(--nav);
+  color: white;
+  padding: 20px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.top span {
+  display: block;
+  color: #c9d7e8;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.top h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  display: grid;
+  place-items: center;
+}
+
+.icon-btn:disabled {
+  opacity: 0.7;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+.status-card,
+.panel {
+  margin: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.status-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.status-card p,
+.panel p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.status-card strong {
+  display: block;
+  margin-top: 4px;
+}
+
+.status-card span {
+  color: var(--green);
+  font-weight: 800;
+  font-size: 13px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 14px;
+}
+
+.actions button {
+  min-height: 88px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.actions svg {
+  color: var(--blue);
+}
+
+.panel h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.panel-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.panel-title h2 {
+  margin: 0;
+}
+
+.panel-title span {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.fuel-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.fuel-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.fuel-form label:nth-of-type(4),
+.fuel-form label:nth-of-type(5),
+.fuel-form label:nth-of-type(6),
+.fuel-form label:nth-of-type(7),
+.primary-action {
+  grid-column: 1 / -1;
+}
+
+.fuel-form input,
+.fuel-form select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  padding: 10px 12px;
+  font: inherit;
+}
+
+.fuel-form input[type="file"] {
+  padding: 8px;
+  font-size: 13px;
+}
+
+.primary-action {
+  min-height: 48px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--blue);
+  color: white;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.form-status {
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.form-status.failed {
+  color: #b42318;
+}
+
+.checklist-items {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.checklist-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.checklist-item strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.checklist-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.segmented button {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.segmented button.selected {
+  background: #e7f6ee;
+  border-color: #bfe8d1;
+  color: var(--green);
+}
+
+.segmented button.selected.danger {
+  background: #fff1f0;
+  border-color: #ffccc7;
+  color: #b42318;
+}
+
+.photo-field {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.photo-field input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  padding: 8px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.progress {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.progress span {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  background: #ffffff;
+}
+
+.progress span.done {
+  background: #e7f6ee;
+  color: var(--green);
+  border-color: #bfe8d1;
+}
+
+.offline-bar {
+  margin-top: auto;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  background: #fff4df;
+  color: var(--orange);
+  font-weight: 800;
+}
+
+.offline-bar span {
+  min-width: 0;
+}
+
+.offline-bar strong {
+  white-space: nowrap;
+}
+
+/* ── Pairing screen ─────────────────────── */
+.pairing-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--soft);
+}
+
+.pairing-card {
+  width: 340px;
+  max-width: 96vw;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 32px 24px;
+}
+
+.pairing-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--nav);
+  margin-bottom: 4px;
+}
+
+.pairing-subtitle {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 20px;
+}
+
+.pairing-instructions {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: #dbeafe;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 20px;
+  color: #1d4ed8;
+  font-size: 13px;
+}
+
+.pairing-instructions p {
+  margin: 0;
+}
+
+.pairing-form {
+  display: grid;
+  gap: 12px;
+}
+
+.pairing-input {
+  min-height: 56px;
+  padding: 0 16px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: white;
+  width: 100%;
+}
+
+.pairing-input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.pairing-btn {
+  min-height: 48px;
+  background: var(--blue);
+  color: white;
+  border: 0;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.pairing-btn:disabled {
+  opacity: 0.5;
+}
+
+.pairing-error {
+  color: #b42318;
+  font-size: 13px;
+  background: #fff1f0;
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 0;
+}
+
+/* ── Header actions ─────────────────────── */
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ── Status badges ──────────────────────── */
+.status-badge {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #e7f6ee;
+  color: var(--green);
+  white-space: nowrap;
+}
+
+.status-badge.pending_delivery_proof {
+  background: #fee4e2;
+  color: #b42318;
+}
+
+.status-badge.pending_delivery_validation {
+  background: #fff4df;
+  color: var(--orange);
+}
+
+.status-badge.billable {
+  background: #cffafe;
+  color: #0e7490;
+}
+
+/* ── Empty status card ──────────────────── */
+.status-card--empty {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.small-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--blue);
+  border-radius: 6px;
+  background: #dbeafe;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* ── Trip / generic form ─────────────────── */
+.trip-form {
+  display: grid;
+  gap: 14px;
+}
+
+.trip-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.trip-form input,
+.trip-form select,
+.trip-form textarea {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+
+.trip-form textarea {
+  padding: 10px 12px;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ── Back button ────────────────────────── */
+.back-btn {
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 0;
+}
+
+/* ── Photo upload ───────────────────────── */
+.photo-upload {
+  position: relative;
+}
+
+.photo-upload input[type="file"] {
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.photo-hint,
+.photo-selected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--muted);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.photo-selected {
+  color: var(--green);
+  border-style: solid;
+  border-color: #bfe8d1;
+  background: #e7f6ee;
+}
+
+/* ── Billing status text ─────────────────── */
+.billing-status-text {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ── Trip start panel ───────────────────── */
+.trip-start-panel {
+  flex: 1;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (min-width: 700px) {
+  .phone-shell {
+    margin: 0 auto;
+  }
+}
+
+/* ============================================================
+   SyncStatusBanner — Phase 2 PWA-01 / D-01 through D-09
+   Replaces the .offline-bar footer element.
+   ============================================================ */
+
+.sync-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  min-height: 48px;
+  margin-top: auto;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.0;
+  /* D-01/D-02/D-05: hidden by default when idle — display:none prevents layout shift */
+}
+
+.sync-banner[data-state="idle"] {
+  display: none;
+}
+
+/* D-01: Offline state — orange background (--orange: #b45309) */
+.sync-banner--offline {
+  background-color: #fff4df;
+  color: var(--orange, #b45309);
+}
+
+/* D-02: Syncing state — green background (--green: #16794c) */
+.sync-banner--syncing {
+  background-color: #e7f6ee;
+  color: var(--green, #16794c);
+}
+
+/* D-05: Error state — red background (existing .pairing-error palette) */
+.sync-banner--error {
+  background-color: #fff1f0;
+  color: #b42318;
+}
+
+/* D-06 / D-09: Session/revocation states — neutral warning */
+.sync-banner--session-expired,
+.sync-banner--access-revoked {
+  background-color: #fef9c3;
+  color: #854d0e;
+}
+
+/* D-03: Update available state — reuse .pairing-instructions blue palette */
+.sync-banner--update {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.sync-banner__message {
+  flex: 1;
+}
+
+/* D-03: "Verificar atualizações" button — secondary inline action, min-height 32px */
+.sync-banner__action {
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.sync-banner__action .small-btn {
+  min-height: 32px;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+}

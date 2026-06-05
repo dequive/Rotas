@@ -19,10 +19,10 @@ _Last updated: 2026-06-05_
 
 ### Autenticação Completa (AUTH)
 
-- [ ] **AUTH-01**: Token refresh no manager Next.js — renovação silenciosa do access token antes de expirar (access token 15 min, sem 401 silencioso após 15 min)
-- [ ] **AUTH-02**: Token refresh no driver PWA — renovação automática de token expirado via refresh token emitido no pareamento
+- [x] **AUTH-01**: Token refresh no manager Next.js — renovação silenciosa do access token antes de expirar (access token 15 min, sem 401 silencioso após 15 min)
+- [x] **AUTH-02**: Token refresh no driver PWA — renovação automática de token expirado via refresh token emitido no pareamento
 - [ ] **AUTH-03**: Endpoint `/api/v1/sync/batch` validado com `get_driver_principal` — apenas dispositivos de motorista autenticados podem submeter sincronizações
-- [ ] **AUTH-04**: Sync `update` implementado para todos os entity types (viagens, abastecimentos, paradas) — hoje apenas checklists suportados
+- [x] **AUTH-04**: Sync `update` implementado para todos os entity types (viagens, abastecimentos, paradas) — hoje apenas checklists suportados
 
 ### Billing e Faturamento (BILL)
 
@@ -89,9 +89,9 @@ _Last updated: 2026-06-05_
 | PWA-01 | Phase 2 | Pending |
 | PWA-02 | Phase 2 | Pending |
 | PWA-03 | Phase 2 | Pending |
-| AUTH-01 | Phase 2 | Pending |
-| AUTH-02 | Phase 2 | Pending |
-| AUTH-04 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Complete |
+| AUTH-02 | Phase 2 | Complete |
+| AUTH-04 | Phase 2 | Complete |
 | CT-01 | Phase 3 | Pending |
 | CT-02 | Phase 3 | Pending |
 | CT-03 | Phase 3 | Pending |

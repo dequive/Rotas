@@ -25,7 +25,7 @@ Phases are ordered by hard dependency: a security bypass is active (SEC-05), the
 | # | Phase | Goal | Requirements | Status |
 |---|-------|------|--------------|--------|
 | 1 | Security Hardening + Deploy Foundation | Backend is secure and deployed to production | SEC-01, SEC-02, SEC-03, SEC-04, SEC-05, AUTH-03, DEPLOY-01, DEPLOY-02, DEPLOY-03, DEPLOY-04 | Not Started |
-| 2 | PWA Offline-First Completion | 1/8 | In Progress|  |
+| 2 | PWA Offline-First Completion | 4/8 | In Progress|  |
 | 3 | Manager Dashboard + Reporting Layer | Managers can operate the fleet from a data-driven dashboard | CT-01, CT-02, CT-03, BILL-01, BILL-02, BILL-03, RPT-01, RPT-02 | Not Started |
 | 4 | Production Hardening + Scale Preparation | Multi-tenant production stability under real load | MAINT-01 + hardening items | Not Started |
 
@@ -105,7 +105,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — Wave 0: Test stubs (failing tests for AUTH-04, D-08, AUTH-01/02 refresh)
-- [ ] 02-02-PLAN.md — Wave 1: AUTH-04 backend (sync update handlers for trip, fuel_log, trip_stop, delivery_proof + patch service functions)
+- [x] 02-02-PLAN.md — Wave 1: AUTH-04 backend (sync update handlers for trip, fuel_log, trip_stop, delivery_proof + patch service functions)
 - [x] 02-03-PLAN.md — Wave 1: AUTH-01 + AUTH-02 token refresh (manager silent refresh + driver refresh with in-memory lock)
 - [x] 02-04-PLAN.md — Wave 1: D-08 driver access revocation (backend driver_access_revoked error code distinction)
 - [ ] 02-05-PLAN.md — Wave 2: PWA-01 + PWA-03 Service Worker (vite-plugin-pwa injectManifest + sw.ts + main.tsx Workbox registration)

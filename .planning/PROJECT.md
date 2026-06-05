@@ -31,11 +31,16 @@ _Funcionalidades já implementadas e operacionais no codebase:_
 
 _Gaps críticos e funcionalidades pendentes de completar para MVP em produção:_
 
-**Segurança e Infraestrutura (Critical):**
-- [ ] **SEC-01**: JWT_SECRET_KEY lido de variável de ambiente obrigatória — eliminar default `"change-me-in-env"`
-- [ ] **SEC-02**: CORS configurado corretamente para produção — domínios Vercel e mobile explícitos
-- [ ] **SEC-03**: Rate limiting em endpoints `/auth/login` e `/driver-auth/pair`
-- [ ] **SEC-04**: Cookies de sessão com flag `Secure` em produção
+**Segurança e Infraestrutura — Validado em Phase 1 (2026-06-05):**
+
+- ✓ **SEC-01**: JWT_SECRET_KEY `SecretStr` obrigatório — app recusa startup sem a env var
+- ✓ **SEC-02**: CORSMiddleware sempre anexado; produção bloqueia CORS_ORIGINS vazio/wildcard
+- ✓ **SEC-03**: slowapi 10 req/min em `/auth/login`, `/auth/refresh`, `/driver-auth/pair`
+- ✓ **SEC-04**: Cookies com `Secure=true` e `SameSite=lax` quando `NODE_ENV=production`
+- ✓ **SEC-05**: CVE-2025-61152 fechado — python-jose substituído por PyJWT>=2.8; alg=none rejeitado
+- ✓ **AUTH-03**: `/sync/batch` e `/sync/bootstrap` exigem `get_driver_principal` (scope=driver_app)
+- ✓ **DEPLOY-01**: ENVIRONMENT, DATABASE_URL, JWT_SECRET_KEY obrigatórios no startup
+- ✓ **DEPLOY-02/03/04**: railway.toml + vercel.json + NEXT_PUBLIC_API_URL prontos; deploy em produção adiado
 
 **PWA Offline-First (Critical):**
 - [ ] **PWA-01**: Service Worker implementado com Workbox — cache de assets, fila de sync em background

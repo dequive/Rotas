@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-06-05T18:30:47.670Z"
+last_updated: "2026-06-05T18:37:36.480Z"
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 20
-  completed_plans: 11
+  total_plans: 22
+  completed_plans: 12
 ---
 
 # ROTAS — Project State
@@ -81,6 +81,7 @@ Preparing to start Phase 1.
 | Phase 02-pwa-offline-first-completion P04 | 8m | 1 tasks | 2 files |
 | Phase 02-pwa-offline-first-completion P02 | 10 | 2 tasks | 7 files |
 | Phase 02-pwa-offline-first-completion P05 | 5 | 2 tasks | 5 files |
+| Phase 02-pwa-offline-first-completion P06 | 5 | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Preparing to start Phase 1.
 | _dispatch_update wraps patch calls in try/except for per-item error isolation | 2 | Batch HTTP stays 200; ApiError converts to failed result per item |
 | registerType: prompt not autoUpdate in VitePWA config | 2 | autoUpdate calls skipWaiting unconditionally — would reload app mid-trip while driver records delivery proof |
 | BackgroundSyncPlugin handles fetch exceptions only; Dexie handles HTTP errors | 2 | BackgroundSync only retries on network failure; 4xx/5xx need Dexie-level retry |
+| Icons generated with Pillow + Windows Arial Bold (proper 192x192/512x512) | 2 | Proper dimensions required — Chrome installability checker rejects icons smaller than declared size |
+| manifest.webmanifest in public/ is static fallback; live manifest from vite.config.mjs manifest block | 2 | VitePWA injectManifest strategy generates injected manifest from config, not public/ file |
 
 ### Blockers
 
@@ -111,7 +114,7 @@ _None yet — project not started._
 
 ## Session Continuity
 
-_Last session: 2026-06-05T18:30Z — Completed 02-pwa-offline-first-completion-05-PLAN.md_
+_Last session: 2026-06-05T18:36Z — Completed 02-pwa-offline-first-completion-06-PLAN.md (PWA-02: manifest + icons)_
 
 ---
 

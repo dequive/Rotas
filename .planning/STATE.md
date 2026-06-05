@@ -1,0 +1,107 @@
+# ROTAS — Project State
+_Last updated: 2026-06-05_
+
+---
+
+## Current Phase
+
+**Phase 1: Security Hardening + Deploy Foundation**
+
+---
+
+## Status
+
+Not Started
+
+---
+
+## Last Updated
+
+2026-06-05
+
+---
+
+## Phases
+
+| # | Name | Status | Completed |
+|---|------|--------|-----------|
+| 1 | Security Hardening + Deploy Foundation | Not Started | - |
+| 2 | PWA Offline-First Completion | Not Started | - |
+| 3 | Manager Dashboard + Reporting Layer | Not Started | - |
+| 4 | Production Hardening + Scale Preparation | Not Started | - |
+
+---
+
+## Progress Bar
+
+```
+Phase 1 [..........] 0%
+Phase 2 [..........] 0%
+Phase 3 [..........] 0%
+Phase 4 [..........] 0%
+```
+
+---
+
+## Current Focus
+
+Preparing to start Phase 1.
+
+**Immediate priority**: SEC-05 — Migrate `python-jose` to `PyJWT >= 2.8` to close CVE-2025-61152 (active auth bypass — tokens with `alg=none` accepted without signature verification).
+
+**Phase 1 requirements**: SEC-01, SEC-02, SEC-03, SEC-04, SEC-05, AUTH-03, DEPLOY-01, DEPLOY-02, DEPLOY-03, DEPLOY-04
+
+---
+
+## Performance Metrics
+
+| Metric | Value |
+|--------|-------|
+| Phases complete | 0 / 4 |
+| Requirements complete | 0 / 25 |
+| Plans complete | - |
+
+---
+
+## Accumulated Context
+
+### Key Decisions
+
+| Decision | Phase | Rationale |
+|----------|-------|-----------|
+| SEC-05 (python-jose → PyJWT) first in Phase 1 | 1 | Active CVE — auth bypass active before any external user |
+| Cross-tenant regression tests before CT-01 | 1 → 3 | CT-01 query rewrite is highest-risk window for cross-tenant data leaks |
+| ARQ for background jobs (PDF, XLSX, KPI refresh) | 3 | Uses Redis already provisioned; asyncio-native; avoids blocking HTTP responses |
+| SW served with Cache-Control: no-store | 2 | Broken cached SW is unrecoverable on low-cost Android — cannot be fixed server-side |
+| Field testing on real Android hardware required to close Phase 2 | 2 | Background Sync API compatibility must be confirmed on target hardware |
+
+### Blockers
+
+_None yet — project not started._
+
+### Todos
+
+- [ ] Confirm `tailwind.config.*` exists in `apps/manager/` before Phase 3 dashboard work
+- [ ] Fix Node.js to `"engines": { "node": "20.x" }` in all `package.json` before Vercel deploy
+
+---
+
+## Session Continuity
+
+_No sessions recorded yet._
+
+---
+
+## Project Reference
+
+**Core value**: A Mozambican driver can complete an entire trip — departure, refueling, stops, and delivery proof — without connectivity, and all data arrives intact at the manager when signal returns.
+
+**Stack**: FastAPI 0.115 + Python 3.12 + SQLAlchemy 2.0 async + PostgreSQL 16 / Next.js 14 App Router + React 18 + Tailwind / Vite + Dexie.js 4
+
+**Deploy target**: Vercel (manager) + Railway or Render (backend FastAPI)
+
+**Roadmap**: `.planning/ROADMAP.md`
+
+**Requirements**: `.planning/REQUIREMENTS.md`
+
+**Codebase analysis**: `.planning/codebase/` (7 documents, generated 2026-06-04)

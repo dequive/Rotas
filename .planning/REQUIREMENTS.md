@@ -74,14 +74,30 @@ _Last updated: 2026-06-05_
 
 ## Traceability
 
-_Preenchido pelo roadmapper._
-
-| Requirement | Phase |
-|-------------|-------|
-| SEC-01..05 | — |
-| PWA-01..03 | — |
-| AUTH-01..04 | — |
-| BILL-01..03 | — |
-| CT-01..03 | — |
-| DEPLOY-01..04 | — |
-| RPT-01..02 | — |
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| SEC-01 | Phase 1 | Pending |
+| SEC-02 | Phase 1 | Pending |
+| SEC-03 | Phase 1 | Pending |
+| SEC-04 | Phase 1 | Pending |
+| SEC-05 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| DEPLOY-01 | Phase 1 | Pending |
+| DEPLOY-02 | Phase 1 | Pending |
+| DEPLOY-03 | Phase 1 | Pending |
+| DEPLOY-04 | Phase 1 | Pending |
+| PWA-01 | Phase 2 | Pending |
+| PWA-02 | Phase 2 | Pending |
+| PWA-03 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Pending |
+| AUTH-02 | Phase 2 | Pending |
+| AUTH-04 | Phase 2 | Pending |
+| CT-01 | Phase 3 | Pending |
+| CT-02 | Phase 3 | Pending |
+| CT-03 | Phase 3 | Pending |
+| BILL-01 | Phase 3 | Pending |
+| BILL-02 | Phase 3 | Pending |
+| BILL-03 | Phase 3 | Pending |
+| RPT-01 | Phase 3 | Pending |
+| RPT-02 | Phase 3 | Pending |
+| MAINT-01 | Phase 4 | Pending |

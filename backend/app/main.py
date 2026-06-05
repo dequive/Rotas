@@ -1,5 +1,10 @@
+from contextlib import asynccontextmanager
+
+import arq
+from arq.connections import RedisSettings as ArqRedisSettings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from redis.asyncio import Redis
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -36,7 +41,36 @@ from app.modules.workshop.router import router as workshop_router
 settings = get_settings()
 import_all_models()
 
-app = FastAPI(title=settings.app_name, version=settings.version)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize plain Redis client for CT cache-aside (redis.asyncio.Redis)
+    try:
+        app.state.redis = Redis.from_url(settings.redis_url, decode_responses=True)
+        await app.state.redis.ping()
+    except Exception:
+        # Redis unavailable — CT will fall back to direct DB queries
+        app.state.redis = None
+
+    # Initialize ARQ Redis pool for background job enqueue (arq.connections.ArqRedis)
+    # NOTE: app.state.redis is for GET/SET cache ops; app.state.arq_redis is for enqueue_job()
+    # They are DIFFERENT objects — do not substitute one for the other.
+    try:
+        app.state.arq_redis = await arq.create_pool(
+            ArqRedisSettings.from_dsn(settings.redis_url)
+        )
+    except Exception:
+        app.state.arq_redis = None
+
+    yield
+
+    if app.state.redis is not None:
+        await app.state.redis.aclose()
+    if app.state.arq_redis is not None:
+        await app.state.arq_redis.aclose()
+
+
+app = FastAPI(title=settings.app_name, version=settings.version, lifespan=lifespan)
 # SEC-03: Rate limiting — limiter state and 429 exception handler
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

@@ -27,7 +27,7 @@ Phases are ordered by hard dependency: a security bypass is active (SEC-05), the
 | 1 | Security Hardening + Deploy Foundation | Backend is secure and deployed to production | SEC-01, SEC-02, SEC-03, SEC-04, SEC-05, AUTH-03, DEPLOY-01, DEPLOY-02, DEPLOY-03, DEPLOY-04 | Not Started |
 | 2 | PWA Offline-First Completion | 5/8 | In Progress|  |
 | 3 | Manager Dashboard + Reporting Layer | Managers can operate the fleet from a data-driven dashboard | CT-01, CT-02, CT-03, BILL-01, BILL-02, BILL-03, RPT-01, RPT-02 | Not Started |
-| 4 | Production Hardening + Scale Preparation | Multi-tenant production stability under real load | MAINT-01 + hardening items | Not Started |
+| 4 | Production Hardening + Scale Preparation | 1/9 | In Progress|  |
 
 ---
 
@@ -201,7 +201,7 @@ Plans:
 **Plans**: 9 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Wave 1: Deps install (arq, gunicorn, redis[asyncio]) + test stubs for all Phase 4 behaviors
+- [x] 04-01-PLAN.md — Wave 1: Deps install (arq, gunicorn, redis[asyncio]) + test stubs for all Phase 4 behaviors
 - [ ] 04-02-PLAN.md — Wave 2: MAINT-01 scheduler (WorkOrder creation + next-cycle + imminent alerts) (MAINT-01)
 - [ ] 04-03-PLAN.md — Wave 3: MAINT-01 ARQ worker + odometer event trigger (MAINT-01)
 - [ ] 04-04-PLAN.md — Wave 2: Driver scorecard API (get_driver_scorecard + endpoint) (MAINT-01 adjacent)

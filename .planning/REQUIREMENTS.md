@@ -100,4 +100,4 @@ _Last updated: 2026-06-05_
 | BILL-03 | Phase 3 | Pending |
 | RPT-01 | Phase 3 | Pending |
 | RPT-02 | Phase 3 | Pending |
-| MAINT-01 | Phase 4 | Pending |
+| MAINT-01 | Phase 4 | Complete |

@@ -1,4 +1,3 @@
-import os
 import pytest
 from pydantic import ValidationError
 
@@ -19,7 +18,7 @@ async def test_missing_jwt_secret_raises_validation_error(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "development")
     with pytest.raises((ValidationError, SystemExit)):
         from app.config import Settings
-        Settings()
+        Settings(_env_file=None)
 
 
 async def test_missing_environment_raises_validation_error(monkeypatch):
@@ -30,7 +29,7 @@ async def test_missing_environment_raises_validation_error(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://rotas:rotas@localhost:55432/rotas")
     with pytest.raises((ValidationError, SystemExit)):
         from app.config import Settings
-        Settings()
+        Settings(_env_file=None)
 
 
 async def test_production_cors_origins_empty_raises(monkeypatch):
@@ -42,7 +41,7 @@ async def test_production_cors_origins_empty_raises(monkeypatch):
     monkeypatch.delenv("CORS_ORIGINS", raising=False)
     with pytest.raises((ValidationError, ValueError)):
         from app.config import Settings
-        Settings()
+        Settings(_env_file=None)
 
 
 async def test_production_cors_wildcard_raises(monkeypatch):
@@ -54,4 +53,4 @@ async def test_production_cors_wildcard_raises(monkeypatch):
     monkeypatch.setenv("CORS_ORIGINS", '["*"]')
     with pytest.raises((ValidationError, ValueError)):
         from app.config import Settings
-        Settings()
+        Settings(_env_file=None)

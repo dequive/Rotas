@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -66,4 +66,38 @@ class BillingItem(Base):
     status: Mapped[str] = mapped_column(String(30), default="draft", index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class ExportJob(Base):
+    """Tracks async billing export jobs (PDF/XLSX) processed by the ARQ worker."""
+
+    __tablename__ = "export_jobs"
+    __table_args__ = (
+        Index("ix_export_jobs_tenant_status", "tenant_id", "status"),
+        Index("ix_export_jobs_tenant_entity_type", "tenant_id", "entity_id", "job_type"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id"), nullable=False
+    )
+    job_type: Mapped[str] = mapped_column(
+        String(30), nullable=False
+    )  # 'billing_pdf', 'billing_xlsx'
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )  # billing_document_id
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="queued"
+    )  # queued|processing|done|failed
+    file_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

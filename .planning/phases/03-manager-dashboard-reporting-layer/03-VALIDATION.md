@@ -38,15 +38,15 @@ created: 2026-06-05
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 3-01-01 | 01 | 0 | CT-01 | unit | `pytest tests/test_control_tower.py -x -q` | ❌ W0 | ⬜ pending |
-| 3-01-02 | 01 | 0 | CT-02 | unit | `pytest tests/test_redis_cache.py -x -q` | ❌ W0 | ⬜ pending |
-| 3-01-03 | 01 | 1 | CT-01 | integration | `pytest tests/test_control_tower.py -k "n_plus_one" -v` | ❌ W0 | ⬜ pending |
-| 3-01-04 | 01 | 1 | CT-03 | integration | `pytest tests/test_control_tower.py -k "pagination" -v` | ❌ W0 | ⬜ pending |
-| 3-02-01 | 02 | 0 | BILL-01 | unit | `pytest tests/test_exporters.py -k "pdf" -x -q` | ❌ W0 | ⬜ pending |
-| 3-02-02 | 02 | 0 | BILL-02 | unit | `pytest tests/test_exporters.py -k "xlsx" -x -q` | ❌ W0 | ⬜ pending |
-| 3-02-03 | 02 | 1 | BILL-03 | integration | `pytest tests/test_billing.py -k "waiver" -v` | ❌ W0 | ⬜ pending |
-| 3-03-01 | 03 | 1 | RPT-01 | integration | `pytest tests/test_analytics.py -x -q` | ❌ W0 | ⬜ pending |
-| 3-03-02 | 03 | 1 | RPT-02 | integration | `pytest tests/test_analytics.py -k "expiry" -v` | ❌ W0 | ⬜ pending |
+| 3-01-01 | 01 | 0 | CT-01 | unit | `pytest tests/test_control_tower_optimized.py -x -q` | ❌ W0 | ⬜ pending |
+| 3-01-02 | 01 | 0 | CT-02 | unit | `pytest tests/test_control_tower_optimized.py -k "cache" -x -q` | ❌ W0 | ⬜ pending |
+| 3-01-03 | 01 | 1 | CT-01 | integration | `pytest tests/test_control_tower_optimized.py -k "n_plus_one" -v` | ❌ W0 | ⬜ pending |
+| 3-01-04 | 01 | 1 | CT-03 | integration | `pytest tests/test_control_tower_optimized.py -k "pagination" -v` | ❌ W0 | ⬜ pending |
+| 3-02-01 | 02 | 0 | BILL-01 | unit | `pytest tests/test_billing_export.py -k "pdf" -x -q` | ❌ W0 | ⬜ pending |
+| 3-02-02 | 02 | 0 | BILL-02 | unit | `pytest tests/test_billing_export.py -k "xlsx" -x -q` | ❌ W0 | ⬜ pending |
+| 3-02-03 | 02 | 1 | BILL-03 | integration | `pytest tests/test_waiver_flow.py -k "waiver" -v` | ❌ W0 | ⬜ pending |
+| 3-03-01 | 03 | 1 | RPT-01 | integration | `pytest tests/test_analytics_api.py -x -q` | ❌ W0 | ⬜ pending |
+| 3-03-02 | 03 | 1 | RPT-02 | integration | `pytest tests/test_analytics_api.py -k "expiry" -v` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -54,10 +54,10 @@ created: 2026-06-05
 
 ## Wave 0 Requirements
 
-- [ ] `backend/tests/test_control_tower.py` — stubs for CT-01, CT-02, CT-03 (N+1 query count assertions, Redis cache hit/miss, pagination)
-- [ ] `backend/tests/test_exporters.py` — stubs for BILL-01, BILL-02 (PDF UTF-8 output, XLSX column format)
-- [ ] `backend/tests/test_billing.py` — extend with waiver flow stubs for BILL-03
-- [ ] `backend/tests/test_analytics.py` — stubs for RPT-01 (KPI calculations), RPT-02 (document expiry query)
+- [ ] `backend/tests/test_control_tower_optimized.py` — stubs for CT-01, CT-02, CT-03 (N+1 query count assertions, Redis cache hit/miss, pagination)
+- [ ] `backend/tests/test_billing_export.py` — stubs for BILL-01, BILL-02 (PDF UTF-8 output, XLSX column format)
+- [ ] `backend/tests/test_waiver_flow.py` — stubs for BILL-03 (waiver create/approve/reject flow)
+- [ ] `backend/tests/test_analytics_api.py` — stubs for RPT-01 (KPI calculations), RPT-02 (document expiry query)
 - [ ] `backend/tests/conftest.py` — add Redis mock fixture and ARQ worker fixture
 
 ---

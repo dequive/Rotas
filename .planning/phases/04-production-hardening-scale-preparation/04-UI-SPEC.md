@@ -1,7 +1,8 @@
 ---
 phase: 4
 slug: production-hardening-scale-preparation
-status: draft
+status: approved
+reviewed_at: 2026-06-05
 shadcn_initialized: false
 preset: none
 created: 2026-06-05
@@ -66,17 +67,17 @@ Declared values — all multiples of 4:
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs | 4px | Icon gaps, tight inline padding |
-| sm | 8px | Between list items, badge padding |
+| sm | 8px | Between list items |
 | md | 16px | Default card internal padding, form gap |
 | lg | 24px | Section padding, `.main` padding |
 | xl | 32px | Major section vertical breaks |
 | 2xl | 48px | Page-level vertical spacing |
 | 3xl | 64px | Not used in Phase 4 additions |
 
+Existing `.badge` and nav item padding values in `globals.css` are inherited constraints outside Phase 4 scope — do not redefine.
+
 Exceptions:
-- Scorecard score badge: 3px 8px padding (inherits `.badge` class — existing exception in globals.css)
 - Maintenance imminent panel header icon: 28×28px marker (inherits `.history-marker` — existing pattern)
-- Nav items: 10px 12px padding (existing — do not modify)
 
 ---
 
@@ -88,11 +89,11 @@ All roles use the system font stack (Arial, Helvetica, sans-serif) — no web fo
 |------|------|--------|-------------|-------|
 | Body | 14px | 400 (regular) | 1.5 | Table cells, list item descriptions, panel body text |
 | Label | 12px | 700 (bold) | 1.4 | Column headers, metadata, badge text, muted data labels |
-| Heading | 21px | 800 (extrabold) | 1.2 | Section headings (`.domain-heading h2`), score display value |
+| Heading | 21px | 700 (bold) | 1.2 | Section headings (`.domain-heading h2`), score display value |
 | Display | 26px | 700 (bold) | 1.2 | Page title h1 (`.page-header h1`) |
 
 Phase 4 additions specifically:
-- Scorecard score number: 21px weight 800 — uses `.transport-kpi strong` pattern
+- Scorecard score number: 21px weight 700 — uses `.transport-kpi strong` pattern
 - Score tier label (Verde / Amarelo / Vermelho): 12px weight 700 — uses `.badge` pattern
 - Maintenance panel section title: 14px weight 700 — uses `.worklist h2` pattern
 - "Sem dados" / "Dados insuficientes" text: 14px weight 400, color `--muted`
@@ -290,14 +291,14 @@ No third-party component registries. All new UI uses existing bespoke CSS classe
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-06-05
 
 ---
 

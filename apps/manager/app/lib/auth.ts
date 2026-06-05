@@ -43,6 +43,7 @@ async function login(email: string, password: string): Promise<{ error?: string 
     }
     const data = (await res.json()) as {
       access_token: string;
+      refresh_token: string;
       user: { id: string; tenant_id: string; role: string; full_name: string };
     };
     const jar = await cookies();
@@ -60,9 +61,63 @@ async function login(email: string, password: string): Promise<{ error?: string 
     jar.set("rotas_user_id", String(data.user.id), opts);
     jar.set("rotas_role", data.user.role, opts);
     jar.set("rotas_full_name", data.user.full_name, opts);
+    // AUTH-01: store refresh_token for silent refresh support
+    // maxAge: 30 days (matches backend refresh_token_days setting)
+    jar.set("rotas_refresh_token", data.refresh_token, {
+      httpOnly: true,
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+      secure: isProduction,
+      sameSite: "lax" as const,
+    });
     return {};
   } catch {
     return { error: "Servidor indisponível." };
+  }
+}
+
+export async function refreshAccessToken(): Promise<string | null> {
+  // AUTH-01: silently refresh the access token using the stored refresh_token cookie.
+  // Called by apiFetch() on 401 — never called directly by components.
+  try {
+    const jar = await cookies();
+    const refreshToken = jar.get("rotas_refresh_token")?.value;
+    if (!refreshToken) return null;
+
+    const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      // Refresh failed — clear the stale refresh_token to prevent infinite retry
+      jar.delete("rotas_refresh_token");
+      return null;
+    }
+
+    const data = (await res.json()) as {
+      access_token: string;
+      refresh_token: string;
+    };
+
+    const isProduction = process.env.NODE_ENV === "production";
+    const opts = {
+      httpOnly: true,
+      path: "/",
+      secure: isProduction,
+      sameSite: "lax" as const,
+    };
+
+    // Update access_token cookie (keep 8h session window)
+    jar.set("rotas_access_token", data.access_token, { ...opts, maxAge: 60 * 60 * 8 });
+    // Rotate refresh_token (token rotation — old one is now invalid)
+    jar.set("rotas_refresh_token", data.refresh_token, { ...opts, maxAge: 60 * 60 * 24 * 30 });
+
+    return data.access_token;
+  } catch {
+    return null;
   }
 }
 
@@ -73,5 +128,6 @@ async function logout() {
   jar.delete("rotas_user_id");
   jar.delete("rotas_role");
   jar.delete("rotas_full_name");
+  jar.delete("rotas_refresh_token"); // AUTH-01: clean up refresh token on logout
   redirect("/login");
 }

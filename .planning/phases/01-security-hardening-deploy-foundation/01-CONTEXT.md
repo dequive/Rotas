@@ -49,7 +49,7 @@ This phase does NOT cover: Service Worker / PWA (Phase 2), Control Tower optimiz
 - **D-17:** Required Railway env vars: `JWT_SECRET_KEY`, `DATABASE_URL` (Railway PostgreSQL add-on URL), `ENVIRONMENT=production`, `CORS_ORIGINS`.
 
 ### Manager Deploy — Vercel (DEPLOY-03)
-- **D-18:** `vercel.json` at `apps/manager/` with rewrite rules for Next.js App Router. `NEXT_PUBLIC_API_URL` env var pointing to Railway backend URL.
+- **D-18:** `vercel.json` at `apps/manager/vercel.json` with rewrite rules for Next.js App Router. `NEXT_PUBLIC_API_URL` env var pointing to Railway backend URL. Update `apps/manager/app/lib/api.ts` and `apps/manager/app/lib/auth.ts` to read `process.env.NEXT_PUBLIC_API_URL` instead of `process.env.ROTAS_API_BASE_URL`.
 - **D-19:** Pin Node.js to `"engines": { "node": "20.x" }` in root `package.json` and `apps/manager/package.json`. This is a prerequisite for Vercel deploy (currently unset).
 - **D-20:** Domain: use Vercel-assigned URL for now (e.g., `rotas-manager.vercel.app`). Updatable via env var later for custom domain.
 

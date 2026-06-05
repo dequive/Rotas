@@ -144,9 +144,23 @@ Plans:
 - **BILL-03 (Negative margin waiver)**: The billing queue endpoint must reject trips with `margin < 0` unless a `waiver_id` is attached. The waiver model requires supervisor role authorization. Test with a trip that has margin < 0 and confirm it cannot be invoiced without supervisor approval.
 - **RPT-01 (KPI dashboard)**: Cost-per-km per vehicle (fuel cost + stop costs / total km), fleet utilization % (active trips / total vehicles), fuel consumption trend (L/100km rolling 30 days), trip summary per driver. All metrics filtered by `tenant_id` — mandatory.
 - **RPT-02 (Document expiry alerts)**: Query vehicles and drivers where any compliance document expires within 30 days. Proactive alert panel shows before the reactive departure block fires. This is display-only in Phase 3; notification delivery (email/WhatsApp) is v2.
-- **Pre-Phase prerequisite**: Confirm `tailwind.config.*` exists in `apps/manager/` before writing dashboard UI — shadcn/ui requires Tailwind config. Fix Node.js to `"engines": { "node": "20.x" }` in all `package.json` files.
+- **Pre-Phase prerequisite**: Confirm `tailwind.config.*` exists in `apps/manager/` before writing dashboard UI — shadcn/ui requires Tailwind config. Fix Node.js to `"engines": { "node": "20.x"` in all `package.json` files.
 
-**Plans**: TBD
+**Plans**: 12 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Wave 0: Test stubs for all Phase 3 behaviors (CT-01, CT-02, CT-03, BILL-01/02/03, RPT-01/02) + conftest fixtures
+- [ ] 03-02-PLAN.md — Wave 1: CT-01 N+1 query rewrite + CT-03 pagination + redis[asyncio] dependency (CT-01, CT-02, CT-03)
+- [ ] 03-03-PLAN.md — Wave 1: CT-02 Redis cache-aside + ARQ worker scaffold + ExportJob model + migration (CT-02)
+- [ ] 03-04-PLAN.md — Wave 1: BILL-03 waiver workflow backend (POST /billing/waivers + approve/reject endpoints + RBAC) (BILL-03)
+- [ ] 03-05-PLAN.md — Wave 1: RPT-01 analytics KPI endpoint + RPT-02 document expiry endpoint (RPT-01, RPT-02)
+- [ ] 03-06-PLAN.md — Wave 2: BILL-01 PDF (fpdf2 + DejaVuSans) + BILL-02 XLSX (openpyxl) + ARQ export jobs (BILL-01, BILL-02)
+- [ ] 03-07-PLAN.md — Wave 1: Tailwind v3 + shadcn@2.3.0 install in apps/manager + tailwind.config.ts + 10 components (D-01, D-02)
+- [ ] 03-08-PLAN.md — Wave 2: Migrate SidebarLayout + ControlTowerOverview + CostMarginBoard to Tailwind + /analytics nav entry (D-03, D-05)
+- [ ] 03-09-PLAN.md — Wave 2: Migrate FleetComplianceBoard + BillingTripActions + FuelControlBoard + FleetHistoryBoard + Transport/Driver boards (D-03)
+- [ ] 03-10-PLAN.md — Wave 3: Waiver modals + export job polling UI in BillingTripActions (BILL-01, BILL-02, BILL-03 frontend)
+- [ ] 03-11-PLAN.md — Wave 3: /analytics page with KPI cards + driver summary + document expiry panel (RPT-01, RPT-02 frontend)
+- [ ] 03-12-PLAN.md — Wave 4: Phase 3 verification checkpoint (all backend tests + frontend build + full UX verification)
 
 **UI hint**: yes
 
@@ -183,7 +197,18 @@ Plans:
 - **Gunicorn**: `gunicorn -w 4 -k uvicorn.workers.UvicornWorker` in `railway.toml` start command. Set `--timeout 30` for long-running sync batch processing. Tune worker count to Railway instance memory (2 workers per GB RAM as baseline).
 - **RLS consideration**: PostgreSQL Row Level Security as a second isolation layer (defense-in-depth) was deferred from Phase 1. Evaluate adding it in Phase 4 once the query rewrite (CT-01) and index audit are complete. This is a low-risk window — all queries already filter by `tenant_id`.
 
-**Plans**: TBD
+**Plans**: 9 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Wave 1: Deps install (arq, gunicorn, redis[asyncio]) + test stubs for all Phase 4 behaviors
+- [ ] 04-02-PLAN.md — Wave 2: MAINT-01 scheduler (WorkOrder creation + next-cycle + imminent alerts) (MAINT-01)
+- [ ] 04-03-PLAN.md — Wave 3: MAINT-01 ARQ worker + odometer event trigger (MAINT-01)
+- [ ] 04-04-PLAN.md — Wave 2: Driver scorecard API (get_driver_scorecard + endpoint) (MAINT-01 adjacent)
+- [ ] 04-05-PLAN.md — Wave 2: Decimal type annotation cleanup (Mapped[float] → Mapped[Decimal] on Numeric columns)
+- [ ] 04-06-PLAN.md — Wave 3: Composite indexes Alembic migration (10 indexes, CONCURRENTLY, D-14)
+- [ ] 04-07-PLAN.md — Wave 3: Gunicorn railway.toml + pool tuning + checkpoint (D-12, D-13)
+- [ ] 04-08-PLAN.md — Wave 4: PostgreSQL RLS (event listener + Alembic migration + ALEMBIC_DATABASE_URL) (D-16–D-19)
+- [ ] 04-09-PLAN.md — Wave 4: UI — DriverScorecardPanel + MaintenanceImminentPanel + page integration + checkpoint
 
 **UI hint**: yes
 
@@ -231,5 +256,5 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Security Hardening + Deploy Foundation | 0/6 | Not started | - |
 | 2. PWA Offline-First Completion | 0/8 | Not started | - |
-| 3. Manager Dashboard + Reporting Layer | 0/- | Not started | - |
-| 4. Production Hardening + Scale Preparation | 0/- | Not started | - |
+| 3. Manager Dashboard + Reporting Layer | 0/12 | Not started | - |
+| 4. Production Hardening + Scale Preparation | 0/9 | Not started | - |

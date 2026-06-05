@@ -27,7 +27,7 @@ Phases are ordered by hard dependency: a security bypass is active (SEC-05), the
 | 1 | Security Hardening + Deploy Foundation | Backend is secure and deployed to production | SEC-01, SEC-02, SEC-03, SEC-04, SEC-05, AUTH-03, DEPLOY-01, DEPLOY-02, DEPLOY-03, DEPLOY-04 | Not Started |
 | 2 | PWA Offline-First Completion | 5/8 | In Progress|  |
 | 3 | Manager Dashboard + Reporting Layer | Managers can operate the fleet from a data-driven dashboard | CT-01, CT-02, CT-03, BILL-01, BILL-02, BILL-03, RPT-01, RPT-02 | Not Started |
-| 4 | Production Hardening + Scale Preparation | 6/9 | In Progress|  |
+| 4 | Production Hardening + Scale Preparation | 7/9 | In Progress|  |
 
 ---
 

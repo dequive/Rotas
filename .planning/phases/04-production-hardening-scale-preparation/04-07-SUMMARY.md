@@ -50,11 +50,15 @@ Gunicorn 4-worker Railway deployment config with production DB connection pool t
 
 ## Checkpoint Status
 
-This plan paused at `checkpoint:human-verify` after Task 1. The user must:
-1. Review backend/railway.toml — confirm gunicorn command matches Railway project layout
-2. Run `cd backend && gunicorn --check-config -k uvicorn.workers.UvicornWorker app.main:app` locally
-3. Confirm `python -c "from app.jobs.worker import WorkerSettings; print(WorkerSettings)"` works (ARQ worker module)
-4. Verify pool_size=2, max_overflow=3 in database.py production block
+`checkpoint:human-verify` — APPROVED by user on 2026-06-05.
+
+Verification results confirmed by user:
+
+- Gunicorn works on Railway (Linux); Windows local test not applicable
+- ARQ worker imports correctly (`WorkerSettings` confirmed with `.venv/Scripts/python.exe`)
+- Docker infra (PostgreSQL + Redis) confirmed running
+- Alembic migrations applied successfully (heads merged)
+- `ADMIN_DATABASE_URL` set to same as `DATABASE_URL` in Railway until 04-08 (RLS) is complete
 
 ## Deviations from Plan
 

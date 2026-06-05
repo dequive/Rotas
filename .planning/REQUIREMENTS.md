@@ -13,9 +13,9 @@ _Last updated: 2026-06-05_
 
 ### PWA Offline-First (PWA)
 
-- [ ] **PWA-01**: Service Worker implementado com `vite-plugin-pwa` (estratégia `injectManifest`) e `workbox-background-sync` — fila de sync em background para `POST /api/v1/sync/batch`
+- [x] **PWA-01**: Service Worker implementado com `vite-plugin-pwa` (estratégia `injectManifest`) e `workbox-background-sync` — fila de sync em background para `POST /api/v1/sync/batch`
 - [ ] **PWA-02**: Web App Manifest com ícones, `display: standalone`, tema e nome da app — PWA instalável em Android
-- [ ] **PWA-03**: Estratégia de cache network-first para chamadas API e offline fallback para assets estáticos — app carrega sem conexão
+- [x] **PWA-03**: Estratégia de cache network-first para chamadas API e offline fallback para assets estáticos — app carrega sem conexão
 
 ### Autenticação Completa (AUTH)
 
@@ -86,9 +86,9 @@ _Last updated: 2026-06-05_
 | DEPLOY-02 | Phase 1 | Pending |
 | DEPLOY-03 | Phase 1 | Pending |
 | DEPLOY-04 | Phase 1 | Pending |
-| PWA-01 | Phase 2 | Pending |
+| PWA-01 | Phase 2 | Complete |
 | PWA-02 | Phase 2 | Pending |
-| PWA-03 | Phase 2 | Pending |
+| PWA-03 | Phase 2 | Complete |
 | AUTH-01 | Phase 2 | Complete |
 | AUTH-02 | Phase 2 | Complete |
 | AUTH-04 | Phase 2 | Complete |

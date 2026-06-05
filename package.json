@@ -1,0 +1,17 @@
+{
+  "name": "rotas",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:manager": "npm --workspace apps/manager run dev",
+    "dev:driver": "npm --workspace apps/driver run dev",
+    "lint": "npm --workspaces run lint",
+    "typecheck": "npm --workspaces run typecheck"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}

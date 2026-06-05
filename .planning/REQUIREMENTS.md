@@ -45,8 +45,8 @@ _Last updated: 2026-06-05_
 
 ### Reporting e Analytics (RPT)
 
-- [ ] **RPT-01**: Dashboard de KPIs de gestão com custo-por-km por viatura, utilização de frota, tendências de consumo de combustível e resumo de viagens por motorista — gestor consegue tomar decisões operacionais baseadas em dados
-- [ ] **RPT-02**: Alertas proativos de vencimento de documentos (30/15/7 dias) — viaturas e motoristas com documentos prestes a vencer aparecem em painel antes do bloqueio reativo
+- [x] **RPT-01**: Dashboard de KPIs de gestão com custo-por-km por viatura, utilização de frota, tendências de consumo de combustível e resumo de viagens por motorista — gestor consegue tomar decisões operacionais baseadas em dados
+- [x] **RPT-02**: Alertas proativos de vencimento de documentos (30/15/7 dias) — viaturas e motoristas com documentos prestes a vencer aparecem em painel antes do bloqueio reativo
 
 ---
 
@@ -98,6 +98,6 @@ _Last updated: 2026-06-05_
 | BILL-01 | Phase 3 | Pending |
 | BILL-02 | Phase 3 | Pending |
 | BILL-03 | Phase 3 | Pending |
-| RPT-01 | Phase 3 | Pending |
-| RPT-02 | Phase 3 | Pending |
+| RPT-01 | Phase 3 | Complete |
+| RPT-02 | Phase 3 | Complete |
 | MAINT-01 | Phase 4 | Complete |

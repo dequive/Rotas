@@ -60,7 +60,15 @@ Phases are ordered by hard dependency: a security bypass is active (SEC-05), the
 - **SEC-04**: Set `Secure=True` on session cookies when `ENVIRONMENT=production`. Pair with `SameSite=Lax` or `Strict`.
 - **Cross-tenant regression tests before phase closes**: Write tests that confirm a query authenticated as tenant A cannot return data belonging to tenant B. These tests guard the CT-01 query rewrite in Phase 3.
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Wave 0: Test scaffolds (failing stubs for all security behaviors)
+- [ ] 01-02-PLAN.md — Wave 1: PyJWT migration (SEC-05) + config hardening (SEC-01, DEPLOY-01) + CORS fix (SEC-02) + sync auth lock (AUTH-03)
+- [ ] 01-03-PLAN.md — Wave 2: Rate limiting on auth endpoints (SEC-03) + secure cookies Next.js (SEC-04)
+- [ ] 01-04-PLAN.md — Wave 2: Cross-tenant isolation regression tests (D-21)
+- [ ] 01-05-PLAN.md — Wave 2: Deploy config — railway.toml, vercel.json, Node.js 20.x, .env.example (DEPLOY-02, DEPLOY-03, DEPLOY-04)
+- [ ] 01-06-PLAN.md — Wave 3: Checkpoint — deploy to Railway + Vercel, smoke test production URLs (DEPLOY-02, DEPLOY-03)
 
 **UI hint**: no
 
@@ -211,7 +219,7 @@ Phases are ordered by hard dependency: a security bypass is active (SEC-05), the
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Hardening + Deploy Foundation | 0/- | Not started | - |
+| 1. Security Hardening + Deploy Foundation | 0/6 | Not started | - |
 | 2. PWA Offline-First Completion | 0/- | Not started | - |
 | 3. Manager Dashboard + Reporting Layer | 0/- | Not started | - |
 | 4. Production Hardening + Scale Preparation | 0/- | Not started | - |

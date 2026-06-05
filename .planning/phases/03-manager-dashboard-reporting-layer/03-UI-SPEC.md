@@ -1,7 +1,8 @@
 ---
 phase: 3
 slug: manager-dashboard-reporting-layer
-status: draft
+status: approved
+reviewed_at: 2026-06-05T00:00:00Z
 shadcn_initialized: false
 preset: none
 created: 2026-06-05
@@ -56,14 +57,16 @@ Exceptions:
 
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
-| Body | 14px | 400 (regular) | 1.5 |
+| Body | 14px | implicit default (400) | 1.5 |
 | Label / caption | 12px | 700 (bold) | 1.4 |
 | Heading (section) | 21px | 800 (extrabold) | 1.2 |
-| Display (page title) | 26px | 800 (extrabold) | 1.2 |
+| Display (page title / KPI metric value) | 26px | 800 (extrabold) | 1.2 |
 
-**Source:** Extracted from existing `globals.css` — `.title h1` is 26px, `.domain-heading h2` is 21px, table cells and body copy are 14px, captions and metadata are 12px. Weights used are 700 and 800 (confirmed in `.brand`, `.tool-btn`, `.worklist-item span`, `.table th`). Two declared weights: 700 (semibold/bold labels) and 800 (extrabold for headings and KPI values). Body text uses browser default weight (400).
+**Declared weights:** 700 (bold — labels, captions, table headers) and 800 (extrabold — section headings, page titles, KPI metric values). Body text uses the browser implicit default weight (400) and is not a declared weight in this contract.
 
-**KPI metric exception:** KPI display numbers (`.tower-metric strong`, `.metric strong`) render at 22–25px to distinguish fleet counts at a glance. These are not headings — use `font-size: 22px; font-weight: 800` via Tailwind `text-[22px] font-extrabold`.
+**KPI metric values:** Fleet count and stat values in `.tower-metric strong` and `.metric strong` render at 26px extrabold (`text-[26px] font-extrabold`) — same scale as page display titles. This distinguishes fleet counts at a glance without introducing a fifth size.
+
+**Source:** Extracted from existing `globals.css` — `.title h1` is 26px, `.domain-heading h2` is 21px, table cells and body copy are 14px, captions and metadata are 12px. Weights confirmed in `.brand`, `.tool-btn`, `.worklist-item span`, `.table th`.
 
 ---
 
@@ -136,17 +139,17 @@ No `DatePicker` from shadcn — the analytics period filter uses a `<select>` wi
 
 **Request path (any manager/admin/owner):**
 1. Billing queue row with `margin < 0` shows badge "Margem negativa" (orange) and button "Solicitar waiver".
-2. Click opens a `Dialog` (540px wide) with: trip summary (route, margin value in red), mandatory textarea "Justificativa (obrigatório)", "Cancelar" (ghost) and "Submeter pedido" (primary) buttons.
+2. Click opens a `Dialog` (540px wide) with: trip summary (route, margin value in red), mandatory textarea "Justificativa (obrigatório)", "Abandonar pedido" (ghost) and "Submeter pedido" (primary) buttons.
 3. "Submeter pedido" is disabled until textarea has ≥ 10 characters.
 4. On submit: button shows spinner + "A submeter…". On success: dialog closes, row badge updates to "Waiver pendente" (blue).
 5. Error: inline `form-error` pattern inside dialog.
 
 **Approval path (owner/admin only — modal only visible to these roles):**
 1. Rows with `waiver_status = pending_approval` show button "Rever waiver" (cyan outline).
-2. Click opens a `Dialog` (680px wide — modal-wide) with: financial detail (margin, revenue, costs), justificativa do gestor, "Rejeitar" (destructive outline) and "Aprovar" (primary) buttons.
+2. Click opens a `Dialog` (680px wide — modal-wide) with: financial detail (margin, revenue, costs), justificativa do gestor, "Rejeitar waiver" (destructive outline) and "Aprovar waiver" (primary) buttons.
 3. On approve: dialog closes, row badge changes to "Aprovado" (green), trip enters billing queue.
 4. On reject: dialog closes, row badge changes to "Rejeitado" (red), trip stays blocked.
-5. Destructive confirmation: "Rejeitar" button has NO additional confirmation dialog — the rejection is reversible (a new waiver can be requested). Single click is sufficient.
+5. Destructive confirmation: "Rejeitar waiver" button has NO additional confirmation dialog — the rejection is reversible (a new waiver can be requested). Single click is sufficient.
 
 ### KPI Analytics Page (`/analytics`) (D-05 to D-07)
 
@@ -168,14 +171,15 @@ All table/queue views use cursor-style page navigation: "Anterior" / "Próximo" 
 | Primary CTA — export PDF | "Exportar PDF" |
 | Primary CTA — export XLSX | "Exportar XLSX" |
 | Primary CTA — waiver request | "Solicitar waiver" |
-| Primary CTA — waiver approve | "Aprovar" |
+| Primary CTA — waiver approve | "Aprovar waiver" |
+| Primary CTA — waiver reject | "Rejeitar waiver" |
 | Primary CTA — billing | "Cobrar" |
 | Export in progress | "A gerar…" (button) / "A processar exportação…" (inline) |
 | Export ready | "Descarregar" |
 | Export failed | "Exportação falhou. Tente novamente." |
 | Export timeout | "A exportação está a demorar. Tente novamente mais tarde." |
 | Waiver submit button | "Submeter pedido" |
-| Waiver reject button | "Rejeitar" |
+| Waiver dialog dismiss (request modal) | "Abandonar pedido" |
 | Empty state — billing queue | Heading: "Nenhuma viagem para cobrar" / Body: "As viagens entram aqui após a descarga ser validada. Valide as descargas pendentes na secção Operação." |
 | Empty state — analytics KPIs | Heading: "Sem dados para o período" / Body: "Não existem viagens concluídas no período selecionado. Experimente alargar o intervalo de datas." |
 | Empty state — document expiry | Heading: "Sem documentos a vencer" / Body: "Todos os documentos de viaturas e motoristas estão válidos por mais de 30 dias." |
@@ -188,7 +192,7 @@ All table/queue views use cursor-style page navigation: "Anterior" / "Próximo" 
 | Waiver rejected badge | "Rejeitado" |
 | Document expiry badge (30d) | "Vence em {N} dias" |
 | Document expiry badge (7d) | "Vence em {N} dias" (red solid) |
-| Destructive action — reject waiver | No confirmation dialog required (rejection is reversible — no copy needed beyond button label "Rejeitar") |
+| Destructive action — reject waiver | No confirmation dialog required (rejection is reversible — no copy needed beyond button label "Rejeitar waiver") |
 
 **Language:** All copy is Portuguese (pt-MZ). No English strings in the UI. Error messages from the API (snake_case codes) must be mapped to Portuguese human-readable messages before display.
 
@@ -201,6 +205,12 @@ All table/queue views use cursor-style page navigation: "Anterior" / "Próximo" 
 - Sidebar background: `--nav` (#102033)
 - Main content background: `--soft` (#f5f7fa)
 - Main padding: 24px (md token) on desktop, 16px on mobile
+
+### Focal Points
+
+**`/analytics` page:** Primary visual anchor is the 4-card KPI row immediately below the filter bar. Metric values render at 26px extrabold — the largest text on the page — drawing the eye before section headings or table content. The left-border accent in `--blue` on each card reinforces this as the primary data zone.
+
+**Control Tower page:** Primary visual anchor is the tower-metric grid at the top of the page (active trips, vehicles in field, pending alerts). These metric cards retain the same 26px extrabold treatment after the Tailwind migration, ensuring visual hierarchy is preserved from the existing custom CSS pattern.
 
 ### Sidebar Navigation (D-05 — add /analytics entry)
 

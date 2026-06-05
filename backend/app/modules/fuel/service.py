@@ -1,16 +1,21 @@
+import logging
 from datetime import UTC, datetime
 from uuid import UUID
 
+from arq.connections import RedisSettings, create_pool
 from fastapi import status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core.errors import ApiError
 from app.modules.audit.service import record_audit_log
 from app.modules.drivers.models import Driver
 from app.modules.fuel.models import FuelLog
 from app.modules.fuel.schemas import FuelLogCreate, FuelLogPatch, VerifyFuelLogRequest
 from app.modules.vehicles.models import Vehicle
+
+logger = logging.getLogger(__name__)
 
 ANOMALY_FACTOR = 1.2
 
@@ -226,6 +231,23 @@ async def create_fuel_log(
             old_values=old_vehicle_values,
             new_values={"current_km": vehicle.current_km, "fuel_log_id": log.id},
         )
+        # D-01: enqueue immediate maintenance check when odometer advances
+        try:
+            _settings = get_settings()
+            _redis = await create_pool(
+                RedisSettings(host=_settings.redis_host, port=_settings.redis_port)
+            )
+            await _redis.enqueue_job(
+                "check_vehicle_maintenance",
+                vehicle_id=str(vehicle.id),
+                tenant_id=str(tenant_id),
+                current_km=vehicle.current_km,
+            )
+            await _redis.aclose()
+        except Exception:
+            logger.warning(
+                "ARQ unavailable — maintenance trigger skipped for vehicle %s", vehicle.id
+            )
     await db.commit()
     await db.refresh(log)
     return serialize_fuel_log(log)

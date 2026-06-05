@@ -3,12 +3,16 @@
 These stubs document required behaviors. Remove skip markers as implementation completes.
 """
 from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
+import httpx
 import pytest
 from sqlalchemy import select
 
 from app.database import AsyncSessionLocal, engine, import_all_models
+from app.main import app
+from app.modules.drivers.models import Driver
 from app.modules.tenants.models import Tenant
 from app.modules.vehicles.models import Vehicle
 from app.modules.workshop.models import (
@@ -192,11 +196,66 @@ async def test_next_cycle_schedule_created_after_trigger():
     assert pending_schedule.due_km == 15001
 
 
-@pytest.mark.skip(reason="stub — implement in 04-03-PLAN")
 async def test_odometer_event_enqueues_arq_task():
     """MAINT-01 D-01: When fuel log creation updates vehicle.current_km,
     an ARQ task 'check_vehicle_maintenance' is enqueued for that vehicle_id."""
-    pytest.fail("not implemented")
+    suffix = uuid4().hex[:8]
+    async with AsyncSessionLocal() as db:
+        tenant = Tenant(name=f"ARQ Tenant {suffix}", slug=f"arq-{suffix}")
+        db.add(tenant)
+        await db.flush()
+        vehicle = Vehicle(
+            tenant_id=tenant.id,
+            plate=f"ARQ-{suffix}",
+            category="pesado",
+            fuel_type="gasoleo",
+            current_km=0,
+        )
+        driver = Driver(
+            tenant_id=tenant.id,
+            full_name=f"ARQ Driver {suffix}",
+            phone=f"25886{suffix[:7]}",
+        )
+        db.add_all([vehicle, driver])
+        await db.commit()
+        await db.refresh(tenant)
+        await db.refresh(vehicle)
+        await db.refresh(driver)
+
+    mock_pool = AsyncMock()
+    mock_pool.enqueue_job = AsyncMock()
+    mock_pool.aclose = AsyncMock()
+
+    with patch("app.modules.fuel.service.create_pool", return_value=mock_pool):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            resp = await client.post(
+                "/api/v1/fuel",
+                headers={
+                    "Authorization": "Bearer test-token",
+                    "X-Tenant-Id": str(tenant.id),
+                },
+                json={
+                    "vehicle_id": str(vehicle.id),
+                    "driver_id": str(driver.id),
+                    "fuel_date": datetime.now(UTC).isoformat(),
+                    "station_name": "Test Station",
+                    "fuel_type": "gasoleo",
+                    "liters": 40.0,
+                    "price_per_liter": 80.0,
+                    "total_cost": 3200.0,
+                    "km_at_refuel": 50000,
+                },
+            )
+    assert resp.status_code in (200, 201), resp.text
+    # Verify enqueue_job was called with check_vehicle_maintenance
+    mock_pool.enqueue_job.assert_called_once()
+    call_args = mock_pool.enqueue_job.call_args
+    assert call_args[0][0] == "check_vehicle_maintenance"
+    assert call_args[1]["vehicle_id"] == str(vehicle.id)
+    assert call_args[1]["tenant_id"] == str(tenant.id)
+    assert call_args[1]["current_km"] == 50000
 
 
 async def test_imminent_maintenance_alerts():

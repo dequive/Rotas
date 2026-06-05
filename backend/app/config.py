@@ -22,6 +22,10 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = Field(default_factory=list, validation_alias="CORS_ORIGINS")
     local_upload_dir: str = Field(default=".rotas_uploads", validation_alias="LOCAL_UPLOAD_DIR")
+    redis_url: str = Field(
+        default="redis://localhost:6381",
+        validation_alias="REDIS_URL",
+    )
 
     model_config = SettingsConfigDict(
         env_file=(".env", "../.env"),
@@ -38,6 +42,10 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "CORS_ORIGINS must be set to one or more explicit origins (not '*') "
                     "when ENVIRONMENT=production."
+                )
+            if self.redis_url == "redis://localhost:6381":
+                raise ValueError(
+                    "REDIS_URL must be set to a production Redis URL when ENVIRONMENT=production."
                 )
         return self
 

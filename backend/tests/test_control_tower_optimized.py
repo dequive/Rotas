@@ -1,12 +1,15 @@
-"""CT-01 / CT-03 regression tests. CT-02 stubs remain NotImplemented (Redis caching in Plan 03-03)."""
+"""CT-01 / CT-03 regression tests. CT-02 cache tests implemented in Plan 03-03."""
+import json
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from unittest.mock import AsyncMock, MagicMock
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.exc import OperationalError
 
 from app.database import AsyncSessionLocal, import_all_models
 from app.main import app
+from app.modules.control_tower.service import CT_KPI_TTL, get_ct_cached
 from app.modules.tenants.models import Tenant
 from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
@@ -156,22 +159,66 @@ async def test_control_tower_cross_tenant_isolation_preserved(
 
 # --- CT-02: Redis cache hit ---
 @pytest.mark.asyncio
-async def test_control_tower_cache_hit(async_client, auth_headers, mock_redis):
-    """CT-02: Second identical CT request returns cached value without hitting DB."""
-    raise NotImplementedError(
-        "CT-02: First request populates cache; second request returns same payload "
-        "from Redis; DB call count is 0 on second request. Implement in Plan 03-03."
-    )
+async def test_control_tower_cache_hit(async_client, auth_headers):
+    """CT-02: When Redis already holds the CT payload, get_ct_cached returns it without DB."""
+    tenant_id = uuid4()
+    cached_payload = {"date": "2026-01-01", "summary": {"trips_in_execution": 7}, "queues": {}}
+
+    # Build a mock Redis that returns a cache hit on .get()
+    mock_redis = MagicMock()
+    mock_redis.get = AsyncMock(return_value=json.dumps(cached_payload))
+    mock_redis.set = AsyncMock(return_value=True)
+    mock_redis.setex = AsyncMock()
+    mock_redis.delete = AsyncMock()
+
+    # Mock DB session — should NOT be called when cache hits
+    mock_db = MagicMock()
+
+    result = await get_ct_cached(mock_db, tenant_id, mock_redis)
+
+    # Cache hit: redis.get was called with the correct key
+    mock_redis.get.assert_called_once_with(f"ct:kpis:{tenant_id}")
+    # Cache hit: result matches cached payload
+    assert result["summary"]["trips_in_execution"] == 7
+    # Cache hit: no DB query was executed (no await on mock_db)
+    mock_db.execute.assert_not_called()
 
 
 # --- CT-02: Cache TTL respected ---
 @pytest.mark.asyncio
-async def test_control_tower_cache_ttl(mock_redis):
-    """CT-02: ct:kpis:{tenant_id} written with TTL=60; alert keys written with TTL=30."""
-    raise NotImplementedError(
-        "CT-02: Assert redis.setex called with TTL 60 for kpi key, 30 for alert key. "
-        "Implement in Plan 03-03."
-    )
+async def test_control_tower_cache_ttl():
+    """CT-02: On a cache miss, setex is called with key ct:kpis:{tenant_id} and TTL=60."""
+    tenant_id = uuid4()
+    expected_key = f"ct:kpis:{tenant_id}"
+
+    mock_redis = MagicMock()
+    mock_redis.get = AsyncMock(return_value=None)          # cache miss
+    mock_redis.set = AsyncMock(return_value=True)           # lock acquired
+    mock_redis.setex = AsyncMock()
+    mock_redis.delete = AsyncMock()
+
+    computed_payload = {"date": "2026-01-01", "summary": {}, "queues": {}}
+
+    # Patch get_control_tower so we don't need a real DB session
+    import app.modules.control_tower.service as ct_service
+
+    original = ct_service.get_control_tower
+
+    async def _fake_get_control_tower(db, tid, *, target_date=None, page=1, page_size=50):
+        return computed_payload
+
+    ct_service.get_control_tower = _fake_get_control_tower
+    try:
+        mock_db = MagicMock()
+        await get_ct_cached(mock_db, tenant_id, mock_redis)
+    finally:
+        ct_service.get_control_tower = original
+
+    # setex must be called with the right key and TTL=60 (CT_KPI_TTL)
+    mock_redis.setex.assert_called_once()
+    call_args = mock_redis.setex.call_args[0]
+    assert call_args[0] == expected_key, f"Wrong key: {call_args[0]}"
+    assert call_args[1] == CT_KPI_TTL, f"Wrong TTL: {call_args[1]} (expected {CT_KPI_TTL})"
 
 
 # --- CT-03: Pagination params respected ---

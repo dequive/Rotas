@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     # D-18: Admin DB for ARQ worker — uses rotas_admin role (BYPASSRLS)
     # Default falls back to DATABASE_URL so local dev works without two URLs
     admin_database_url: str = Field(default="", validation_alias="ADMIN_DATABASE_URL")
+
+    # ALEMBIC_DATABASE_URL: uses rotas_admin role (BYPASSRLS) so migrations work after RLS.
+    # Falls back to DATABASE_URL if not set (safe for local dev where RLS may not be active).
+    alembic_database_url: str = Field(default="", validation_alias="ALEMBIC_DATABASE_URL")
     redis_host: str = Field(default="localhost", validation_alias="REDIS_HOST")
     redis_port: int = Field(default=6381, validation_alias="REDIS_PORT")
 
@@ -36,6 +40,10 @@ class Settings(BaseSettings):
     @property
     def resolved_admin_database_url(self) -> str:
         return self.admin_database_url if self.admin_database_url else self.database_url
+
+    @property
+    def resolved_alembic_database_url(self) -> str:
+        return self.alembic_database_url if self.alembic_database_url else self.database_url
 
     model_config = SettingsConfigDict(
         env_file=(".env", "../.env"),

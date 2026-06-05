@@ -1,8 +1,8 @@
 from logging.config import fileConfig
 
-from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import create_engine, pool
 
+from alembic import context
 from app.config import get_settings
 from app.database import Base, import_all_models
 
@@ -12,7 +12,11 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url.replace("+asyncpg", "+psycopg"))
+
+# ALEMBIC_DATABASE_URL: uses rotas_admin role (BYPASSRLS) so Alembic can run migrations
+# after RLS is enabled on all tenant tables. Falls back to DATABASE_URL in local dev
+# where RLS may not be active. (Pitfall 1 from RESEARCH.md)
+_alembic_url = settings.resolved_alembic_database_url.replace("+asyncpg", "+psycopg")
 
 import_all_models()
 target_metadata = Base.metadata
@@ -20,7 +24,7 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     context.configure(
-        url=config.get_main_option("sqlalchemy.url"),
+        url=_alembic_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -32,11 +36,7 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    connectable = create_engine(_alembic_url, poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
         # Set autocommit so that CREATE INDEX CONCURRENTLY can run outside a transaction.

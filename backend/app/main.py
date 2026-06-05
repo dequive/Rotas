@@ -9,6 +9,7 @@ from app.core.limiter import limiter
 from app.core.request_context import RequestContextMiddleware
 from app.database import import_all_models
 from app.modules.alerts.router import router as alerts_router
+from app.modules.analytics.router import router as analytics_router
 from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import driver_router
 from app.modules.auth.router import router as auth_router
@@ -87,3 +88,4 @@ app.include_router(control_tower_router, prefix=api)
 app.include_router(alerts_router, prefix=api)
 app.include_router(sync_router, prefix=api)
 app.include_router(audit_router, prefix=api)
+app.include_router(analytics_router, prefix=api)

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.idempotency import execute_http_idempotent
 from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
-from app.database import get_session
+from app.core.deps import get_session
 from app.modules.workshop import schemas, service
 
 router = APIRouter(prefix="/workshop", tags=["workshop"])

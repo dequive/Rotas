@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
 from app.core.permissions import DASHBOARD_ROLES, require_roles
-from app.database import get_session
+from app.core.deps import get_session
 from app.modules.analytics import service
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])

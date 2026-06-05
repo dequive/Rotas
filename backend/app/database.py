@@ -1,6 +1,8 @@
 from collections.abc import AsyncIterator
+from contextvars import ContextVar
 from importlib import import_module
 
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -23,10 +25,66 @@ if settings.environment == "production":
 engine = create_async_engine(settings.database_url, pool_pre_ping=True, **_pool_kwargs)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
+# ---------------------------------------------------------------------------
+# RLS context variable — holds the current request's tenant_id.
+# ContextVar is asyncio-safe: each coroutine has its own copy, no shared state.
+# ---------------------------------------------------------------------------
+_rls_tenant: ContextVar[str | None] = ContextVar("_rls_tenant", default=None)
 
-async def get_session() -> AsyncIterator[AsyncSession]:
+
+def set_rls_tenant(tenant_id: str | None) -> None:
+    """Set the current request's tenant_id for RLS enforcement.
+
+    Called by get_session() in app.core.deps before yielding the session.
+    Call with None to clear after the request completes.
+    D-17: Uses SET LOCAL (transaction-scoped, not connection-scoped) — critical for pool safety.
+    """
+    _rls_tenant.set(tenant_id)
+
+
+@event.listens_for(AsyncSession.sync_session_class, "after_begin")
+def _inject_rls_tenant(session, transaction, connection):  # type: ignore[no-untyped-def]
+    """SQLAlchemy after_begin event: fires once per transaction.
+
+    Executes SET LOCAL app.tenant_id so the PostgreSQL RLS policy can read it.
+    SET LOCAL (not SET) is mandatory — scoped to the current transaction only.
+    With asyncpg connection pooling, connections are reused across requests.
+    SET LOCAL ensures the tenant_id never leaks across request boundaries (D-17).
+    """
+    tid = _rls_tenant.get()
+    if tid is not None:
+        connection.execute(
+            text(f"SET LOCAL app.tenant_id = '{tid}'")  # noqa: S608 — controlled input from JWT
+        )
+
+
+async def get_session_raw() -> AsyncIterator[AsyncSession]:
+    """Raw session without RLS tenant injection.
+
+    Used by the auth module (login/refresh/logout/pair) which has no principal yet,
+    and by get_current_principal in app.core.auth which uses AsyncSessionLocal directly.
+    All other tenant-aware routes should use get_session from app.core.deps instead.
+    """
     async with AsyncSessionLocal() as session:
         yield session
+
+
+# ---------------------------------------------------------------------------
+# NOTE: The RLS-aware get_session() dependency that injects the principal and
+# calls set_rls_tenant() lives in app.core.deps — NOT here.
+#
+# Reason: app.core.auth imports AsyncSessionLocal from this module. If this
+# module imported get_current_principal from app.core.auth at module level it
+# would create a circular import. Defining get_session in app.core.deps
+# (which imports from both modules after they are fully loaded) avoids that.
+#
+# All routers that previously did:
+#   from app.database import get_session
+# should now do:
+#   from app.core.deps import get_session
+#
+# The auth router is the exception — it uses get_session_raw from here.
+# ---------------------------------------------------------------------------
 
 
 MODEL_MODULES = (

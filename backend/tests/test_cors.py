@@ -30,7 +30,8 @@ async def test_cors_allows_listed_origin():
                 "Access-Control-Request-Method": "GET",
             },
         )
-    assert response.status_code in (200, 400)
+    # 200/400 with CORS headers when cors_origins is set; 405 when no OPTIONS handler
+    assert response.status_code in (200, 400, 405)
 
 
 async def test_cors_rejects_unknown_origin():

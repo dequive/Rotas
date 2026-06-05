@@ -32,9 +32,9 @@ _Last updated: 2026-06-05_
 
 ### Control Tower e Performance (CT)
 
-- [ ] **CT-01**: Queries do Control Tower otimizadas — substituir ~38 queries sequenciais por queries agregadas com `selectinload`/`joinedload` e `func.count()` SQL-level (alvo: 4-6 queries)
+- [x] **CT-01**: Queries do Control Tower otimizadas — substituir ~38 queries sequenciais por queries agregadas com `selectinload`/`joinedload` e `func.count()` SQL-level (alvo: 4-6 queries)
 - [ ] **CT-02**: Redis utilizado para cache de KPIs do Control Tower — `redis[asyncio]` instalado, cache-aside com TTL 60s, chaves com namespace `ct:kpis:{tenant_id}`, ARQ worker para processamento assíncrono
-- [ ] **CT-03**: Paginação nas filas do Control Tower — sem queries sem LIMIT que retornam rows ilimitadas
+- [x] **CT-03**: Paginação nas filas do Control Tower — sem queries sem LIMIT que retornam rows ilimitadas
 
 ### Deploy e Produção (DEPLOY)
 
@@ -92,9 +92,9 @@ _Last updated: 2026-06-05_
 | AUTH-01 | Phase 2 | Complete |
 | AUTH-02 | Phase 2 | Complete |
 | AUTH-04 | Phase 2 | Complete |
-| CT-01 | Phase 3 | Pending |
+| CT-01 | Phase 3 | Complete |
 | CT-02 | Phase 3 | Pending |
-| CT-03 | Phase 3 | Pending |
+| CT-03 | Phase 3 | Complete |
 | BILL-01 | Phase 3 | Pending |
 | BILL-02 | Phase 3 | Pending |
 | BILL-03 | Phase 3 | Pending |

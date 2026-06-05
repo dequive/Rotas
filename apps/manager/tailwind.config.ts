@@ -13,10 +13,7 @@ const config: Config = {
   			soft: 'var(--soft)',
   			panel: 'var(--panel)',
   			ink: 'var(--ink)',
-  			muted: {
-  				DEFAULT: 'hsl(var(--muted))',
-  				foreground: 'hsl(var(--muted-foreground))'
-  			},
+  			muted: 'var(--muted)',
   			line: 'var(--line)',
   			blue: 'var(--blue)',
   			green: 'var(--green)',

@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-06-05T19:36:27.215Z"
+last_updated: "2026-06-05T19:52:12.754Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 35
-  completed_plans: 14
+  completed_plans: 15
 ---
 
 # ROTAS — Project State
@@ -83,6 +83,7 @@ Preparing to start Phase 1.
 | Phase 02-pwa-offline-first-completion P05 | 5 | 2 tasks | 5 files |
 | Phase 02-pwa-offline-first-completion P06 | 5 | 1 tasks | 3 files |
 | Phase 04-production-hardening-scale-preparation P01 | 5 | 2 tasks | 5 files |
+| Phase 04-production-hardening-scale-preparation P04 | 8 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,7 @@ Preparing to start Phase 1.
 | BackgroundSyncPlugin handles fetch exceptions only; Dexie handles HTTP errors | 2 | BackgroundSync only retries on network failure; 4xx/5xx need Dexie-level retry |
 | Icons generated with Pillow + Windows Arial Bold (proper 192x192/512x512) | 2 | Proper dimensions required — Chrome installability checker rejects icons smaller than declared size |
 | manifest.webmanifest in public/ is static fallback; live manifest from vite.config.mjs manifest block | 2 | VitePWA injectManifest strategy generates injected manifest from config, not public/ file |
+| require_roles(*DASHBOARD_ROLES) for scorecard endpoint — driver tokens rejected at dependency level | 4 | Consistent with all other protected endpoints; no manual scope check needed |
 
 ### Blockers
 
@@ -115,7 +117,7 @@ _None yet — project not started._
 
 ## Session Continuity
 
-_Last session: 2026-06-05T18:36Z — Completed 02-pwa-offline-first-completion-06-PLAN.md (PWA-02: manifest + icons)_
+_Last session: 2026-06-05T19:50Z — Completed 04-production-hardening-scale-preparation 04-04-PLAN.md (driver scorecard API, 4 tests green)_
 
 ---
 

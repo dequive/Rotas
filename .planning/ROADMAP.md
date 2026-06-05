@@ -203,7 +203,7 @@ Plans:
 Plans:
 - [x] 04-01-PLAN.md — Wave 1: Deps install (arq, gunicorn, redis[asyncio]) + test stubs for all Phase 4 behaviors
 - [x] 04-02-PLAN.md — Wave 2: MAINT-01 scheduler (WorkOrder creation + next-cycle + imminent alerts) (MAINT-01)
-- [ ] 04-03-PLAN.md — Wave 3: MAINT-01 ARQ worker + odometer event trigger (MAINT-01)
+- [x] 04-03-PLAN.md — Wave 3: MAINT-01 ARQ worker + odometer event trigger (MAINT-01)
 - [x] 04-04-PLAN.md — Wave 2: Driver scorecard API (get_driver_scorecard + endpoint) (MAINT-01 adjacent)
 - [x] 04-05-PLAN.md — Wave 2: Decimal type annotation cleanup (Mapped[float] → Mapped[Decimal] on Numeric columns)
 - [x] 04-06-PLAN.md — Wave 3: Composite indexes Alembic migration (10 indexes, CONCURRENTLY, D-14)

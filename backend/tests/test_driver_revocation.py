@@ -126,9 +126,8 @@ async def test_deactivated_driver_device_returns_driver_access_revoked():
         f"Expected 401 but got {response.status_code}: {response.text}"
     )
     body = response.json()
-    # WILL FAIL: current code returns {"detail": "Driver device is inactive."} with
-    # error code "driver_inactive", not "driver_access_revoked"
-    error_code = body.get("detail") or body.get("error") or body.get("error_code")
+    # Error envelope: {"error": {"code": ..., "message": ..., "details": ..., "request_id": ...}}
+    error_code = body["error"]["code"]
     assert error_code == "driver_access_revoked", (
         f"Expected error code 'driver_access_revoked' but got: {body}"
     )

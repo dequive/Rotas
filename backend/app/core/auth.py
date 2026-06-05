@@ -84,21 +84,33 @@ async def get_current_principal(
                 raise ApiError("user_inactive", "User is inactive.", status_code=401)
         elif scope == "driver_app" and driver_id and claims.get("device_id"):
             driver = await db.get(Driver, driver_id)
+            if not driver or driver.tenant_id != tenant_id:
+                raise ApiError("driver_inactive", "Driver not found.", status_code=401)
+
+            # D-08: Query device WITHOUT is_active filter so we can distinguish
+            # "device deactivated" (revocation) from "device not found"
             device = await db.scalar(
                 select(DriverDevice).where(
                     DriverDevice.tenant_id == tenant_id,
                     DriverDevice.driver_id == driver_id,
                     DriverDevice.device_id == claims["device_id"],
-                    DriverDevice.is_active.is_(True),
                 )
             )
-            if (
-                not driver
-                or driver.tenant_id != tenant_id
-                or driver.status != "active"
-                or not device
-            ):
-                raise ApiError("driver_inactive", "Driver device is inactive.", status_code=401)
+            if not device:
+                raise ApiError("driver_inactive", "Driver device not found.", status_code=401)
+
+            # D-08: Deactivated device is a permanent revocation — different error code than
+            # temporary suspension. The client (api.ts refreshAccessToken) checks this code to
+            # show "Acesso revogado" message and preserve local Dexie data.
+            if not device.is_active:
+                raise ApiError(
+                    "driver_access_revoked",
+                    "Driver access has been revoked by the manager.",
+                    status_code=401,
+                )
+
+            if driver.status != "active":
+                raise ApiError("driver_inactive", "Driver is inactive.", status_code=401)
         else:
             raise ApiError(
                 "invalid_token_scope",

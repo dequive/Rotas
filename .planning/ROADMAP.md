@@ -64,7 +64,7 @@ Phases are ordered by hard dependency: a security bypass is active (SEC-05), the
 
 Plans:
 - [x] 01-01-PLAN.md — Wave 0: Test scaffolds (failing stubs for all security behaviors)
-- [ ] 01-02-PLAN.md — Wave 1: PyJWT migration (SEC-05) + config hardening (SEC-01, DEPLOY-01) + CORS fix (SEC-02) + sync auth lock (AUTH-03)
+- [x] 01-02-PLAN.md — Wave 1: PyJWT migration (SEC-05) + config hardening (SEC-01, DEPLOY-01) + CORS fix (SEC-02) + sync auth lock (AUTH-03)
 - [ ] 01-03-PLAN.md — Wave 2: Rate limiting on auth endpoints (SEC-03) + secure cookies Next.js (SEC-04)
 - [ ] 01-04-PLAN.md — Wave 2: Cross-tenant isolation regression tests (D-21)
 - [ ] 01-05-PLAN.md — Wave 2: Deploy config — railway.toml, vercel.json, Node.js 20.x, .env.example (DEPLOY-02, DEPLOY-03, DEPLOY-04)

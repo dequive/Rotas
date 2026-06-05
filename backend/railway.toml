@@ -1,0 +1,23 @@
+# ROTAS Backend — Railway deployment configuration
+# D-12: Gunicorn multi-worker FastAPI (4 workers, UvicornWorker class)
+# D-13: ARQ worker runs as a separate Railway service
+
+[deploy]
+# Run Alembic migrations before new version accepts traffic
+# WARNING: update path must be app.main:app — verify module path matches project layout
+preDeployCommand = "alembic upgrade head"
+startCommand = "gunicorn -k uvicorn.workers.UvicornWorker -w 4 --timeout 30 --bind 0.0.0.0:$PORT app.main:app"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
+
+# Environment variables required at deploy (must be set in Railway dashboard):
+# DATABASE_URL          — PostgreSQL connection string (rotas_app role after RLS is set up)
+# ADMIN_DATABASE_URL    — PostgreSQL connection string (rotas_admin role, BYPASSRLS) for ARQ worker
+# JWT_SECRET_KEY        — JWT signing secret (minimum 32 chars)
+# ENVIRONMENT           — "production"
+# CORS_ORIGINS          — JSON array of allowed origins e.g. ["https://rotas.vercel.app"]
+# REDIS_URL             — Railway Redis internal URL e.g. redis://<host>:6381
+# REDIS_HOST            — Railway Redis internal host
+# REDIS_PORT            — 6381 (or Railway-assigned port)

@@ -39,7 +39,7 @@ export function ControlTowerOverview({ result }: ControlTowerOverviewProps) {
 
       <DataSourceBadge
         source={result.source}
-        message={result.source !== "api" ? result.message : undefined}
+        message={result.source !== "api" ? (result.message ?? undefined) : undefined}
       />
 
       <section

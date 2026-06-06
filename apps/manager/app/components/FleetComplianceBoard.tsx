@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarCheck, FileWarning, Truck, Users } from "lucide-react";
 
+import { PageHeader } from "@/app/components/ui/PageHeader";
+import { StatusBadge } from "@/app/components/ui/StatusBadge";
+
 import type { ComplianceDocumentWarning, ControlTowerLoadResult } from "../lib/control-tower-api";
 
 interface ApiConfig {
@@ -22,18 +25,18 @@ export function FleetComplianceBoard({ apiConfig, result }: FleetComplianceBoard
   const driverItems = result.tower.queues.driverDocumentsExpiring;
 
   return (
-    <section className="domain-section" aria-labelledby="compliance-title">
-      <div className="domain-heading">
-        <div className="title">
-          <span className="eyebrow">Frota e Pessoas</span>
-          <h2 id="compliance-title">Compliance documental</h2>
-          <p>Renovação operacional de documentos antes de bloquearem a atribuição.</p>
-        </div>
-        <span className="module-state">
-          <CalendarCheck size={15} />
-          {vehicleItems.length + driverItems.length} avisos
-        </span>
-      </div>
+    <section className="mt-6" aria-labelledby="compliance-title">
+      <PageHeader
+        eyebrow="Frota e Pessoas"
+        title="Compliance documental"
+        description="Renovação operacional de documentos antes de bloquearem a atribuição."
+        actions={
+          <span className="flex items-center gap-1.5 text-[12px] text-muted">
+            <CalendarCheck size={14} />
+            {vehicleItems.length + driverItems.length} avisos
+          </span>
+        }
+      />
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
         <ComplianceColumn
@@ -73,18 +76,22 @@ function ComplianceColumn({
   title: string;
 }) {
   return (
-    <article className="bg-panel border border-line rounded-lg p-4">
-      <header className="flex items-start gap-3 mb-3">
-        <span className="queue-icon orange flex-none">
-          <Icon size={16} />
+    <div className="bg-surface border border-border rounded-lg overflow-hidden">
+      <header className="flex items-start gap-3 px-4 py-3 border-b border-border bg-surface-2">
+        <span className="flex items-center justify-center h-6 w-6 rounded flex-shrink-0 bg-warning-bg text-warning">
+          <Icon size={13} />
         </span>
         <div>
-          <h3 className="text-[14px] font-semibold m-0">{title}</h3>
+          <h3 className="text-[14px] font-semibold text-ink m-0">{title}</h3>
           <p className="text-muted text-[12px] m-0">{items.length} documentos em atenção</p>
         </div>
       </header>
-      <div className="grid gap-2">
-        {items.length === 0 ? <p className="empty-state">{emptyLabel}</p> : null}
+      <div className="divide-y divide-border">
+        {items.length === 0 ? (
+          <div className="py-8 text-center">
+            <p className="text-[12px] text-muted">{emptyLabel}</p>
+          </div>
+        ) : null}
         {items.map((item) => (
           <ComplianceItem
             apiConfig={apiConfig}
@@ -94,7 +101,7 @@ function ComplianceColumn({
           />
         ))}
       </div>
-    </article>
+    </div>
   );
 }
 
@@ -160,17 +167,22 @@ function ComplianceItem({
   }
 
   return (
-    <div className="py-3 border-b border-line last:border-0 text-sm">
+    <div className="px-4 py-3 text-sm">
       {/* Document info row */}
       <div className="flex gap-2 mb-2">
-        <FileWarning size={15} className="flex-none text-orange mt-0.5" />
+        <FileWarning size={15} className="flex-none text-warning mt-0.5" />
         <div className="min-w-0">
-          <strong className="block text-[13px]">{item.entityLabel}</strong>
+          <strong className="block text-[13px] text-ink">{item.entityLabel}</strong>
           <span className="block text-muted text-[12px] mt-0.5">
-            {documentTypeLabel(item.documentType)} · vence em{" "}
-            <span className="text-orange font-semibold">{item.daysUntilExpiry} dias</span>
+            {documentTypeLabel(item.documentType)}
           </span>
-          <small className="block text-muted text-[11px]">{formatDateOnly(item.validUntil)}</small>
+          <div className="flex items-center gap-2 mt-1">
+            <StatusBadge
+              status={item.daysUntilExpiry <= 7 ? "expired" : "expiring_soon"}
+              label={`${item.daysUntilExpiry} dias`}
+            />
+            <small className="text-muted text-[11px]">{formatDateOnly(item.validUntil)}</small>
+          </div>
         </div>
       </div>
       {/* Renew form — full width below info */}
@@ -180,25 +192,25 @@ function ComplianceItem({
           type="date"
           value={validUntil}
           onChange={(event) => setValidUntil(event.target.value)}
-          className="min-h-[32px] border border-line rounded-md bg-white text-ink px-2 text-[12px] flex-1 min-w-[130px]"
+          className="min-h-[32px] border border-border rounded-md bg-white text-ink px-2 text-[12px] flex-1 min-w-[130px]"
         />
         <input
           aria-label="Referência"
           placeholder="Referência doc."
           value={reference}
           onChange={(event) => setReference(event.target.value)}
-          className="min-h-[32px] border border-line rounded-md bg-white text-ink px-2 text-[12px] flex-1 min-w-[110px]"
+          className="min-h-[32px] border border-border rounded-md bg-white text-ink px-2 text-[12px] flex-1 min-w-[110px]"
         />
         <button
           disabled={busy}
           onClick={renew}
           type="button"
-          className="min-h-[32px] px-3 text-[12px] font-bold border border-line rounded-md bg-white text-ink hover:bg-soft disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+          className="min-h-[32px] px-3 text-[12px] font-bold border border-border rounded-md bg-white text-ink hover:bg-surface-2 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
         >
           {busy ? "A guardar..." : "Renovar"}
         </button>
       </div>
-      {error ? <small className="block mt-1 text-red text-[12px]">{error}</small> : null}
+      {error ? <small className="block mt-1 text-error text-[12px]">{error}</small> : null}
     </div>
   );
 }

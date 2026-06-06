@@ -135,9 +135,9 @@ EXPECTED_RLS_TABLES = sorted([
 ])
 # 47 tables: 46 from migration 4b0a7802dc3c_add_rls_policies + export_jobs from gap-closure migration (plan 09-02)
 
-INTENTIONALLY_EXCLUDED = {"tenants", "files"}
-# tenants: root table — no tenant_id column; RLS would break registration and cross-tenant admin queries
+INTENTIONALLY_EXCLUDED = {"files"}
 # files: cross-tenant file service access pattern (design decision in migration 4b0a7802dc3c)
+# tenants: root table with no tenant_id column — never appears in gap query by design
 
 
 async def test_rls_all_tenant_tables_have_policy():

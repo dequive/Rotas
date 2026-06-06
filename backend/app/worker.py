@@ -50,17 +50,15 @@ async def generate_billing_export(
     Idempotent: checks existing job record before generating.
     Updates ExportJob status: queued → processing → done/failed.
     """
-    from pathlib import Path
     from uuid import UUID
 
     from sqlalchemy import select
 
-    from app.config import get_settings as _get_settings
     from app.modules.billing.exporters import render_billing_export
     from app.modules.billing.models import BillingDocument, BillingItem, ExportJob
+    from app.modules.files.service import save_generated_file as _save_generated_file
     from app.modules.tenants.models import Tenant
 
-    _settings = _get_settings()
     async with ctx["db_factory"]() as db:
         # Update job status to processing
         job = await db.scalar(select(ExportJob).where(ExportJob.id == UUID(job_id)))
@@ -103,16 +101,22 @@ async def generate_billing_export(
                 issuer_contact=issuer_contact,
             )
 
-            # Save file to LOCAL_UPLOAD_DIR / tenant_id
-            upload_dir = Path(_settings.local_upload_dir) / tenant_id
-            upload_dir.mkdir(parents=True, exist_ok=True)
-            file_path = upload_dir / artifact.filename
-            file_path.write_bytes(artifact.content)
-
+            # INFRA-02: route through files module — no direct disk writes
+            file_obj = await _save_generated_file(
+                db,
+                UUID(tenant_id),
+                content=artifact.content,
+                filename=artifact.filename,
+                mime_type=artifact.mime_type,
+                file_type=export_format,          # "billing_pdf" | "billing_xlsx"
+                entity_type="billing_document",
+                entity_id=UUID(document_id),
+            )
             job.status = "done"
-            job.file_path = str(file_path)
+            job.file_id = file_obj.id             # FK to files table (INFRA-02)
+            job.file_path = file_obj.storage_key  # backward compat — storage_key not OS path
             await db.commit()
-            return {"job_id": job_id, "status": "done", "file_path": str(file_path)}
+            return {"job_id": job_id, "status": "done", "file_id": str(file_obj.id)}
 
         except Exception as exc:
             job.status = "failed"

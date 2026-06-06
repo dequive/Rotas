@@ -48,10 +48,18 @@ def render_billing_export(
     document: BillingDocument,
     items: list[BillingItem],
     export_format: str,
+    *,
+    issuer_name: str = "ROTAS",
+    issuer_contact: str | None = None,
 ) -> ExportArtifact:
+    """Generate PDF or XLSX billing document.
+
+    issuer_name: the tenant company name that appears in the document header.
+    issuer_contact: optional phone/email shown in the document footer.
+    """
     if export_format == "pdf":
-        return _render_pdf(document, items)
-    return _render_xlsx(document, items)
+        return _render_pdf(document, items, issuer_name=issuer_name, issuer_contact=issuer_contact)
+    return _render_xlsx(document, items, issuer_name=issuer_name)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -85,12 +93,14 @@ def _status_label(status: str | None) -> str:
 # ── PDF ───────────────────────────────────────────────────────────────────────
 
 class _RotasPDF(FPDF):
-    """FPDF subclass that renders the ROTAS institutional header and footer."""
+    """FPDF subclass with tenant-branded header and footer."""
 
-    def __init__(self, doc_number: str, issue_date: str):
+    def __init__(self, doc_number: str, issue_date: str, issuer_name: str, issuer_contact: str | None):
         super().__init__(orientation="P", unit="mm", format="A4")
         self._doc_number = doc_number
         self._issue_date = issue_date
+        self._issuer_name = issuer_name
+        self._issuer_contact = issuer_contact
         self.add_font("DejaVu",  "",  str(FONTS_DIR / "DejaVuSans.ttf"))
         self.add_font("DejaVu",  "B", str(FONTS_DIR / "DejaVuSans-Bold.ttf"))
         self.set_auto_page_break(auto=True, margin=18)
@@ -104,11 +114,12 @@ class _RotasPDF(FPDF):
         self.set_y(4)
         self.set_text_color(*_WHITE)
         self.set_font("DejaVu", "B", 16)
-        self.cell(0, 8, "ROTAS", align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        self.cell(0, 8, self._issuer_name, align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
-        self.set_font("DejaVu", "", 7)
-        self.set_y(12)
-        self.cell(0, 4, "Plataforma de Gestão de Frotas", align="L")
+        if self._issuer_contact:
+            self.set_font("DejaVu", "", 7)
+            self.set_y(12)
+            self.cell(0, 4, self._issuer_contact, align="L")
 
         # ── Document title band (lighter) ────────────────────────────────────
         self.set_fill_color(*_SOFT)
@@ -136,16 +147,30 @@ class _RotasPDF(FPDF):
         self.set_y(-12)
         self.set_font("DejaVu", "", 7)
         self.set_text_color(*_MUTED)
-        self.cell(0, 5, "ROTAS — Plataforma de Gestão de Frotas  |  Moçambique", align="L")
+        footer_left = self._issuer_name
+        if self._issuer_contact:
+            footer_left += f"  |  {self._issuer_contact}"
+        self.cell(0, 5, footer_left, align="L")
         self.cell(0, 5, f"Página {self.page_no()}", align="R")
 
 
-def _render_pdf(document: BillingDocument, items: list[BillingItem]) -> ExportArtifact:
+def _render_pdf(
+    document: BillingDocument,
+    items: list[BillingItem],
+    *,
+    issuer_name: str = "ROTAS",
+    issuer_contact: str | None = None,
+) -> ExportArtifact:
     currency = document.currency or "MZN"
     doc_number = str(document.id)[:8].upper()
     issue_date = _date(document.issued_at or document.created_at)
 
-    pdf = _RotasPDF(doc_number=doc_number, issue_date=issue_date)
+    pdf = _RotasPDF(
+        doc_number=doc_number,
+        issue_date=issue_date,
+        issuer_name=issuer_name,
+        issuer_contact=issuer_contact,
+    )
     pdf.add_page()
 
     # ── Metadata block ────────────────────────────────────────────────────────
@@ -264,7 +289,12 @@ def _xlsx_border(style: str = "thin") -> Border:
     return Border(left=s, right=s, top=s, bottom=s)
 
 
-def _render_xlsx(document: BillingDocument, items: list[BillingItem]) -> ExportArtifact:
+def _render_xlsx(
+    document: BillingDocument,
+    items: list[BillingItem],
+    *,
+    issuer_name: str = "ROTAS",
+) -> ExportArtifact:
     currency = document.currency or "MZN"
     wb = Workbook()
     ws = wb.active
@@ -273,7 +303,7 @@ def _render_xlsx(document: BillingDocument, items: list[BillingItem]) -> ExportA
     # ── Branding / document metadata block (rows 1-8) ─────────────────────────
     ws.merge_cells("A1:H1")
     title_cell = ws["A1"]
-    title_cell.value = "ROTAS — DOCUMENTO DE COBRANÇA"
+    title_cell.value = f"{issuer_name} — DOCUMENTO DE COBRANÇA"
     title_cell.font = Font(bold=True, size=14, color="FFFFFF")
     title_cell.fill = _xlsx_fill("102033")
     title_cell.alignment = Alignment(horizontal="center", vertical="center")

@@ -36,6 +36,7 @@ async def generate_billing_export(
     from app.config import get_settings as _get_settings
     from app.modules.billing.exporters import render_billing_export
     from app.modules.billing.models import BillingDocument, BillingItem, ExportJob
+    from app.modules.tenants.models import Tenant
 
     _settings = _get_settings()
     async with ctx["db_factory"]() as db:
@@ -68,7 +69,17 @@ async def generate_billing_export(
                 )
             ).scalars().all()
 
-            artifact = render_billing_export(doc, list(items), export_format)
+            tenant = await db.get(Tenant, UUID(tenant_id))
+            issuer_name = tenant.name if tenant else "ROTAS"
+            issuer_contact = tenant.whatsapp_number if tenant else None
+
+            artifact = render_billing_export(
+                doc,
+                list(items),
+                export_format,
+                issuer_name=issuer_name,
+                issuer_contact=issuer_contact,
+            )
 
             # Save file to LOCAL_UPLOAD_DIR / tenant_id
             upload_dir = Path(_settings.local_upload_dir) / tenant_id

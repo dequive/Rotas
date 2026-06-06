@@ -185,3 +185,94 @@ async def test_rls_all_tenant_tables_have_policy():
             f"Tables with tenant_id but no RLS policy "
             f"(expected only {{tenants, files}}): {gap_set - INTENTIONALLY_EXCLUDED}"
         )
+
+
+# ---------------------------------------------------------------------------
+# DB-role-based cross-tenant isolation — RLS-03
+# ---------------------------------------------------------------------------
+
+
+async def test_rls_blocks_cross_tenant_vehicle_access():
+    """RLS-03: DB-level RLS blocks cross-tenant vehicle reads without any WHERE tenant_id.
+
+    This test proves that the tenant_isolation policy on the vehicles table enforces
+    isolation at the PostgreSQL layer — not just via app-layer WHERE clauses.
+
+    Method: connect via asyncpg directly as the rotas_app role (not BYPASSRLS),
+    set app.tenant_id = tenant_B, then execute SELECT * FROM vehicles with NO WHERE
+    clause. Tenant A's vehicle must be invisible — count must be 0.
+
+    Assumption: the test database has a 'rotas_app' role with password 'rotas_app_dev'.
+    This matches the init SQL convention for local dev. If the role is unavailable,
+    the test skips gracefully rather than failing hard.
+
+    Expected: RED until plan 09-02 migration applies (enables RLS + FORCE RLS on
+    vehicles table). Will turn GREEN once the RLS migration has run against the test DB.
+    """
+    import re
+    from uuid import uuid4
+
+    import asyncpg
+
+    from app.config import get_settings as _get_settings
+    from app.modules.tenants.models import Tenant
+    from app.modules.vehicles.models import Vehicle
+
+    _settings = _get_settings()
+
+    # --- Setup: create two tenants and a vehicle for tenant_A using admin connection ---
+    suffix = uuid4().hex[:6]
+    async with AsyncSessionLocal() as db:
+        t_a = Tenant(name=f"VehRLS_A_{suffix}", slug=f"veh-rls-a-{suffix}")
+        t_b = Tenant(name=f"VehRLS_B_{suffix}", slug=f"veh-rls-b-{suffix}")
+        db.add_all([t_a, t_b])
+        await db.flush()
+
+        v_a = Vehicle(
+            tenant_id=t_a.id,
+            plate=f"VRLS-{suffix}",
+            category="ligeiro",
+            fuel_type="gasolina",
+        )
+        db.add(v_a)
+        await db.commit()
+        t_a_id = str(t_a.id)
+        t_b_id = str(t_b.id)
+        v_a_id = str(v_a.id)
+
+    # --- Build rotas_app DSN from settings.database_url ---
+    # Replace the user/password portion with rotas_app:rotas_app_dev.
+    # settings.database_url uses asyncpg driver; asyncpg.connect needs postgresql:// scheme.
+    base_url = _settings.database_url
+    # Normalise asyncpg-style URL to plain postgresql:// for asyncpg library
+    rotas_app_dsn = re.sub(
+        r"postgresql\+asyncpg://[^@]+@",
+        "postgresql://rotas_app:rotas_app_dev@",
+        base_url,
+    )
+
+    # --- Connect as rotas_app and verify RLS blocks tenant_A's vehicle under tenant_B context ---
+    try:
+        conn = await asyncpg.connect(rotas_app_dsn)
+    except Exception as exc:  # noqa: BLE001
+        pytest.skip(f"rotas_app role not available in test DB: {exc}")
+        return
+
+    try:
+        async with conn.transaction():
+            # Set tenant context to tenant_B — no WHERE clause will reference tenant_id
+            await conn.execute(f"SET LOCAL app.tenant_id = '{t_b_id}'")
+
+            # Query vehicles with NO WHERE clause — RLS should filter by app.tenant_id
+            rows = await conn.fetch("SELECT * FROM vehicles")
+
+            # Tenant_A's vehicle must not appear (RLS filters to tenant_B's rows only)
+            visible_ids = {str(r["id"]) for r in rows}
+    finally:
+        await conn.close()
+
+    assert v_a_id not in visible_ids, (
+        f"RLS FAILED: tenant_B context (rotas_app role, SET LOCAL app.tenant_id=tenant_B) "
+        f"can see tenant_A's vehicle {v_a_id} with no WHERE tenant_id clause. "
+        "DB-level cross-tenant isolation is not enforced on the vehicles table."
+    )

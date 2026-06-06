@@ -9,6 +9,11 @@ import type {
   DriverDespachoPending,
   NegativeMarginTrip,
 } from "../lib/control-tower-api";
+import { KpiCard } from "@/app/components/ui/KpiCard";
+import { PageHeader } from "@/app/components/ui/PageHeader";
+import { SectionHeader } from "@/app/components/ui/SectionHeader";
+import { MonoCell, MoneyCell } from "@/app/components/ui/MonoCell";
+import { EmptyStateInline } from "@/app/components/ui/EmptyState";
 
 interface ApiConfig {
   apiBaseUrl: string;
@@ -25,38 +30,58 @@ export function CostMarginBoard({ apiConfig, result }: CostMarginBoardProps) {
   const { summary, queues } = result.tower;
 
   return (
-    <section className="domain-section cost-margin" aria-labelledby="cost-margin-title">
-      <div className="domain-heading">
-        <div className="title">
-          <span className="eyebrow">Custos e Margem</span>
-          <h2 id="cost-margin-title">Margem operacional</h2>
-          <p>Custos reais, despacho do motorista e viagens que exigem reconciliação.</p>
-        </div>
-        <span className="module-state">
-          <Calculator size={15} />
-          {summary.costsReconciledTrips} reconciliadas
-        </span>
-      </div>
+    <section className="mt-6" aria-labelledby="cost-margin-title">
+      <PageHeader
+        eyebrow="Custos e Margem"
+        title="Margem operacional"
+        description="Custos reais, despacho do motorista e viagens que exigem reconciliação."
+        actions={
+          <span className="flex items-center gap-1.5 text-[12px] text-muted">
+            <Calculator size={14} />
+            {summary.costsReconciledTrips} reconciliadas
+          </span>
+        }
+      />
 
       <div
         className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-4"
         aria-label="Indicadores de custos e margem"
       >
-        <CostKpi icon={ReceiptText} label="Custo real" value={formatMoney(summary.transportCostTotal)} />
-        <CostKpi icon={Banknote} label="Receita" value={formatMoney(summary.contractRevenueTotal)} />
-        <CostKpi icon={Calculator} label="Margem" tone={summary.marginTotal < 0 ? "red" : "green"} value={formatMoney(summary.marginTotal)} />
-        <CostKpi icon={AlertTriangle} label="Por reconciliar" tone="orange" value={summary.closedTripsUnreconciled.toString()} />
+        <KpiCard
+          icon={<ReceiptText size={16} />}
+          label="Custo real"
+          value={formatMoney(summary.transportCostTotal)}
+          semantic="default"
+        />
+        <KpiCard
+          icon={<Banknote size={16} />}
+          label="Receita"
+          value={formatMoney(summary.contractRevenueTotal)}
+          semantic="success"
+        />
+        <KpiCard
+          icon={<Calculator size={16} />}
+          label="Margem"
+          value={formatMoney(summary.marginTotal)}
+          semantic={summary.marginTotal < 0 ? "error" : "success"}
+        />
+        <KpiCard
+          icon={<AlertTriangle size={16} />}
+          label="Por reconciliar"
+          value={summary.closedTripsUnreconciled.toString()}
+          semantic="warning"
+        />
       </div>
 
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] gap-[14px]">
-        <article className="min-w-0 p-[14px] bg-panel border border-line rounded-lg">
-          <div className="section-header">
-            <h3 className="section-title">Despacho por lançar</h3>
-            <span>{queues.driverDespachoPending.length} viagens</span>
-          </div>
-          <div className="cost-list">
+        <article className="min-w-0 bg-surface border border-border rounded-lg overflow-hidden">
+          <SectionHeader
+            title="Despacho por lançar"
+            count={queues.driverDespachoPending.length}
+          />
+          <div className="cost-list p-[14px]">
             {queues.driverDespachoPending.length === 0 ? (
-              <p className="empty-state">Sem viagens longas pendentes de despacho.</p>
+              <EmptyStateInline label="Sem viagens longas pendentes de despacho." />
             ) : null}
             {queues.driverDespachoPending.map((item) => (
               <DespachoPendingItem apiConfig={apiConfig} item={item} key={item.tripId} />
@@ -64,14 +89,14 @@ export function CostMarginBoard({ apiConfig, result }: CostMarginBoardProps) {
           </div>
         </article>
 
-        <article className="min-w-0 p-[14px] bg-panel border border-line rounded-lg">
-          <div className="section-header">
-            <h3 className="section-title">Margem negativa</h3>
-            <span>{summary.negativeMarginTrips} viagens</span>
-          </div>
-          <div className="cost-list">
+        <article className="min-w-0 bg-surface border border-border rounded-lg overflow-hidden">
+          <SectionHeader
+            title="Margem negativa"
+            count={summary.negativeMarginTrips}
+          />
+          <div className="cost-list p-[14px]">
             {queues.negativeMarginTrips.length === 0 ? (
-              <p className="empty-state">Sem viagens reconciliadas com margem negativa.</p>
+              <EmptyStateInline label="Sem viagens reconciliadas com margem negativa." />
             ) : null}
             {queues.negativeMarginTrips.map((item) => (
               <NegativeMarginItem apiConfig={apiConfig} item={item} key={item.tripId} />
@@ -80,26 +105,6 @@ export function CostMarginBoard({ apiConfig, result }: CostMarginBoardProps) {
         </article>
       </div>
     </section>
-  );
-}
-
-function CostKpi({
-  icon: Icon,
-  label,
-  tone = "blue",
-  value,
-}: {
-  icon: typeof Calculator;
-  label: string;
-  tone?: "blue" | "green" | "orange" | "red";
-  value: string;
-}) {
-  return (
-    <article className={`transport-kpi ${tone}-line`}>
-      <Icon size={16} />
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </article>
   );
 }
 
@@ -148,27 +153,27 @@ function NegativeMarginItem({ apiConfig, item }: { apiConfig: ApiConfig; item: N
   }
 
   return (
-    <div className="min-w-0 grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center p-[10px] border border-line rounded-lg bg-panel">
+    <div className="min-w-0 grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center p-[10px] border border-border rounded-lg bg-surface mb-2 last:mb-0">
       <div>
-        <strong className="block [overflow-wrap:anywhere]">{shortReference(item.tripId)}</strong>
+        <MonoCell size="xs" className="block font-semibold [overflow-wrap:anywhere]">{shortReference(item.tripId)}</MonoCell>
         <span className="block [overflow-wrap:anywhere] text-muted text-[12px]">{item.route}</span>
         <small className="block [overflow-wrap:anywhere] text-muted text-[12px]">
-          {item.vehiclePlate ?? "Sem viatura"} · {item.driverName ?? "Sem motorista"}
+          {item.vehiclePlate ? <MonoCell size="xs">{item.vehiclePlate}</MonoCell> : "Sem viatura"} · {item.driverName ?? "Sem motorista"}
         </small>
       </div>
       <div className="grid gap-2 justify-items-end">
         <dl className="grid grid-cols-3 gap-2 m-0 min-w-[240px]">
           <div>
             <dt className="text-[12px] text-muted m-0">Custo</dt>
-            <dd className="text-[12px] font-extrabold mt-[3px] m-0">{formatMoney(item.transportCost)}</dd>
+            <dd className="mt-[3px] m-0"><MoneyCell value={item.transportCost} semantic="cost" /></dd>
           </div>
           <div>
             <dt className="text-[12px] text-muted m-0">Receita</dt>
-            <dd className="text-[12px] font-extrabold mt-[3px] m-0">{formatMoney(item.revenue)}</dd>
+            <dd className="mt-[3px] m-0"><MoneyCell value={item.revenue} semantic="revenue" /></dd>
           </div>
           <div>
             <dt className="text-[12px] text-muted m-0">Margem</dt>
-            <dd className="text-[12px] font-extrabold mt-[3px] m-0 text-red">{formatMoney(item.margin)}</dd>
+            <dd className="mt-[3px] m-0"><MoneyCell value={item.margin} semantic="error" /></dd>
           </div>
         </dl>
         <button
@@ -231,12 +236,12 @@ function DespachoPendingItem({ apiConfig, item }: { apiConfig: ApiConfig; item: 
   }
 
   return (
-    <div className="min-w-0 grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center p-[10px] border border-line rounded-lg bg-panel">
+    <div className="min-w-0 grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center p-[10px] border border-border rounded-lg bg-surface mb-2 last:mb-0">
       <div>
-        <strong className="block [overflow-wrap:anywhere]">{shortReference(item.tripId)}</strong>
+        <MonoCell size="xs" className="block font-semibold [overflow-wrap:anywhere]">{shortReference(item.tripId)}</MonoCell>
         <span className="block [overflow-wrap:anywhere] text-muted text-[12px]">{item.route}</span>
         <small className="block [overflow-wrap:anywhere] text-muted text-[12px]">
-          {item.vehiclePlate ?? "Sem viatura"} · {item.driverName ?? "Sem motorista"} ·{" "}
+          {item.vehiclePlate ? <MonoCell size="xs">{item.vehiclePlate}</MonoCell> : "Sem viatura"} · {item.driverName ?? "Sem motorista"} ·{" "}
           {statusLabel(item.status)}
         </small>
       </div>

@@ -9,10 +9,11 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
 import type { ControlTowerLoadResult } from "../lib/control-tower-api";
 import { TransportCargoActions } from "./TransportCargoActions";
+import { KpiCard } from "@/app/components/ui/KpiCard";
+import { PageHeader } from "@/app/components/ui/PageHeader";
+import { EmptyStateInline } from "@/app/components/ui/EmptyState";
 
 interface ApiConfig {
   apiBaseUrl: string;
@@ -29,51 +30,65 @@ export function TransportCargoBoard({ apiConfig, result }: TransportCargoBoardPr
   const { summary, queues } = result.tower;
 
   return (
-    <section className="domain-section transport-cargo" aria-labelledby="transport-cargo-title">
-      <div className="domain-heading">
-        <div>
-          <span className="eyebrow">Transporte e Carga</span>
-          <h2 id="transport-cargo-title">Execução de transporte</h2>
-          <p>Ordens, autorizações de saída, viagens, incidentes e prova de entrega no mesmo circuito.</p>
-        </div>
-        <div className="module-state">
-          <Route size={16} />
-          <span>Em fechamento</span>
-          {apiConfig.tenantId ? (
-            <TransportCargoActions
-              action={{ kind: "evaluate-delivery-sla" }}
-              apiConfig={apiConfig}
-              label="Avaliar SLA"
-            />
-          ) : null}
-        </div>
-      </div>
+    <section className="mt-6" aria-labelledby="transport-cargo-title">
+      <PageHeader
+        eyebrow="Transporte e Carga"
+        title="Execução de transporte"
+        description="Ordens, autorizações de saída, viagens, incidentes e prova de entrega no mesmo circuito."
+        actions={
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 text-[12px] text-muted">
+              <Route size={14} />
+              Em fechamento
+            </span>
+            {apiConfig.tenantId ? (
+              <TransportCargoActions
+                action={{ kind: "evaluate-delivery-sla" }}
+                apiConfig={apiConfig}
+                label="Avaliar SLA"
+              />
+            ) : null}
+          </div>
+        }
+      />
 
-      <div className="overflow-x-auto">
-        <Table aria-label="Indicadores de transporte e carga">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Indicador</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TransportKpiRow icon={ClipboardCheck} label="Ordens abertas" value={summary.tripOrdersOpen} />
-            <TransportKpiRow icon={ShieldAlert} label="Autorização pendente" value={summary.dispatchPending} />
-            <TransportKpiRow icon={Truck} label="Em execução" value={summary.tripsInExecution} />
-            <TransportKpiRow icon={AlertOctagon} label="Incidentes" value={summary.incidentsOpen} />
-            <TransportKpiRow
-              icon={FileWarning}
-              label="Descargas a validar"
-              value={summary.deliveryProofsPendingValidation}
-            />
-            <TransportKpiRow
-              icon={FileWarning}
-              label="Descargas em disputa"
-              value={queues.disputedDeliveryProofs.length}
-            />
-          </TableBody>
-        </Table>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <KpiCard
+          icon={<ClipboardCheck size={16} />}
+          label="Ordens abertas"
+          value={summary.tripOrdersOpen}
+          semantic="default"
+        />
+        <KpiCard
+          icon={<ShieldAlert size={16} />}
+          label="Autorização pendente"
+          value={summary.dispatchPending}
+          semantic={summary.dispatchPending > 0 ? "warning" : "default"}
+        />
+        <KpiCard
+          icon={<Truck size={16} />}
+          label="Em execução"
+          value={summary.tripsInExecution}
+          semantic="info"
+        />
+        <KpiCard
+          icon={<AlertOctagon size={16} />}
+          label="Incidentes"
+          value={summary.incidentsOpen}
+          semantic={summary.incidentsOpen > 0 ? "error" : "default"}
+        />
+        <KpiCard
+          icon={<FileWarning size={16} />}
+          label="Descargas a validar"
+          value={summary.deliveryProofsPendingValidation}
+          semantic={summary.deliveryProofsPendingValidation > 0 ? "warning" : "default"}
+        />
+        <KpiCard
+          icon={<FileWarning size={16} />}
+          label="Em disputa"
+          value={queues.disputedDeliveryProofs.length}
+          semantic={queues.disputedDeliveryProofs.length > 0 ? "error" : "default"}
+        />
       </div>
 
       <div className="transport-work-grid" aria-label="Filas de trabalho de transporte">
@@ -272,24 +287,6 @@ export function TransportCargoBoard({ apiConfig, result }: TransportCargoBoardPr
   );
 }
 
-interface TransportKpiRowProps {
-  icon: LucideIcon;
-  label: string;
-  value: number;
-}
-
-function TransportKpiRow({ icon: Icon, label, value }: TransportKpiRowProps) {
-  return (
-    <TableRow>
-      <TableCell className="flex items-center gap-2">
-        <Icon size={16} />
-        <span>{label}</span>
-      </TableCell>
-      <TableCell className="text-right font-semibold">{value}</TableCell>
-    </TableRow>
-  );
-}
-
 interface TransportQueueItem {
   action?: ReactNode;
   id: string;
@@ -309,7 +306,7 @@ interface TransportQueueProps {
 
 function TransportQueue({ emptyLabel, icon: Icon, items, title, tone }: TransportQueueProps) {
   return (
-    <article className="bg-panel border border-line rounded-lg overflow-hidden">
+    <article className="bg-surface border border-border rounded-lg overflow-hidden">
       <header>
         <span className={`queue-icon ${tone}`}>
           <Icon size={16} />
@@ -321,7 +318,7 @@ function TransportQueue({ emptyLabel, icon: Icon, items, title, tone }: Transpor
       </header>
       <div>
         {items.length === 0 ? (
-          <p className="text-center py-8 text-muted text-sm">{emptyLabel}</p>
+          <EmptyStateInline label={emptyLabel} />
         ) : null}
         {items.map((item) => (
           <div className="worklist-item" key={item.id}>

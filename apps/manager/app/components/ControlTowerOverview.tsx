@@ -246,6 +246,10 @@ function documentTypeLabel(value: string) {
     bi: "Bilhete de Identidade",
     inspection: "Inspecção",
     insurance: "Seguro",
+    iav: "IAV",
+    sign_tax: "Taxa de Letreiro",
+    cargo_book: "Caderneta de Carga",
+    international_license: "Licença Internacional",
   };
   return labels[value] ?? value.replaceAll("_", " ");
 }

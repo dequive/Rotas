@@ -4,6 +4,31 @@ import { loadVehicles } from "../lib/vehicles-api";
 import { SidebarLayout } from "../components/SidebarLayout";
 import { VehicleFormModal } from "../components/VehicleFormModal";
 
+const VEHICLE_DOCS: { key: string; short: string }[] = [
+  { key: "insurance",            short: "SEG" },
+  { key: "inspection",           short: "INS" },
+  { key: "iav",                  short: "IAV" },
+  { key: "sign_tax",             short: "LET" },
+  { key: "cargo_book",           short: "CAD" },
+  { key: "international_license", short: "INT" },
+];
+
+function docStatus(docs: Record<string, unknown> | null, key: string): "ok" | "expiring" | "missing" {
+  if (!docs) return "missing";
+  const validUntil = (docs[`${key}_valid_until`] ?? (docs[key] as Record<string, unknown> | null)?.valid_until) as string | null | undefined;
+  if (!validUntil) return "missing";
+  const days = Math.ceil((new Date(validUntil).getTime() - Date.now()) / 86_400_000);
+  if (days < 0) return "missing";
+  if (days <= 30) return "expiring";
+  return "ok";
+}
+
+const DOC_COLORS = {
+  ok:       "bg-success text-white",
+  expiring: "bg-warning text-white",
+  missing:  "bg-surface-2 text-muted border border-border",
+} as const;
+
 const STATUS_LABEL: Record<string, { label: string; tone: string }> = {
   active: { label: "Activa", tone: "green" },
   maintenance: { label: "Manutenção", tone: "orange" },
@@ -36,13 +61,14 @@ export default async function ViaturasPage() {
                 <th>Km actual</th>
                 <th>Combustível</th>
                 <th>Estado</th>
+                <th>Documentos</th>
                 <th>Acções</th>
               </tr>
             </thead>
             <tbody>
               {vehicles.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="empty-row">Sem viaturas registadas.</td>
+                  <td colSpan={9} className="empty-row">Sem viaturas registadas.</td>
                 </tr>
               ) : (
                 vehicles.map((v) => {
@@ -65,6 +91,22 @@ export default async function ViaturasPage() {
                       <td>{v.fuel_type}</td>
                       <td>
                         <span className={`badge ${meta.tone}`}>{meta.label}</span>
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {VEHICLE_DOCS.map(({ key, short }) => {
+                            const st = docStatus(v.documents as Record<string, unknown> | null, key);
+                            return (
+                              <span
+                                key={key}
+                                title={`${key.replaceAll("_", " ")}: ${st === "ok" ? "válido" : st === "expiring" ? "a vencer" : "em falta"}`}
+                                className={`inline-block text-[9px] font-bold px-1 py-0.5 rounded leading-none ${DOC_COLORS[st]}`}
+                              >
+                                {short}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </td>
                       <td className="action-cell">
                         <VehicleFormModal vehicle={v} />

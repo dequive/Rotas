@@ -265,7 +265,7 @@ function ExpiryPanel({
 
   return (
     <section>
-      <h2 className="text-[21px] font-extrabold text-ink mb-4">Vencimento de Documentos</h2>
+      <h2 className="text-[21px] font-extrabold text-ink mb-4">Documentos a Vencer</h2>
       {loading ? (
         <Skeleton className="h-32 w-full" />
       ) : sorted.length === 0 ? (

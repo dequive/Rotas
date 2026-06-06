@@ -263,3 +263,18 @@ Do not make direct repo edits outside a GSD workflow unless the user explicitly 
 > Profile not yet configured. Run `/gsd:profile-user` to generate your developer profile.
 > This section is managed by `generate-claude-profile` -- do not edit manually.
 <!-- GSD:profile-end -->
+
+## Design System
+
+Always read `DESIGN.md` before making any visual or UI decisions.
+All font choices, colors, spacing, border radius, motion, and aesthetic direction are defined there.
+Do not deviate without explicit user approval.
+
+Key rules enforced at all times:
+
+- Fonts: Manrope (UI/body) + IBM Plex Mono (data/IDs/monetary values). Never Inter, Roboto, Arial, or system-ui as primary.
+- Accent color: `--amber: #f59e0b`. Never purple gradients or generic blue as the primary brand accent.
+- Sidebar: always grouped sections (Operações / Frota / Financeiro / Config). Never a flat list.
+- Badges: always with a colored dot (`::before` circle). Never plain text badges.
+- Decoration: minimal. No blobs, decorative gradients, or illustration backgrounds.
+- In QA mode: flag any component that doesn't match DESIGN.md tokens.

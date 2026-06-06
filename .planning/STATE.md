@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-06-05T21:51:01.354Z"
+last_updated: "2026-06-05T21:47:04.187Z"
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 1
   total_plans: 35
-  completed_plans: 28
+  completed_plans: 25
 ---
 
 # ROTAS — Project State
@@ -93,8 +93,7 @@ Preparing to start Phase 1.
 | Phase 03-manager-dashboard-reporting-layer P02 | 25 | 2 tasks | 2 files |
 | Phase 04-production-hardening-scale-preparation P07 | 5 | 2 tasks | 3 files |
 | Phase 04-production-hardening-scale-preparation P09 | 15 | 2 tasks | 7 files |
-| Phase 04-production-hardening-scale-preparation P08 | 35 | 2 tasks | 28 files |
-| Phase 03-manager-dashboard-reporting-layer P03 | 25 | 3 tasks | 8 files |
+| Phase 03 P08 | 15 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -114,8 +113,6 @@ Preparing to start Phase 1.
 | Icons generated with Pillow + Windows Arial Bold (proper 192x192/512x512) | 2 | Proper dimensions required — Chrome installability checker rejects icons smaller than declared size |
 | manifest.webmanifest in public/ is static fallback; live manifest from vite.config.mjs manifest block | 2 | VitePWA injectManifest strategy generates injected manifest from config, not public/ file |
 | require_roles(*DASHBOARD_ROLES) for scorecard endpoint — driver tokens rejected at dependency level | 4 | Consistent with all other protected endpoints; no manual scope check needed |
-| app.state.redis (plain Redis) and app.state.arq_redis (ARQ pool) are separate objects | 3 | Distinct roles: cache GET/SET vs enqueue_job — substituting them causes runtime errors |
-| CT cache key ct:kpis:{tenant_id} TTL=60s; stampede lock SET NX EX 10s | 3 | Prevents duplicate recalculation under concurrent CT dashboard requests |
 
 ### Blockers
 
@@ -130,7 +127,7 @@ _None yet — project not started._
 
 ## Session Continuity
 
-_Last session: 2026-06-05T22:25Z — Completed 03-03-PLAN.md (CT-02 Redis cache-aside + ARQ worker scaffold, 7 CT tests green)_
+_Last session: 2026-06-05T20:55Z — Completed 03-05-PLAN.md (analytics module: KPI + document expiry, 3 tests green)_
 
 ---
 

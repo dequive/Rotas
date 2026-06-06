@@ -38,15 +38,18 @@ export function CostMarginBoard({ apiConfig, result }: CostMarginBoardProps) {
         </span>
       </div>
 
-      <div className="cost-kpis" aria-label="Indicadores de custos e margem">
+      <div
+        className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-4"
+        aria-label="Indicadores de custos e margem"
+      >
         <CostKpi icon={ReceiptText} label="Custo real" value={formatMoney(summary.transportCostTotal)} />
         <CostKpi icon={Banknote} label="Receita" value={formatMoney(summary.contractRevenueTotal)} />
         <CostKpi icon={Calculator} label="Margem" tone={summary.marginTotal < 0 ? "red" : "green"} value={formatMoney(summary.marginTotal)} />
         <CostKpi icon={AlertTriangle} label="Por reconciliar" tone="orange" value={summary.closedTripsUnreconciled.toString()} />
       </div>
 
-      <div className="cost-work-grid">
-        <article className="cost-panel">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] gap-[14px]">
+        <article className="min-w-0 p-[14px] bg-panel border border-line rounded-lg">
           <div className="section-header">
             <h3 className="section-title">Despacho por lançar</h3>
             <span>{queues.driverDespachoPending.length} viagens</span>
@@ -61,7 +64,7 @@ export function CostMarginBoard({ apiConfig, result }: CostMarginBoardProps) {
           </div>
         </article>
 
-        <article className="cost-panel">
+        <article className="min-w-0 p-[14px] bg-panel border border-line rounded-lg">
           <div className="section-header">
             <h3 className="section-title">Margem negativa</h3>
             <span>{summary.negativeMarginTrips} viagens</span>
@@ -145,27 +148,27 @@ function NegativeMarginItem({ apiConfig, item }: { apiConfig: ApiConfig; item: N
   }
 
   return (
-    <div className="cost-item negative-margin-item">
+    <div className="min-w-0 grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center p-[10px] border border-line rounded-lg bg-panel">
       <div>
-        <strong>{shortReference(item.tripId)}</strong>
-        <span>{item.route}</span>
-        <small>
+        <strong className="block [overflow-wrap:anywhere]">{shortReference(item.tripId)}</strong>
+        <span className="block [overflow-wrap:anywhere] text-muted text-[12px]">{item.route}</span>
+        <small className="block [overflow-wrap:anywhere] text-muted text-[12px]">
           {item.vehiclePlate ?? "Sem viatura"} · {item.driverName ?? "Sem motorista"}
         </small>
       </div>
-      <div className="margin-governance">
-        <dl>
+      <div className="grid gap-2 justify-items-end">
+        <dl className="grid grid-cols-3 gap-2 m-0 min-w-[240px]">
           <div>
-            <dt>Custo</dt>
-            <dd>{formatMoney(item.transportCost)}</dd>
+            <dt className="text-[12px] text-muted m-0">Custo</dt>
+            <dd className="text-[12px] font-extrabold mt-[3px] m-0">{formatMoney(item.transportCost)}</dd>
           </div>
           <div>
-            <dt>Receita</dt>
-            <dd>{formatMoney(item.revenue)}</dd>
+            <dt className="text-[12px] text-muted m-0">Receita</dt>
+            <dd className="text-[12px] font-extrabold mt-[3px] m-0">{formatMoney(item.revenue)}</dd>
           </div>
           <div>
-            <dt>Margem</dt>
-            <dd className="negative">{formatMoney(item.margin)}</dd>
+            <dt className="text-[12px] text-muted m-0">Margem</dt>
+            <dd className="text-[12px] font-extrabold mt-[3px] m-0 text-red">{formatMoney(item.margin)}</dd>
           </div>
         </dl>
         <button
@@ -228,11 +231,11 @@ function DespachoPendingItem({ apiConfig, item }: { apiConfig: ApiConfig; item: 
   }
 
   return (
-    <div className="cost-item despacho-cost-item">
+    <div className="min-w-0 grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center p-[10px] border border-line rounded-lg bg-panel">
       <div>
-        <strong>{shortReference(item.tripId)}</strong>
-        <span>{item.route}</span>
-        <small>
+        <strong className="block [overflow-wrap:anywhere]">{shortReference(item.tripId)}</strong>
+        <span className="block [overflow-wrap:anywhere] text-muted text-[12px]">{item.route}</span>
+        <small className="block [overflow-wrap:anywhere] text-muted text-[12px]">
           {item.vehiclePlate ?? "Sem viatura"} · {item.driverName ?? "Sem motorista"} ·{" "}
           {statusLabel(item.status)}
         </small>

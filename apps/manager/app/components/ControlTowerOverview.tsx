@@ -43,7 +43,10 @@ export function ControlTowerOverview({ result }: ControlTowerOverviewProps) {
         </span>
       </div>
 
-      <section className="tower-grid" aria-label="Indicadores da operação">
+      <section
+        className="grid grid-cols-[repeat(6,minmax(0,1fr))] gap-[10px]"
+        aria-label="Indicadores da operação"
+      >
         <TowerMetric
           icon={ClipboardCheck}
           label="Ordens abertas"
@@ -82,7 +85,10 @@ export function ControlTowerOverview({ result }: ControlTowerOverviewProps) {
         />
       </section>
 
-      <section className="worklist-grid" aria-label="Excepções operacionais">
+      <section
+        className="grid grid-cols-[repeat(4,minmax(0,1fr))] gap-3 mt-[14px]"
+        aria-label="Excepções operacionais"
+      >
         <Worklist
           emptyLabel="Sem autorizações bloqueadas."
           icon={ShieldAlert}
@@ -137,7 +143,10 @@ export function ControlTowerOverview({ result }: ControlTowerOverviewProps) {
         />
       </section>
 
-      <section className="fleet-strip" aria-label="Capacidade operacional">
+      <section
+        className="flex flex-wrap gap-x-[18px] gap-y-[6px] mt-3 px-3 py-[10px] bg-[#edf2f7] border border-line rounded-md"
+        aria-label="Capacidade operacional"
+      >
         <FleetFact icon={Truck} label="Viaturas activas" value={summary.vehiclesActive} />
         <FleetFact icon={Users} label="Motoristas activos" value={summary.driversActive} />
         <FleetFact icon={ClipboardCheck} label="Viagens abertas hoje" value={summary.tripsCreatedToday} />
@@ -201,13 +210,15 @@ interface TowerMetricProps {
 
 function TowerMetric({ icon: Icon, label, tone, value }: TowerMetricProps) {
   return (
-    <article className={`tower-metric ${tone}-line`}>
+    <article
+      className={`min-h-[86px] min-w-0 p-3 flex items-center gap-[10px] bg-panel border border-line rounded-lg border-l-[4px] border-l-${tone}`}
+    >
       <span className={`queue-icon ${tone}`}>
         <Icon size={16} />
       </span>
-      <div>
-        <span>{label}</span>
-        <strong>{value}</strong>
+      <div className="min-w-0">
+        <span className="text-muted text-[12px] [overflow-wrap:anywhere]">{label}</span>
+        <strong className="block mt-1 text-[22px] text-ink">{value}</strong>
       </div>
     </article>
   );
@@ -231,24 +242,24 @@ interface WorklistProps {
 
 function Worklist({ emptyLabel, icon: Icon, items, title, tone }: WorklistProps) {
   return (
-    <article className="worklist">
-      <header>
+    <article className="min-w-0 p-[14px] bg-panel border border-line rounded-lg">
+      <header className="flex items-center gap-[10px] mb-[10px]">
         <span className={`queue-icon ${tone}`}>
           <Icon size={16} />
         </span>
         <div>
-          <h2>{title}</h2>
-          <p>{items.length} pendentes</p>
+          <h2 className="m-0 text-[14px]">{title}</h2>
+          <p className="m-0 mt-[2px] text-muted text-[12px]">{items.length} pendentes</p>
         </div>
       </header>
-      <div className="worklist-items">
+      <div className="grid gap-[7px]">
         {items.length === 0 ? <p className="empty-state">{emptyLabel}</p> : null}
         {items.map((item) => (
-          <div className="worklist-item" key={item.id}>
-            <strong>{item.reference}</strong>
-            <span>{item.title}</span>
-            <small>{item.detail}</small>
-            <em>{item.meta}</em>
+          <div className="grid gap-[3px] pt-2 border-t border-line [overflow-wrap:anywhere]" key={item.id}>
+            <strong className="text-blue text-[12px]">{item.reference}</strong>
+            <span className="text-[13px] font-bold">{item.title}</span>
+            <small className="text-muted text-[12px]">{item.detail}</small>
+            <em className="text-muted text-[12px] not-italic">{item.meta}</em>
           </div>
         ))}
       </div>
@@ -264,10 +275,10 @@ interface FleetFactProps {
 
 function FleetFact({ icon: Icon, label, value }: FleetFactProps) {
   return (
-    <div className="fleet-fact">
+    <div className="flex items-center gap-[6px] text-muted text-[12px]">
       <Icon size={16} />
       <span>{label}</span>
-      <strong>{value}</strong>
+      <strong className="text-ink">{value}</strong>
     </div>
   );
 }

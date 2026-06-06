@@ -44,7 +44,7 @@ export function ControlTowerOverview({ result }: ControlTowerOverviewProps) {
       </div>
 
       <section
-        className="grid grid-cols-[repeat(6,minmax(0,1fr))] gap-[10px]"
+        className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3"
         aria-label="Indicadores da operação"
       >
         <TowerMetric
@@ -86,7 +86,7 @@ export function ControlTowerOverview({ result }: ControlTowerOverviewProps) {
       </section>
 
       <section
-        className="grid grid-cols-[repeat(4,minmax(0,1fr))] gap-3 mt-[14px]"
+        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mt-[14px]"
         aria-label="Excepções operacionais"
       >
         <Worklist
@@ -211,7 +211,7 @@ interface TowerMetricProps {
 function TowerMetric({ icon: Icon, label, tone, value }: TowerMetricProps) {
   return (
     <article
-      className={`min-h-[86px] min-w-0 p-3 flex items-center gap-[10px] bg-panel border border-line rounded-lg border-l-[4px] border-l-${tone}`}
+      className={`min-h-[86px] p-3 flex items-center gap-[10px] bg-panel border border-line rounded-lg border-l-[4px] border-l-${tone} overflow-hidden`}
     >
       <span className={`queue-icon ${tone}`}>
         <Icon size={16} />

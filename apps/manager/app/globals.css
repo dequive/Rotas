@@ -2,19 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── DESIGN TOKENS (DESIGN.md — Command Center) ────────────────── */
 :root {
   color-scheme: light;
-  --ink: #172033;
-  --muted: #667085;
-  --line: #d8dee8;
+
+  /* Legacy tokens (keep for components not yet migrated) */
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
   --panel: #ffffff;
-  --soft: #f5f7fa;
-  --nav: #102033;
+  --soft: #f1f5f9;
+  --nav: #0f1623;
   --blue: #2563eb;
-  --green: #16794c;
-  --orange: #b45309;
-  --red: #b42318;
-  --cyan: #0e7490;
+  --green: #16a34a;
+  --orange: #d97706;
+  --red: #dc2626;
+  --cyan: #0891b2;
+
+  /* shadcn/ui base variables — required for all shadcn components */
+  --background: 241 245 249;      /* #f1f5f9 */
+  --foreground: 15 23 42;         /* #0f172a */
+  --card: 255 255 255;            /* #ffffff */
+  --card-foreground: 15 23 42;    /* #0f172a */
+  --popover: 255 255 255;
+  --popover-foreground: 15 23 42;
+  --primary: 245 158 11;          /* #f59e0b amber */
+  --primary-foreground: 15 22 35; /* #0f1623 */
+  --secondary: 241 245 249;       /* #f1f5f9 */
+  --secondary-foreground: 15 23 42;
+  --muted-bg: 248 250 252;        /* #f8fafc */
+  --muted-foreground: 100 116 139;/* #64748b */
+  --accent: 254 243 199;          /* #fef3c7 amber-light */
+  --accent-foreground: 180 83 9;  /* #b45309 */
+  --destructive: 220 38 38;       /* #dc2626 */
+  --destructive-foreground: 255 255 255;
+  --border: 226 232 240;          /* #e2e8f0 */
+  --input: 203 213 225;           /* #cbd5e1 */
+  --ring: 245 158 11;             /* #f59e0b */
+  --radius: 0.375rem;             /* 6px */
+
+  /* Chart colors */
+  --chart-1: 245 158 11;
+  --chart-2: 37 99 235;
+  --chart-3: 22 163 74;
+  --chart-4: 220 38 38;
+  --chart-5: 8 145 178;
+
+  /* Sidebar shadcn tokens */
+  --sidebar: 15 22 35;
+  --sidebar-foreground: 148 163 184;
+  --sidebar-primary: 245 158 11;
+  --sidebar-primary-foreground: 15 22 35;
+  --sidebar-accent: 30 45 61;
+  --sidebar-accent-foreground: 241 245 249;
+  --sidebar-border: 30 45 61;
+  --sidebar-ring: 245 158 11;
+
+  /* Amber accent */
+  --amber: #f59e0b;
+  --amber-light: #fef3c7;
+  --amber-dark: #d97706;
 }
 
 * {
@@ -23,9 +70,10 @@
 
 body {
   margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Manrope', system-ui, sans-serif;
   background: var(--soft);
   color: var(--ink);
+  -webkit-font-smoothing: antialiased;
 }
 
 button,

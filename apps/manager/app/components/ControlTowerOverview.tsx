@@ -170,7 +170,7 @@ export function ControlTowerOverview({ result }: ControlTowerOverviewProps) {
 
       <section className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3" aria-label="Compliance documental">
         <WorkQueue
-          emptyLabel="Sem documentos de viatura perto do vencimento."
+          emptyLabel="✓ Todos os documentos de viatura em dia."
           icon={Truck}
           title="Documentos de viatura"
           tone="orange"
@@ -183,7 +183,7 @@ export function ControlTowerOverview({ result }: ControlTowerOverviewProps) {
           }))}
         />
         <WorkQueue
-          emptyLabel="Sem documentos de motorista perto do vencimento."
+          emptyLabel="✓ Todos os documentos de motorista em dia."
           icon={Users}
           title="Documentos de motorista"
           tone="orange"

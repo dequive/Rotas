@@ -41,7 +41,7 @@ export function FleetComplianceBoard({ apiConfig, result }: FleetComplianceBoard
       <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
         <ComplianceColumn
           apiConfig={apiConfig}
-          emptyLabel="Sem documentos de viatura perto do vencimento."
+          emptyLabel="✓ Todos os documentos de viatura em dia."
           entityType="vehicle"
           icon={Truck}
           items={vehicleItems}
@@ -49,7 +49,7 @@ export function FleetComplianceBoard({ apiConfig, result }: FleetComplianceBoard
         />
         <ComplianceColumn
           apiConfig={apiConfig}
-          emptyLabel="Sem documentos de motorista perto do vencimento."
+          emptyLabel="✓ Todos os documentos de motorista em dia."
           entityType="driver"
           icon={Users}
           items={driverItems}

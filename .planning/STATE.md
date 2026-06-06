@@ -45,6 +45,9 @@ Last activity: 2026-06-06
 | Icons generated with Pillow + Windows Arial Bold (proper 192x192/512x512) | 2 | Proper dimensions required — Chrome installability checker rejects icons smaller than declared size |
 | manifest.webmanifest in public/ is static fallback; live manifest from vite.config.mjs manifest block | 2 | VitePWA injectManifest strategy generates injected manifest from config, not public/ file |
 | require_roles(*DASHBOARD_ROLES) for scorecard endpoint — driver tokens rejected at dependency level | 4 | Consistent with all other protected endpoints; no manual scope check needed |
+| fpdf2+DejaVuSans for billing PDF — full Latin Extended Unicode, font path via Path(__file__) | 3 | latin-1 hand-rolled builder silently corrupted Mozambican diacritics; fpdf2 TTF font path is CWD-independent |
+| openpyxl for XLSX — native bold/number_format, no hand-rolled XML/ZIP | 3 | openpyxl is the standard Python XLSX library; proper cell formatting without raw XML |
+| Idempotent export job creation — returns existing queued/processing job on duplicate request | 3 | Prevents duplicate ARQ jobs for same document+format; safe for retry from frontend |
 
 ### Blockers
 
@@ -59,7 +62,7 @@ _None yet — project not started._
 
 ## Session Continuity
 
-_Last session: 2026-06-05T20:55Z — Completed 03-05-PLAN.md (analytics module: KPI + document expiry, 3 tests green)_
+_Last session: 2026-06-06 — Completed 03-06-PLAN.md (billing exports: fpdf2+DejaVuSans PDF, openpyxl XLSX, ARQ worker, 3 new job endpoints, 4 tests green)_
 
 ---
 

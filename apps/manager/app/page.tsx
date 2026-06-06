@@ -4,7 +4,6 @@ import {
   ClipboardCheck,
   FileClock,
   FileText,
-  Link2,
   ReceiptText,
   Route,
   Truck,
@@ -21,6 +20,12 @@ import { MaintenanceImminentPanel } from "./components/MaintenanceImminentPanel"
 import { FuelControlBoard } from "./components/FuelControlBoard";
 import { SidebarLayout } from "./components/SidebarLayout";
 import { TransportCargoBoard } from "./components/TransportCargoBoard";
+import { KpiCard } from "./components/ui/KpiCard";
+import { WorkQueue } from "./components/ui/WorkQueue";
+import { SectionHeader } from "./components/ui/SectionHeader";
+import { StatusBadge } from "./components/ui/StatusBadge";
+import { MonoCell, MoneyCell } from "./components/ui/MonoCell";
+import { DataSourceBadge } from "./components/ui/DataSourceBadge";
 import {
   type BillingStatus,
   getApiConfig,
@@ -134,138 +139,141 @@ export default async function ManagerHome() {
         <FuelControlBoard result={fuelControlBoard} />
         <CostMarginBoard apiConfig={apiConfig} result={controlTower} />
 
-        <div className="section-divider">
-          <div className="title">
-            <span className="eyebrow">Financeiro Operacional</span>
-            <h2>Cobrança de transporte</h2>
-            <p>Viagens entregues, provas de descarga, contratos e documentos mensais.</p>
-          </div>
+        <div className="px-6 mt-8 mb-4">
+          <span className="block text-[11px] font-semibold uppercase tracking-widest text-muted mb-1">
+            Financeiro Operacional
+          </span>
+          <h2 className="text-[20px] font-bold text-ink">Cobrança de transporte</h2>
+          <p className="text-[13px] text-muted mt-1">
+            Viagens entregues, provas de descarga, contratos e documentos mensais.
+          </p>
         </div>
 
-        <div className="topbar">
-          <div />
-          <div className="toolbar" aria-label="Accoes de cobranca">
-            <button className="tool-btn" title="Gerar documento de cobranca">
-              <ReceiptText size={18} />
-              Gerar
-            </button>
-            <button className="icon-btn" title="Exportar PDF">
-              <FileText size={18} />
-            </button>
-          </div>
+        <div className="px-6 flex items-center justify-end gap-2 mb-3">
+          <button
+            className="inline-flex items-center gap-1.5 h-8 px-3 text-[13px] font-medium bg-surface border border-border rounded-md hover:bg-surface-2 transition-colors duration-75"
+            title="Gerar documento de cobrança"
+          >
+            <ReceiptText size={15} />
+            Gerar
+          </button>
+          <button
+            className="inline-flex items-center justify-center h-8 w-8 bg-surface border border-border rounded-md hover:bg-surface-2 transition-colors duration-75"
+            title="Exportar PDF"
+          >
+            <FileText size={15} />
+          </button>
         </div>
 
-        <div className={`data-source ${source}`}>
-          <Link2 size={15} />
-          <span>{source === "api" ? "Dados carregados da API ROTAS." : message}</span>
+        <div className="px-6 mb-3">
+          <DataSourceBadge source={source} message={source !== "api" ? (message ?? undefined) : undefined} />
         </div>
 
-        <section className="billing-kpi-grid" aria-label="Indicadores de cobranca">
-          <div className="panel metric red-line">
-            <span>Sem contrato</span>
-            <strong>{countByStatus(trips, "uncontracted")}</strong>
-          </div>
-          <div className="panel metric orange-line">
-            <span>A validar descarga</span>
-            <strong>{countByStatus(trips, "pending_delivery_validation")}</strong>
-          </div>
-          <div className="panel metric cyan-line">
-            <span>Prontas a cobrar</span>
-            <strong>{countByStatus(trips, "billable")}</strong>
-          </div>
-          <div className="panel metric green-line">
-            <span>Valor controlado</span>
-            <strong>{money(controlledValue)}</strong>
-          </div>
-        </section>
+        <div className="px-6">
+          <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" aria-label="Indicadores de cobrança">
+            <KpiCard
+              label="Sem contrato"
+              value={countByStatus(trips, "uncontracted")}
+              semantic={countByStatus(trips, "uncontracted") > 0 ? "error" : "default"}
+            />
+            <KpiCard
+              label="A validar descarga"
+              value={countByStatus(trips, "pending_delivery_validation")}
+              semantic="warning"
+            />
+            <KpiCard
+              label="Prontas a cobrar"
+              value={countByStatus(trips, "billable")}
+              semantic="info"
+            />
+            <KpiCard
+              label="Valor controlado"
+              value={money(controlledValue)}
+              semantic="success"
+            />
+          </section>
 
-        <section className="queue-grid" aria-label="Filas de trabalho">
-          {statusOrder.map((status) => {
-            const meta = statusMeta[status];
-            const Icon = meta.icon;
-            const statusTrips = trips.filter((trip) => trip.status === status);
+          <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-6" aria-label="Filas de trabalho">
+            {statusOrder.map((status) => {
+              const meta = statusMeta[status];
+              const Icon = meta.icon;
+              const statusTrips = trips.filter((trip) => trip.status === status);
+              return (
+                <WorkQueue
+                  key={status}
+                  icon={Icon}
+                  title={meta.label}
+                  tone={meta.tone as "blue" | "orange" | "red" | "green" | "cyan" | "amber"}
+                  emptyLabel="Sem viagens."
+                  items={statusTrips.map((trip) => ({
+                    id: trip.id,
+                    reference: trip.plate,
+                    title: trip.route,
+                    meta: money(trip.amount),
+                  }))}
+                />
+              );
+            })}
+          </section>
 
-            return (
-              <article className="queue" key={status}>
-                <header>
-                  <span className={`queue-icon ${meta.tone}`}>
-                    <Icon size={16} />
-                  </span>
-                  <div>
-                    <h2>{meta.label}</h2>
-                    <p>{statusTrips.length} viagens</p>
-                  </div>
-                </header>
-                <div className="queue-list">
-                  {statusTrips.map((trip) => (
-                    <div className="queue-item" key={trip.id}>
-                      <strong>{trip.plate}</strong>
-                      <span>{trip.route}</span>
-                      <small>{money(trip.amount)}</small>
-                    </div>
-                  ))}
-                </div>
-              </article>
-            );
-          })}
-        </section>
-
-        <div className="content billing-content">
-          <section className="panel">
-            <div className="section-header">
-              <h2 className="section-title">Viagens para cobranca</h2>
-              <span>{trips.length} registos</span>
-            </div>
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
+          <section className="bg-surface border border-border rounded-lg overflow-hidden mb-4">
+            <SectionHeader title="Viagens para cobrança" count={trips.length} />
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead className="bg-surface-2 border-b border-border">
                   <tr>
-                    <th>Viatura</th>
-                    <th>Cliente/Contrato</th>
-                    <th>Rota</th>
-                    <th>Carga</th>
-                    <th>Descarga</th>
-                    <th>Estado</th>
-                    <th>Valor</th>
-                    <th>Acção</th>
+                    <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Viatura</th>
+                    <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Cliente/Contrato</th>
+                    <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Rota</th>
+                    <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Carga</th>
+                    <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Descarga</th>
+                    <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Estado</th>
+                    <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Valor</th>
+                    <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Acção</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-border">
                   {trips.map((trip) => {
                     const meta = statusMeta[trip.status];
                     return (
-                      <tr key={trip.id}>
-                        <td>
-                          <span className="plate">
-                            <Truck size={15} />
-                            {trip.plate}
+                      <tr key={trip.id} className="hover:bg-surface-2 transition-colors duration-75">
+                        <td className="px-3 py-2.5">
+                          <span className="inline-flex items-center gap-1.5">
+                            <Truck size={13} className="text-muted flex-shrink-0" />
+                            <MonoCell size="sm">{trip.plate}</MonoCell>
                           </span>
                         </td>
-                        <td>
-                          <strong>{trip.client ?? "Por associar"}</strong>
-                          <span className="muted-line">
-                            {trip.contractReference ?? "Sem contrato"}
-                          </span>
+                        <td className="px-3 py-2.5">
+                          <div className="flex flex-col">
+                            <strong className="text-[13px] font-medium text-ink">{trip.client ?? "Por associar"}</strong>
+                            <span className="text-[12px] text-muted">{trip.contractReference ?? "Sem contrato"}</span>
+                          </div>
                         </td>
-                        <td>
-                          <span className="route">
-                            <Route size={15} />
+                        <td className="px-3 py-2.5">
+                          <span className="inline-flex items-center gap-1.5 text-[13px] text-ink-2">
+                            <Route size={13} className="text-muted flex-shrink-0" />
                             {trip.route}
                           </span>
                         </td>
-                        <td>
-                          {trip.cargo}
-                          <span className="muted-line">{trip.loadState}</span>
+                        <td className="px-3 py-2.5">
+                          <div className="flex flex-col">
+                            <span className="text-[13px] text-ink">{trip.cargo}</span>
+                            <span className="text-[12px] text-muted">{trip.loadState}</span>
+                          </div>
                         </td>
-                        <td>
-                          {trip.deliveredAt}
-                          <span className="muted-line">{trip.deliveryProof}</span>
+                        <td className="px-3 py-2.5">
+                          <div className="flex flex-col">
+                            <span className="text-[13px] text-ink">{trip.deliveredAt}</span>
+                            <span className="text-[12px] text-muted">{trip.deliveryProof}</span>
+                          </div>
                         </td>
-                        <td>
-                          <span className={`badge ${meta.tone}`}>{meta.label}</span>
+                        <td className="px-3 py-2.5">
+                          <StatusBadge status={trip.status} label={meta.label} />
                         </td>
-                        <td>{money(trip.amount)}</td>
-                        <td>
+                        <td className="px-3 py-2.5">
+                          <MoneyCell value={trip.amount ?? 0} semantic={trip.amount && trip.amount > 0 ? "revenue" : "default"} />
+                        </td>
+                        <td className="px-3 py-2 sticky right-0 bg-surface shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)]">
                           <BillingTripActions
                             apiConfig={apiConfig}
                             contracts={contracts}
@@ -280,35 +288,35 @@ export default async function ManagerHome() {
             </div>
           </section>
 
-          <section className="panel documents-panel">
-            <div className="section-header">
-              <h2 className="section-title">Documentos</h2>
-              <span>Mensal</span>
-            </div>
-            <div className="document-list">
+          <section className="bg-surface border border-border rounded-lg overflow-hidden mb-4">
+            <SectionHeader title="Documentos" description="Mensal" />
+            <div className="divide-y divide-border">
               {documents.map((document) => (
-                <article className="document" key={document.reference}>
-                  <div>
-                    <strong>{document.reference}</strong>
-                    <span>{document.client}</span>
+                <article key={document.reference} className="px-4 py-3 flex items-center justify-between gap-4 hover:bg-surface-2 transition-colors duration-75">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <MonoCell size="sm" className="font-medium text-ink">{document.reference}</MonoCell>
+                      <StatusBadge
+                        status={document.status === "Emitido" ? "issued" : "draft"}
+                        label={document.status}
+                      />
+                    </div>
+                    <span className="text-[12px] text-muted">{document.client}</span>
                   </div>
-                  <dl>
+                  <dl className="flex gap-4 text-[12px] text-muted flex-shrink-0">
                     <div>
-                      <dt>Periodo</dt>
-                      <dd>{document.period}</dd>
+                      <dt className="text-[10px] uppercase tracking-wide font-semibold">Período</dt>
+                      <dd className="text-ink">{document.period}</dd>
                     </div>
                     <div>
-                      <dt>Viagens</dt>
-                      <dd>{document.trips}</dd>
+                      <dt className="text-[10px] uppercase tracking-wide font-semibold">Viagens</dt>
+                      <dd className="text-ink">{document.trips}</dd>
                     </div>
                     <div>
-                      <dt>Total</dt>
-                      <dd>{money(document.amount)}</dd>
+                      <dt className="text-[10px] uppercase tracking-wide font-semibold">Total</dt>
+                      <dd><MoneyCell value={document.amount ?? 0} semantic="revenue" /></dd>
                     </div>
                   </dl>
-                  <span className={`badge ${document.status === "Emitido" ? "green" : "blue"}`}>
-                    {document.status}
-                  </span>
                 </article>
               ))}
             </div>

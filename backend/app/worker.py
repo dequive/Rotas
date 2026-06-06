@@ -7,13 +7,25 @@ settings = get_settings()
 
 
 async def startup(ctx: dict) -> None:
-    from app.database import AsyncSessionLocal
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-    ctx["db_factory"] = AsyncSessionLocal
+    from app.config import get_settings as _get_settings
+
+    _settings = _get_settings()
+    # D-18 / RLS-02: ARQ worker uses rotas_admin role (BYPASSRLS) for cross-tenant queries.
+    # resolved_admin_database_url falls back to database_url in local dev where RLS may not
+    # be active — no local dev config change required.
+    admin_engine = create_async_engine(
+        _settings.resolved_admin_database_url,
+        pool_pre_ping=True,
+    )
+    ctx["db_factory"] = async_sessionmaker(admin_engine, expire_on_commit=False)
+    ctx["admin_engine"] = admin_engine  # store for cleanup in shutdown
 
 
 async def shutdown(ctx: dict) -> None:
-    pass
+    if "admin_engine" in ctx:
+        await ctx["admin_engine"].dispose()
 
 
 async def generate_billing_export(

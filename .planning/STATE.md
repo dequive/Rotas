@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-last_updated: "2026-06-06T19:50:57.926Z"
+last_updated: "2026-06-06T20:00:16Z"
 last_activity: 2026-06-06
 progress:
   total_phases: 13
   completed_phases: 3
   total_plans: 43
-  completed_plans: 38
+  completed_plans: 39
 ---
 
 # ROTAS — Project State
@@ -21,9 +21,10 @@ _Last updated: 2026-06-06_
 ## Current Phase
 
 Phase: 4.1 — UI Design System and Component Library
-Plan: 04 COMPLETE — all 4 plans complete
-Status: Complete — Plans 01-04 complete (CSS foundation, 5 core primitives, table primitives + MonoCell, grouped sidebar navigation with amber active indicator)
+Plan: 06 COMPLETE — plans 01-06 complete
+Status: In Progress — Plans 01-06 complete (CSS foundation, 5 core primitives, table primitives + MonoCell, grouped sidebar navigation, ControlTowerOverview migration, 4 domain board migrations)
 Last activity: 2026-06-06
+Stopped at: Completed 04.1-06-PLAN.md
 
 ---
 
@@ -59,6 +60,9 @@ Phase 12 (GPS+TRK) — requires Phase 9 complete + GPS device survey complete
 | SidebarLayout hover via inline style handlers not Tailwind hover: — CSS variable values cannot be Tailwind class arguments | 4.1 | Tailwind hover: works for static values only; var(--sidebar-hover) requires onMouseEnter/onMouseLeave |
 | border-l-2 border-transparent on inactive sidebar items prevents layout shift when active item changes | 4.1 | Without the transparent border, active item's border-l-2 pushes content 2px — visible shift |
 | muted Tailwind token → var(--muted-color) not var(--muted) | 4.1 | Prevents HSL token (#213 27% 96% background surface) from being used as text color |
+| TransportCargoBoard: table KPI rows replaced with KpiCard grid | 4.1-06 | Cards are more scannable; consistent with other board sections; removes shadcn Table dependency from this component |
+| CostMarginBoard margin KPI: semantic=error for negative, semantic=success for positive | 4.1-06 | IBM Plex Mono in red/green makes financial health instantly visible without reading the number |
+| DataSourceBadge in PageHeader actions slot (not below header) | 4.1-06 | Reduces vertical whitespace; keeps data freshness indicator close to section title |
 | Legacy CSS classes stay outside @layer base | 4.1 | .shell, .sidebar etc. are regular CSS rules; wrapping in layer would break cascade order |
 | Colored dot is a span element not ::before — React JSX cannot express pseudo-elements | 4.1 | DESIGN.md says "dot colorido" but ::before is not valid in React JSX; inline span achieves same visual |
 | WorkQueue toneConfig static lookup prevents Tailwind class purging in production builds | 4.1 | Dynamic `border-l-${tone}` would be purged by Tailwind scanner; all classes must appear as full strings |

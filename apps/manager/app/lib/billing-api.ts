@@ -22,6 +22,10 @@ export interface BillingTrip {
   deliveryProof: string;
   status: BillingStatus;
   amount: number | null;
+  waiverStatus?: "pending_approval" | "active" | "rejected" | null;
+  waiverReason?: string | null;
+  waiverId?: string | null;
+  actualMargin?: number | null;
 }
 
 interface ApiBillableTrip {
@@ -290,4 +294,55 @@ export async function loadBillingDocuments(): Promise<BillingDocumentSummary[]> 
   } catch {
     return fallbackDocuments;
   }
+}
+
+// ─── Waiver API functions ───────────────────────────────────────────────────
+
+export async function createBillingWaiver(
+  tripId: string,
+  reason: string,
+): Promise<{ id: string; status: string }> {
+  return apiFetch("/api/v1/billing/waivers", {
+    method: "POST",
+    body: JSON.stringify({ trip_id: tripId, reason }),
+  });
+}
+
+export async function approveBillingWaiver(
+  waiverId: string,
+): Promise<{ id: string; status: string }> {
+  return apiFetch(`/api/v1/billing/waivers/${waiverId}/approve`, {
+    method: "POST",
+  });
+}
+
+export async function rejectBillingWaiver(
+  waiverId: string,
+): Promise<{ id: string; status: string }> {
+  return apiFetch(`/api/v1/billing/waivers/${waiverId}/reject`, {
+    method: "POST",
+  });
+}
+
+// ─── Export job API functions ────────────────────────────────────────────────
+
+export async function enqueueExportJob(
+  documentId: string,
+  format: "pdf" | "xlsx",
+): Promise<{ jobId: string; status: string }> {
+  // export_format is a FastAPI Query param — pass via URL, not request body
+  return apiFetch(
+    `/api/v1/billing/documents/${documentId}/export-job?export_format=${format}`,
+    { method: "POST" },
+  );
+}
+
+export async function getJobStatus(
+  jobId: string,
+): Promise<{ status: "queued" | "processing" | "done" | "failed"; fileUrl?: string }> {
+  return apiFetch(`/api/v1/billing/jobs/${jobId}/status`);
+}
+
+export function getJobDownloadUrl(jobId: string): string {
+  return `/api/v1/billing/jobs/${jobId}/download`;
 }

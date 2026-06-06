@@ -112,3 +112,76 @@ async def test_rls_blocks_cross_tenant_trip_access():
         f"RLS FAILED: tenant A (via rotas_app role) can see tenant B's trip {trip_b_id}. "
         "Cross-tenant data leak detected."
     )
+
+
+# ---------------------------------------------------------------------------
+# RLS completeness gate — RLS-01
+# ---------------------------------------------------------------------------
+
+EXPECTED_RLS_TABLES = sorted([
+    "alerts", "audit_logs", "billing_documents", "billing_items",
+    "cargo_manifests", "checklist_templates", "checklists", "contracts",
+    "delivery_proofs", "dispatch_clearances", "driver_devices", "driver_sessions",
+    "drivers", "export_jobs", "fuel_logs", "fuel_movements", "fuel_purchases",
+    "fuel_receipts", "fuel_stock_counts", "fuel_tanks", "idempotency_keys",
+    "known_routes", "load_permits", "maintenance_parts_used", "maintenance_plans",
+    "maintenance_requests", "maintenance_schedule", "operational_exceptions",
+    "operational_waivers", "refresh_tokens", "spare_part_movements",
+    "spare_parts_inventory", "sync_events", "tool_checkouts",
+    "transport_documents", "trip_costs", "trip_execution_events",
+    "trip_incidents", "trip_orders", "trip_stops", "trips", "users",
+    "vehicle_refuels", "vehicles", "work_order_tasks", "work_orders",
+    "workshop_tools",
+])
+# 47 tables: 46 from migration 4b0a7802dc3c_add_rls_policies + export_jobs from gap-closure migration (plan 09-02)
+
+INTENTIONALLY_EXCLUDED = {"tenants", "files"}
+# tenants: root table — no tenant_id column; RLS would break registration and cross-tenant admin queries
+# files: cross-tenant file service access pattern (design decision in migration 4b0a7802dc3c)
+
+
+async def test_rls_all_tenant_tables_have_policy():
+    """RLS-01: All 47 tenant-scoped tables must have a tenant_isolation policy in pg_policies.
+
+    This test is intentionally RED until plan 09-02 applies the gap-closure migration that
+    adds the RLS policy to export_jobs. The failure message will clearly show the gap.
+    """
+    async with AsyncSessionLocal() as db:
+        # 1. Collect all tables that currently have the tenant_isolation policy
+        result = await db.execute(
+            text(
+                "SELECT tablename FROM pg_policies "
+                "WHERE policyname = 'tenant_isolation' "
+                "ORDER BY tablename"
+            )
+        )
+        actual_policy_set = {row[0] for row in result.fetchall()}
+
+        # 2. Assert the exact match against the expected 47-table list
+        expected_set = set(EXPECTED_RLS_TABLES)
+        missing = expected_set - actual_policy_set
+        extra = actual_policy_set - expected_set
+        assert actual_policy_set == expected_set, (
+            f"RLS policy coverage mismatch.\n"
+            f"  Missing policies (tables that need RLS but don't have it): {sorted(missing)}\n"
+            f"  Unexpected policies (not in expected list): {sorted(extra)}"
+        )
+
+        # 3. Cross-check: tables with tenant_id column that lack a policy (gap detection)
+        gap_result = await db.execute(
+            text(
+                "SELECT c.table_name "
+                "FROM information_schema.columns c "
+                "WHERE c.column_name = 'tenant_id' AND c.table_schema = 'public' "
+                "EXCEPT "
+                "SELECT p.tablename "
+                "FROM pg_policies p "
+                "WHERE p.policyname = 'tenant_isolation'"
+            )
+        )
+        gap_set = {row[0] for row in gap_result.fetchall()}
+
+        assert gap_set == INTENTIONALLY_EXCLUDED, (
+            f"Tables with tenant_id but no RLS policy "
+            f"(expected only {{tenants, files}}): {gap_set - INTENTIONALLY_EXCLUDED}"
+        )

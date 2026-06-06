@@ -32,9 +32,9 @@ _Last updated: 2026-06-06_
 
 ### Row Level Security (RLS)
 
-- [ ] **RLS-01**: Todas as tabelas com `tenant_id` (47+) protegidas por PostgreSQL RLS — `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` + `CREATE POLICY` usando `current_setting('app.tenant_id')`
-- [ ] **RLS-02**: Roles `rotas_app` (aplica RLS, usado por FastAPI) e `rotas_admin` (BYPASSRLS, usado por Alembic e ARQ worker) criados e configurados no Railway e docker-compose
-- [ ] **RLS-03**: Test suite de cross-tenant isolation passa sob role `rotas_app` — dados de tenant A inacessíveis quando autenticado como tenant B, mesmo sem filtro explícito na aplicação
+- [x] **RLS-01**: Todas as tabelas com `tenant_id` (47+) protegidas por PostgreSQL RLS — `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` + `CREATE POLICY` usando `current_setting('app.tenant_id')`
+- [x] **RLS-02**: Roles `rotas_app` (aplica RLS, usado por FastAPI) e `rotas_admin` (BYPASSRLS, usado por Alembic e ARQ worker) criados e configurados no Railway e docker-compose
+- [x] **RLS-03**: Test suite de cross-tenant isolation passa sob role `rotas_app` — dados de tenant A inacessíveis quando autenticado como tenant B, mesmo sem filtro explícito na aplicação
 
 ### Notificações (NOTIF)
 
@@ -184,9 +184,9 @@ _Last updated: 2026-06-06_
 | INFRA-01 | Phase 8 | Pending |
 | INFRA-02 | Phase 8 | Pending |
 | INFRA-03 | Phase 8 | Pending |
-| RLS-01 | Phase 9 | Pending |
-| RLS-02 | Phase 9 | Pending |
-| RLS-03 | Phase 9 | Pending |
+| RLS-01 | Phase 9 | Complete |
+| RLS-02 | Phase 9 | Complete |
+| RLS-03 | Phase 9 | Complete |
 | NOTIF-01 | Phase 10 | Pending |
 | NOTIF-02 | Phase 10 | Pending |
 | NOTIF-03 | Phase 10 | Pending |

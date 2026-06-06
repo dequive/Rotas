@@ -1,101 +1,32 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: unknown
-last_updated: "2026-06-05T21:47:04.187Z"
+milestone: v2.0
+milestone_name: Plataforma Operacional Completa
+status: defining_requirements
+last_updated: "2026-06-06T00:00:00.000Z"
 progress:
-  total_phases: 4
-  completed_phases: 1
-  total_plans: 35
-  completed_plans: 25
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # ROTAS — Project State
 
-_Last updated: 2026-06-05_
+_Last updated: 2026-06-06_
 
 ---
 
 ## Current Phase
 
-**Phase 1: Security Hardening + Deploy Foundation**
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-06 — Milestone v2.0 started
 
 ---
 
-## Status
-
-Not Started
-
----
-
-## Last Updated
-
-2026-06-05
-
----
-
-## Phases
-
-| # | Name | Status | Completed |
-|---|------|--------|-----------|
-| 1 | Security Hardening + Deploy Foundation | Not Started | - |
-| 2 | PWA Offline-First Completion | Not Started | - |
-| 3 | Manager Dashboard + Reporting Layer | Not Started | - |
-| 4 | Production Hardening + Scale Preparation | Not Started | - |
-
----
-
-## Progress Bar
-
-```
-Phase 1 [..........] 0%
-Phase 2 [..........] 0%
-Phase 3 [..........] 0%
-Phase 4 [..........] 0%
-```
-
----
-
-## Current Focus
-
-Preparing to start Phase 1.
-
-**Immediate priority**: SEC-05 — Migrate `python-jose` to `PyJWT >= 2.8` to close CVE-2025-61152 (active auth bypass — tokens with `alg=none` accepted without signature verification).
-
-**Phase 1 requirements**: SEC-01, SEC-02, SEC-03, SEC-04, SEC-05, AUTH-03, DEPLOY-01, DEPLOY-02, DEPLOY-03, DEPLOY-04
-
----
-
-## Performance Metrics
-
-| Metric | Value |
-|--------|-------|
-| Phases complete | 0 / 4 |
-| Requirements complete | 0 / 25 |
-| Plans complete | - |
-
----
-| Phase 02-pwa-offline-first-completion P01 | 4 | 2 tasks | 3 files |
-| Phase 02-pwa-offline-first-completion P03 | 8 | 2 tasks | 3 files |
-| Phase 02-pwa-offline-first-completion P04 | 8m | 1 tasks | 2 files |
-| Phase 02-pwa-offline-first-completion P02 | 10 | 2 tasks | 7 files |
-| Phase 02-pwa-offline-first-completion P05 | 5 | 2 tasks | 5 files |
-| Phase 02-pwa-offline-first-completion P06 | 5 | 1 tasks | 3 files |
-| Phase 04-production-hardening-scale-preparation P01 | 5 | 2 tasks | 5 files |
-| Phase 04-production-hardening-scale-preparation P04 | 8 | 2 tasks | 3 files |
-| Phase 04-production-hardening-scale-preparation P05 | 14 | 2 tasks | 6 files |
-| Phase 04-production-hardening-scale-preparation P02 | 20 | 2 tasks | 3 files |
-| Phase 04-production-hardening-scale-preparation P07 | 5 | 1 tasks | 3 files |
-| Phase 04-production-hardening-scale-preparation P06 | 10 | 2 tasks | 3 files |
-| Phase 04-production-hardening-scale-preparation P03 | 13 | 2 tasks | 7 files |
-| Phase 03-manager-dashboard-reporting-layer P05 | 12 | 2 tasks | 5 files |
-| Phase 03-manager-dashboard-reporting-layer P02 | 25 | 2 tasks | 2 files |
-| Phase 04-production-hardening-scale-preparation P07 | 5 | 2 tasks | 3 files |
-| Phase 04-production-hardening-scale-preparation P09 | 15 | 2 tasks | 7 files |
-| Phase 03 P08 | 15 | 2 tasks | 4 files |
-
-## Accumulated Context
+## Accumulated Context (v2.0)
 
 ### Key Decisions
 

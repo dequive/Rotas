@@ -1,5 +1,23 @@
 # ROTAS
 
+## Current Milestone: v2.0 — Plataforma Operacional Completa
+
+**Goal:** Transformar ROTAS de ferramenta de recolha de dados numa plataforma operacional completa — com visibilidade da frota via GPS integrado, despacho financeiro de motoristas, portal de rastreamento para clientes, notificações proativas, e infraestrutura de produção robusta.
+
+**Target features:**
+
+- Integração GPS (Teltonika, Coban) — mapa de frota em tempo real, geofencing, ETA
+- Despacho financeiro completo — adiantamento → despesas → saldo → aprovação → documento
+- Manutenção expandida — gestão de pneus, warranty, TCO por viatura (sem IA)
+- Portal do cliente — link de rastreamento partilhável + notificação de ETA
+- Notificações — email + WhatsApp Business API para alertas e ETAs
+- Onboarding self-service — registo autónomo de transportadoras
+- Infraestrutura de produção — Sentry, R2/S3, limites de tenant aplicados
+- RLS PostgreSQL — segunda camada de isolamento multitenant
+- Resolução de conflitos de sync — UI para motorista
+
+---
+
 ## What This Is
 
 ROTAS é uma plataforma SaaS multitenant de gestão de frotas construída para operadores logísticos e transportadoras em Moçambique. O produto resolve dois problemas simultaneamente: motoristas precisam registar viagens, abastecimentos e descargas sem conexão confiável (PWA offline-first com Dexie.js + sync idempotente), e gestores precisam de controlo financeiro rigoroso sobre custos de frota, cumprimento documental e faturamento de clientes. É distribuído como SaaS público — qualquer transportadora moçambicana pode contratar e começar a operar.

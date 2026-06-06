@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     r2_access_key_id: str = Field(default="", validation_alias="R2_ACCESS_KEY_ID")
     r2_secret_access_key: SecretStr = Field(default=SecretStr(""), validation_alias="R2_SECRET_ACCESS_KEY")
 
+    # INFRA-03: Upgrade URL — drives 403 body and dashboard banner (D-16)
+    upgrade_url: str = Field(default="", validation_alias="UPGRADE_URL")
+
     @property
     def resolved_admin_database_url(self) -> str:
         return self.admin_database_url if self.admin_database_url else self.database_url

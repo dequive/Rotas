@@ -58,6 +58,8 @@ Phase 12 (GPS+TRK) — requires Phase 9 complete + GPS device survey complete
 |----------|-------|-----------|
 | muted Tailwind token → var(--muted-color) not var(--muted) | 4.1 | Prevents HSL token (#213 27% 96% background surface) from being used as text color |
 | Legacy CSS classes stay outside @layer base | 4.1 | .shell, .sidebar etc. are regular CSS rules; wrapping in layer would break cascade order |
+| Colored dot is a span element not ::before — React JSX cannot express pseudo-elements | 4.1 | DESIGN.md says "dot colorido" but ::before is not valid in React JSX; inline span achieves same visual |
+| WorkQueue toneConfig static lookup prevents Tailwind class purging in production builds | 4.1 | Dynamic `border-l-${tone}` would be purged by Tailwind scanner; all classes must appear as full strings |
 | SEC-05 (python-jose → PyJWT) first in Phase 1 | 1 | Active CVE — auth bypass active before any external user |
 | Cross-tenant regression tests before CT-01 | 1 → 3 | CT-01 query rewrite is highest-risk window for cross-tenant data leaks |
 | ARQ for background jobs (PDF, XLSX, KPI refresh) | 3 | Uses Redis already provisioned; asyncio-native; avoids blocking HTTP responses |

@@ -24,7 +24,7 @@ export function FuelControlBoard({ result }: FuelControlBoardProps) {
         <span>{result.source === "api" ? "Stock carregado da API ROTAS." : result.message}</span>
       </div>
 
-      <div className="fuel-layout">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
         <div className="fuel-main">
           <section className="fuel-summary" aria-label="Indicadores de combustível">
             <FuelMetric icon={Warehouse} label="Tanques activos" value={`${board.summary.tanks}`} />
@@ -91,7 +91,7 @@ interface FuelMetricProps {
 
 function FuelMetric({ alert = false, icon: Icon, label, value }: FuelMetricProps) {
   return (
-    <article className={`fuel-metric ${alert ? "alert" : ""}`}>
+    <article className={`bg-panel border border-line rounded-lg p-4 ${alert ? "alert" : ""}`}>
       <Icon size={17} />
       <span>{label}</span>
       <strong>{value}</strong>
@@ -104,7 +104,7 @@ function TankStatus({ tank }: { tank: FuelTank }) {
   const isLow = tank.currentStockLiters <= tank.minimumStockLiters;
 
   return (
-    <article className="tank-status">
+    <article className="bg-panel border border-line rounded-lg p-4">
       <div className="tank-title">
         <div>
           <strong>{tank.code}</strong>
@@ -112,8 +112,14 @@ function TankStatus({ tank }: { tank: FuelTank }) {
         </div>
         <span className={`badge ${isLow ? "orange" : "green"}`}>{isLow ? "Repor" : "Normal"}</span>
       </div>
-      <div className="tank-progress" aria-label={`${percentage.toFixed(0)} por cento disponível`}>
-        <span className={isLow ? "low" : ""} style={{ width: `${percentage}%` }} />
+      <div
+        className="h-2 bg-line rounded-full overflow-hidden"
+        aria-label={`${percentage.toFixed(0)} por cento disponível`}
+      >
+        <span
+          className={`h-full ${isLow ? "bg-orange" : "bg-green"} rounded-full block`}
+          style={{ width: `${percentage}%` }}
+        />
       </div>
       <dl>
         <div>

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { Button } from "@/components/ui/button";
+
 interface ApiConfig {
   apiBaseUrl: string;
   tenantId: string | null;
@@ -58,7 +60,7 @@ export function TransportCargoActions({ action, apiConfig, label }: TransportCar
   const [error, setError] = useState<string | null>(null);
 
   if (!apiConfig.tenantId) {
-    return <small className="muted-line">Acção indisponível sem API</small>;
+    return <small className="text-muted text-sm">Acção indisponível sem API</small>;
   }
 
   async function runAction() {
@@ -92,11 +94,17 @@ export function TransportCargoActions({ action, apiConfig, label }: TransportCar
   }
 
   return (
-    <div className="transport-action">
-      <button disabled={busy} onClick={runAction} type="button">
+    <div className="flex flex-col gap-1">
+      <Button
+        disabled={busy}
+        onClick={runAction}
+        type="button"
+        variant="ghost"
+        size="sm"
+      >
         {busy ? "A processar..." : label}
-      </button>
-      {error ? <small>{error}</small> : null}
+      </Button>
+      {error ? <small className="text-red text-xs">{error}</small> : null}
     </div>
   );
 }

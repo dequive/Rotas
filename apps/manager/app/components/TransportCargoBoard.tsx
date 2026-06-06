@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 import type { ControlTowerLoadResult } from "../lib/control-tower-api";
 import { TransportCargoActions } from "./TransportCargoActions";
 
@@ -47,21 +49,31 @@ export function TransportCargoBoard({ apiConfig, result }: TransportCargoBoardPr
         </div>
       </div>
 
-      <div className="transport-kpis" aria-label="Indicadores de transporte e carga">
-        <TransportKpi icon={ClipboardCheck} label="Ordens abertas" value={summary.tripOrdersOpen} />
-        <TransportKpi icon={ShieldAlert} label="Autorização pendente" value={summary.dispatchPending} />
-        <TransportKpi icon={Truck} label="Em execução" value={summary.tripsInExecution} />
-        <TransportKpi icon={AlertOctagon} label="Incidentes" value={summary.incidentsOpen} />
-        <TransportKpi
-          icon={FileWarning}
-          label="Descargas a validar"
-          value={summary.deliveryProofsPendingValidation}
-        />
-        <TransportKpi
-          icon={FileWarning}
-          label="Descargas em disputa"
-          value={queues.disputedDeliveryProofs.length}
-        />
+      <div className="overflow-x-auto">
+        <Table aria-label="Indicadores de transporte e carga">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Indicador</TableHead>
+              <TableHead className="text-right">Valor</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TransportKpiRow icon={ClipboardCheck} label="Ordens abertas" value={summary.tripOrdersOpen} />
+            <TransportKpiRow icon={ShieldAlert} label="Autorização pendente" value={summary.dispatchPending} />
+            <TransportKpiRow icon={Truck} label="Em execução" value={summary.tripsInExecution} />
+            <TransportKpiRow icon={AlertOctagon} label="Incidentes" value={summary.incidentsOpen} />
+            <TransportKpiRow
+              icon={FileWarning}
+              label="Descargas a validar"
+              value={summary.deliveryProofsPendingValidation}
+            />
+            <TransportKpiRow
+              icon={FileWarning}
+              label="Descargas em disputa"
+              value={queues.disputedDeliveryProofs.length}
+            />
+          </TableBody>
+        </Table>
       </div>
 
       <div className="transport-work-grid" aria-label="Filas de trabalho de transporte">
@@ -205,7 +217,7 @@ export function TransportCargoBoard({ apiConfig, result }: TransportCargoBoardPr
             detail: billingStatusLabel(item.billingStatus),
             meta: formatDateTime(item.deliveredAt),
             action: apiConfig.tenantId ? (
-              <div className="transport-action-row">
+              <div className="flex items-center gap-2">
                 <TransportCargoActions
                   action={{
                     kind: "resolve-delivery-dispute",
@@ -228,7 +240,7 @@ export function TransportCargoBoard({ apiConfig, result }: TransportCargoBoardPr
                 />
               </div>
             ) : (
-              <small className="muted-line">Acções indisponíveis sem API</small>
+              <small className="text-muted text-sm">Acções indisponíveis sem API</small>
             ),
           }))}
         />
@@ -251,7 +263,7 @@ export function TransportCargoBoard({ apiConfig, result }: TransportCargoBoardPr
                   label="Fechar viagem"
                 />
               ) : (
-                <small className="muted-line">Resolva bloqueios antes do fecho</small>
+                <small className="text-muted text-sm">Resolva bloqueios antes do fecho</small>
               ),
           }))}
         />
@@ -260,19 +272,21 @@ export function TransportCargoBoard({ apiConfig, result }: TransportCargoBoardPr
   );
 }
 
-interface TransportKpiProps {
+interface TransportKpiRowProps {
   icon: LucideIcon;
   label: string;
   value: number;
 }
 
-function TransportKpi({ icon: Icon, label, value }: TransportKpiProps) {
+function TransportKpiRow({ icon: Icon, label, value }: TransportKpiRowProps) {
   return (
-    <article className="transport-kpi">
-      <Icon size={16} />
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </article>
+    <TableRow>
+      <TableCell className="flex items-center gap-2">
+        <Icon size={16} />
+        <span>{label}</span>
+      </TableCell>
+      <TableCell className="text-right font-semibold">{value}</TableCell>
+    </TableRow>
   );
 }
 
@@ -295,7 +309,7 @@ interface TransportQueueProps {
 
 function TransportQueue({ emptyLabel, icon: Icon, items, title, tone }: TransportQueueProps) {
   return (
-    <article className="worklist transport-queue">
+    <article className="bg-panel border border-line rounded-lg overflow-hidden">
       <header>
         <span className={`queue-icon ${tone}`}>
           <Icon size={16} />
@@ -305,8 +319,10 @@ function TransportQueue({ emptyLabel, icon: Icon, items, title, tone }: Transpor
           <p>{items.length} pendentes</p>
         </div>
       </header>
-      <div className="worklist-items">
-        {items.length === 0 ? <p className="empty-state">{emptyLabel}</p> : null}
+      <div>
+        {items.length === 0 ? (
+          <p className="text-center py-8 text-muted text-sm">{emptyLabel}</p>
+        ) : null}
         {items.map((item) => (
           <div className="worklist-item" key={item.id}>
             <strong>{item.reference}</strong>

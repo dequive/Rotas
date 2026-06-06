@@ -3,6 +3,9 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+
 import type { BillingTrip, ContractOption } from "../lib/billing-api";
 
 interface ApiConfig {
@@ -109,12 +112,12 @@ export function BillingTripActions({ trip, contracts, apiConfig }: BillingTripAc
   }
 
   if (!canUseApi) {
-    return <span className="muted-line">Acções indisponíveis sem API</span>;
+    return <span className="text-muted text-sm">Acções indisponíveis sem API</span>;
   }
 
   if (trip.status === "uncontracted") {
     return (
-      <div className="row-actions">
+      <div className="flex items-center gap-2 flex-wrap">
         <select
           aria-label="Contrato"
           value={contractId}
@@ -127,9 +130,9 @@ export function BillingTripActions({ trip, contracts, apiConfig }: BillingTripAc
             </option>
           ))}
         </select>
-        <button disabled={busy || !selectedContract} onClick={associateContract} type="button">
+        <Button disabled={busy || !selectedContract} onClick={associateContract} type="button" variant="outline" size="sm">
           Associar
-        </button>
+        </Button>
         {error ? <small>{error}</small> : null}
       </div>
     );
@@ -137,10 +140,10 @@ export function BillingTripActions({ trip, contracts, apiConfig }: BillingTripAc
 
   if (trip.status === "pending_delivery_validation") {
     return (
-      <div className="row-actions">
-        <button disabled={busy || !trip.deliveryProofId} onClick={validateDeliveryProof} type="button">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button disabled={busy || !trip.deliveryProofId} onClick={validateDeliveryProof} type="button" variant="outline" size="sm">
           Validar descarga
-        </button>
+        </Button>
         {error ? <small>{error}</small> : null}
       </div>
     );
@@ -148,16 +151,20 @@ export function BillingTripActions({ trip, contracts, apiConfig }: BillingTripAc
 
   if (trip.status === "billable") {
     return (
-      <div className="row-actions">
-        <button disabled={busy} onClick={createAndIssueBillingDocument} type="button">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button disabled={busy} onClick={createAndIssueBillingDocument} type="button" variant="outline" size="sm">
           Cobrar
-        </button>
+        </Button>
         {error ? <small>{error}</small> : null}
       </div>
     );
   }
 
-  return <span className="muted-line">Sem acção</span>;
+  return (
+    <span className="text-muted text-sm">
+      <Badge variant="outline">Sem acção</Badge>
+    </span>
+  );
 }
 
 function billingPeriodFor(deliveredAt: string) {

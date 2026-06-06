@@ -29,7 +29,7 @@ export function FleetHistoryBoard({ result }: FleetHistoryBoardProps) {
         </span>
       </div>
 
-      <div className="history-split" aria-label="Historicos de frota">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" aria-label="Historicos de frota">
         <VehicleTimeline history={result.vehicleHistory} />
         <DriverTimeline history={result.driverHistory} />
       </div>
@@ -39,7 +39,7 @@ export function FleetHistoryBoard({ result }: FleetHistoryBoardProps) {
 
 function VehicleTimeline({ history }: { history: VehicleHistory }) {
   return (
-    <article className="history-panel">
+    <article className="bg-panel border border-line rounded-lg overflow-hidden">
       <header className="history-header">
         <span className="queue-icon blue">
           <Truck size={16} />
@@ -58,7 +58,7 @@ function VehicleTimeline({ history }: { history: VehicleHistory }) {
 
 function DriverTimeline({ history }: { history: DriverHistory }) {
   return (
-    <article className="history-panel">
+    <article className="bg-panel border border-line rounded-lg overflow-hidden">
       <header className="history-header">
         <span className="queue-icon green">
           <UserRound size={16} />
@@ -89,14 +89,17 @@ function Timeline({
   return (
     <div className="history-list">
       {events.map((event) => (
-        <div className="history-event" key={`${event.referenceType}:${event.referenceId}`}>
-          <span className={`history-marker ${sourceTone(event.source)}`}>
+        <div
+          className="px-4 py-3 flex items-start gap-3 border-b border-line last:border-0"
+          key={`${event.referenceType}:${event.referenceId}`}
+        >
+          <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${sourceToneClass(event.source)}`}>
             <EventIcon event={event} />
           </span>
           <div>
-            <div className="history-event-top">
-              <strong>{eventTypeLabel(event.eventType)}</strong>
-              <time>{formatDateTime(event.occurredAt)}</time>
+            <div className="flex items-baseline justify-between gap-2">
+              <strong className="text-[13px]">{eventTypeLabel(event.eventType)}</strong>
+              <time className="flex-none text-muted text-[12px]">{formatDateTime(event.occurredAt)}</time>
             </div>
             <p>{formatSummary(event.summary)}</p>
             <small>
@@ -121,12 +124,12 @@ function EventIcon({ event }: { event: FleetHistoryEvent }) {
   return <CalendarClock size={14} />;
 }
 
-function sourceTone(source: string) {
-  if (source.includes("fuel")) return "cyan";
-  if (source === "checklists") return "green";
-  if (source === "incidents" || source === "operations") return "orange";
-  if (source === "audit") return "blue";
-  return "red";
+function sourceToneClass(source: string) {
+  if (source.includes("fuel")) return "bg-cyan";
+  if (source === "checklists") return "bg-green";
+  if (source === "incidents" || source === "operations") return "bg-orange";
+  if (source === "audit") return "bg-blue";
+  return "bg-red";
 }
 
 function sourceLabel(source: string) {

@@ -22,11 +22,11 @@ export function FleetComplianceBoard({ apiConfig, result }: FleetComplianceBoard
   const driverItems = result.tower.queues.driverDocumentsExpiring;
 
   return (
-    <section className="domain-section" aria-labelledby="fleet-compliance-title">
+    <section className="domain-section" aria-labelledby="compliance-title">
       <div className="domain-heading">
         <div className="title">
           <span className="eyebrow">Frota e Pessoas</span>
-          <h2 id="fleet-compliance-title">Compliance documental</h2>
+          <h2 id="compliance-title">Compliance documental</h2>
           <p>Renovação operacional de documentos antes de bloquearem a atribuição.</p>
         </div>
         <span className="module-state">
@@ -35,7 +35,7 @@ export function FleetComplianceBoard({ apiConfig, result }: FleetComplianceBoard
         </span>
       </div>
 
-      <div className="fleet-compliance-grid">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
         <ComplianceColumn
           apiConfig={apiConfig}
           emptyLabel="Sem documentos de viatura perto do vencimento."
@@ -73,7 +73,7 @@ function ComplianceColumn({
   title: string;
 }) {
   return (
-    <article className="fleet-compliance-panel">
+    <article className="bg-panel border border-line rounded-lg p-4">
       <header>
         <span className="queue-icon orange">
           <Icon size={16} />
@@ -83,7 +83,7 @@ function ComplianceColumn({
           <p>{items.length} documentos em atenção</p>
         </div>
       </header>
-      <div className="fleet-compliance-list">
+      <div className="grid gap-2">
         {items.length === 0 ? <p className="empty-state">{emptyLabel}</p> : null}
         {items.map((item) => (
           <ComplianceItem
@@ -160,15 +160,15 @@ function ComplianceItem({
   }
 
   return (
-    <div className="fleet-compliance-item">
-      <div className="fleet-compliance-copy">
-        <FileWarning size={15} />
+    <div className="flex items-center justify-between py-2 border-b border-line last:border-0 text-sm">
+      <div className="min-w-0 flex gap-2">
+        <FileWarning size={15} className="flex-none text-orange mt-0.5" />
         <div>
-          <strong>{item.entityLabel}</strong>
-          <span>
+          <strong className="block text-[13px]">{item.entityLabel}</strong>
+          <span className="block text-muted text-[12px] mt-0.5">
             {documentTypeLabel(item.documentType)} vence em {item.daysUntilExpiry} dias
           </span>
-          <small>{formatDateOnly(item.validUntil)}</small>
+          <small className="block text-muted text-[12px]">{formatDateOnly(item.validUntil)}</small>
         </div>
       </div>
       <div className="fleet-renew-form">

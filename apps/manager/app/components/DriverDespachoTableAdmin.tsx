@@ -4,6 +4,8 @@ import { Plus, Save, Trash2, WalletCards } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { Button } from "@/components/ui/button";
+
 import type {
   DriverDespachoTable,
   DriverDespachoTableLoadResult,
@@ -215,10 +217,16 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
         <article className="despacho-admin-panel">
           <div className="section-header">
             <h3 className="section-title">Faixas de distancia</h3>
-            <button className="tool-btn" onClick={addTier} type="button">
+            <Button
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-line rounded-md bg-panel hover:bg-soft"
+              onClick={addTier}
+              type="button"
+              variant="outline"
+              size="sm"
+            >
               <Plus size={16} />
               Faixa
-            </button>
+            </Button>
           </div>
 
           <div className="despacho-tier-list">
@@ -271,26 +279,35 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
                     onChange={(event) => updateTier(index, "label", event.target.value)}
                   />
                 </label>
-                <button
-                  className="icon-btn danger"
+                <Button
+                  className="text-red hover:text-red"
                   disabled={table.tiers.length === 1}
                   onClick={() => removeTier(index)}
                   title="Remover faixa"
                   type="button"
+                  variant="ghost"
+                  size="sm"
                 >
                   <Trash2 size={16} />
-                </button>
+                </Button>
               </div>
             ))}
           </div>
 
           <div className="despacho-save-row">
-            <button className="tool-btn primary" disabled={busy || !canUseApi} onClick={saveTable} type="button">
+            <Button
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-line rounded-md bg-panel hover:bg-soft"
+              disabled={busy || !canUseApi}
+              onClick={saveTable}
+              type="button"
+              variant="outline"
+              size="sm"
+            >
               <Save size={16} />
               {busy ? "A gravar" : "Gravar tabela"}
-            </button>
-            {saved ? <small className="success-text">Tabela gravada.</small> : null}
-            {error ? <small className="error-text">{error}</small> : null}
+            </Button>
+            {saved ? <small className="text-green text-xs">Tabela gravada.</small> : null}
+            {error ? <small className="text-red text-xs">{error}</small> : null}
           </div>
         </article>
       </div>

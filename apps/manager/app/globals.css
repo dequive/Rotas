@@ -1228,7 +1228,7 @@ button {
   width: 38px;
 }
 
-.grid {
+.billing-kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
@@ -2009,7 +2009,7 @@ button {
   }
 
   .queue-grid,
-  .grid {
+  .billing-kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2108,7 +2108,7 @@ button {
   }
 
   .queue-grid,
-  .grid {
+  .billing-kpi-grid {
     grid-template-columns: 1fr;
   }
 

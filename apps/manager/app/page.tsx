@@ -160,7 +160,7 @@ export default async function ManagerHome() {
           <span>{source === "api" ? "Dados carregados da API ROTAS." : message}</span>
         </div>
 
-        <section className="grid" aria-label="Indicadores de cobranca">
+        <section className="billing-kpi-grid" aria-label="Indicadores de cobranca">
           <div className="panel metric red-line">
             <span>Sem contrato</span>
             <strong>{countByStatus(trips, "uncontracted")}</strong>

@@ -305,12 +305,12 @@ This milestone extends ROTAS across five capability areas: financial client mana
 
 **Requirements**: DS-01, DS-02, DS-03, DS-04, DS-05, DS-07, DS-08, DS-09
 **Depends on:** Phase 4
-**Plans:** 1/8 plans executed
+**Plans:** 3/8 plans executed
 
 Plans:
 - [x] 04.1-01-PLAN.md � Wave 1: CSS foundation fix (remove oklch override, consolidate @layer base, extend Tailwind config, install shadcn components)
-- [ ] 04.1-02-PLAN.md � Wave 2: Core primitives A (StatusBadge, KpiCard, PageHeader, SectionHeader, WorkQueue)
-- [ ] 04.1-03-PLAN.md � Wave 2: Core primitives B (DataTable, MonoCell, MoneyCell, EmptyState, DataSourceBadge)
+- [x] 04.1-02-PLAN.md � Wave 2: Core primitives A (StatusBadge, KpiCard, PageHeader, SectionHeader, WorkQueue)
+- [x] 04.1-03-PLAN.md � Wave 2: Core primitives B (DataTable, MonoCell, MoneyCell, EmptyState, DataSourceBadge)
 - [ ] 04.1-04-PLAN.md � Wave 3: SidebarLayout redesign (4 grouped sections, amber active indicator)
 - [ ] 04.1-05-PLAN.md � Wave 4: Migrate ControlTowerOverview + FleetComplianceBoard
 - [ ] 04.1-06-PLAN.md � Wave 4: Migrate FuelControlBoard + FleetHistoryBoard + TransportCargoBoard + CostMarginBoard

@@ -1,534 +1,506 @@
-# Architecture Research
-_Last updated: 2026-06-04_
+# Architecture: Client Entity + Accounts Receivable Integration
+
+**Researched:** 2026-06-06
+**Scope:** How to add Client as a first-class entity to the existing billing module, migrate contract.client_name to contract.client_id, add Payments, and build accounts-receivable / aging.
+**Confidence:** HIGH — all findings derived from direct codebase inspection of billing/models.py, billing/service.py, contracts/models.py, and the full Alembic migration history.
 
 ---
 
-## Summary
+## Existing Baseline (What We're Integrating Into)
 
-ROTAS has a solid modular-monolith foundation. The five areas below each have a well-understood upgrade path that does not require rewrites — they are additive layers on top of existing code. The highest-value improvements in order of impact are: (1) Redis caching for the Control Tower, (2) SQLAlchemy eager-loading for the 38-query problem, (3) ARQ for deferrable background work, (4) RLS as a second-layer safety net, and (5) explicit conflict resolution surfacing in the client. CRDTs are overkill for this domain.
+### Current billing module state
 
-**Overall confidence:** MEDIUM-HIGH — all findings verified against multiple sources; code patterns drawn from official SQLAlchemy docs and production-grade articles from 2025-2026.
+`BillingDocument` has:
 
----
+- `contract_id UUID FK contracts.id NULLABLE`
+- `client_name VARCHAR(160)` — denormalized string copied from `contract.client_name` at document creation time (see `billing/service.py:create_document` line 377)
+- `paid_at TIMESTAMPTZ NULLABLE` — single timestamp, binary "paid/not paid", no partial payment support
+- No FK to a `clients` table (does not exist yet)
 
-## Offline Sync Conflict Resolution
+`Contract` has:
 
-**Confidence: MEDIUM** — verified against multiple sources; specific recommendations are evidence-driven.
+- `client_name VARCHAR(160)` — free-text string, no FK
+- No FK to a `clients` table
 
-### Context
+`BillingItem` has:
 
-ROTAS already implements idempotency-key-based sync with a `conflict` status returned to the client. The gap is: what happens after `conflict`? The client currently only marks items `conflict` in IndexedDB with no resolution path.
+- `contract_id UUID FK contracts.id NULLABLE`
+- No client FK
 
-### Options Assessment
+`billing/service.py:create_document` explicitly copies `contract.client_name` onto the new `BillingDocument` at creation. This is the denormalization point that must evolve to use `client_id`.
 
-| Strategy | Fit for ROTAS | Notes |
-|---|---|---|
-| CRDTs | Poor | Designed for collaborative real-time editing (multiple writers on same field). ROTAS entities are single-writer (one driver per trip). Mathematical elegance at high operational cost. |
-| Wall-clock last-write-wins | Poor | Silently discards data. Device clocks on low-cost Android hardware in Mozambique cannot be trusted. A user with a 20-minute offline session can have work overwritten by a device 5 seconds ahead. |
-| Monotonic version counter + server-wins | Good | Simple, safe, auditable. Server is the source of truth; the driver's offline work is the pending state. |
-| Field-level merge with logical timestamps | Best fit | Merge concurrent changes to *different* fields on the same entity; server-wins on same-field conflicts. Requires a `version` column per entity. |
+### What does NOT exist yet
 
-### Recommendation: Server-Authoritative Versioning with Field-Level Merge
-
-For ROTAS's domain (single driver per trip, sequential operations), the practical approach is:
-
-1. **Add `server_version` integer column** to all syncable entities. Increment on every server-side mutation.
-2. **Client sends `base_version`** in the sync payload (the version it last saw from the server).
-3. **Server conflict check**: if `stored_version != base_version`, it is a conflict. Current code already returns `conflict` — this makes the logic explicit.
-4. **Conflict resolution rule**: For most ROTAS entities (trips, fuel logs, checklists), apply **server-wins** because server data reflects what was persisted and invoiced. The driver's offline update is likely a duplicate or retried operation.
-5. **Exception — trip_stop costs and checklist responses**: These are append-only. Conflicts are impossible if operations use `INSERT` not `UPDATE`. Enforce this at the service layer.
-6. **Client conflict UI**: When `conflict` is returned, surface it to the driver with the server value and a "force override" option gated behind a manager approval (waiver flow already exists for billing margins — reuse the pattern).
-
-### Why Not CRDTs
-
-CRDTs resolve data structure conflicts, not business logic conflicts. Two offline devices can both "reserve the last seat" and a CRDT merges the reservations perfectly while still violating the business rule. For fleet management, the constraint is operational (one driver, one trip, one vehicle at a time) — the conflict resolution rule is deterministic and domain-specific, not structural.
-
-### Hybrid Logical Clocks (HLC) — Skip for Now
-
-HLC solves clock drift. Given ROTAS's single-writer model (one driver app per device), standard monotonic server_version is sufficient. HLC adds complexity that isn't warranted until multi-device scenarios exist.
-
-### Sources
-- [The Cascading Complexity of Offline-First Sync: Why CRDTs Alone Aren't Enough](https://dev.to/biozal/the-cascading-complexity-of-offline-first-sync-why-crdts-alone-arent-enough-2gf)
-- [How We Designed Offline Sync for Any Data Model](https://medium.com/@msujithr/how-we-designed-offline-sync-for-any-data-model-0079bd4bea2f)
-- [Offline + Sync Architecture for Field Operations](https://www.alphasoftware.com/blog/offline-sync-architecture-tutorial-examples-tools-for-field-operations)
-- [CRDT Implementation Guide](https://velt.dev/blog/crdt-implementation-guide-conflict-free-apps)
+- No `clients` table anywhere in the codebase
+- No `payments` table
+- No aging / statement view or endpoint
+- No multi-contract invoice (each `BillingDocument` today has exactly one `contract_id`)
 
 ---
 
-## Redis Caching Patterns (FastAPI + SQLAlchemy)
+## Component Boundaries
 
-**Confidence: HIGH** — concrete patterns verified against official Redis docs and multiple production-grade FastAPI articles from 2025-2026.
+### New Module: `backend/app/modules/clients/`
 
-### Context
+Client is a domain entity with its own lifecycle (CRUD, status, credit limit, payment terms). It belongs in a dedicated module, not inside `billing/` or `contracts/`. Pattern is identical to every other module in the codebase.
 
-Redis is already provisioned but unused. CT-02 in PROJECT.md calls for caching Control Tower KPIs. The Control Tower currently runs ~38 sequential queries per request. Redis should eliminate the repeat cost on cache-hit paths.
-
-### Recommended Pattern: Cache-Aside with Tag-Based Invalidation
-
-Cache-aside (lazy population) is the correct choice over read-through or write-through for ROTAS because:
-- The Control Tower aggregates data from many tables — write-through would require hooking every mutation path
-- Cache-aside is simpler to add incrementally to existing service code
-
-```python
-# backend/app/modules/control_tower/cache.py
-import json
-import hashlib
-from redis.asyncio import Redis
-from typing import Any, Callable, Awaitable
-
-CONTROL_TOWER_TTL = 60  # seconds — KPIs are accepted as ~1min stale
-
-async def get_or_set(
-    redis: Redis,
-    key: str,
-    fetch: Callable[[], Awaitable[Any]],
-    ttl: int = CONTROL_TOWER_TTL,
-) -> Any:
-    cached = await redis.get(key)
-    if cached:
-        return json.loads(cached)
-
-    # Stampede prevention: acquire a short lock before computing
-    lock_key = f"lock:{key}"
-    lock_acquired = await redis.set(lock_key, "1", nx=True, ex=5)
-
-    if lock_acquired:
-        try:
-            data = await fetch()
-            await redis.setex(key, ttl, json.dumps(data, default=str))
-            return data
-        finally:
-            await redis.delete(lock_key)
-    else:
-        # Another worker is computing — wait briefly and return stale or None
-        import asyncio
-        await asyncio.sleep(0.1)
-        cached = await redis.get(key)
-        return json.loads(cached) if cached else await fetch()
-
-
-def control_tower_key(tenant_id: str) -> str:
-    return f"ct:kpis:{tenant_id}"
-```
-
-### Cache Key Design
-
-Use a consistent prefix scheme for pattern-based invalidation:
+Files needed:
 
 ```
-ct:kpis:{tenant_id}          # Control Tower full payload
-ct:alerts:{tenant_id}        # Active alert counts
-ct:fleet:{tenant_id}         # Fleet status summary
+backend/app/modules/clients/
+  __init__.py
+  models.py        — Client model
+  schemas.py       — ClientCreate, ClientUpdate, ClientResponse
+  service.py       — CRUD + _require_client() guard
+  router.py        — /api/v1/clients endpoints
 ```
 
-On any mutation that affects KPIs (trip status change, fuel log, exception raised), delete `ct:*:{tenant_id}`. With Redis, this is a `SCAN` + `DEL` on the pattern — avoid `KEYS *` in production.
+### Modified Module: `backend/app/modules/contracts/`
 
-```python
-async def invalidate_tenant_cache(redis: Redis, tenant_id: str):
-    # Scan-based pattern delete — safe for production
-    pattern = f"ct:*:{tenant_id}"
-    cursor = 0
-    while True:
-        cursor, keys = await redis.scan(cursor, match=pattern, count=100)
-        if keys:
-            await redis.delete(*keys)
-        if cursor == 0:
-            break
-```
+`Contract` model gets a new nullable FK `client_id → clients.id`. `client_name` stays on the model as a computed-or-denormalized fallback column during migration (see Migration Strategy section).
 
-### TTL Strategy by Data Type
+### Modified Module: `backend/app/modules/billing/`
 
-| Cache Key | TTL | Rationale |
-|---|---|---|
-| Control Tower KPIs | 60s | Operational dashboard; 1-min staleness acceptable |
-| Active alert counts | 30s | Alerts are time-sensitive |
-| Fleet status summary | 120s | Slower-moving data |
-| Bootstrap metadata | 3600s | Changes rarely (entity types, TTL config) |
-| Per-user role/permissions | 300s | Invalidate on user mutation |
+- `BillingDocument` gets `client_id UUID FK clients.id NULLABLE` — nullable initially, populated by migration
+- `BillingDocument.paid_at` is deprecated in favour of the `payments` table (keep column, stop writing to it after payments module ships)
+- `billing/service.py:create_document` must be updated to resolve `client_id` from the contract
 
-### Stampede Prevention
+### New Sub-module: `backend/app/modules/billing/payments.py`
 
-The `NX + EX` lock pattern above is the standard Redis approach. Only one worker computes; others either wait 100ms and re-read, or fall through to a direct DB call if the lock holder is still computing. This is sufficient for ROTAS's expected concurrent load.
+Payment is tightly coupled to billing lifecycle, not to clients. It lives inside the `billing` module as a sub-service, the same way `despacho.py` lives inside `trips/`. A separate top-level `payments` module would require importing from `billing` anyway.
 
-For higher scale (>100 concurrent dashboard users per tenant), consider probabilistic early expiration: a small probability on each read that the cache is refreshed before actual TTL expiry. Libraries like `redis-py` do not ship this natively — implement inline if needed.
+### New Table in billing module: `payments`
 
-### Redis Client Setup (asyncio-native)
-
-```python
-# backend/app/database.py (add alongside get_session)
-from redis.asyncio import Redis, ConnectionPool
-
-_redis_pool: ConnectionPool | None = None
-
-def get_redis_pool() -> ConnectionPool:
-    global _redis_pool
-    if _redis_pool is None:
-        _redis_pool = ConnectionPool.from_url(
-            settings.redis_url,
-            max_connections=20,
-            decode_responses=True,
-        )
-    return _redis_pool
-
-async def get_redis() -> Redis:
-    return Redis(connection_pool=get_redis_pool())
-```
-
-Inject via `Depends(get_redis)` in route handlers or service functions. Do not create a new connection per request.
-
-### Sources
-- [How to Implement Cache Invalidation in FastAPI](https://oneuptime.com/blog/post/2026-02-02-fastapi-cache-invalidation/view)
-- [Redis Distributed Locks](https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/)
-- [How to Handle Cache Stampede (Thundering Herd) in Redis](https://oneuptime.com/blog/post/2026-01-21-redis-cache-stampede/view)
-- [Integrating Redis Caching in FastAPI the Right Way](https://medium.com/@dronarajgyawali/integrating-redis-caching-in-fastapi-the-right-way-edb212183d45)
+Added via a new migration; its model class lives in `billing/models.py` (consistent with `ExportJob` also living there).
 
 ---
 
-## PostgreSQL RLS for Multitenant Safety
+## Data Model
 
-**Confidence: HIGH** — migration approach, session variable pattern, and SQLAlchemy event listener all verified against official guides from 2025-2026.
+### `clients` table
 
-### Context
+```
+clients
+  id                  UUID PK default gen_random_uuid()
+  tenant_id           UUID FK tenants.id NOT NULL (indexed)
+  name                VARCHAR(200) NOT NULL
+  trading_name        VARCHAR(200) NULLABLE  -- nome comercial / nome abreviado
+  nuit                VARCHAR(20) NULLABLE   -- Número Único de Identificação Tributária
+  address             TEXT NULLABLE
+  city                VARCHAR(100) NULLABLE
+  country             VARCHAR(3) DEFAULT 'MZ'
+  phone               VARCHAR(30) NULLABLE
+  email               VARCHAR(255) NULLABLE
+  payment_terms_days  SMALLINT DEFAULT 30    -- net-30, net-60, net-90
+  credit_limit        NUMERIC(14, 2) NULLABLE -- NULL = unlimited
+  currency            VARCHAR(3) DEFAULT 'MZN'
+  status              VARCHAR(30) DEFAULT 'active'  -- active | suspended | inactive
+  notes               TEXT NULLABLE
+  created_at          TIMESTAMPTZ server_default now()
+  updated_at          TIMESTAMPTZ server_default now() onupdate now()
 
-ROTAS currently enforces tenant isolation exclusively in application code (`WHERE tenant_id = :tenant_id` in every service function). PROJECT.md notes this as a known risk: "bug can leak data between tenants." RLS adds a second enforcement layer at the database level so even a buggy query cannot return another tenant's rows.
+  Indexes:
+    (tenant_id)                           -- standard isolation index
+    (tenant_id, name)                     -- lookup by name
+    (tenant_id, nuit) WHERE nuit IS NOT NULL  -- unique NUIT per tenant (partial unique)
+```
 
-### Architecture Decision: RLS as Defense-in-Depth
+SQLAlchemy model annotation: all monetary columns `Mapped[Decimal]` on `Numeric(14, 2)`, consistent with the Decimal annotation cleanup already done across the codebase.
 
-RLS must be additive, not a replacement for application-level filtering. The existing `tenant_id` filtering stays. RLS is the safety net that makes it impossible for a bug to produce a cross-tenant data leak.
+### `contracts` table changes
 
-### Step 1 — Alembic Migration per Table
+```sql
+ALTER TABLE contracts
+  ADD COLUMN client_id UUID REFERENCES clients(id) NULLABLE;
 
-Create a separate migration file for RLS policies. Policies are schema objects that should be versioned like tables.
+CREATE INDEX ix_contracts_tenant_client ON contracts (tenant_id, client_id);
+```
+
+`client_name` column is kept. After migration auto-creates `Client` records, `client_name` becomes redundant but is preserved for backward compatibility until explicitly removed in a later phase. Do not drop it now — it is referenced in `billing/service.py`, `billing/domain.py` (BillableTripCandidate.client_name), and several serializers.
+
+### `billing_documents` table changes
+
+```sql
+ALTER TABLE billing_documents
+  ADD COLUMN client_id UUID REFERENCES clients(id) NULLABLE;
+
+CREATE INDEX ix_billing_documents_tenant_client ON billing_documents (tenant_id, client_id);
+```
+
+`client_name` column is kept for the same reason. The migration populates `client_id` from the newly created `Client` records (see Migration Strategy).
+
+### `payments` table (new)
+
+```
+payments
+  id                  UUID PK default gen_random_uuid()
+  tenant_id           UUID FK tenants.id NOT NULL (indexed)
+  client_id           UUID FK clients.id NOT NULL (indexed)
+  billing_document_id UUID FK billing_documents.id NULLABLE (indexed)
+                       -- NULLABLE: advance payments before invoice is issued
+  payment_date        DATE NOT NULL     -- data valor (value date, not booking date)
+  amount              NUMERIC(12, 2) NOT NULL
+  currency            VARCHAR(3) DEFAULT 'MZN'
+  payment_method      VARCHAR(40) NULLABLE  -- 'bank_transfer' | 'cash' | 'cheque' | 'mpesa'
+  reference           VARCHAR(120) NULLABLE -- external ref (bank slip, mpesa confirmation)
+  notes               TEXT NULLABLE
+  recorded_by         UUID FK users.id NOT NULL  -- who registered the payment
+  created_at          TIMESTAMPTZ server_default now()
+  updated_at          TIMESTAMPTZ server_default now()
+
+  Indexes:
+    (tenant_id, client_id)                       -- client statement queries
+    (tenant_id, billing_document_id)             -- document balance queries
+    (tenant_id, payment_date DESC)               -- period-based reporting
+```
+
+Key design decision: `billing_document_id` is nullable because advance payments and unallocated deposits exist in practice for Mozambican logistics clients. The aging calculation uses `payment_date` (not `created_at`) because value date is what matters for DSO computation.
+
+---
+
+## Migration Strategy: client_name to client_id
+
+This is the highest-risk component of the milestone. Two approaches exist:
+
+### Option A: Auto-create Client records from unique client_names (RECOMMENDED)
+
+The migration script (run as a Python Alembic data migration) does:
+
+1. `SELECT DISTINCT tenant_id, client_name FROM contracts ORDER BY tenant_id, client_name`
+2. For each `(tenant_id, client_name)` pair, insert one row into `clients` with `name = client_name` and auto-generated UUID
+3. `UPDATE contracts SET client_id = <new_client.id> WHERE tenant_id = ? AND client_name = ?`
+4. `UPDATE billing_documents SET client_id = <new_client.id> WHERE tenant_id = ? AND client_name = ?`
+
+Safety properties:
+
+- The migration is wrapped in a transaction — if any step fails, the whole migration rolls back
+- The migration is idempotent when re-run: check `WHERE client_id IS NULL` before inserting
+- Duplicate `client_name` strings within the same tenant correctly produce ONE `Client` record (the SELECT DISTINCT guarantees this)
+- Different `client_name` strings that represent the same company (e.g. "VALE S.A." vs "Vale Mozambique") each produce separate `Client` records — this is correct and expected. Merging clients is a user action post-migration via the manager UI
+- Cross-tenant: same `client_name` in tenant A and tenant B produce two separate `Client` records, each scoped to their tenant. The `(tenant_id, name)` index is not unique — two tenants can legitimately have a "Shoprite" client
+
+Why not Option B (require manual mapping): Option B requires building a migration UI before any other work can proceed, adds user friction, and blocks deployment. Auto-creation is safe and reversible (users can merge/rename clients after the fact). The risk of incorrect client grouping is low because the `DISTINCT (tenant_id, client_name)` query already groups contracts by exact string match.
+
+### Alembic migration file structure
+
+Four migration files in sequence:
+
+#### Migration 1: create clients table
 
 ```python
-# alembic/versions/xxxx_add_rls_policies.py
-from alembic import op
+# e.g. a1b2_add_clients_table.py
+# Creates clients table with all columns, indexes, and RLS policy
+```
 
-def upgrade():
-    # Example for trips table — repeat for all tenant-scoped tables
-    op.execute("ALTER TABLE trips ENABLE ROW LEVEL SECURITY")
-    op.execute("ALTER TABLE trips FORCE ROW LEVEL SECURITY")  # applies to table owner too
-    op.execute("""
-        CREATE POLICY tenant_isolation ON trips
-        AS PERMISSIVE
-        FOR ALL
-        TO PUBLIC
-        USING (tenant_id::text = current_setting('app.current_tenant_id', true))
+#### Migration 2: add client_id FKs to contracts and billing_documents
+
+```python
+# e.g. b2c3_add_client_id_to_contracts_billing.py
+# ADD COLUMN client_id NULLABLE (no data migration here — keeps the migration fast)
+# Adds indexes
+# Adds RLS-compatible entries for the new tables
+```
+
+#### Migration 3: data migration — populate client_id
+
+```python
+# e.g. c3d4_backfill_client_id.py
+# Runs the SELECT DISTINCT / INSERT INTO clients / UPDATE contracts logic
+# Uses op.execute() with raw SQL for performance — avoid ORM in data migrations
+# Wrapped in a single transaction via op.get_bind()
+```
+
+Splitting schema changes from data changes is the established Alembic pattern in this codebase (observed across the 28 existing migrations). Never mix DDL and DML in the same migration file.
+
+#### Migration 4: create payments table
+
+```python
+# e.g. d4e5_add_payments_table.py
+# Can be in the same PR as migrations 1-3 but a separate file
+# Adds RLS policy on payments table
+```
+
+### RLS policy for new tables
+
+The existing RLS migration (`4b0a7802dc3c_add_rls_policies.py`) defines the pattern. New tables need a follow-up migration that applies the same policy. The `TENANT_SCOPED_TABLES` list in that migration must be extended or a new migration must run:
+
+```python
+for table in ["clients", "payments"]:
+    op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
+    op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")
+    op.execute(f"""
+        CREATE POLICY rls_{table} ON {table}
+        AS PERMISSIVE FOR ALL TO rotas_app
+        USING (tenant_id::text = current_setting('app.tenant_id', true))
+        WITH CHECK (tenant_id::text = current_setting('app.tenant_id', true))
     """)
-    # Repeat for: vehicles, drivers, fuel_logs, trip_stops, trip_costs,
-    # checklists, checklist_responses, load_permits, cargo_manifests,
-    # transport_documents, delivery_proofs, billing_documents, billing_items,
-    # work_orders, maintenance_requests, alerts, audit_logs, sync_events, etc.
-
-def downgrade():
-    op.execute("DROP POLICY IF EXISTS tenant_isolation ON trips")
-    op.execute("ALTER TABLE trips DISABLE ROW LEVEL SECURITY")
 ```
-
-### Step 2 — Thread-Safe Tenant Context (contextvars)
-
-```python
-# backend/app/core/rls_context.py
-from contextvars import ContextVar
-
-_current_tenant_id: ContextVar[str | None] = ContextVar(
-    "current_tenant_id", default=None
-)
-
-def set_tenant_context(tenant_id: str) -> None:
-    _current_tenant_id.set(tenant_id)
-
-def get_tenant_context() -> str | None:
-    return _current_tenant_id.get()
-```
-
-### Step 3 — SQLAlchemy Async Event Listener
-
-The SQLAlchemy `before_cursor_execute` event fires before every query on the session. Inject the PostgreSQL session variable there.
-
-```python
-# backend/app/database.py — add after async_session_maker creation
-from sqlalchemy import event, text
-from app.core.rls_context import get_tenant_context
-
-@event.listens_for(async_session_maker.sync_session_class, "after_begin")
-def set_tenant_on_session(session, transaction, connection):
-    tenant_id = get_tenant_context()
-    if tenant_id:
-        connection.exec_driver_sql(
-            "SELECT set_config('app.current_tenant_id', %s, true)",
-            (str(tenant_id),),
-        )
-```
-
-Note: For `asyncpg`, use `SET LOCAL` inside a transaction. The `true` flag on `set_config` scopes the setting to the current transaction, which is the safe default — it resets automatically on transaction commit/rollback. This prevents context bleed between requests sharing a connection from the pool.
-
-### Step 4 — Middleware to Populate Context
-
-```python
-# backend/app/core/auth.py — extend get_current_principal()
-# After decoding JWT and extracting tenant_id, call:
-from app.core.rls_context import set_tenant_context
-set_tenant_context(str(principal.tenant_id))
-```
-
-This ensures RLS context is set for every authenticated request before any DB query runs.
-
-### Admin/Migration Bypass
-
-For Alembic migrations and superuser maintenance operations, PostgreSQL BYPASSRLS role privilege or `SET row_security = off` in a privileged session bypasses policies. The application DB user should NOT have BYPASSRLS — only the migration user.
-
-### Existing Library Option
-
-`fastapi-rowsecurity` (PyPI) provides a FastAPI dependency that wraps the above pattern. Evaluate it if you want less boilerplate, but it adds a dependency. The manual pattern above is ~50 lines and gives full control.
-
-### Migration Sequence
-
-1. Add RLS policies in a migration (disabled by default in Postgres until `ENABLE ROW LEVEL SECURITY` is called).
-2. Test in staging: run existing integration tests to confirm no queries break (they should not, since application filtering already provides correct `tenant_id`).
-3. Add a test that deliberately omits `tenant_id` from a query and asserts it returns zero rows.
-4. Enable in production via migration.
-
-### Sources
-- [Row-Level Security with SQLAlchemy and Alembic: A Complete Guide](https://www.adrianovieira.eng.br/en/posts/architecture/row-level-security-sqlachemy-alembic-guide/)
-- [Building Multi-Tenant Row-Level Security in PostgreSQL: A Production Pattern](https://dev.to/uaslimcreate/building-multi-tenant-row-level-security-in-postgresql-a-production-pattern-4n2k)
-- [How to Secure Multi-Tenant Data with Row-Level Security in PostgreSQL](https://oneuptime.com/blog/post/2026-01-25-row-level-security-postgresql/view)
-- [GitHub: fastapi-rowsecurity](https://github.com/JWDobken/fastapi-rowsecurity)
 
 ---
 
-## SQLAlchemy 2.0 N+1 Query Optimization
+## Aging Calculation: Endpoint vs View vs Materialized View
 
-**Confidence: HIGH** — patterns directly from SQLAlchemy 2.0 official docs and multiple production articles. Code verified against the async API.
+Three approaches evaluated against the codebase constraints:
 
-### Context
-
-Control Tower runs ~38 sequential queries per request. This is a classic N+1 pattern: fetch trips, then for each trip fetch vehicle, driver, stops, costs, exceptions, etc. The fix is explicit eager loading declared at the query site.
-
-### Rule of Thumb
-
-| Relationship Type | Strategy | SQL Generated |
-|---|---|---|
-| Many-to-one (e.g., trip → vehicle) | `joinedload` | Single JOIN query |
-| One-to-many collection (e.g., trip → stops) | `selectinload` | 2 queries (parent + IN clause) |
-| Nested collection (e.g., trip → stops → costs) | `selectinload(...).selectinload(...)` | 3 queries total |
-| Load only specific columns | `load_only(Model.col_a, Model.col_b)` | Reduces data transfer |
-
-**Never use `lazyload` in async SQLAlchemy** — async sessions do not support implicit lazy loads. SQLAlchemy will raise `MissingGreenlet` if a lazy-loaded relationship is accessed outside the session context. Set `lazy="raise"` on all relationships during development to catch this early.
-
-### Pattern for Control Tower Aggregate Query
-
-The Control Tower currently calls individual service functions per entity type in a loop. Replace with a single rich query:
+### Option A: Computed endpoint (service layer SQL) — RECOMMENDED
 
 ```python
-# backend/app/modules/control_tower/service.py
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload, joinedload, load_only
-
-async def get_fleet_status(db: AsyncSession, tenant_id: str):
-    stmt = (
-        select(Trip)
-        .where(Trip.tenant_id == tenant_id)
-        .where(Trip.status.in_(["active", "pending"]))
-        .options(
-            # Many-to-one: JOIN (1 query per relationship, included in main)
-            joinedload(Trip.vehicle).load_only(
-                Vehicle.id, Vehicle.plate, Vehicle.status
-            ),
-            joinedload(Trip.driver).load_only(
-                Driver.id, Driver.full_name
-            ),
-            # One-to-many collections: IN clause (1 extra query each)
-            selectinload(Trip.stops).load_only(
-                TripStop.id, TripStop.location, TripStop.cost
-            ),
-            selectinload(Trip.operational_exceptions),
-        )
-        # Pagination — CT-03 requirement
-        .limit(100)
-        .offset(offset)
-        .order_by(Trip.created_at.desc())
-    )
-    result = await db.execute(stmt)
-    return result.scalars().unique().all()
+# billing/service.py — new function
+async def get_client_aging(db: AsyncSession, tenant_id: UUID, client_id: UUID,
+                           as_of: date) -> dict:
+    # One query: SUM billing_documents.total_amount grouped by age bucket
+    # Less one query: SUM payments.amount for the client
+    # Derive outstanding per document, bucket into 0-30 / 31-60 / 61-90 / >90 days
 ```
 
-This replaces ~10-15 of the 38 sequential queries for the trips portion.
+Why this is the right approach for ROTAS:
 
-### Aggregate KPIs — Use SQL-Level Aggregation
+- The existing control_tower and billing services use the same pattern (aggregate queries in service.py, no views)
+- PostgreSQL materialized views require `REFRESH MATERIALIZED VIEW` scheduling (an ARQ cron) and drift detection — this is complexity without payoff at current tenant scale (tens of clients per tenant, not thousands)
+- Regular PostgreSQL views work but execute the full aggregation on every request — same cost as the endpoint query
+- Redis cache (already provisioned, not used) can cache aging results per `(tenant_id, client_id, as_of_date)` with a 5-minute TTL if the query proves slow. This is easier to add later than to remove a materialized view
 
-For KPI counts (active trips, vehicles in workshop, fuel spend today), do not fetch rows and count in Python. Use `func.count()`, `func.sum()`, `func.coalesce()` with a single scalar query per metric, or combine with CTE:
+Aging bucket definition:
 
-```python
-# Single query for multiple KPIs using correlated subqueries
-from sqlalchemy import select, func, case, literal_column
+- The `as_of` date parameter is critical — aging is always relative to a specific date (end of month for reporting, today for real-time). Make it explicit, not implicitly `now()`.
+- Bucket boundaries: `(as_of - issued_at) <= 30` = current, `31-60` = 30 days overdue, `61-90` = 60 days overdue, `>90` = 90+ days overdue
+- Outstanding amount per document = `billing_documents.total_amount - SUM(payments.amount WHERE payments.billing_document_id = document.id)`
+- Documents in `draft` status are NOT included in aging — only `issued` documents create receivables
 
-async def get_kpi_summary(db: AsyncSession, tenant_id: str) -> dict:
-    stmt = select(
-        func.count(case((Trip.status == "active", 1))).label("active_trips"),
-        func.count(case((Trip.status == "pending", 1))).label("pending_trips"),
-        func.count(case((Vehicle.status == "in_workshop", 1))).label("vehicles_in_workshop"),
-    ).select_from(Trip).join(Vehicle, Vehicle.id == Trip.vehicle_id).where(
-        Trip.tenant_id == tenant_id
-    )
-    row = (await db.execute(stmt)).one()
-    return {"active_trips": row.active_trips, ...}
+### Option B: PostgreSQL view
+
+```sql
+CREATE VIEW client_aging_view AS
+SELECT
+    bd.tenant_id,
+    bd.client_id,
+    SUM(CASE WHEN age_days <= 30 THEN outstanding ELSE 0 END) AS current_0_30,
+    ...
 ```
 
-This collapses multiple scalar COUNT queries into one.
+Rejected because: views do not support parameters (can't pass `as_of` date), the `CURRENT_DATE` built-in would produce stale results if reports are generated for past months, and RLS on views requires additional `SECURITY INVOKER` configuration that introduces complexity.
 
-### Development Safety Net
+### Option C: Materialized view
 
-```python
-# In all SQLAlchemy model relationships — add during a cleanup pass
-from sqlalchemy.orm import relationship
-
-class Trip(Base):
-    vehicle = relationship("Vehicle", lazy="raise")  # raises if accidentally lazy-loaded
-    stops = relationship("TripStop", lazy="raise")
-```
-
-This forces all relationship loading to be explicit at the query site, making N+1 patterns fail loudly in development and tests.
-
-### Expected Impact
-
-Based on community benchmarks:
-- SelectinLoad at scale: 95% query reduction, ~56x throughput improvement, p99 latency from seconds to tens of milliseconds
-- For Control Tower specifically: 38 queries → 4-6 queries (main query + selectinload batches + KPI aggregates)
-
-### Sources
-- [SQLAlchemy 2.0 Relationship Loading Techniques (official docs)](https://docs.sqlalchemy.org/en/20/orm/queryguide/relationships.html)
-- [Advanced SQLAlchemy 2.0: SelectinLoad and WithParent Strategies 2025](https://www.johal.in/advanced-sqlalchemy-2-0-selectinload-and-withparent-strategies-2025/)
-- [FastAPI + SQLAlchemy 2.0: Modern Async Database Patterns](https://dev-faizan.medium.com/fastapi-sqlalchemy-2-0-modern-async-database-patterns-7879d39b6843)
-- [Mastering SQLAlchemy Performance: Fix Slow Queries, N+1 Problems](https://python.elitedev.in/python/mastering-sqlalchemy-performance-fix-slow-queries/)
+Rejected for MVP. Requires scheduled refresh (ARQ cron), handles stale data poorly for real-time dashboards, and adds operational overhead. Consider if aging query exceeds 500ms at 10K+ documents per tenant.
 
 ---
 
-## Background Job Processing (no heavy queue)
+## Endpoint Design
 
-**Confidence: HIGH** — comparison verified against official FastAPI docs, ARQ docs, and multiple production comparison articles. Celery async gap confirmed from multiple sources.
+### New endpoints (clients module)
 
-### Context
-
-ROTAS has no background task runner. The alerts module presumably generates alerts synchronously (or not at all). Identified needs: (1) alert generation triggered by sync events, (2) PDF/XLSX export for billing, (3) cache warming after invalidation, (4) potential future: scheduled compliance checks, document expiry notifications.
-
-### Options Compared
-
-| Option | Fits ROTAS? | Key Characteristics |
-|---|---|---|
-| FastAPI `BackgroundTasks` | Partial | Simple fire-and-forget. No status tracking, no retries, no persistence. Killed if server crashes. Acceptable for low-stakes tasks (e.g., cache invalidation after a mutation). |
-| **ARQ** | **Best fit** | Asyncio-native, uses Redis already provisioned. Simple worker process. Retries, job status, cron scheduling. No additional infrastructure. |
-| Celery | No | No native async/await as of 2025 (issue open since 2020). Requires bridging sync/async. Adds broker complexity. Overkill for ROTAS's current load. |
-| RQ (Redis Queue) | Fallback | Simpler than Celery. Sync-only workers. Works but not asyncio-native. |
-
-### Recommendation: ARQ
-
-ARQ is the correct choice because:
-- Redis is already provisioned — ARQ uses the same Redis instance as the cache, no new infrastructure
-- Asyncio-native — no sync/async bridging, shares connection pools with FastAPI workers
-- 50 concurrent async tasks in a single worker process (vs 50 Celery processes)
-- Retries, backoff, job status tracking, cron jobs all built in
-- Operational simplicity: one extra process (`arq worker.WorkerSettings`)
-
-### Implementation Pattern
-
-```python
-# backend/app/worker/tasks.py
-from arq.connections import RedisSettings
-from app.modules.alerts.service import generate_alerts_for_tenant
-from app.modules.billing.service import generate_billing_pdf
-from app.database import get_session_factory
-
-async def task_generate_alerts(ctx: dict, tenant_id: str, trip_id: str):
-    """Run after sync batch completes — generate/update alerts for this trip."""
-    async with get_session_factory()() as db:
-        await generate_alerts_for_tenant(db, tenant_id, trip_id=trip_id)
-
-async def task_export_billing_pdf(ctx: dict, tenant_id: str, billing_id: str):
-    """Async PDF export — decouples export from HTTP request lifecycle."""
-    async with get_session_factory()() as db:
-        await generate_billing_pdf(db, tenant_id, billing_id)
-
-async def startup(ctx: dict):
-    # Shared resources available to all tasks via ctx
-    from redis.asyncio import Redis
-    ctx["redis"] = Redis.from_url(settings.redis_url)
-
-async def shutdown(ctx: dict):
-    await ctx["redis"].aclose()
-
-class WorkerSettings:
-    functions = [task_generate_alerts, task_export_billing_pdf]
-    on_startup = startup
-    on_shutdown = shutdown
-    redis_settings = RedisSettings.from_dsn(settings.redis_url)
-    max_jobs = 20
-    job_timeout = 300  # 5 min max per job
-    retry_jobs = True
-    max_tries = 3
+```
+POST   /api/v1/clients                          — create client
+GET    /api/v1/clients                          — list clients (paginated)
+GET    /api/v1/clients/{client_id}              — get client detail
+PATCH  /api/v1/clients/{client_id}              — update client
+DELETE /api/v1/clients/{client_id}              — soft-delete (status='inactive')
+GET    /api/v1/clients/{client_id}/statement    — client statement: invoices + payments
+GET    /api/v1/clients/{client_id}/aging        — aging breakdown with as_of param
 ```
 
-```python
-# backend/app/modules/sync/service.py — enqueue after batch processed
-from arq import create_pool
-from arq.connections import RedisSettings
+### New endpoints (payments, inside billing module)
 
-async def process_batch(db, principal, payload):
-    # ... existing sync processing ...
-    # After successful batch:
-    arq_pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
-    await arq_pool.enqueue_job(
-        "task_generate_alerts",
-        principal.tenant_id,
-        trip_id=trip_id,
-    )
+```
+POST   /api/v1/billing/payments                 — record payment (idempotency-key required)
+GET    /api/v1/billing/payments                 — list payments (filterable by client_id, period)
+GET    /api/v1/billing/payments/{payment_id}    — get payment detail
+PATCH  /api/v1/billing/payments/{payment_id}    — correct payment (admin only, audit logged)
+DELETE /api/v1/billing/payments/{payment_id}    — void payment (admin only, status='voided')
 ```
 
-### When to Use FastAPI BackgroundTasks Instead
+### Modified endpoints (billing module)
 
-Keep using `BackgroundTasks` for:
-- Cache invalidation after mutations (fire-and-forget, no retry needed)
-- Logging side-effects
-- Sending a webhook notification where loss is acceptable
+`GET /api/v1/billing/documents` — add `client_id` filter parameter alongside existing `status` and period filters. The existing `client_name` filter remains but now queries `clients.name` via JOIN.
 
-Use ARQ for:
-- Alert generation (needs retry, must not be lost on server crash)
-- PDF/XLSX export (CPU-bound, should not block HTTP worker)
-- Scheduled compliance checks (cron)
-- Any task that takes >500ms
+`GET /api/v1/billing/billable-trips` — the existing `client_name` filter in `list_billable_trips()` should also accept `client_id` for precision filtering.
 
-### Deployment
+### New accounts-receivable dashboard endpoint
 
-```bash
-# Dockerfile / Railway Procfile — add alongside the FastAPI app
-web: uvicorn app.main:app --host 0.0.0.0 --port 8000
-worker: arq app.worker.tasks.WorkerSettings
+```
+GET /api/v1/billing/ar-summary?as_of=YYYY-MM-DD
 ```
 
-Railway and Render both support multiple process types per service or separate services. Run the worker as a separate process on the same Redis instance. One worker process handles ROTAS's initial load comfortably.
-
-### Sources
-- [Managing Background Tasks in FastAPI: BackgroundTasks vs ARQ + Redis](https://davidmuraya.com/blog/fastapi-background-tasks-arq-vs-built-in/)
-- [FastAPI Background Tasks vs Celery vs ARQ](https://medium.com/@komalbaparmar007/fastapi-background-tasks-vs-celery-vs-arq-picking-the-right-asynchronous-workhorse-b6e0478ecf4a)
-- [FastAPI Background Tasks (official docs)](https://fastapi.tiangolo.com/tutorial/background-tasks/)
-- [Why I Chose arq and RQ Over Celery for LLM Workloads](https://dangquan1402.github.io/llm-engineering-notes/2026/04/02/lightweight-task-queues-for-llm-apps.html)
-- [ARQ vs Celery, How to Run FastAPI Background Tasks with ARQ](https://www.bithost.in/blog/tech-3/how-to-run-fastapi-background-tasks-arq-vs-celery-11)
+Returns tenant-wide AR KPIs: total outstanding, total current, total 30/60/90+ days overdue, per-client breakdown. Used by the manager dashboard AR panel.
 
 ---
 
-## Gaps / Unknowns
+## Data Flow
 
-1. **Sync pull direction**: Research did not address the missing pull mechanism (server → client). The `bootstrap` endpoint returns metadata only. A delta-sync endpoint (`GET /api/v1/sync/pull?since=<server_version>`) is needed for trip assignments, checklist template updates, and vehicle data changes to reach the driver app without a full app reload. This requires its own design.
+### Creating a billing document after client migration
 
-2. **RLS on `audit_logs` and `idempotency_keys`**: Audit logs carry `tenant_id` but are written by the application itself, not by user requests. The RLS event listener must correctly handle the audit log writer context — confirm the session variable is set before audit writes, or use a separate DB role for audit writes that bypasses RLS.
+```
+Manager creates billing document
+  POST /api/v1/billing/documents
+  payload: { contract_id, billing_period_start, billing_period_end, trip_ids[] }
 
-3. **Redis connection pool sizing**: No load data was available for ROTAS's expected concurrent user count. The pool size of 20 in the pattern above is a starting point. Monitor `redis_connected_clients` and `rejected_connections` after deploy.
+billing/service.py:create_document()
+  → db.get(Contract, payload.contract_id)
+  → assert contract.client_id IS NOT NULL  (enforced post-migration)
+  → db.get(Client, contract.client_id)
+  → BillingDocument(
+       client_id=contract.client_id,
+       client_name=client.name,   # keep denormalized for display/PDF without JOIN
+       contract_id=contract.id,
+       ...
+    )
+```
 
-4. **ARQ worker crash recovery**: ARQ persists job state in Redis. Jobs enqueued before a worker crash will be picked up on restart. Confirm Redis persistence (AOF or RDB snapshot) is enabled on the provisioned Redis instance — otherwise crashed jobs are lost.
+The `client_name` field on `BillingDocument` continues to be populated (from `client.name` now, not `contract.client_name` directly) to preserve PDF generation and existing serializers without requiring a JOIN on every document read.
 
-5. **`availability` module**: Listed in `backend/app/modules/` but not registered in `main.py` or `database.py`. If this module has tenant-scoped tables, they need RLS policies too. Investigate before running the RLS migration.
+### Recording a payment
 
-6. **Monetary columns as `float`**: Several billing/cost columns are `float` instead of `Numeric(10,2)`. This is a separate data integrity issue, not architecture, but any Redis caching of financial aggregates must be invalidated immediately after the float→Numeric migration or cached values will reflect floating-point rounding errors.
+```
+Manager records payment
+  POST /api/v1/billing/payments
+  Idempotency-Key: <key>
+  payload: { client_id, billing_document_id, payment_date, amount, payment_method, reference }
 
-7. **Control Tower pagination (CT-03)**: The N+1 fix patterns above include `.limit(100)` but the correct pagination parameters (page size, cursor vs offset) need to be agreed upon before implementation. Cursor-based pagination (by `created_at` + `id`) is preferred over offset for large datasets, but adds client-side complexity.
+billing/payments.py:record_payment()
+  → _require_client(db, tenant_id, client_id)
+  → if billing_document_id: _require_billing_document(db, tenant_id, billing_document_id)
+  → assert billing_document.client_id == client_id  (mismatch = 409)
+  → INSERT payments(...)
+  → record_audit_log(action="payment.recorded", ...)
+  → if billing_document fully paid: UPDATE billing_documents SET status='paid', paid_at=payment_date
+  → commit
+```
+
+"Fully paid" detection: `SUM(payments.amount WHERE billing_document_id=?) >= billing_document.total_amount`. Use `>=` not `==` to handle overpayments gracefully (excess tracked as credit, not an error).
+
+### Aging query structure
+
+```python
+# Pseudo-SQL for get_client_aging
+SELECT
+    bd.id,
+    bd.total_amount,
+    COALESCE(p.paid, 0) AS paid,
+    bd.total_amount - COALESCE(p.paid, 0) AS outstanding,
+    (as_of - bd.issued_at::date) AS age_days
+FROM billing_documents bd
+LEFT JOIN (
+    SELECT billing_document_id, SUM(amount) AS paid
+    FROM payments
+    WHERE tenant_id = :tenant_id
+      AND billing_document_id IS NOT NULL
+    GROUP BY billing_document_id
+) p ON p.billing_document_id = bd.id
+WHERE bd.tenant_id = :tenant_id
+  AND bd.client_id = :client_id
+  AND bd.status = 'issued'
+  AND bd.total_amount - COALESCE(p.paid, 0) > 0
+```
+
+Group the result in Python into buckets `<= 30`, `31-60`, `61-90`, `> 90`. The bucketing logic is trivial (4 comparisons) and does not need to live in SQL.
+
+---
+
+## New vs Modified Components
+
+### New components
+
+| Component | Type | Purpose |
+|-----------|------|---------|
+| `backend/app/modules/clients/__init__.py` | New file | Module marker |
+| `backend/app/modules/clients/models.py` | New file | `Client` SQLAlchemy model |
+| `backend/app/modules/clients/schemas.py` | New file | Pydantic schemas for Client CRUD |
+| `backend/app/modules/clients/service.py` | New file | Client CRUD service, `_require_client()` |
+| `backend/app/modules/clients/router.py` | New file | Client CRUD endpoints + statement + aging |
+| `backend/app/modules/billing/payments.py` | New file | Payment service: record, list, void |
+| Alembic migration: add_clients_table | New migration | `clients` table + indexes + RLS |
+| Alembic migration: add_client_id_to_contracts_billing | New migration | Nullable FK columns + indexes |
+| Alembic migration: backfill_client_id | New migration | Data migration from client_name |
+| Alembic migration: add_payments_table | New migration | `payments` table + indexes + RLS |
+
+### Modified components
+
+| Component | Change | Risk |
+|-----------|--------|------|
+| `backend/app/modules/contracts/models.py` | Add `client_id: Mapped[UUID]` (nullable FK) | LOW — additive, nullable |
+| `backend/app/modules/billing/models.py` | Add `client_id: Mapped[UUID]` (nullable FK) to `BillingDocument`; add `Payment` model class | LOW — additive |
+| `backend/app/modules/billing/schemas.py` | Add `client_id` to `BillingDocumentCreate`; add `PaymentCreate`, `PaymentResponse` | LOW |
+| `backend/app/modules/billing/service.py` | `create_document()` resolves `client_id` from contract; `list_documents()` accepts `client_id` filter; `list_billable_trips()` accepts `client_id` filter | MEDIUM — core billing path |
+| `backend/app/modules/billing/router.py` | Add payment endpoints; add `client_id` query params | LOW |
+| `backend/app/main.py` | Register `clients_router` | LOW |
+| `backend/app/database.py` | Add `"clients"` to `MODEL_MODULES` | LOW |
+| `backend/alembic/versions/4b0a7802dc3c_add_rls_policies.py` | No change — a follow-up migration handles RLS for new tables | None |
+
+---
+
+## Build Order (Phase Dependencies)
+
+The dependency graph determines sequencing:
+
+```
+Phase 1 — Client model + migration (no other dependencies)
+  a. Alembic: clients table
+  b. Alembic: client_id FK on contracts + billing_documents (nullable)
+  c. Alembic: data migration backfill client_id
+  d. clients/ module: model, schema, service, router
+  e. main.py + database.py: register module
+
+Phase 2 — Payments (depends on Phase 1: requires clients to exist)
+  a. Alembic: payments table
+  b. billing/payments.py: service
+  c. billing/router.py: payment endpoints
+  d. billing/service.py: update create_document to use client_id
+
+Phase 3 — Aging + AR dashboard (depends on Phase 2: requires payments to compute balances)
+  a. clients/service.py: get_client_aging(), get_client_statement()
+  b. clients/router.py: /statement and /aging endpoints
+  c. billing/service.py: get_ar_summary() endpoint
+  d. Manager UI: AR dashboard panel
+
+Phase 4 — Cleanup (depends on Phase 1-3 stable)
+  a. Make contract.client_id NOT NULL (ALTER TABLE, after verifying backfill complete)
+  b. Make billing_document.client_id NOT NULL
+  c. Remove client_name from BillingDocumentCreate schema (client_name stays on model for PDF display)
+```
+
+Why this order:
+
+1. Client entity must exist before payments can reference it (FK constraint)
+2. The backfill migration must run before making `client_id NOT NULL` — split into separate phases so the application can run with nullable columns during the transition window
+3. The AR summary endpoint requires both invoices (Phase 1) and payments (Phase 2) to be meaningful; building it in Phase 3 avoids building an endpoint that returns incomplete data
+4. Phase 4 cleanup (NOT NULL enforcement) should be a separate deployment to allow verification that no `client_id IS NULL` rows remain before adding the constraint
+
+---
+
+## Multitenant Safety
+
+Every new table follows the existing pattern:
+
+- `tenant_id UUID FK tenants.id NOT NULL` on every new table
+- RLS policy using `current_setting('app.tenant_id', true)` applied via Alembic migration
+- All service functions accept `tenant_id: UUID` and filter every query with `WHERE tenant_id = :tenant_id`
+- `_require_client()` guard function in `clients/service.py` checks `client.tenant_id != tenant_id` before any mutation — same pattern as `_require_vehicle()` in vehicles
+
+Critical cross-table safety check in `record_payment()`: the payment service must verify that `billing_document.client_id == payment.client_id` AND `billing_document.tenant_id == tenant_id` before recording. A manager cannot record a payment against a billing document belonging to a different client (even within the same tenant) — this would corrupt the statement.
+
+---
+
+## Confidence Assessment
+
+| Area | Confidence | Basis |
+|------|------------|-------|
+| Client model design | HIGH | Inspected contracts/models.py and billing/models.py; NUIT/payment_terms are domain-standard |
+| Migration strategy (auto-create from client_name) | HIGH | Inspected create_document() logic — client_name IS copied from contract at creation; DISTINCT grouping is safe |
+| Payment model design | HIGH | billing_document.paid_at inspected; partial payment requirement is standard AR pattern |
+| Aging endpoint approach | HIGH | Control tower and billing service patterns confirmed; Redis cache already available for optimization |
+| Build order | HIGH | FK dependencies are deterministic; nullable-first then NOT NULL is the established migration pattern |
+| RLS coverage | HIGH | 4b0a7802dc3c migration inspected; new tables just need a follow-up migration |
+| NOT NULL enforcement timing | MEDIUM | Depends on verifying zero NULL rows before alter — risk is manageable with explicit pre-check migration step |
+
+---
+
+## Gaps to Resolve in Phase Research
+
+1. **Multi-contract billing document:** PROJECT.md mentions "faturas por cliente agregando múltiplos contratos no mesmo período". The current `BillingDocument` has a single `contract_id`. Supporting multiple contracts per document requires either removing `contract_id` from `BillingDocument` (breaking change) or keeping one document per contract and introducing a `ClientInvoice` aggregate. This architectural choice should be resolved before Phase 3 starts.
+
+2. **Credit limit enforcement:** `Client.credit_limit` field is defined, but where enforcement happens is unclear. Options: (a) warn on billing document creation when outstanding + new document > credit_limit, (b) block document creation, (c) warn only on the UI. The enforcement policy must be decided before implementing the clients service.
+
+3. **Voided payments:** The `payments` table design needs a `status` column (`active` or `voided`) if void-without-delete is required for audit integrity. The current design uses hard delete via `DELETE`. A voided payment that remains in the table with `status='voided'` is better for audit trails. Decide before writing the migration.
+
+4. **Payment allocation:** The current design allows `billing_document_id NULLABLE` for advance/unallocated payments. If advance payments need to be later allocated to a specific invoice, a payment-allocation link table is needed. This is scope creep for the first version — clearly mark it as out-of-scope in phase planning.

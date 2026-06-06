@@ -44,6 +44,13 @@ _Funcionalidades já implementadas e operacionais no codebase:_
 - ✓ **Upload de ficheiros**: Pré-assinatura + upload com validação SHA-256, armazenamento local/R2 — existing
 - ✓ **Auditoria**: Logs estruturados com correlation ID, before/after snapshots, UUID do ator — existing
 - ✓ **Control Tower base**: Endpoint de KPIs e excepções, alertas vinculados a exceções operacionais — existing
+- ✓ **MAINT-01 Scheduler**: `evaluate_maintenance_schedule()` cria WorkOrders e avança próximo ciclo; ARQ worker com cron diário + trigger de odómetro — Validated in Phase 4
+- ✓ **Driver Scorecard**: `GET /api/v1/drivers/{id}/scorecard` — score composto 0-100 de 4 dimensões; protegido por RBAC — Validated in Phase 4
+- ✓ **Decimal Types**: Todas as colunas `Numeric(x,y)` anotadas com `Mapped[Decimal]`; zero drift no schema — Validated in Phase 4
+- ✓ **Composite Indexes**: 10 índices compostos com `tenant_id` como coluna líder em tabelas de alto tráfego — Validated in Phase 4
+- ✓ **Railway Deployment**: `railway.toml` com Gunicorn 4-worker + `alembic upgrade head` pre-deploy; pool tuning para produção — Validated in Phase 4
+- ✓ **PostgreSQL RLS**: Políticas de isolamento em 47 tabelas; `SET LOCAL app.tenant_id` por transacção; role `rotas_admin` com BYPASSRLS — Validated in Phase 4
+- ✓ **UI Panels**: `DriverScorecardPanel` em `/motoristas` e `MaintenanceImminentPanel` no Control Tower — Validated in Phase 4
 
 ### Active
 
@@ -141,4 +148,4 @@ Este documento evolui nas transições de fase e marcos de milestone.
 4. Atualizar Context com o estado atual
 
 ---
-*Last updated: 2026-06-04 after initialization (brownfield, codebase mapped)*
+*Last updated: 2026-06-06 — Phase 4 complete (production hardening: RLS, ARQ scheduler, scorecard API, composite indexes, Railway deploy)*

@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     sentry_dsn_manager: str = Field(default="", validation_alias="SENTRY_DSN_MANAGER")
     sentry_dsn_driver: str = Field(default="", validation_alias="SENTRY_DSN_DRIVER")
 
+    # INFRA-02: R2/S3 dual-provider storage (D-08)
+    storage_provider: str = Field(default="local", validation_alias="STORAGE_PROVIDER")
+    r2_bucket: str = Field(default="", validation_alias="R2_BUCKET")
+    r2_endpoint_url: str = Field(default="", validation_alias="R2_ENDPOINT_URL")
+    r2_access_key_id: str = Field(default="", validation_alias="R2_ACCESS_KEY_ID")
+    r2_secret_access_key: SecretStr = Field(default=SecretStr(""), validation_alias="R2_SECRET_ACCESS_KEY")
+
     @property
     def resolved_admin_database_url(self) -> str:
         return self.admin_database_url if self.admin_database_url else self.database_url

@@ -178,7 +178,7 @@ export function ControlTowerOverview({ result }: ControlTowerOverviewProps) {
             id: item.id,
             reference: item.entityLabel,
             title: documentTypeLabel(item.documentType),
-            detail: `Vence em ${item.daysUntilExpiry} dias.`,
+            detail: `Viatura · vence em ${item.daysUntilExpiry} dias`,
             meta: formatDateOnly(item.validUntil),
           }))}
         />
@@ -191,7 +191,7 @@ export function ControlTowerOverview({ result }: ControlTowerOverviewProps) {
             id: item.id,
             reference: item.entityLabel,
             title: documentTypeLabel(item.documentType),
-            detail: `Vence em ${item.daysUntilExpiry} dias.`,
+            detail: `Motorista · vence em ${item.daysUntilExpiry} dias`,
             meta: formatDateOnly(item.validUntil),
           }))}
         />

@@ -166,12 +166,19 @@ function ComplianceItem({
     }
   }
 
+  const EntityIcon = entityType === "vehicle" ? Truck : Users;
+  const entityTypeLabel = entityType === "vehicle" ? "Viatura" : "Motorista";
+
   return (
     <div className="px-4 py-3 text-sm">
       {/* Document info row */}
       <div className="flex gap-2 mb-2">
         <FileWarning size={15} className="flex-none text-warning mt-0.5" />
         <div className="min-w-0">
+          <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-muted mb-0.5">
+            <EntityIcon size={10} />
+            {entityTypeLabel}
+          </span>
           <strong className="block text-[13px] text-ink">{item.entityLabel}</strong>
           <span className="block text-muted text-[12px] mt-0.5">
             {documentTypeLabel(item.documentType)}

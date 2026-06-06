@@ -1,3 +1,4 @@
+import "./sentry"; // INFRA-01: Sentry init — must run before any other code
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Workbox } from "workbox-window";

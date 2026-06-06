@@ -1,6 +1,7 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 
 export default defineConfig({
   cacheDir: "../../node_modules/.vite/driver",
@@ -48,7 +49,21 @@ export default defineConfig({
         type: "module",
       },
     }),
+    // INFRA-01: Sentry source map upload — only when SENTRY_AUTH_TOKEN is set (D-02).
+    // Sentry plugin must come last in the plugins array.
+    ...(process.env.SENTRY_AUTH_TOKEN
+      ? [sentryVitePlugin({
+          org: process.env.SENTRY_ORG ?? "",
+          project: process.env.SENTRY_PROJECT ?? "rotas",
+          authToken: process.env.SENTRY_AUTH_TOKEN,
+          telemetry: false,
+        })]
+      : []),
   ],
+  build: {
+    // INFRA-01: Source maps required for Sentry to map minified stack traces.
+    sourcemap: true,
+  },
   server: {
     port: 5174,
     strictPort: false,

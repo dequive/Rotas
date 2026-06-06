@@ -1,7 +1,7 @@
 # ROTAS — Requirements
 _Last updated: 2026-06-06_
 
-## v2.0 Requirements — Gestão de Clientes e Contas a Receber
+## v2.0 Requirements — Plataforma Operacional Completa
 
 ### Cadastro de Clientes (CLI)
 
@@ -24,85 +24,119 @@ _Last updated: 2026-06-06_
 - [ ] **AR-03**: Dashboard de contas a receber apresenta totais do tenant: valor emitido, recebido, em aberto, e os 5 clientes com maior saldo em aberto
 - [ ] **AR-04**: Extrato do cliente exportável em PDF com branding da empresa emissora (nome do tenant)
 
+### Infraestrutura de Produção (INFRA)
+
+- [ ] **INFRA-01**: Erros de produção visíveis no Sentry — SDK integrado no FastAPI backend, ARQ worker, Next.js manager e driver PWA; `before_send` PII scrubber activo para remover dados de motoristas e carga
+- [ ] **INFRA-02**: Ficheiros (provas de entrega, PDFs de fatura, documentos de despacho) armazenados em R2/S3 — ficheiros locais existentes migrados antes de activar switch de provider; zero registos `storage_provider=local` após migração
+- [ ] **INFRA-03**: Tenant com limite atingido recebe HTTP 403 com `upgrade_url` — `max_vehicles`, `max_drivers` e `max_users` verificados no service layer antes de qualquer inserção; aviso visual a 80% do limite no manager dashboard
+
+### Row Level Security (RLS)
+
+- [ ] **RLS-01**: Todas as tabelas com `tenant_id` (47+) protegidas por PostgreSQL RLS — `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` + `CREATE POLICY` usando `current_setting('app.tenant_id')`
+- [ ] **RLS-02**: Roles `rotas_app` (aplica RLS, usado por FastAPI) e `rotas_admin` (BYPASSRLS, usado por Alembic e ARQ worker) criados e configurados no Railway e docker-compose
+- [ ] **RLS-03**: Test suite de cross-tenant isolation passa sob role `rotas_app` — dados de tenant A inacessíveis quando autenticado como tenant B, mesmo sem filtro explícito na aplicação
+
+### Notificações (NOTIF)
+
+- [ ] **NOTIF-01**: Alertas WhatsApp enviados a gestores quando documentos de viatura/motorista vencem em 30/15/7 dias — 7 templates aprovados pelo Meta, dispatch via ARQ com retry 3 tentativas (30s/5min/30min)
+- [ ] **NOTIF-02**: Email enviado como fallback quando contacto não tem WhatsApp opt-in confirmado — SMTP assíncrono via `aiosmtplib`, template em português
+- [ ] **NOTIF-03**: Motorista e contacto de cliente só recebem mensagens WhatsApp após `whatsapp_opt_in_confirmed` explicitamente activo no modelo — dispatch guard rejeita envio para não confirmados
+
+### Onboarding Self-Service (ONBRD)
+
+- [ ] **ONBRD-01**: Qualquer transportadora moçambicana pode criar conta ROTAS publicamente — formulário com NUIT, verificação de email por link, criação atómica de tenant + owner numa única transacção; tenant inactivo até verificação concluída
+
+### Despacho Financeiro (DESP)
+
+- [ ] **DESP-01**: Gestor emite adiantamento em dinheiro ao motorista antes da partida — registo com valor, método de pagamento e estado (pending → disbursed → cancelled); vinculado à viagem
+- [ ] **DESP-02**: Após encerramento de viagem, sistema calcula liquidação — adiantamento − despesas `paid_by=driver` aprovadas = saldo; saldo positivo significa empresa deve ao motorista, negativo significa motorista deve à empresa
+- [ ] **DESP-03**: Gestor aprova ou recusa liquidação com justificação — notificação WhatsApp enviada ao motorista; liquidação só finalizada após aprovação; estado de disputa registado em auditoria
+- [ ] **DESP-04**: Documento PDF de liquidação gerado por ARQ task — lista de despesas detalhadas, adiantamento, saldo final e data; disponível para download no manager dashboard
+- [ ] **DESP-05**: Viagens transfronteiriças suportam despesas em ZAR com taxa de câmbio MZN/ZAR inserida manualmente pelo gestor no momento da reconciliação
+
+### Integração GPS (GPS)
+
+- [ ] **GPS-01**: Dispositivos GPS de clientes (Teltonika, Coban em modo HTTP POST) enviam posições via `POST /api/v1/gps/webhook/{imei}` autenticado por HMAC-SHA256 por dispositivo — sem JWT; `gps_devices` table valida IMEI antes de resolver `tenant_id` e `vehicle_id`
+- [ ] **GPS-02**: Manager dashboard exibe mapa de frota com última posição conhecida de cada viatura — React Query com `refetchInterval` de 10 segundos; indicador de staleness quando posição tem mais de 5 minutos
+- [ ] **GPS-03**: ETA estimado exibido no Control Tower para viagens ativas — calculado com base na distância restante em `known_routes` e velocidade actual reportada pelo GPS
+
+### Portal do Cliente / Rastreamento (TRK)
+
+- [ ] **TRK-01**: Gestor gera link de rastreamento partilhável por viagem — cliente acede à página `/track/[token]` sem login, vê estado da entrega, última posição em texto e foto de entrega; token de 256 bits com rate limit de 30 req/min por IP
+- [ ] **TRK-02**: Página de rastreamento actualiza automaticamente de 5 em 5 minutos e exibe indicador visual quando dados de posição têm mais de 5 minutos (dado stale)
+
 ---
 
 ## v1 Requirements
 
 ### Segurança e Infraestrutura (SEC)
 
-- [ ] **SEC-01**: JWT_SECRET_KEY lido de variável de ambiente obrigatória no startup — eliminar default `"change-me-in-env"`
-- [ ] **SEC-02**: CORS configurado para domínios explícitos de produção (Vercel manager + origem mobile) — desativado em `ENVIRONMENT=production` sem env var
-- [ ] **SEC-03**: Rate limiting nos endpoints `/auth/login`, `/auth/refresh` e `/driver-auth/pair` — prevenir brute-force e credential stuffing
-- [ ] **SEC-04**: Cookies de sessão com flag `Secure` em produção (não apenas `HttpOnly`)
-- [ ] **SEC-05**: Migração `python-jose` → `PyJWT >= 2.8` — corrigir CVE-2025-61152 (tokens `alg=none` aceites sem verificação de assinatura = auth bypass completo)
+- [x] **SEC-01**: JWT_SECRET_KEY lido de variável de ambiente obrigatória no startup — eliminar default `"change-me-in-env"`
+- [x] **SEC-02**: CORS configurado para domínios explícitos de produção (Vercel manager + origem mobile) — desativado em `ENVIRONMENT=production` sem env var
+- [x] **SEC-03**: Rate limiting nos endpoints `/auth/login`, `/auth/refresh` e `/driver-auth/pair` — prevenir brute-force e credential stuffing
+- [x] **SEC-04**: Cookies de sessão com flag `Secure` em produção (não apenas `HttpOnly`)
+- [x] **SEC-05**: Migração `python-jose` → `PyJWT >= 2.8` — corrigir CVE-2025-61152
 
 ### PWA Offline-First (PWA)
 
-- [x] **PWA-01**: Service Worker implementado com `vite-plugin-pwa` (estratégia `injectManifest`) e `workbox-background-sync` — fila de sync em background para `POST /api/v1/sync/batch`
+- [x] **PWA-01**: Service Worker implementado com `vite-plugin-pwa` (estratégia `injectManifest`) e `workbox-background-sync`
 - [x] **PWA-02**: Web App Manifest com ícones, `display: standalone`, tema e nome da app — PWA instalável em Android
-- [x] **PWA-03**: Estratégia de cache network-first para chamadas API e offline fallback para assets estáticos — app carrega sem conexão
+- [x] **PWA-03**: Estratégia de cache network-first para chamadas API e offline fallback para assets estáticos
 
 ### Autenticação Completa (AUTH)
 
-- [x] **AUTH-01**: Token refresh no manager Next.js — renovação silenciosa do access token antes de expirar (access token 15 min, sem 401 silencioso após 15 min)
-- [x] **AUTH-02**: Token refresh no driver PWA — renovação automática de token expirado via refresh token emitido no pareamento
-- [ ] **AUTH-03**: Endpoint `/api/v1/sync/batch` validado com `get_driver_principal` — apenas dispositivos de motorista autenticados podem submeter sincronizações
-- [x] **AUTH-04**: Sync `update` implementado para todos os entity types (viagens, abastecimentos, paradas) — hoje apenas checklists suportados
+- [x] **AUTH-01**: Token refresh no manager Next.js — renovação silenciosa do access token antes de expirar
+- [x] **AUTH-02**: Token refresh no driver PWA — renovação automática de token expirado via refresh token
+- [x] **AUTH-03**: Endpoint `/api/v1/sync/batch` validado com `get_driver_principal`
+- [x] **AUTH-04**: Sync `update` implementado para todos os entity types
 
 ### Billing e Faturamento (BILL)
 
 - [ ] **BILL-01**: Exportação de faturas em PDF com suporte completo a UTF-8 — nomes moçambicanos com diacríticos renderizados corretamente (fpdf2 + DejaVuSans.ttf)
 - [ ] **BILL-02**: Exportação de faturas em XLSX formatado — colunas de valor, data, descrição e totais
-- [ ] **BILL-03**: Validação de margem negativa com workflow de waiver de supervisor funcional end-to-end — viagem não entra em fila de faturamento sem aprovação
+- [ ] **BILL-03**: Validação de margem negativa com workflow de waiver de supervisor funcional end-to-end
 
 ### Control Tower e Performance (CT)
 
-- [x] **CT-01**: Queries do Control Tower otimizadas — substituir ~38 queries sequenciais por queries agregadas com `selectinload`/`joinedload` e `func.count()` SQL-level (alvo: 4-6 queries)
-- [x] **CT-02**: Redis utilizado para cache de KPIs do Control Tower — `redis[asyncio]` instalado, cache-aside com TTL 60s, chaves com namespace `ct:kpis:{tenant_id}`, ARQ worker para processamento assíncrono
-- [x] **CT-03**: Paginação nas filas do Control Tower — sem queries sem LIMIT que retornam rows ilimitadas
+- [x] **CT-01**: Queries do Control Tower otimizadas — substituir ~38 queries sequenciais por queries agregadas
+- [x] **CT-02**: Redis utilizado para cache de KPIs do Control Tower
+- [x] **CT-03**: Paginação nas filas do Control Tower
 
 ### Deploy e Produção (DEPLOY)
 
-- [ ] **DEPLOY-01**: Todas as variáveis de ambiente críticas validadas no startup com `Pydantic Settings` — app recusa iniciar sem `JWT_SECRET_KEY`, `DATABASE_URL`, `ENVIRONMENT`
-- [ ] **DEPLOY-02**: Deploy do backend FastAPI no Railway ou Render com CI/CD — `railway.toml` com `preDeployCommand = "alembic upgrade head"` ou equivalente Render
-- [ ] **DEPLOY-03**: Deploy do manager Next.js no Vercel — `vercel.json` configurado, env vars mapeadas, Node.js 20 LTS
-- [ ] **DEPLOY-04**: Migrações Alembic executadas automaticamente no deploy — sem deploy que deixe o schema desatualizado
+- [x] **DEPLOY-01**: Variáveis de ambiente críticas validadas no startup com `Pydantic Settings`
+- [x] **DEPLOY-02**: Deploy do backend FastAPI no Railway com CI/CD
+- [x] **DEPLOY-03**: Deploy do manager Next.js no Vercel
+- [x] **DEPLOY-04**: Migrações Alembic executadas automaticamente no deploy
 
 ### Reporting e Analytics (RPT)
 
-- [x] **RPT-01**: Dashboard de KPIs de gestão com custo-por-km por viatura, utilização de frota, tendências de consumo de combustível e resumo de viagens por motorista — gestor consegue tomar decisões operacionais baseadas em dados
-- [x] **RPT-02**: Alertas proativos de vencimento de documentos (30/15/7 dias) — viaturas e motoristas com documentos prestes a vencer aparecem em painel antes do bloqueio reativo
+- [x] **RPT-01**: Dashboard de KPIs de gestão com custo-por-km, utilização de frota, tendências de combustível
+- [x] **RPT-02**: Alertas proativos de vencimento de documentos (30/15/7 dias)
 
----
+### Manutenção (MAINT)
 
-## v2 Requirements (deferred)
-
-- Manutenção preventiva programada por odômetro/calendário (MAINT-01) — agendador com geração automática de work orders ao atingir intervalos definidos _(Fase 4 MVP)_
-- Scorecard de motoristas — pontuação composta a partir de dados de sync já recolhidos (GPS, quilômetros, tempo de paradas)
-- RLS PostgreSQL como segunda camada de isolamento multitenant (defense-in-depth) — Alembic migration + `contextvars` + SQLAlchemy event listener
-- Integração com canais de notificação (email / WhatsApp Business API) para alertas de vencimento
-- Resolução de conflitos de sync com UI para motorista (mensagem explicativa quando `base_version` diverge)
+- [x] **MAINT-01**: Manutenção preventiva programada por odômetro/calendário com geração automática de work orders
 
 ---
 
 ## Out of Scope
 
-- **App nativa iOS/Android** — PWA cobre o caso de uso; distribuição via app stores desnecessária para MVP
-- **GPS streaming em tempo real via servidor** — driver regista GPS no payload de sync; não é streaming
+- **App nativa iOS/Android** — PWA cobre o caso de uso; distribuição via app stores desnecessária
+- **GPS streaming via servidor TCP** — dispositivos configurados para HTTP POST; TCP socket não viável em Railway
 - **Marketplace B2C** — produto é B2B SaaS para transportadoras
-- **Otimização de rotas por IA** — foco do MVP é gestão operacional e conformidade, não roteamento
-- **Integração com ERP de terceiros** — API própria cobre exportação; integrações são pós-MVP
-- **Integração com cartão de combustível** — mercado moçambicano não tem rede de fuel cards estabelecida
+- **Otimização de rotas por IA** — foco é gestão operacional e conformidade
+- **Integração com ERP de terceiros** — API própria cobre exportação; integrações são futuro
+- **Integração com cartão de combustível** — mercado moçambicano não tem rede de fuel cards
 - **Módulo de folha de pagamento de motoristas** — fora do domínio de gestão de frota
-
-### v2.0 Out of Scope
-
-- **Fatura multi-contrato** — uma fatura agrega um único contrato; consolidação por cliente é v2.1
-- **Enforcement automático de limite de crédito** — CLI-02 implementa aviso visual apenas; bloqueio de despacho é v2.1
-- **Nota de crédito / débito** — requer modelo de journal entry completo; pós-v2.0
-- **Multi-moeda** — operações em MZN apenas; FX é pós-v2.0
-- **Integração SAFT-MZ / AT certification** — geração de documentos está correta; certificação formal é iniciativa legal separada
-- **Múltiplos contactos por cliente** — contacto único por enquanto; tabela `client_contacts` é v2.1
+- **Cadeia de frio / monitorização de temperatura** — nicho, adiar para v3
+- **Geofencing** — requer PostGIS não confirmado no Railway; bounding-box é v2.1
+- **Stripe pagamento activado** — webhook wired mas checkout desactivado; pagamento automático é v2.1
+- **Trial de 14 dias** — onboarding self-service entra directamente com plano; trial é v2.1
+- **Fatura multi-contrato** — uma fatura agrega um único contrato; consolidação é v2.1
+- **Nota de crédito / débito** — requer journal entry completo; pós-v2.0
+- **Multi-moeda em faturamento cliente** — operações em MZN; FX em faturas é v2.1
+- **SAFT-MZ / AT certification** — geração de documentos correcta; certificação formal é iniciativa legal separada
 
 ---
 
@@ -110,16 +144,16 @@ _Last updated: 2026-06-06_
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | Phase 1 | Pending |
-| SEC-02 | Phase 1 | Pending |
-| SEC-03 | Phase 1 | Pending |
-| SEC-04 | Phase 1 | Pending |
-| SEC-05 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
-| DEPLOY-01 | Phase 1 | Pending |
-| DEPLOY-02 | Phase 1 | Pending |
-| DEPLOY-03 | Phase 1 | Pending |
-| DEPLOY-04 | Phase 1 | Pending |
+| SEC-01 | Phase 1 | Complete |
+| SEC-02 | Phase 1 | Complete |
+| SEC-03 | Phase 1 | Complete |
+| SEC-04 | Phase 1 | Complete |
+| SEC-05 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
+| DEPLOY-01 | Phase 1 | Complete |
+| DEPLOY-02 | Phase 1 | Complete |
+| DEPLOY-03 | Phase 1 | Complete |
+| DEPLOY-04 | Phase 1 | Complete |
 | PWA-01 | Phase 2 | Complete |
 | PWA-02 | Phase 2 | Complete |
 | PWA-03 | Phase 2 | Complete |
@@ -147,3 +181,23 @@ _Last updated: 2026-06-06_
 | AR-02 | Phase 7 | Pending |
 | AR-03 | Phase 7 | Pending |
 | AR-04 | Phase 7 | Pending |
+| INFRA-01 | TBD | Pending |
+| INFRA-02 | TBD | Pending |
+| INFRA-03 | TBD | Pending |
+| RLS-01 | TBD | Pending |
+| RLS-02 | TBD | Pending |
+| RLS-03 | TBD | Pending |
+| NOTIF-01 | TBD | Pending |
+| NOTIF-02 | TBD | Pending |
+| NOTIF-03 | TBD | Pending |
+| ONBRD-01 | TBD | Pending |
+| DESP-01 | TBD | Pending |
+| DESP-02 | TBD | Pending |
+| DESP-03 | TBD | Pending |
+| DESP-04 | TBD | Pending |
+| DESP-05 | TBD | Pending |
+| GPS-01 | TBD | Pending |
+| GPS-02 | TBD | Pending |
+| GPS-03 | TBD | Pending |
+| TRK-01 | TBD | Pending |
+| TRK-02 | TBD | Pending |

@@ -1,5 +1,30 @@
-# ROTAS — v1 Requirements
-_Last updated: 2026-06-05_
+# ROTAS — Requirements
+_Last updated: 2026-06-06_
+
+## v2.0 Requirements — Gestão de Clientes e Contas a Receber
+
+### Cadastro de Clientes (CLI)
+
+- [ ] **CLI-01**: Gestor pode criar, editar e desactivar um cliente com NUIT, nome comercial, morada, cidade, telefone e email — dentro do contexto do seu tenant
+- [ ] **CLI-02**: Cliente tem prazo de pagamento padrão configurável (30/45/60/90 dias) e limite de crédito com aviso visual quando o saldo em aberto o ultrapassa
+- [ ] **CLI-03**: Sistema migra os registos `client_name` existentes em Contratos e Faturas para referências `client_id` sem perda de dados históricos — `client_name` mantido como cache desnormalizado
+- [ ] **CLI-04**: Contrato referencia `client_id`; gestor selecciona cliente ao criar ou editar um contrato
+- [ ] **CLI-05**: Faturas emitidas têm número sequencial por tenant sem gaps (formato `AAAA/NNNN`) gerado por PostgreSQL SEQUENCE
+
+### Pagamentos (PAY)
+
+- [ ] **PAY-01**: Gestor pode registar um pagamento total ou parcial contra uma fatura com data valor e método de pagamento (transferência bancária, cheque, numerário)
+- [ ] **PAY-02**: Sistema suporta adiantamentos de cliente aplicáveis a faturas futuras do mesmo cliente
+- [ ] **PAY-03**: Após registo de pagamento, o saldo em aberto da fatura e o saldo do cliente são actualizados imediatamente
+
+### Contas a Receber (AR)
+
+- [ ] **AR-01**: Extrato do cliente lista todas as faturas de um período com data de emissão, data de vencimento, valor total, valor pago e saldo em aberto
+- [ ] **AR-02**: Aging do cliente agrupa o saldo em aberto em buckets: corrente / 1–30 dias / 31–60 dias / 61–90 dias / +90 dias
+- [ ] **AR-03**: Dashboard de contas a receber apresenta totais do tenant: valor emitido, recebido, em aberto, e os 5 clientes com maior saldo em aberto
+- [ ] **AR-04**: Extrato do cliente exportável em PDF com branding da empresa emissora (nome do tenant)
+
+---
 
 ## v1 Requirements
 
@@ -70,6 +95,15 @@ _Last updated: 2026-06-05_
 - **Integração com cartão de combustível** — mercado moçambicano não tem rede de fuel cards estabelecida
 - **Módulo de folha de pagamento de motoristas** — fora do domínio de gestão de frota
 
+### v2.0 Out of Scope
+
+- **Fatura multi-contrato** — uma fatura agrega um único contrato; consolidação por cliente é v2.1
+- **Enforcement automático de limite de crédito** — CLI-02 implementa aviso visual apenas; bloqueio de despacho é v2.1
+- **Nota de crédito / débito** — requer modelo de journal entry completo; pós-v2.0
+- **Multi-moeda** — operações em MZN apenas; FX é pós-v2.0
+- **Integração SAFT-MZ / AT certification** — geração de documentos está correta; certificação formal é iniciativa legal separada
+- **Múltiplos contactos por cliente** — contacto único por enquanto; tabela `client_contacts` é v2.1
+
 ---
 
 ## Traceability
@@ -101,3 +135,15 @@ _Last updated: 2026-06-05_
 | RPT-01 | Phase 3 | Complete |
 | RPT-02 | Phase 3 | Complete |
 | MAINT-01 | Phase 4 | Complete |
+| CLI-01 | Phase 5 | Pending |
+| CLI-02 | Phase 5 | Pending |
+| CLI-03 | Phase 5 | Pending |
+| CLI-04 | Phase 5 | Pending |
+| CLI-05 | Phase 5 | Pending |
+| PAY-01 | Phase 6 | Pending |
+| PAY-02 | Phase 6 | Pending |
+| PAY-03 | Phase 6 | Pending |
+| AR-01 | Phase 7 | Pending |
+| AR-02 | Phase 7 | Pending |
+| AR-03 | Phase 7 | Pending |
+| AR-04 | Phase 7 | Pending |

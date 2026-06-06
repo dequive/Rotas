@@ -305,7 +305,7 @@ This milestone extends ROTAS across five capability areas: financial client mana
 
 **Requirements**: DS-01, DS-02, DS-03, DS-04, DS-05, DS-07, DS-08, DS-09
 **Depends on:** Phase 4
-**Plans:** 3/8 plans executed
+**Plans:** 7/8 plans executed
 
 Plans:
 - [x] 04.1-01-PLAN.md � Wave 1: CSS foundation fix (remove oklch override, consolidate @layer base, extend Tailwind config, install shadcn components)
@@ -314,7 +314,7 @@ Plans:
 - [x] 04.1-04-PLAN.md � Wave 3: SidebarLayout redesign (4 grouped sections, amber active indicator)
 - [x] 04.1-05-PLAN.md � Wave 4: Migrate ControlTowerOverview + FleetComplianceBoard
 - [x] 04.1-06-PLAN.md � Wave 4: Migrate FuelControlBoard + FleetHistoryBoard + TransportCargoBoard + CostMarginBoard
-- [ ] 04.1-07-PLAN.md � Wave 5: Migrate page.tsx billing section
+- [x] 04.1-07-PLAN.md � Wave 5: Migrate page.tsx billing section
 - [ ] 04.1-08-PLAN.md � Wave 6: Legacy CSS cleanup + visual checkpoint
 
 ### Phase 5: Client Registry + Migration Foundation

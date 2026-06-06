@@ -311,9 +311,9 @@ Plans:
 - [x] 04.1-01-PLAN.md � Wave 1: CSS foundation fix (remove oklch override, consolidate @layer base, extend Tailwind config, install shadcn components)
 - [x] 04.1-02-PLAN.md � Wave 2: Core primitives A (StatusBadge, KpiCard, PageHeader, SectionHeader, WorkQueue)
 - [x] 04.1-03-PLAN.md � Wave 2: Core primitives B (DataTable, MonoCell, MoneyCell, EmptyState, DataSourceBadge)
-- [ ] 04.1-04-PLAN.md � Wave 3: SidebarLayout redesign (4 grouped sections, amber active indicator)
-- [ ] 04.1-05-PLAN.md � Wave 4: Migrate ControlTowerOverview + FleetComplianceBoard
-- [ ] 04.1-06-PLAN.md � Wave 4: Migrate FuelControlBoard + FleetHistoryBoard + TransportCargoBoard + CostMarginBoard
+- [x] 04.1-04-PLAN.md � Wave 3: SidebarLayout redesign (4 grouped sections, amber active indicator)
+- [x] 04.1-05-PLAN.md � Wave 4: Migrate ControlTowerOverview + FleetComplianceBoard
+- [x] 04.1-06-PLAN.md � Wave 4: Migrate FuelControlBoard + FleetHistoryBoard + TransportCargoBoard + CostMarginBoard
 - [ ] 04.1-07-PLAN.md � Wave 5: Migrate page.tsx billing section
 - [ ] 04.1-08-PLAN.md � Wave 6: Legacy CSS cleanup + visual checkpoint
 

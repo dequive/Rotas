@@ -74,13 +74,13 @@ function ComplianceColumn({
 }) {
   return (
     <article className="bg-panel border border-line rounded-lg p-4">
-      <header>
-        <span className="queue-icon orange">
+      <header className="flex items-start gap-3 mb-3">
+        <span className="queue-icon orange flex-none">
           <Icon size={16} />
         </span>
         <div>
-          <h3>{title}</h3>
-          <p>{items.length} documentos em atenção</p>
+          <h3 className="text-[14px] font-semibold m-0">{title}</h3>
+          <p className="text-muted text-[12px] m-0">{items.length} documentos em atenção</p>
         </div>
       </header>
       <div className="grid gap-2">
@@ -160,35 +160,45 @@ function ComplianceItem({
   }
 
   return (
-    <div className="flex items-center justify-between py-2 border-b border-line last:border-0 text-sm">
-      <div className="min-w-0 flex gap-2">
+    <div className="py-3 border-b border-line last:border-0 text-sm">
+      {/* Document info row */}
+      <div className="flex gap-2 mb-2">
         <FileWarning size={15} className="flex-none text-orange mt-0.5" />
-        <div>
+        <div className="min-w-0">
           <strong className="block text-[13px]">{item.entityLabel}</strong>
           <span className="block text-muted text-[12px] mt-0.5">
-            {documentTypeLabel(item.documentType)} vence em {item.daysUntilExpiry} dias
+            {documentTypeLabel(item.documentType)} · vence em{" "}
+            <span className="text-orange font-semibold">{item.daysUntilExpiry} dias</span>
           </span>
-          <small className="block text-muted text-[12px]">{formatDateOnly(item.validUntil)}</small>
+          <small className="block text-muted text-[11px]">{formatDateOnly(item.validUntil)}</small>
         </div>
       </div>
-      <div className="fleet-renew-form">
+      {/* Renew form — full width below info */}
+      <div className="flex gap-2 flex-wrap">
         <input
           aria-label="Nova validade"
           type="date"
           value={validUntil}
           onChange={(event) => setValidUntil(event.target.value)}
+          className="min-h-[32px] border border-line rounded-md bg-white text-ink px-2 text-[12px] flex-1 min-w-[130px]"
         />
         <input
           aria-label="Referência"
-          placeholder="Referência"
+          placeholder="Referência doc."
           value={reference}
           onChange={(event) => setReference(event.target.value)}
+          className="min-h-[32px] border border-line rounded-md bg-white text-ink px-2 text-[12px] flex-1 min-w-[110px]"
         />
-        <button disabled={busy} onClick={renew} type="button">
+        <button
+          disabled={busy}
+          onClick={renew}
+          type="button"
+          className="min-h-[32px] px-3 text-[12px] font-bold border border-line rounded-md bg-white text-ink hover:bg-soft disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+        >
           {busy ? "A guardar..." : "Renovar"}
         </button>
-        {error ? <small>{error}</small> : null}
       </div>
+      {error ? <small className="block mt-1 text-red text-[12px]">{error}</small> : null}
     </div>
   );
 }

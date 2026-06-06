@@ -123,7 +123,7 @@ export default async function ManagerHome() {
 
   return (
     <SidebarLayout active="operacao">
-      <section className="main" style={{ padding: 0 }}>
+      <div className="w-full">
         <ControlTowerOverview result={controlTower} />
         <TransportCargoBoard apiConfig={apiConfig} result={controlTower} />
         <FleetComplianceBoard apiConfig={apiConfig} result={controlTower} />
@@ -316,7 +316,7 @@ export default async function ManagerHome() {
         </div>
 
         <DriverDespachoTableAdmin apiConfig={apiConfig} result={driverDespachoTable} />
-      </section>
+      </div>
     </SidebarLayout>
   );
 }

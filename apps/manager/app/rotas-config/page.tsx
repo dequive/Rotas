@@ -1,0 +1,97 @@
+import { Route } from "lucide-react";
+import { requireSession } from "../lib/auth";
+import { loadKnownRoutes } from "../lib/known-routes-api";
+import { loadDriverDespachoTable } from "../lib/operations-admin-api";
+import { SidebarLayout } from "../components/SidebarLayout";
+import { KnownRouteFormModal } from "../components/KnownRouteFormModal";
+import { KnownRouteDeleteButton } from "../components/KnownRouteDeleteButton";
+import { DriverDespachoTableAdmin } from "../components/DriverDespachoTableAdmin";
+import { getApiConfig } from "../lib/billing-api";
+
+function money(v: number | null) {
+  if (v === null) return "-";
+  return new Intl.NumberFormat("pt-MZ", { style: "currency", currency: "MZN", maximumFractionDigits: 0 }).format(v);
+}
+
+export default async function RotasConfigPage() {
+  await requireSession();
+  const [routes, despachoResult] = await Promise.all([
+    loadKnownRoutes(),
+    loadDriverDespachoTable(),
+  ]);
+  const apiConfig = getApiConfig();
+
+  return (
+    <SidebarLayout active="rotas-config">
+      <div className="page-header">
+        <div>
+          <h1>Destinos e despacho</h1>
+          <p>Registe os destinos uma única vez. Ao criar uma viagem, a distância, o despacho e o combustível são preenchidos automaticamente.</p>
+        </div>
+        <KnownRouteFormModal />
+      </div>
+
+      {/* Catálogo de destinos */}
+      <section className="panel" style={{ marginBottom: 24 }}>
+        <div className="section-header">
+          <h2 className="section-title">Catálogo de destinos</h2>
+          <span>{routes.length} rotas</span>
+        </div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Origem</th>
+                <th>Destino</th>
+                <th>Distância</th>
+                <th>Combustível estimado</th>
+                <th>Despacho calculado</th>
+                <th>Notas</th>
+                <th>Acções</th>
+              </tr>
+            </thead>
+            <tbody>
+              {routes.length === 0 ? (
+                <tr><td colSpan={7} className="empty-row">Sem rotas registadas. Adicione a primeira rota.</td></tr>
+              ) : (
+                routes.map((r) => {
+                  const tier = despachoResult.table.tiers.find(
+                    (t) => r.distance_km >= t.min_km && (t.max_km === null || r.distance_km < t.max_km)
+                  );
+                  return (
+                    <tr key={r.id}>
+                      <td><strong>{r.origin}</strong></td>
+                      <td>
+                        <span className="route">
+                          <Route size={14} />
+                          {r.destination}
+                        </span>
+                      </td>
+                      <td>{r.distance_km.toLocaleString("pt-MZ")} km</td>
+                      <td>{r.avg_fuel_liters !== null ? `${r.avg_fuel_liters} L` : <span className="muted-line">Auto (consumo viatura)</span>}</td>
+                      <td>
+                        {tier ? (
+                          <span className="badge cyan">{money(tier.amount)} {tier.label ? `— ${tier.label}` : ""}</span>
+                        ) : (
+                          <span className="badge red">Fora das faixas</span>
+                        )}
+                      </td>
+                      <td><span className="muted-line">{r.notes ?? "-"}</span></td>
+                      <td className="action-cell">
+                        <KnownRouteFormModal route={r} />
+                        <KnownRouteDeleteButton routeId={r.id} routeLabel={`${r.origin} → ${r.destination}`} />
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Tabela de despacho */}
+      <DriverDespachoTableAdmin apiConfig={apiConfig} result={despachoResult} />
+    </SidebarLayout>
+  );
+}

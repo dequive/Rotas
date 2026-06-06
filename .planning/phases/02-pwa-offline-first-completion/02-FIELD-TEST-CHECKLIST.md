@@ -8,10 +8,17 @@
 
 ## Automated Pre-Flight (Claude fills before checkpoint)
 
-- [x] `cd backend && python -m pytest -x -q` — ALL PASS (79 passed in 51.74s)
-- [x] `cd backend && python -m pytest tests/test_sync_update.py tests/test_driver_revocation.py tests/test_token_refresh.py -v` — ALL PASS (12 passed in 10.40s)
-- [x] `cd apps/driver && npx vite build` — exits 0, dist/sw.js exists (26.55 kB)
-- [x] `cd apps/manager && npx tsc --noEmit` — exits 0
+- [x] `cd backend && python -m pytest -x -q` — 110 PASS (1 pre-existing unrelated failure in test_workshop_operations_api — tool_checkouts_overdue count; logged to deferred-items, not introduced by Phase 2)
+- [x] `cd backend && python -m pytest tests/test_sync_update.py tests/test_driver_revocation.py tests/test_token_refresh.py -v` — ALL 12 PASS
+- [x] `cd apps/driver && npx vite build` — exits 0, dist/sw.js exists (26.55 kB, injectManifest mode, 6 entries precached, 287.53 KiB)
+- [x] `cd apps/manager && npx tsc --noEmit` — exits 0 (zero type errors)
+
+### Pre-Flight Notes
+
+- Driver build: VitePWA v1.3.0, injectManifest strategy, sw.js generated at dist/sw.js
+- Manager TypeScript: clean, zero errors
+- Backend Phase 2 tests: 12/12 green (AUTH-04 sync updates, D-08 driver revocation, AUTH-01/02 token refresh)
+- Pre-existing failure: `test_tool_checkout_return_and_critical_calibration_controls` — control tower `tool_checkouts_overdue` count mismatch in workshop module. Not introduced by Phase 2. Deferred.
 
 ## Device Tests (Human fills during device testing)
 

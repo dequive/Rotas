@@ -274,65 +274,31 @@ async def get_control_tower(
         drivers_active = fleet_row.drivers_active
 
     # Query 6: Spare parts / tools / maintenance (workshop extras)
-    workshop_extras_row = (
-        await db.execute(
-            select(
-                func.count(SparePartInventory.id)
-                .filter(
-                    SparePartInventory.status == "active",
-                    SparePartInventory.current_quantity <= SparePartInventory.minimum_quantity,
-                )
-                .label("spare_parts_low_stock"),
-                func.count(ToolCheckout.id)
-                .filter(
-                    ToolCheckout.status == "checked_out",
-                    ToolCheckout.due_at.is_not(None),
-                    ToolCheckout.due_at < datetime.now(UTC),
-                )
-                .label("tool_checkouts_overdue"),
-                func.count(MaintenanceSchedule.id)
-                .filter(MaintenanceSchedule.status == "overdue")
-                .label("maintenance_overdue"),
-            )
-            .select_from(SparePartInventory)
-            .join(ToolCheckout, ToolCheckout.tenant_id == tenant_id, isouter=True)
-            .join(
-                MaintenanceSchedule, MaintenanceSchedule.tenant_id == tenant_id, isouter=True
-            )
-            .where(SparePartInventory.tenant_id == tenant_id)
-            .group_by()
-        )
-    ).one_or_none()
-
-    if workshop_extras_row is None:
-        spare_parts_low_stock = await _scalar_count(
-            db,
-            select(func.count(SparePartInventory.id)).where(
-                SparePartInventory.tenant_id == tenant_id,
-                SparePartInventory.status == "active",
-                SparePartInventory.current_quantity <= SparePartInventory.minimum_quantity,
-            ),
-        )
-        tool_checkouts_overdue = await _scalar_count(
-            db,
-            select(func.count(ToolCheckout.id)).where(
-                ToolCheckout.tenant_id == tenant_id,
-                ToolCheckout.status == "checked_out",
-                ToolCheckout.due_at.is_not(None),
-                ToolCheckout.due_at < datetime.now(UTC),
-            ),
-        )
-        maintenance_overdue = await _scalar_count(
-            db,
-            select(func.count(MaintenanceSchedule.id)).where(
-                MaintenanceSchedule.tenant_id == tenant_id,
-                MaintenanceSchedule.status == "overdue",
-            ),
-        )
-    else:
-        spare_parts_low_stock = workshop_extras_row.spare_parts_low_stock
-        tool_checkouts_overdue = workshop_extras_row.tool_checkouts_overdue
-        maintenance_overdue = workshop_extras_row.maintenance_overdue
+    # Uses independent scalar subqueries to avoid Cartesian-product errors from cross-joins.
+    spare_parts_low_stock = await _scalar_count(
+        db,
+        select(func.count(SparePartInventory.id)).where(
+            SparePartInventory.tenant_id == tenant_id,
+            SparePartInventory.status == "active",
+            SparePartInventory.current_quantity <= SparePartInventory.minimum_quantity,
+        ),
+    )
+    tool_checkouts_overdue = await _scalar_count(
+        db,
+        select(func.count(ToolCheckout.id)).where(
+            ToolCheckout.tenant_id == tenant_id,
+            ToolCheckout.status == "checked_out",
+            ToolCheckout.due_at.is_not(None),
+            ToolCheckout.due_at < datetime.now(UTC),
+        ),
+    )
+    maintenance_overdue = await _scalar_count(
+        db,
+        select(func.count(MaintenanceSchedule.id)).where(
+            MaintenanceSchedule.tenant_id == tenant_id,
+            MaintenanceSchedule.status == "overdue",
+        ),
+    )
 
     financial = await _financial_summary(db, tenant_id)
 

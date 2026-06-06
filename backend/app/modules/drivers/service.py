@@ -4,9 +4,11 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi import status
+from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core.errors import ApiError
 from app.core.tokens import hash_token
 from app.modules.audit.models import AuditLog
@@ -50,6 +52,52 @@ def serialize_driver(driver: Driver) -> dict:
         "created_at": driver.created_at,
         "updated_at": driver.updated_at,
     }
+
+
+async def _get_cached_driver_count(
+    db: AsyncSession, tenant_id: UUID, redis: AsyncRedis | None
+) -> int:
+    """Return active driver count from Redis cache (TTL 30s) or DB (D-15)."""
+    cache_key = f"tenant:limits:{tenant_id}"
+    if redis is not None:
+        cached = await redis.hget(cache_key, "driver_count")
+        if cached is not None:
+            return int(cached)
+    result = await db.execute(
+        select(func.count()).select_from(Driver).where(
+            Driver.tenant_id == tenant_id,
+            Driver.status != "inactive",
+        )
+    )
+    count = result.scalar_one()
+    if redis is not None:
+        await redis.hset(cache_key, "driver_count", count)
+        await redis.expire(cache_key, 30)
+    return count
+
+
+async def _check_driver_limit(
+    db: AsyncSession, tenant: Tenant, redis: AsyncRedis | None
+) -> None:
+    """Raise plan_limit_reached if tenant is at or over max_drivers (D-13, D-14).
+
+    Skip entirely when max_drivers is None (unlimited enterprise plan).
+    """
+    if tenant.max_drivers is None:
+        return
+    count = await _get_cached_driver_count(db, tenant.id, redis)
+    if count >= tenant.max_drivers:
+        raise ApiError(
+            "plan_limit_reached",
+            f"Driver limit reached ({count}/{tenant.max_drivers}). Upgrade your plan.",
+            status_code=403,
+            details={
+                "upgrade_url": get_settings().upgrade_url,
+                "dimension": "drivers",
+                "used": count,
+                "max": tenant.max_drivers,
+            },
+        )
 
 
 async def _require_driver(db: AsyncSession, tenant_id: UUID, driver_id: UUID) -> Driver:
@@ -106,6 +154,7 @@ async def create_driver(
     payload: DriverCreate,
     *,
     actor_id: UUID | None = None,
+    redis: AsyncRedis | None = None,
 ) -> dict:
     tenant = await db.get(Tenant, tenant_id)
     if not tenant or not tenant.is_active:
@@ -115,19 +164,7 @@ async def create_driver(
             status_code=status.HTTP_404_NOT_FOUND,
         )
 
-    active_count = await db.scalar(
-        select(func.count(Driver.id)).where(
-            Driver.tenant_id == tenant_id,
-            Driver.status != "inactive",
-        )
-    )
-    if active_count is not None and active_count >= tenant.max_drivers:
-        raise ApiError(
-            "driver_limit_reached",
-            "Driver limit reached for this tenant plan.",
-            status_code=status.HTTP_403_FORBIDDEN,
-            details={"max_drivers": tenant.max_drivers},
-        )
+    await _check_driver_limit(db, tenant, redis)
 
     if payload.phone and await _phone_exists(db, tenant_id, payload.phone):
         raise ApiError(

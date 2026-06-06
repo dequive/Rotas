@@ -25,10 +25,67 @@ async def generate_billing_export(
 ) -> dict:
     """ARQ task: generate PDF or XLSX for a billing document.
 
-    Full implementation in Plan 06. This stub updates job status to 'processing' and back.
+    Idempotent: checks existing job record before generating.
+    Updates ExportJob status: queued → processing → done/failed.
     """
-    # Stub — Plan 06 implements the actual fpdf2/openpyxl generation
-    return {"job_id": job_id, "status": "done", "file_path": None}
+    from pathlib import Path
+    from uuid import UUID
+
+    from sqlalchemy import select
+
+    from app.config import get_settings as _get_settings
+    from app.modules.billing.exporters import render_billing_export
+    from app.modules.billing.models import BillingDocument, BillingItem, ExportJob
+
+    _settings = _get_settings()
+    async with ctx["db_factory"]() as db:
+        # Update job status to processing
+        job = await db.scalar(select(ExportJob).where(ExportJob.id == UUID(job_id)))
+        if not job:
+            return {"error": "job_not_found"}
+        job.status = "processing"
+        await db.commit()
+
+        try:
+            doc = await db.scalar(
+                select(BillingDocument).where(
+                    BillingDocument.id == UUID(document_id),
+                    BillingDocument.tenant_id == UUID(tenant_id),
+                )
+            )
+            if not doc:
+                job.status = "failed"
+                job.error_message = "Document not found"
+                await db.commit()
+                return {"error": "document_not_found"}
+
+            items = (
+                await db.execute(
+                    select(BillingItem).where(
+                        BillingItem.billing_document_id == doc.id,
+                        BillingItem.tenant_id == UUID(tenant_id),
+                    )
+                )
+            ).scalars().all()
+
+            artifact = render_billing_export(doc, list(items), export_format)
+
+            # Save file to LOCAL_UPLOAD_DIR / tenant_id
+            upload_dir = Path(_settings.local_upload_dir) / tenant_id
+            upload_dir.mkdir(parents=True, exist_ok=True)
+            file_path = upload_dir / artifact.filename
+            file_path.write_bytes(artifact.content)
+
+            job.status = "done"
+            job.file_path = str(file_path)
+            await db.commit()
+            return {"job_id": job_id, "status": "done", "file_path": str(file_path)}
+
+        except Exception as exc:
+            job.status = "failed"
+            job.error_message = str(exc)[:500]
+            await db.commit()
+            return {"error": str(exc)}
 
 
 class WorkerSettings:

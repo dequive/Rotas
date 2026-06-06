@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+from arq.connections import ArqRedis
 from fastapi import status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -722,6 +723,63 @@ async def export_document(
     await db.commit()
 
     return _serialize_export(document, stored_file, export_format)
+
+
+async def enqueue_export_job(
+    db: AsyncSession,
+    tenant_id: UUID,
+    document_id: UUID,
+    export_format: str,
+    arq_redis: ArqRedis,
+) -> dict:
+    """Enqueue an ARQ export job and create ExportJob record.
+
+    Idempotent: returns existing queued/processing job if one exists for the same document
+    and format, rather than creating a duplicate.
+    """
+    from app.modules.billing.models import ExportJob
+
+    existing = await db.scalar(
+        select(ExportJob).where(
+            ExportJob.tenant_id == tenant_id,
+            ExportJob.entity_id == document_id,
+            ExportJob.job_type == f"billing_{export_format}",
+            ExportJob.status.in_(["queued", "processing"]),
+        )
+    )
+    if existing:
+        return {"job_id": str(existing.id), "status": existing.status}
+
+    job_record = ExportJob(
+        tenant_id=tenant_id,
+        job_type=f"billing_{export_format}",
+        entity_id=document_id,
+        status="queued",
+    )
+    db.add(job_record)
+    await db.commit()
+    await db.refresh(job_record)
+
+    await arq_redis.enqueue_job(
+        "generate_billing_export",
+        job_id=str(job_record.id),
+        document_id=str(document_id),
+        export_format=export_format,
+        tenant_id=str(tenant_id),
+    )
+    return {"job_id": str(job_record.id), "status": "queued"}
+
+
+async def get_export_job_status(db: AsyncSession, tenant_id: UUID, job_id: UUID) -> dict:
+    """Return current status of an export job. Tenant-isolated."""
+    from app.modules.billing.models import ExportJob
+
+    job = await db.scalar(
+        select(ExportJob).where(ExportJob.id == job_id, ExportJob.tenant_id == tenant_id)
+    )
+    if not job:
+        raise ApiError("job_not_found", "Export job not found", status_code=404)
+    return {"job_id": str(job.id), "status": job.status, "job_type": job.job_type}
 
 
 def _serialize_export(document: BillingDocument, stored_file: File, export_format: str) -> dict:

@@ -11,6 +11,7 @@ from io import BytesIO
 from pathlib import Path
 
 from fpdf import FPDF
+from fpdf.enums import XPos, YPos
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
 
@@ -72,17 +73,17 @@ def _render_pdf(document: BillingDocument, items: list[BillingItem]) -> ExportAr
     pdf.set_y(24)
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("DejaVu", "B", 8)
-    pdf.cell(50, 5, "Cliente", ln=False)
-    pdf.cell(60, 5, "Contrato", ln=False)
-    pdf.cell(60, 5, "Período", ln=False)
-    pdf.cell(40, 5, "Estado", ln=True)
+    pdf.cell(50, 5, "Cliente", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(60, 5, "Contrato", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(60, 5, "Período", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(40, 5, "Estado", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     pdf.set_font("DejaVu", "", 10)
     period = f"{_date(document.billing_period_start)} a {_date(document.billing_period_end)}"
-    pdf.cell(50, 7, document.client_name or "-", ln=False)
-    pdf.cell(60, 7, document.contract_reference or "-", ln=False)
-    pdf.cell(60, 7, period, ln=False)
-    pdf.cell(40, 7, (document.status or "").upper(), ln=True)
+    pdf.cell(50, 7, document.client_name or "-", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(60, 7, document.contract_reference or "-", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(60, 7, period, new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(40, 7, (document.status or "").upper(), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     # Table header
     pdf.set_y(pdf.get_y() + 4)

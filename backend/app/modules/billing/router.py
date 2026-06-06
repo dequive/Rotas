@@ -1,11 +1,14 @@
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, Query, Request
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.errors import ApiError
 from app.core.idempotency import execute_http_idempotent
 from app.core.permissions import ADMIN_ROLES, DASHBOARD_ROLES, WRITE_ROLES, require_roles
 from app.core.deps import get_session
@@ -169,3 +172,67 @@ async def reject_waiver(
         waiver_id=waiver_id,
         rejector_id=principal.user_id,
     )
+
+
+@router.post("/documents/{document_id}/export-job", status_code=202)
+async def create_export_job(
+    document_id: UUID,
+    request: Request,
+    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    export_format: str = Query("pdf", pattern="^(pdf|xlsx)$"),
+):
+    """BILL-01/02: Enqueue async export job. Returns job_id for polling.
+
+    export_format query param: ?export_format=pdf (default) or ?export_format=xlsx
+    """
+    arq_redis = getattr(request.app.state, "arq_redis", None)
+    if arq_redis is None:
+        raise ApiError("redis_unavailable", "Export service temporarily unavailable.", status_code=503)
+    return await service.enqueue_export_job(
+        db, principal.tenant_id, document_id, export_format, arq_redis
+    )
+
+
+@router.get("/jobs/{job_id}/status")
+async def get_job_status(
+    job_id: UUID,
+    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """Poll export job status: queued | processing | done | failed."""
+    return await service.get_export_job_status(db, principal.tenant_id, job_id)
+
+
+@router.get("/jobs/{job_id}/download")
+async def download_job_file(
+    job_id: UUID,
+    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """BILL-01/02: Download completed export file. Tenant-isolated — no public URL."""
+    from app.modules.billing.models import ExportJob
+    from sqlalchemy import select as sa_select
+
+    job = await db.scalar(
+        sa_select(ExportJob).where(
+            ExportJob.id == job_id, ExportJob.tenant_id == principal.tenant_id
+        )
+    )
+    if not job:
+        raise ApiError("job_not_found", "Export job not found", status_code=404)
+    if job.status != "done":
+        raise ApiError(
+            "job_not_done",
+            f"Job status is '{job.status}' — not ready for download.",
+            status_code=409,
+        )
+    if not job.file_path or not Path(job.file_path).exists():
+        raise ApiError("file_not_found", "Export file not found on disk.", status_code=404)
+
+    content_type = (
+        "application/pdf"
+        if job.job_type == "billing_pdf"
+        else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    return FileResponse(path=job.file_path, media_type=content_type)

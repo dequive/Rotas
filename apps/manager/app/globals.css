@@ -213,24 +213,6 @@
   color: var(--muted);
 }
 
-.operational-heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
-}
-
-.operational-heading h1 {
-  margin: 3px 0 4px;
-  font-size: 27px;
-}
-
-.operational-heading p {
-  margin: 0;
-  color: var(--muted);
-}
-
 .eyebrow {
   color: var(--blue);
   font-size: 11px;
@@ -317,6 +299,7 @@
   border-color: #93c5fd;
 }
 
+/* .transport-kpis kept — still used in DriverScorecardPanel.tsx */
 .transport-kpis {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -664,13 +647,6 @@
   margin-top: 20px;
 }
 
-.cost-kpis {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
 .cost-work-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr);
@@ -947,36 +923,6 @@
   gap: 8px;
 }
 
-.fuel-metric {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 3px 7px;
-  align-items: center;
-  padding: 10px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--muted);
-}
-
-.fuel-metric.alert {
-  color: var(--orange);
-  border-color: #f4d292;
-}
-
-.fuel-metric span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: 12px;
-}
-
-.fuel-metric strong {
-  grid-column: 2;
-  color: var(--ink);
-  font-size: 18px;
-}
-
 .tank-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1098,83 +1044,7 @@
   gap: 8px;
 }
 
-.tower-grid {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.tower-metric {
-  min-height: 86px;
-  min-width: 0;
-  padding: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--blue);
-  border-radius: 8px;
-}
-
-.tower-metric div {
-  min-width: 0;
-}
-
-.tower-metric span {
-  color: var(--muted);
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-
-.tower-metric strong {
-  display: block;
-  margin-top: 4px;
-  font-size: 22px;
-}
-
-.worklist-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 14px;
-}
-
-.worklist {
-  min-width: 0;
-  padding: 14px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-
-.worklist header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.worklist h2,
-.worklist p {
-  margin: 0;
-}
-
-.worklist h2 {
-  font-size: 14px;
-}
-
-.worklist p {
-  margin-top: 2px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.worklist-items {
-  display: grid;
-  gap: 7px;
-}
-
+/* .worklist-item kept — still used in TransportCargoBoard.tsx */
 .worklist-item {
   display: grid;
   gap: 3px;
@@ -1236,13 +1106,6 @@
   color: var(--ink);
 }
 
-.compliance-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 12px;
-}
-
 .tool-btn,
 .icon-btn {
   border: 1px solid var(--line);
@@ -1265,12 +1128,6 @@
   width: 38px;
 }
 
-.billing-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
 .panel,
 .queue {
   background: var(--panel);
@@ -1280,42 +1137,6 @@
 
 .panel {
   padding: 16px;
-}
-
-.metric {
-  border-left: 4px solid var(--blue);
-}
-
-.metric span {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.metric strong {
-  display: block;
-  margin-top: 8px;
-  font-size: 25px;
-  line-height: 1.1;
-}
-
-.red-line {
-  border-left-color: var(--red);
-}
-
-.orange-line {
-  border-left-color: var(--orange);
-}
-
-.blue-line {
-  border-left-color: var(--blue);
-}
-
-.cyan-line {
-  border-left-color: var(--cyan);
-}
-
-.green-line {
-  border-left-color: var(--green);
 }
 
 .data-source {
@@ -1351,13 +1172,6 @@
   background: #fff4df;
   color: var(--orange);
   border-color: #f4d292;
-}
-
-.queue-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 16px;
 }
 
 .queue {
@@ -2025,29 +1839,12 @@
 }
 
 @media (max-width: 1100px) {
-  .tower-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .transport-kpis {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .transport-work-grid {
     grid-template-columns: 1fr;
-  }
-
-  .worklist-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .compliance-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .queue-grid,
-  .billing-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .content {
@@ -2103,11 +1900,6 @@
     flex-direction: column;
   }
 
-  .operational-heading {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
   .operation-date {
     padding-left: 10px;
   }
@@ -2119,10 +1911,6 @@
 
   .module-state {
     width: fit-content;
-  }
-
-  .tower-grid {
-    grid-template-columns: 1fr;
   }
 
   .transport-kpis {
@@ -2144,11 +1932,6 @@
     justify-content: flex-start;
   }
 
-  .queue-grid,
-  .billing-kpi-grid {
-    grid-template-columns: 1fr;
-  }
-
   .fleet-renew-form {
     grid-template-columns: 1fr;
   }
@@ -2156,7 +1939,6 @@
   .despacho-summary,
   .despacho-form-grid,
   .despacho-tier-row,
-  .cost-kpis,
   .cost-item,
   .despacho-launch {
     grid-template-columns: 1fr;

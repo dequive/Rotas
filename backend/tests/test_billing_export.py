@@ -54,23 +54,33 @@ def test_pdf_contains_header_text():
 
 
 def test_xlsx_header_row_is_bold():
-    """BILL-02: XLSX header row cells must have font.bold == True."""
+    """BILL-02: XLSX title row and table header row must have font.bold == True.
+
+    Layout: row 1 = ROTAS title (bold), rows 2-6 = metadata, row 8 = table header (bold).
+    """
     from app.modules.billing.exporters import render_billing_export
 
     doc = _make_mock_document()
     artifact = render_billing_export(doc, [_make_mock_item()], "xlsx")
     wb = load_workbook(BytesIO(artifact.content))
     ws = wb.active
+    # Row 1: ROTAS institutional title — must be bold
     assert ws.cell(row=1, column=1).font.bold is True
+    # Row 8: table column header — must be bold
+    assert ws.cell(row=8, column=1).font.bold is True
 
 
 def test_xlsx_currency_columns_have_format():
-    """BILL-02: Currency columns (unit_price, total) must use '#,##0.00' number format."""
+    """BILL-02: Currency columns (unit_price, total) must use '#,##0.00' number format.
+
+    Data starts at row 9 (rows 1-8 are title + metadata + table header).
+    """
     from app.modules.billing.exporters import render_billing_export
 
     doc = _make_mock_document()
     artifact = render_billing_export(doc, [_make_mock_item()], "xlsx")
     wb = load_workbook(BytesIO(artifact.content))
     ws = wb.active
-    assert ws.cell(row=2, column=7).number_format == "#,##0.00"
-    assert ws.cell(row=2, column=8).number_format == "#,##0.00"
+    # Row 9 = first data row; columns 7-8 = unit price / total
+    assert "#,##0.00" in ws.cell(row=9, column=7).number_format
+    assert "#,##0.00" in ws.cell(row=9, column=8).number_format

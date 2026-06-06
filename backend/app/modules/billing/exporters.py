@@ -1,6 +1,12 @@
-"""ROTAS billing exporters — UTF-8 safe PDF (fpdf2 + DejaVuSans) and XLSX (openpyxl).
+"""ROTAS billing exporters — professional PDF (fpdf2 + DejaVuSans) and XLSX (openpyxl).
 
-Replaces hand-rolled latin-1 implementation that corrupted Mozambican names with diacritics.
+Design goals:
+- PDF: A4 portrait, ROTAS institutional branding, clear document hierarchy,
+  subtotal/total section, page footer.
+- XLSX: metadata header block, styled table with dark header row, total row,
+  freeze panes, column borders.
+- UTF-8: DejaVuSans covers full Latin Extended range — Portuguese diacritics
+  (ã ç â ê é ô) and Mozambican names render without corruption.
 """
 from __future__ import annotations
 
@@ -13,11 +19,22 @@ from pathlib import Path
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 
 from app.modules.billing.models import BillingDocument, BillingItem
 
 FONTS_DIR = Path(__file__).parent / "fonts"
+
+# ── Brand palette ────────────────────────────────────────────────────────────
+_NAV     = (16, 32, 51)      # #102033 — deep navy (sidebar colour)
+_SOFT    = (245, 247, 250)   # #F5F7FA — light background
+_LINE    = (216, 222, 232)   # #D8DEE8 — subtle divider
+_INK     = (23, 32, 51)      # #172033 — body text
+_MUTED   = (102, 112, 133)   # #667085 — secondary text
+_WHITE   = (255, 255, 255)
+_GREEN   = (22, 121, 76)     # #16794C
+_ORANGE  = (180, 83, 9)      # #B45309
 
 
 @dataclass(frozen=True)
@@ -37,130 +54,331 @@ def render_billing_export(
     return _render_xlsx(document, items)
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
 def _money(value, currency: str = "MZN") -> str:
     amount = Decimal(str(value or 0))
     return f"{amount:,.2f} {currency}"
 
 
-def _date(value: datetime | None) -> str:
-    if not value:
-        return "-"
-    return value.strftime("%Y-%m-%d")
+def _money_val(value) -> Decimal:
+    return Decimal(str(value or 0))
+
+
+def _date(value: datetime | None, fmt: str = "%d/%m/%Y") -> str:
+    if not isinstance(value, datetime):
+        return "—"
+    return value.strftime(fmt)
+
+
+def _status_label(status: str | None) -> str:
+    labels = {
+        "draft": "Rascunho",
+        "issued": "Emitido",
+        "paid": "Pago",
+        "cancelled": "Cancelado",
+        "overdue": "Em atraso",
+    }
+    return labels.get(status or "", (status or "").title())
+
+
+# ── PDF ───────────────────────────────────────────────────────────────────────
+
+class _RotasPDF(FPDF):
+    """FPDF subclass that renders the ROTAS institutional header and footer."""
+
+    def __init__(self, doc_number: str, issue_date: str):
+        super().__init__(orientation="P", unit="mm", format="A4")
+        self._doc_number = doc_number
+        self._issue_date = issue_date
+        self.add_font("DejaVu",  "",  str(FONTS_DIR / "DejaVuSans.ttf"))
+        self.add_font("DejaVu",  "B", str(FONTS_DIR / "DejaVuSans-Bold.ttf"))
+        self.set_auto_page_break(auto=True, margin=18)
+        self.set_margins(left=15, top=15, right=15)
+
+    def header(self):
+        # ── Navy header band ────────────────────────────────────────────────
+        self.set_fill_color(*_NAV)
+        self.rect(0, 0, 210, 22, "F")
+
+        self.set_y(4)
+        self.set_text_color(*_WHITE)
+        self.set_font("DejaVu", "B", 16)
+        self.cell(0, 8, "ROTAS", align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+        self.set_font("DejaVu", "", 7)
+        self.set_y(12)
+        self.cell(0, 4, "Plataforma de Gestão de Frotas", align="L")
+
+        # ── Document title band (lighter) ────────────────────────────────────
+        self.set_fill_color(*_SOFT)
+        self.set_draw_color(*_LINE)
+        self.rect(0, 22, 210, 12, "FD")
+        self.set_y(25)
+        self.set_text_color(*_INK)
+        self.set_font("DejaVu", "B", 11)
+        self.cell(0, 6, "DOCUMENTO DE COBRANÇA", align="C")
+
+        # ── Doc number + issue date (top-right) ──────────────────────────────
+        self.set_font("DejaVu", "", 7)
+        self.set_text_color(*_MUTED)
+        self.set_y(25)
+        self.cell(0, 3, f"N.º {self._doc_number}   |   Emitido em {self._issue_date}", align="R")
+
+        self.set_y(36)
+        self.set_text_color(*_INK)
+
+    def footer(self):
+        self.set_y(-14)
+        self.set_draw_color(*_LINE)
+        self.set_line_width(0.3)
+        self.line(15, self.get_y(), 195, self.get_y())
+        self.set_y(-12)
+        self.set_font("DejaVu", "", 7)
+        self.set_text_color(*_MUTED)
+        self.cell(0, 5, "ROTAS — Plataforma de Gestão de Frotas  |  Moçambique", align="L")
+        self.cell(0, 5, f"Página {self.page_no()}", align="R")
 
 
 def _render_pdf(document: BillingDocument, items: list[BillingItem]) -> ExportArtifact:
-    """Generate UTF-8 safe PDF using fpdf2 + DejaVuSans TTF font.
+    currency = document.currency or "MZN"
+    doc_number = str(document.id)[:8].upper()
+    issue_date = _date(document.issued_at or document.created_at)
 
-    DejaVuSans covers the full Latin Extended range — Portuguese diacritics
-    (ã ç â ê é ô) render correctly. Font path is absolute (relative to this file),
-    not the process CWD, so it works in both FastAPI and ARQ worker contexts.
-    """
-    pdf = FPDF(orientation="L", unit="mm", format="A4")
-    pdf.add_font("DejaVu", "", str(FONTS_DIR / "DejaVuSans.ttf"))
-    pdf.add_font("DejaVu", "B", str(FONTS_DIR / "DejaVuSans-Bold.ttf"))
-    pdf.set_auto_page_break(auto=True, margin=10)
-
-    # Header
+    pdf = _RotasPDF(doc_number=doc_number, issue_date=issue_date)
     pdf.add_page()
-    pdf.set_fill_color(16, 32, 51)  # --nav #102033
-    pdf.rect(0, 0, 297, 20, "F")
-    pdf.set_y(4)
-    pdf.set_font("DejaVu", "B", 14)
-    pdf.set_text_color(255, 255, 255)
-    pdf.cell(0, 10, "ROTAS — Documento de Cobrança de Transporte", align="L")
 
-    # Document metadata
-    pdf.set_y(24)
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_font("DejaVu", "B", 8)
-    pdf.cell(50, 5, "Cliente", new_x=XPos.RIGHT, new_y=YPos.TOP)
-    pdf.cell(60, 5, "Contrato", new_x=XPos.RIGHT, new_y=YPos.TOP)
-    pdf.cell(60, 5, "Período", new_x=XPos.RIGHT, new_y=YPos.TOP)
-    pdf.cell(40, 5, "Estado", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    # ── Metadata block ────────────────────────────────────────────────────────
+    period = f"{_date(document.billing_period_start)} — {_date(document.billing_period_end)}"
 
-    pdf.set_font("DejaVu", "", 10)
-    period = f"{_date(document.billing_period_start)} a {_date(document.billing_period_end)}"
-    pdf.cell(50, 7, document.client_name or "-", new_x=XPos.RIGHT, new_y=YPos.TOP)
-    pdf.cell(60, 7, document.contract_reference or "-", new_x=XPos.RIGHT, new_y=YPos.TOP)
-    pdf.cell(60, 7, period, new_x=XPos.RIGHT, new_y=YPos.TOP)
-    pdf.cell(40, 7, (document.status or "").upper(), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    def _meta_row(label: str, value: str):
+        pdf.set_font("DejaVu", "B", 8)
+        pdf.set_text_color(*_MUTED)
+        pdf.cell(35, 5, label.upper(), new_x=XPos.RIGHT, new_y=YPos.TOP)
+        pdf.set_font("DejaVu", "", 9)
+        pdf.set_text_color(*_INK)
+        pdf.cell(0, 5, value or "—", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
-    # Table header
-    pdf.set_y(pdf.get_y() + 4)
-    pdf.set_fill_color(219, 234, 254)  # light blue
-    pdf.set_font("DejaVu", "B", 8)
-    headers = [
-        (20, "Data"),
-        (35, "Origem"),
-        (35, "Destino"),
-        (50, "Carga"),
-        (20, "Estado"),
-        (15, "Qtd"),
-        (30, "Unitário MZN"),
-        (30, "Total MZN"),
-    ]
-    for width, label in headers:
-        pdf.cell(width, 7, label, border=0, fill=True, align="C")
+    _meta_row("Cliente", document.client_name or "—")
+    _meta_row("Contrato", document.contract_reference or "—")
+    _meta_row("Período de faturação", period)
+    _meta_row("Estado do documento", _status_label(document.status))
+
+    # Horizontal divider
+    pdf.ln(3)
+    pdf.set_draw_color(*_LINE)
+    pdf.set_line_width(0.4)
+    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+    pdf.ln(4)
+
+    # ── Table ─────────────────────────────────────────────────────────────────
+    COL_W = [22, 36, 36, 44, 16, 10, 26, 26]  # total = 216 — fits A4 portrait 180mm
+    # Normalise to page width (180mm usable)
+    usable = 180
+    scale = usable / sum(COL_W)
+    COL_W = [round(w * scale, 1) for w in COL_W]
+
+    HEADERS = ["Data", "Origem", "Destino", "Carga / Descrição", "Estado", "Qtd",
+               f"Unit. {currency}", f"Total {currency}"]
+
+    # Header row
+    pdf.set_fill_color(*_NAV)
+    pdf.set_text_color(*_WHITE)
+    pdf.set_font("DejaVu", "B", 7.5)
+    ALIGN = ["C", "L", "L", "L", "C", "C", "R", "R"]
+    for w, label, align in zip(COL_W, HEADERS, ALIGN):
+        pdf.cell(w, 7, label, border=0, fill=True, align=align,
+                 new_x=XPos.RIGHT, new_y=YPos.TOP)
     pdf.ln()
 
-    # Table rows
-    pdf.set_font("DejaVu", "", 8)
+    # Data rows
+    pdf.set_font("DejaVu", "", 7.5)
+    grand_total = Decimal(0)
+
     for idx, item in enumerate(items):
         fill = idx % 2 == 0
-        if fill:
-            pdf.set_fill_color(248, 250, 252)
+        pdf.set_fill_color(*(_SOFT if fill else _WHITE))
+        pdf.set_text_color(*_INK)
+
+        amount = _money_val(item.amount)
+        grand_total += amount
+
         values = [
-            (20, _date(item.delivered_at), "C"),
-            (35, (item.origin or "-")[:18], "L"),
-            (35, (item.destination or "-")[:18], "L"),
-            (50, (item.cargo_description or "-")[:28], "L"),
-            (20, item.load_state or "-", "C"),
-            (15, str(item.quantity or 1), "R"),
-            (30, _money(item.unit_price, document.currency or "MZN"), "R"),
-            (30, _money(item.amount, document.currency or "MZN"), "R"),
+            (_date(item.delivered_at), "C"),
+            ((item.origin or "—")[:20], "L"),
+            ((item.destination or "—")[:20], "L"),
+            ((item.cargo_description or "—")[:26], "L"),
+            ((item.load_state or "—")[:8], "C"),
+            (str(item.quantity or 1), "C"),
+            (_money(item.unit_price, ""), "R"),
+            (_money(amount, ""), "R"),
         ]
-        for width, text, align in values:
-            pdf.cell(width, 6, text, border=0, fill=fill, align=align)
+        row_h = 6
+        for w, (text, align) in zip(COL_W, values):
+            pdf.cell(w, row_h, text, border=0, fill=fill, align=align,
+                     new_x=XPos.RIGHT, new_y=YPos.TOP)
         pdf.ln()
 
-    filename = f"cobranca_{document.id}.pdf"
+    # ── Totals block ─────────────────────────────────────────────────────────
+    pdf.ln(3)
+    pdf.set_draw_color(*_LINE)
+    pdf.set_line_width(0.4)
+    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+    pdf.ln(4)
+
+    # Right-aligned total
+    total_label_w = sum(COL_W[:6])
+    total_val_w   = COL_W[6] + COL_W[7]
+
+    pdf.set_fill_color(*_NAV)
+    pdf.set_text_color(*_WHITE)
+    pdf.set_font("DejaVu", "B", 9)
+    pdf.cell(total_label_w, 8, "TOTAL A PAGAR", fill=True, align="R",
+             new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(total_val_w, 8, f"{grand_total:,.2f} {currency}", fill=True, align="R",
+             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    # ── Payment conditions note ───────────────────────────────────────────────
+    pdf.ln(6)
+    pdf.set_font("DejaVu", "", 7.5)
+    pdf.set_text_color(*_MUTED)
+    pdf.multi_cell(
+        0, 5,
+        "Este documento foi gerado automaticamente pelo sistema ROTAS. "
+        "Qualquer contestação deve ser comunicada no prazo de 10 dias úteis após a emissão.",
+        align="L",
+    )
+
+    filename = f"cobranca_{doc_number}.pdf"
     return ExportArtifact(filename=filename, content_type="application/pdf", content=pdf.output())
 
 
+# ── XLSX ──────────────────────────────────────────────────────────────────────
+
+def _xlsx_fill(hex_rgb: str) -> PatternFill:
+    return PatternFill(fill_type="solid", fgColor=hex_rgb)
+
+
+def _xlsx_border(style: str = "thin") -> Border:
+    s = Side(border_style=style, color="D8DEE8")
+    return Border(left=s, right=s, top=s, bottom=s)
+
+
 def _render_xlsx(document: BillingDocument, items: list[BillingItem]) -> ExportArtifact:
-    """Generate XLSX using openpyxl — bold headers, #,##0.00 for currency columns."""
+    currency = document.currency or "MZN"
     wb = Workbook()
     ws = wb.active
     ws.title = "Cobrança"
 
-    # Header row — bold
-    headers = ["Data descarga", "Origem", "Destino", "Carga", "Estado", "Qtd", "Preço unit. MZN", "Total MZN"]
-    col_widths = [14, 20, 20, 30, 12, 8, 18, 18]
-    for col_idx, (header, width) in enumerate(zip(headers, col_widths), start=1):
-        cell = ws.cell(row=1, column=col_idx, value=header)
-        cell.font = Font(bold=True)
-        ws.column_dimensions[cell.column_letter].width = width
+    # ── Branding / document metadata block (rows 1-8) ─────────────────────────
+    ws.merge_cells("A1:H1")
+    title_cell = ws["A1"]
+    title_cell.value = "ROTAS — DOCUMENTO DE COBRANÇA"
+    title_cell.font = Font(bold=True, size=14, color="FFFFFF")
+    title_cell.fill = _xlsx_fill("102033")
+    title_cell.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 28
 
-    # Data rows
-    for row_idx, item in enumerate(items, start=2):
-        ws.cell(row=row_idx, column=1, value=_date(item.delivered_at))
-        ws.cell(row=row_idx, column=2, value=item.origin or "-")
-        ws.cell(row=row_idx, column=3, value=item.destination or "-")
-        ws.cell(row=row_idx, column=4, value=item.cargo_description or "-")
-        ws.cell(row=row_idx, column=5, value=item.load_state or "-")
-        ws.cell(row=row_idx, column=6, value=item.quantity or 1)
+    def _meta(row: int, label: str, value: str):
+        label_cell = ws.cell(row=row, column=1, value=label)
+        label_cell.font = Font(bold=True, size=9, color="667085")
+        ws.merge_cells(f"A{row}:B{row}")
 
-        price_cell = ws.cell(row=row_idx, column=7, value=float(item.unit_price or 0))
-        price_cell.number_format = "#,##0.00"
-        price_cell.alignment = Alignment(horizontal="right")
+        val_cell = ws.cell(row=row, column=3, value=value)
+        val_cell.font = Font(size=9, color="172033")
+        ws.merge_cells(f"C{row}:H{row}")
 
-        total_cell = ws.cell(row=row_idx, column=8, value=float(item.amount or 0))
-        total_cell.number_format = "#,##0.00"
-        total_cell.alignment = Alignment(horizontal="right")
+    period = f"{_date(document.billing_period_start)} — {_date(document.billing_period_end)}"
+    _meta(2, "Cliente", document.client_name or "—")
+    _meta(3, "Contrato", document.contract_reference or "—")
+    _meta(4, "Período", period)
+    _meta(5, "Estado", _status_label(document.status))
+    _meta(6, "Emitido em", _date(document.issued_at or document.created_at))
+
+    # Spacer
+    ws.row_dimensions[7].height = 6
+
+    # ── Table header (row 8) ──────────────────────────────────────────────────
+    HEADER_ROW = 8
+    DATA_START = 9
+    HEADERS = ["Data descarga", "Origem", "Destino", "Carga / Descrição",
+               "Estado carga", "Qtd", f"Unit. {currency}", f"Total {currency}"]
+    COL_WIDTHS = [14, 22, 22, 34, 14, 8, 20, 20]
+
+    header_fill = _xlsx_fill("102033")
+    header_font = Font(bold=True, size=9, color="FFFFFF")
+    header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    for col_idx, (header, width) in enumerate(zip(HEADERS, COL_WIDTHS), start=1):
+        cell = ws.cell(row=HEADER_ROW, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = _xlsx_border()
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
+
+    ws.row_dimensions[HEADER_ROW].height = 22
+
+    # ── Data rows ─────────────────────────────────────────────────────────────
+    CURRENCY_FMT = f'#,##0.00" {currency}"'
+    grand_total = Decimal(0)
+
+    even_fill = _xlsx_fill("F5F7FA")
+    odd_fill  = _xlsx_fill("FFFFFF")
+
+    for row_offset, item in enumerate(items):
+        row = DATA_START + row_offset
+        fill = even_fill if row_offset % 2 == 0 else odd_fill
+        amount = _money_val(item.amount)
+        grand_total += amount
+
+        values = [
+            (item.delivered_at.strftime("%d/%m/%Y") if item.delivered_at else "—", None),
+            (item.origin or "—", None),
+            (item.destination or "—", None),
+            (item.cargo_description or "—", None),
+            (item.load_state or "—", None),
+            (item.quantity or 1, None),
+            (float(_money_val(item.unit_price)), CURRENCY_FMT),
+            (float(amount), CURRENCY_FMT),
+        ]
+        ALIGNS = ["center", "left", "left", "left", "center", "center", "right", "right"]
+
+        for col_idx, ((val, num_fmt), h_align) in enumerate(zip(values, ALIGNS), start=1):
+            cell = ws.cell(row=row, column=col_idx, value=val)
+            cell.font = Font(size=9)
+            cell.fill = fill
+            cell.border = _xlsx_border()
+            cell.alignment = Alignment(horizontal=h_align, vertical="center")
+            if num_fmt:
+                cell.number_format = num_fmt
+
+        ws.row_dimensions[row].height = 16
+
+    # ── Total row ─────────────────────────────────────────────────────────────
+    total_row = DATA_START + len(items)
+    ws.merge_cells(f"A{total_row}:G{total_row}")
+    label_cell = ws.cell(row=total_row, column=1, value="TOTAL A PAGAR")
+    label_cell.font = Font(bold=True, size=10, color="FFFFFF")
+    label_cell.fill = _xlsx_fill("102033")
+    label_cell.alignment = Alignment(horizontal="right", vertical="center")
+    label_cell.border = _xlsx_border()
+
+    total_cell = ws.cell(row=total_row, column=8, value=float(grand_total))
+    total_cell.font = Font(bold=True, size=10, color="FFFFFF")
+    total_cell.fill = _xlsx_fill("102033")
+    total_cell.number_format = CURRENCY_FMT
+    total_cell.alignment = Alignment(horizontal="right", vertical="center")
+    total_cell.border = _xlsx_border()
+    ws.row_dimensions[total_row].height = 20
+
+    # Freeze panes below header row so data scrolls but header stays
+    ws.freeze_panes = ws.cell(row=DATA_START, column=1)
 
     output = BytesIO()
     wb.save(output)
-    filename = f"cobranca_{document.id}.xlsx"
+    doc_number = str(document.id)[:8].upper()
+    filename = f"cobranca_{doc_number}.xlsx"
     return ExportArtifact(
         filename=filename,
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

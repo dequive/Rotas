@@ -308,14 +308,14 @@ This milestone extends ROTAS across five capability areas: financial client mana
 **Plans:** 7/8 plans executed
 
 Plans:
-- [x] 04.1-01-PLAN.md � Wave 1: CSS foundation fix (remove oklch override, consolidate @layer base, extend Tailwind config, install shadcn components)
-- [x] 04.1-02-PLAN.md � Wave 2: Core primitives A (StatusBadge, KpiCard, PageHeader, SectionHeader, WorkQueue)
-- [x] 04.1-03-PLAN.md � Wave 2: Core primitives B (DataTable, MonoCell, MoneyCell, EmptyState, DataSourceBadge)
-- [x] 04.1-04-PLAN.md � Wave 3: SidebarLayout redesign (4 grouped sections, amber active indicator)
-- [x] 04.1-05-PLAN.md � Wave 4: Migrate ControlTowerOverview + FleetComplianceBoard
-- [x] 04.1-06-PLAN.md � Wave 4: Migrate FuelControlBoard + FleetHistoryBoard + TransportCargoBoard + CostMarginBoard
-- [x] 04.1-07-PLAN.md � Wave 5: Migrate page.tsx billing section
-- [ ] 04.1-08-PLAN.md � Wave 6: Legacy CSS cleanup + visual checkpoint
+- [x] 04.1-01-PLAN.md — Wave 1: CSS foundation fix (remove oklch override, consolidate @layer base, extend Tailwind config, install shadcn components)
+- [x] 04.1-02-PLAN.md — Wave 2: Core primitives A (StatusBadge, KpiCard, PageHeader, SectionHeader, WorkQueue)
+- [x] 04.1-03-PLAN.md — Wave 2: Core primitives B (DataTable, MonoCell, MoneyCell, EmptyState, DataSourceBadge)
+- [x] 04.1-04-PLAN.md — Wave 3: SidebarLayout redesign (4 grouped sections, amber active indicator)
+- [x] 04.1-05-PLAN.md — Wave 4: Migrate ControlTowerOverview + FleetComplianceBoard
+- [x] 04.1-06-PLAN.md — Wave 4: Migrate FuelControlBoard + FleetHistoryBoard + TransportCargoBoard + CostMarginBoard
+- [x] 04.1-07-PLAN.md — Wave 5: Migrate page.tsx billing section
+- [ ] 04.1-08-PLAN.md — Wave 6: Legacy CSS cleanup + visual checkpoint
 
 ### Phase 5: Client Registry + Migration Foundation
 
@@ -422,7 +422,17 @@ Plans:
 - **R2/S3**: Replace `boto3>=1.43` with `aiobotocore[boto3]>=3.7.0` in `pyproject.toml` — do not keep both, they conflict at the botocore layer. Implement dual-provider `storage.py` backend: `StorageProvider` enum with `LOCAL` and `R2` variants; `upload_file()` and `generate_presigned_url()` dispatch on `settings.storage_provider`. Migration script: iterate all `File` records with `storage_provider = "local"`, upload to R2, update record. Run migration before switching `settings.storage_provider` to `R2`. Verify zero local records before enabling the switch.
 - **Tenant limits**: Add `_check_vehicle_limit()`, `_check_driver_limit()`, `_check_user_limit()` guard functions called at the top of each `create_*` service function. Guards read `Tenant.max_vehicles` / `max_drivers` / `max_users` and compare against current counts. Return `ApiError("plan_limit_reached", ..., 403)` with `{"upgrade_url": settings.upgrade_url}` in the body. Cache tenant limit counts in Redis with TTL 30s to avoid per-request count queries. Dashboard `layout.tsx` fetches `GET /api/v1/tenant/limits` and renders a `<LimitWarningBanner>` component when any dimension is ≥ 80%.
 
-**Plans**: TBD
+**Plans**: 8 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Wave 0: Test scaffolds for all three INFRA requirements (failing stubs)
+- [ ] 08-02-PLAN.md — Wave 1: Backend Sentry integration (FastAPI + ARQ worker) (INFRA-01)
+- [ ] 08-03-PLAN.md — Wave 1: storage.py dual-provider abstraction + files/service.py refactor (INFRA-02)
+- [ ] 08-04-PLAN.md — Wave 2: ARQ worker R2 routing + ExportJob.file_id + migration script (INFRA-02)
+- [ ] 08-05-PLAN.md — Wave 2: Tenant limit guards + Redis cache + GET /api/v1/tenant/limits (INFRA-03)
+- [ ] 08-06-PLAN.md — Wave 3: LimitWarningBanner component + layout.tsx integration (INFRA-03)
+- [ ] 08-07-PLAN.md — Wave 1: Frontend Sentry (Next.js manager + Vite driver PWA) (INFRA-01)
+- [ ] 08-08-PLAN.md — Wave 4: Human verification checkpoint (INFRA-01, INFRA-02, INFRA-03)
 
 **UI hint**: yes
 
@@ -594,7 +604,7 @@ Plans:
 | 5. Client Registry + Migration Foundation | 0/TBD | Not started | - |
 | 6. Payment Registration | 0/TBD | Not started | - |
 | 7. Accounts Receivable + Aging Dashboard | 0/TBD | Not started | - |
-| 8. Infrastructure Hardening | 0/TBD | Not started | - |
+| 8. Infrastructure Hardening | 0/8 | Not started | - |
 | 9. PostgreSQL RLS Policies | 0/TBD | Not started | - |
 | 10. Notifications + Self-Service Onboarding | 0/TBD | Not started | - |
 | 11. Driver Financial Settlement (Despacho) | 0/TBD | Not started | - |

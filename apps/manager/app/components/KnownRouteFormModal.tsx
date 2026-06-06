@@ -22,6 +22,8 @@ export function KnownRouteFormModal({ route }: { route?: KnownRoute }) {
       destination: fd.get("destination"),
       distance_km: Number(fd.get("distance_km")),
       avg_fuel_liters: fd.get("avg_fuel_liters") ? Number(fd.get("avg_fuel_liters")) : undefined,
+      despacho_vazio: fd.get("despacho_vazio") ? Number(fd.get("despacho_vazio")) : undefined,
+      despacho_carregado: fd.get("despacho_carregado") ? Number(fd.get("despacho_carregado")) : undefined,
       notes: fd.get("notes") || undefined,
     };
     if (isEdit) payload.id = route.id;
@@ -66,6 +68,18 @@ export function KnownRouteFormModal({ route }: { route?: KnownRoute }) {
                   Combustível estimado (L)
                   <input name="avg_fuel_liters" type="number" step="0.1" min="0" defaultValue={route?.avg_fuel_liters ?? ""} placeholder="Auto (consumo da viatura)" />
                   <span style={{ fontSize: 11, color: "var(--muted)" }}>Deixe em branco para calcular pelo consumo da viatura</span>
+                </label>
+              </div>
+              <div className="form-row">
+                <label>
+                  Despacho — Vazio (MZN)
+                  <input name="despacho_vazio" type="number" step="1" min="0" defaultValue={route?.despacho_vazio ?? ""} placeholder="Auto (faixas do tenant)" />
+                  <span style={{ fontSize: 11, color: "var(--muted)" }}>Override para viatura vazia nesta rota</span>
+                </label>
+                <label>
+                  Despacho — Carregado (MZN)
+                  <input name="despacho_carregado" type="number" step="1" min="0" defaultValue={route?.despacho_carregado ?? ""} placeholder="Auto (faixas do tenant)" />
+                  <span style={{ fontSize: 11, color: "var(--muted)" }}>Override para viatura carregada nesta rota</span>
                 </label>
               </div>
               <label>Notas<textarea name="notes" rows={2} defaultValue={route?.notes ?? ""} placeholder="Observações sobre a rota, portagens, etc." /></label>

@@ -13,7 +13,6 @@ import { requireSession } from "./lib/auth";
 import { BillingTripActions } from "./components/BillingTripActions";
 import { ControlTowerOverview } from "./components/ControlTowerOverview";
 import { CostMarginBoard } from "./components/CostMarginBoard";
-import { DriverDespachoTableAdmin } from "./components/DriverDespachoTableAdmin";
 import { FleetComplianceBoard } from "./components/FleetComplianceBoard";
 import { FleetHistoryBoard } from "./components/FleetHistoryBoard";
 import { MaintenanceImminentPanel } from "./components/MaintenanceImminentPanel";
@@ -36,7 +35,6 @@ import {
 import { loadControlTower, loadImminentMaintenanceAlerts } from "./lib/control-tower-api";
 import { loadFleetHistories } from "./lib/fleet-history-api";
 import { loadFuelControlBoard } from "./lib/fuel-operations-api";
-import { loadDriverDespachoTable } from "./lib/operations-admin-api";
 
 const statusMeta: Record<
   BillingStatus,
@@ -119,8 +117,7 @@ export default async function ManagerHome() {
   const { trips, source, message } = await loadBillingTrips();
   const documents = await loadBillingDocuments();
   const contracts = await loadContracts();
-  const driverDespachoTable = await loadDriverDespachoTable();
-  const apiConfig = getApiConfig();
+const apiConfig = getApiConfig();
   const controlledValue =
     sumByStatus(trips, "billable") +
     sumByStatus(trips, "billing_draft") +
@@ -323,7 +320,6 @@ export default async function ManagerHome() {
           </section>
         </div>
 
-        <DriverDespachoTableAdmin apiConfig={apiConfig} result={driverDespachoTable} />
       </div>
     </SidebarLayout>
   );

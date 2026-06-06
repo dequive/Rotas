@@ -251,6 +251,8 @@ class KnownRoute(Base):
     destination: Mapped[str] = mapped_column(String(120))
     distance_km: Mapped[Decimal] = mapped_column(Numeric(10, 1))
     avg_fuel_liters: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    despacho_vazio: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    despacho_carregado: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     notes: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(

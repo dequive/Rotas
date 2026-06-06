@@ -44,8 +44,9 @@ export default async function RotasConfigPage() {
                 <th>Origem</th>
                 <th>Destino</th>
                 <th>Distância</th>
-                <th>Combustível estimado</th>
-                <th>Despacho calculado</th>
+                <th>Combustível</th>
+                <th>Despacho vazio</th>
+                <th>Despacho carregado</th>
                 <th>Notas</th>
                 <th>Acções</th>
               </tr>
@@ -68,10 +69,21 @@ export default async function RotasConfigPage() {
                         </span>
                       </td>
                       <td>{r.distance_km.toLocaleString("pt-MZ")} km</td>
-                      <td>{r.avg_fuel_liters !== null ? `${r.avg_fuel_liters} L` : <span className="muted-line">Auto (consumo viatura)</span>}</td>
+                      <td>{r.avg_fuel_liters !== null ? `${r.avg_fuel_liters} L` : <span className="muted-line">Auto</span>}</td>
                       <td>
-                        {tier ? (
-                          <span className="badge cyan">{money(tier.amount)} {tier.label ? `— ${tier.label}` : ""}</span>
+                        {r.despacho_vazio !== null ? (
+                          <span className="badge cyan">{money(r.despacho_vazio)}</span>
+                        ) : tier ? (
+                          <span className="muted-line">{money(tier.amount)} (faixa)</span>
+                        ) : (
+                          <span className="badge red">Fora das faixas</span>
+                        )}
+                      </td>
+                      <td>
+                        {r.despacho_carregado !== null ? (
+                          <span className="badge cyan">{money(r.despacho_carregado)}</span>
+                        ) : tier ? (
+                          <span className="muted-line">{money(tier.amount)} (faixa)</span>
                         ) : (
                           <span className="badge red">Fora das faixas</span>
                         )}

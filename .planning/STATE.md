@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: executing
-last_updated: "2026-06-06T19:44:08.545Z"
+status: completed
+last_updated: "2026-06-06T19:50:57.926Z"
 last_activity: 2026-06-06
 progress:
   total_phases: 13
   completed_phases: 3
   total_plans: 43
-  completed_plans: 37
+  completed_plans: 38
 ---
 
 # ROTAS — Project State
@@ -21,8 +21,8 @@ _Last updated: 2026-06-06_
 ## Current Phase
 
 Phase: 4.1 — UI Design System and Component Library
-Plan: 03 (04.1-01, 04.1-02 complete)
-Status: In Progress — Plans 01-02 complete (CSS foundation + 5 core primitive components: StatusBadge, KpiCard, PageHeader, SectionHeader, WorkQueue)
+Plan: 04 COMPLETE — all 4 plans complete
+Status: Complete — Plans 01-04 complete (CSS foundation, 5 core primitives, table primitives + MonoCell, grouped sidebar navigation with amber active indicator)
 Last activity: 2026-06-06
 
 ---
@@ -56,6 +56,8 @@ Phase 12 (GPS+TRK) — requires Phase 9 complete + GPS device survey complete
 
 | Decision | Phase | Rationale |
 |----------|-------|-----------|
+| SidebarLayout hover via inline style handlers not Tailwind hover: — CSS variable values cannot be Tailwind class arguments | 4.1 | Tailwind hover: works for static values only; var(--sidebar-hover) requires onMouseEnter/onMouseLeave |
+| border-l-2 border-transparent on inactive sidebar items prevents layout shift when active item changes | 4.1 | Without the transparent border, active item's border-l-2 pushes content 2px — visible shift |
 | muted Tailwind token → var(--muted-color) not var(--muted) | 4.1 | Prevents HSL token (#213 27% 96% background surface) from being used as text color |
 | Legacy CSS classes stay outside @layer base | 4.1 | .shell, .sidebar etc. are regular CSS rules; wrapping in layer would break cascade order |
 | Colored dot is a span element not ::before — React JSX cannot express pseudo-elements | 4.1 | DESIGN.md says "dot colorido" but ::before is not valid in React JSX; inline span achieves same visual |

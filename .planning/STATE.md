@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
+milestone: v2.0
+milestone_name: gestao-clientes-contas-receber
 status: Defining requirements
-last_updated: "2026-06-06T08:45:01.303Z"
+last_updated: "2026-06-06T10:00:00.000Z"
 last_activity: 2026-06-06
 progress:
-  total_phases: 4
-  completed_phases: 2
-  total_plans: 35
-  completed_plans: 30
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # ROTAS — Project State
@@ -20,10 +20,10 @@ _Last updated: 2026-06-06_
 
 ## Current Phase
 
-Phase: 04
-Plan: Not started
+Phase: Not started (defining requirements)
+Plan: —
 Status: Defining requirements
-Last activity: 2026-06-06
+Last activity: 2026-06-06 — Milestone v2.0 started
 
 ---
 

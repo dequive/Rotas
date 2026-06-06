@@ -7,11 +7,21 @@ settings = get_settings()
 
 
 async def startup(ctx: dict) -> None:
+    import sentry_sdk
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.config import get_settings as _get_settings
+    from app.main import _scrub_pii
 
     _settings = _get_settings()
+    # INFRA-01: Sentry in ARQ worker — init before any job processing (D-04)
+    if _settings.sentry_dsn_backend:
+        sentry_sdk.init(
+            dsn=_settings.sentry_dsn_backend,
+            environment=_settings.environment,
+            traces_sample_rate=0.05,
+            before_send=_scrub_pii,
+        )
     # D-18 / RLS-02: ARQ worker uses rotas_admin role (BYPASSRLS) for cross-tenant queries.
     # resolved_admin_database_url falls back to database_url in local dev where RLS may not
     # be active — no local dev config change required.

@@ -37,6 +37,11 @@ class Settings(BaseSettings):
         validation_alias="REDIS_URL",
     )
 
+    # INFRA-01: Sentry DSNs — optional, Sentry disabled if absent (D-02)
+    sentry_dsn_backend: str = Field(default="", validation_alias="SENTRY_DSN_BACKEND")
+    sentry_dsn_manager: str = Field(default="", validation_alias="SENTRY_DSN_MANAGER")
+    sentry_dsn_driver: str = Field(default="", validation_alias="SENTRY_DSN_DRIVER")
+
     @property
     def resolved_admin_database_url(self) -> str:
         return self.admin_database_url if self.admin_database_url else self.database_url

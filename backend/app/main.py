@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 import arq
+import sentry_sdk
 from arq.connections import RedisSettings as ArqRedisSettings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,9 +42,48 @@ from app.modules.workshop.router import router as workshop_router
 settings = get_settings()
 import_all_models()
 
+# INFRA-01: PII fields that must never appear in Sentry payloads (D-03)
+_PII_FIELDS = frozenset([
+    "driver_name", "cargo_description", "phone", "nuit", "email",
+    "plate_number", "receiver_name", "receiver_contact",
+])
+
+
+def _scrub_dict(d: object) -> object:
+    if not isinstance(d, dict):
+        return d
+    return {
+        k: "[Filtered]" if k in _PII_FIELDS else _scrub_dict(v)
+        for k, v in d.items()
+    }
+
+
+def _scrub_pii(event: dict, hint: dict) -> dict | None:
+    """Strip PII from Sentry event before sending (INFRA-01 / D-03)."""
+    # Scrub request.data (POST body)
+    if "request" in event and "data" in event["request"]:
+        event["request"]["data"] = _scrub_dict(event["request"]["data"])
+    # Scrub extra context
+    if "extra" in event:
+        event["extra"] = _scrub_dict(event["extra"])
+    # Scrub SQL breadcrumbs — remove 'data' key which may contain param values
+    for breadcrumb in event.get("breadcrumbs", {}).get("values", []):
+        if breadcrumb.get("category") == "query":
+            breadcrumb.pop("data", None)
+    return event
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # INFRA-01: Sentry init — silent when DSN absent (D-02)
+    if settings.sentry_dsn_backend:
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn_backend,
+            environment=settings.environment,
+            traces_sample_rate=0.05,
+            before_send=_scrub_pii,
+        )
+
     # Initialize plain Redis client for CT cache-aside (redis.asyncio.Redis)
     try:
         app.state.redis = Redis.from_url(settings.redis_url, decode_responses=True)

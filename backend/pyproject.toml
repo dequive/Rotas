@@ -16,10 +16,11 @@ dependencies = [
   "sqlalchemy[asyncio]>=2.0",
   "uvicorn[standard]>=0.29",
   "arq>=0.28",
-  "redis[asyncio]>=7.4",
+  "redis[asyncio]>=4.2,<6",
   "gunicorn>=22.0",
   "fpdf2>=2.8.7",
   "openpyxl>=3.1",
+  "sentry-sdk[fastapi]>=2.61.1",
 ]
 
 [project.optional-dependencies]

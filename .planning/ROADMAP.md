@@ -1,5 +1,5 @@
 # ROTAS — MVP Roadmap
-_Last updated: 2026-06-05_
+_Last updated: 2026-06-06_
 
 ---
 
@@ -259,3 +259,148 @@ Plans:
 | 2. PWA Offline-First Completion | 0/8 | Not started | - |
 | 3. Manager Dashboard + Reporting Layer | 0/12 | Not started | - |
 | 4. Production Hardening + Scale Preparation | 0/9 | Not started | - |
+
+---
+
+---
+
+# ROTAS — v2.0 Roadmap: Gestão de Clientes e Contas a Receber
+_Last updated: 2026-06-06_
+
+---
+
+## Overview (v2.0)
+
+**3 phases | 12 requirements | Milestone: Transform billing into a complete AR system**
+
+Phase 5 is the highest-risk phase of the milestone: it carries a live data migration (client_name → client_id) across two tables and establishes the schema foundation everything downstream depends on. Phase 6 cannot start until Phase 5 has zero NULL client_id rows confirmed. Phase 7 requires both the client entity (Phase 5) and payment records (Phase 6) to produce meaningful AR totals.
+
+The build order is determined by hard FK dependencies: clients must exist before payments can reference them, and payments must exist before aging can compute outstanding balances.
+
+---
+
+## Phases (v2.0)
+
+- [ ] **Phase 5: Client Registry + Migration Foundation** — Clients become first-class entities; all existing contracts and invoices gain a client_id FK with zero data loss
+- [ ] **Phase 6: Payment Registration** — Managers can record total and partial payments against invoices, including advance payments
+- [ ] **Phase 7: Accounts Receivable + Aging Dashboard** — Client statements, aging buckets, AR KPIs, and PDF export complete the financial management loop
+
+---
+
+## Phase Details (v2.0)
+
+### Phase 5: Client Registry + Migration Foundation
+
+**Goal**: A manager can create, search, and manage clients as first-class entities — and every existing contract and invoice is automatically associated with the correct client, with no data loss and no manual re-entry required.
+
+**Depends on**: Phase 4 (PostgreSQL RLS infrastructure must exist; Decimal type annotations must be clean; production deployment must be stable before a live data migration runs)
+
+**Requirements**: CLI-01, CLI-02, CLI-03, CLI-04, CLI-05
+
+**Success Criteria** (what must be TRUE):
+  1. A manager can create a client with NUIT, trading name, address, phone, email, and payment terms — and the client appears in a searchable list scoped to their tenant
+  2. When a client's outstanding balance exceeds their configured credit limit, a visual warning is displayed on the client detail page and invoice list — without blocking any action
+  3. Every existing contract and billing document that had a `client_name` string now has a populated `client_id` FK pointing to a `clients` record — `SELECT count(*) FROM contracts WHERE client_id IS NULL` returns zero (or a documented and accepted exception count)
+  4. A manager creating or editing a contract selects the client from a dropdown backed by the client registry — free-text client_name entry is no longer the primary path
+  5. New invoices display a sequential number in `AAAA/NNNN` format (e.g., `2026/0001`) that never repeats or gaps within the same tenant
+
+**Architecture constraints**:
+- Four Alembic migrations strictly separated — never DDL + DML in the same file: (a) create `clients` table with RLS policy and `GRANT TO rotas_app` in the same migration, (b) add nullable `client_id` FK to `contracts` and `billing_documents` + add `due_date` column to `billing_documents`, (c) backfill data via `SELECT DISTINCT tenant_id, client_name FROM contracts` → insert clients → UPDATE FKs, (d) create `payments` table (scaffolded here, populated in Phase 6)
+- Pre-migration audit query is a required first step before writing migration code: `SELECT tenant_id, lower(trim(client_name)), count(*) FROM contracts GROUP BY 1, 2 HAVING count(*) > 1` — review variant groups before any FK backfill
+- `due_date` column MUST be added in migration (b) alongside `client_id` — aging calculation needs it from day one; adding it in Phase 7 would require a second backfill
+- RLS must be enabled on `clients` table in the CREATE TABLE migration — not a follow-up patch. Pattern: `ALTER TABLE clients ENABLE ROW LEVEL SECURITY` + `CREATE POLICY` + `GRANT` in the same Alembic file
+- `client_name` is kept on `BillingDocument` and `Contract` as a denormalized snapshot — do not drop it; it has independent archival and legal value
+- PostgreSQL SEQUENCE for invoice numbering must be tenant-scoped: one sequence per tenant or a composite sequence pattern — never a Python MAX+1 counter
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
+
+### Phase 6: Payment Registration
+
+**Goal**: A manager can record that a client has paid — in full, partially, or in advance — and the invoice balance and client outstanding balance update immediately, with a full audit trail.
+
+**Depends on**: Phase 5 fully verified (zero NULL `client_id` confirmed before Phase 6 starts — this is a hard gate, not a suggestion)
+
+**Requirements**: PAY-01, PAY-02, PAY-03
+
+**Success Criteria** (what must be TRUE):
+  1. A manager can register a payment against an issued invoice specifying amount, value date, and payment method (bank transfer, cheque, cash) — the payment appears in the invoice detail immediately
+  2. A manager can register a payment for less than the invoice total — the invoice shows a partial balance due, not a "paid" status
+  3. A manager can register an advance payment for a client with no specific invoice — the advance appears as credit on the client record and can be applied to a future invoice
+  4. After any payment is registered, `GET /clients/{id}/statement` reflects the updated balance within the same request — no eventual consistency lag
+
+**Architecture constraints**:
+- `payment_allocations` junction table MUST be created in this phase (not deferred to Phase 7) — schema: `(payment_id, billing_document_id, amount_applied, created_at)`. Retrofitting this table after payment rows exist is a high-risk schema migration
+- `client_payments` table holds the cash receipt; `payment_allocations` holds the link to invoices — do not put `billing_document_id` as a direct NOT NULL FK on `client_payments`
+- Advance payments have no allocation rows at creation time — `billing_document_id` is nullable on payments, and allocation rows are inserted separately when the advance is applied to an invoice
+- `POST /api/v1/billing/payments` requires `Idempotency-Key` header — same pattern as billing document creation
+- Payment registration must verify `billing_document.client_id == payment.client_id` AND both share the same `tenant_id` before writing — cross-client payment mismatches must return HTTP 409
+- Payments are never hard-deleted — use `status = "voided"` with `voided_by` and `voided_reason` fields; audit log entry required for every void
+- `billing_documents.paid_at` (existing column) is updated as a denormalized cache when `SUM(allocations) >= total_amount` — it is no longer the source of truth, but is kept for backward compatibility with PDF generation
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
+
+### Phase 7: Accounts Receivable + Aging Dashboard
+
+**Goal**: A manager can see, at a glance, which clients owe money and for how long — and can generate a formal client statement as a PDF for reconciliation or collections.
+
+**Depends on**: Phase 6 (aging and outstanding balance calculations require payment records; building the dashboard before payments exist would show every invoice as outstanding)
+
+**Requirements**: AR-01, AR-02, AR-03, AR-04
+
+**Success Criteria** (what must be TRUE):
+  1. A manager can open a client's statement for any date range and see a list of invoices with issue date, due date, total amount, amount paid, and outstanding balance — all values correct relative to registered payments
+  2. A manager can view a client's aging breakdown showing outstanding balance bucketed into current / 1–30 / 31–60 / 61–90 / +90 days overdue — the reference date is always displayed next to the buckets
+  3. The AR dashboard shows tenant-wide totals (total issued, total received, total outstanding) and a ranked list of the 5 clients with the largest outstanding balances
+  4. A manager can export a client statement as a PDF that includes the tenant's company name as a header and renders Mozambican names with diacritics correctly (UTF-8)
+
+**Architecture constraints**:
+- Aging is computed by a service-layer SQL query with an explicit `as_of` date parameter — never use `NOW()` implicitly; the `as_of` parameter makes aging testable without time mocking and allows retrospective reports
+- Aging buckets are derived from `billing_documents.due_date` (stored in Phase 5) — not from `issued_at + payment_terms_days` at query time; `due_date` is the authoritative column
+- Outstanding per document = `billing_documents.total_amount - SUM(payment_allocations.amount_applied WHERE billing_document_id = X)` — do not use `billing_documents.paid_at` as the balance source
+- Only documents with `status = 'issued'` appear in aging — draft documents are not receivables
+- AR dashboard endpoint: `GET /api/v1/billing/ar-summary?as_of=YYYY-MM-DD` — tenant-scoped, paginated top-5 by outstanding balance
+- Client statement PDF uses `fpdf2 + DejaVuSans.ttf` (same pattern established in Phase 3 for invoice PDF) — no new PDF library introduced
+- Composite index `(tenant_id, client_id, due_date)` on `billing_documents` is required for aging query performance — add in the Phase 7 migration if not already present
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
+
+## Coverage Check (v2.0)
+
+| Requirement | Phase | Category |
+|-------------|-------|----------|
+| CLI-01 | Phase 5 | Clients |
+| CLI-02 | Phase 5 | Clients |
+| CLI-03 | Phase 5 | Clients |
+| CLI-04 | Phase 5 | Clients |
+| CLI-05 | Phase 5 | Clients |
+| PAY-01 | Phase 6 | Payments |
+| PAY-02 | Phase 6 | Payments |
+| PAY-03 | Phase 6 | Payments |
+| AR-01 | Phase 7 | Accounts Receivable |
+| AR-02 | Phase 7 | Accounts Receivable |
+| AR-03 | Phase 7 | Accounts Receivable |
+| AR-04 | Phase 7 | Accounts Receivable |
+
+**Total v2.0 requirements mapped: 12/12**
+
+---
+
+## Progress Table (v2.0)
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 5. Client Registry + Migration Foundation | 0/TBD | Not started | - |
+| 6. Payment Registration | 0/TBD | Not started | - |
+| 7. Accounts Receivable + Aging Dashboard | 0/TBD | Not started | - |

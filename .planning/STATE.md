@@ -1,12 +1,12 @@
 ---
 gsd_state_version: 1.0
 milestone: v2.0
-milestone_name: gestao-clientes-contas-receber
-status: Roadmap defined — ready for Phase 5 planning
+milestone_name: plataforma-operacional-completa
+status: Roadmap defined — ready for Phase 8 planning (execute 8+9 before 5)
 last_updated: "2026-06-06T12:00:00.000Z"
 last_activity: 2026-06-06
 progress:
-  total_phases: 3
+  total_phases: 8
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,10 +20,29 @@ _Last updated: 2026-06-06_
 
 ## Current Phase
 
-Phase: 5 — Client Registry + Migration Foundation
+Phase: 5 — Client Registry + Migration Foundation (awaiting Phase 8 + 9 prerequisites)
 Plan: Not started
-Status: Roadmap defined — awaiting `/gsd:plan-phase 5`
-Last activity: 2026-06-06 — v2.0 roadmap created (Phases 5, 6, 7)
+Status: Roadmap expanded to 8 phases (5-12) — awaiting `/gsd:plan-phase 8`
+Last activity: 2026-06-06 — v2.0 roadmap expanded from 3 phases (CLI/PAY/AR) to 8 phases (adds INFRA/RLS/NOTIF+ONBRD/DESP/GPS+TRK); 32/32 requirements mapped
+
+---
+
+## Execution Order Advisory
+
+Phase 5 (CLI) depends on RLS infrastructure. Execute in this order:
+
+```
+Phase 8 (INFRA) — no dependencies, start immediately
+Phase 9 (RLS)   — no dependencies, start immediately (parallel with 8)
+  [During Phase 9: submit 7 WhatsApp templates to Meta for approval]
+  [During Phase 8: run GPS device operator survey with fleet clients]
+Phase 5 (CLI)   — requires Phase 9 RLS complete
+Phase 6 (PAY)   — requires Phase 5 complete + zero NULL client_id gate
+Phase 7 (AR)    — requires Phase 6 complete
+Phase 10 (NOTIF+ONBRD) — requires Phase 8 complete + WhatsApp templates approved
+Phase 11 (DESP) — requires Phase 10 complete
+Phase 12 (GPS+TRK) — requires Phase 9 complete + GPS device survey complete
+```
 
 ---
 
@@ -49,53 +68,107 @@ Last activity: 2026-06-06 — v2.0 roadmap created (Phases 5, 6, 7)
 | openpyxl for XLSX — native bold/number_format, no hand-rolled XML/ZIP | 3 | openpyxl is the standard Python XLSX library; proper cell formatting without raw XML |
 | Idempotent export job creation — returns existing queued/processing job on duplicate request | 3 | Prevents duplicate ARQ jobs for same document+format; safe for retry from frontend |
 | Four Alembic migrations for client migration — DDL and DML never in same file | 5 | Established pattern in this codebase (28 existing migrations); DDL+DML mixing causes transaction issues on some PG versions |
-| RLS policy created in the CREATE TABLE migration — not a follow-up patch | 5 | PITFALL-06: new tables not covered by existing RLS migration; must be explicit per table |
+| RLS policy created in the CREATE TABLE migration — not a follow-up patch | 5, 8-12 | PITFALL-06: new tables not covered by existing RLS migration; must be explicit per table |
 | due_date added in Phase 5 migration (b) alongside client_id — not in Phase 7 | 5 | PITFALL-04: aging needs stored due_date from day one; adding later requires second backfill of all issued documents |
 | payment_allocations junction table created in Phase 6 — not deferred to Phase 7 | 6 | PITFALL-05: retrofitting allocation table after payment rows exist is high-risk schema migration |
 | client_payments.billing_document_id is nullable — allocations live in junction table | 6 | Supports advance payments and multi-invoice allocation; direct FK would permanently block these flows |
 | Payments voided via status field — never hard-deleted | 6 | Financial records must have immutable audit trail; hard delete corrupts AR history |
 | Aging uses billing_documents.due_date (stored) not issued_at + payment_terms_days (derived) | 7 | due_date is authoritative; derived calculation drifts when payment_terms change post-issue |
 | AR aging endpoint requires explicit as_of date parameter | 7 | Makes aging testable without time mocking; allows retrospective report generation |
+| aiobotocore[boto3] replaces boto3 — never keep both | 8 | Conflict at botocore layer; aiobotocore is async-safe for upload/download operations |
+| R2 migration script runs before enabling storage_provider=R2 switch | 8 | PITFALL-14: Railway ephemeral disk wipes on deploy; existing files lost permanently if switch enabled before migration |
+| Tenant limit guards added to all create_* service functions | 8 | PITFALL-19: limits must be enforced before onboarding opens public registration |
+| SET LOCAL app.tenant_id not SET — verified in after_begin event listener | 9 | PITFALL-01: SET persists on pooled connections; next request executes under wrong tenant silently |
+| Three separate DB URLs: DATABASE_URL / ALEMBIC_DATABASE_URL / ADMIN_DATABASE_URL | 9 | PITFALL-02: Alembic blocked by RLS if it uses rotas_app role; ARQ worker needs BYPASSRLS for cross-tenant jobs |
+| WhatsApp templates submitted to Meta during Phase 9 execution | 9 → 10 | Meta approval 1-3 days per template + 5-14 day business verification; templates must be approved before Phase 10 closes |
+| dispatch_notification() checks whatsapp_opt_in_confirmed before enqueuing WhatsApp task | 10 | PITFALL-10: Meta suspends accounts for sending to unconfirmed numbers; recovery takes weeks |
+| Onboarding uses atomic tenant+owner transaction; IntegrityError → slug_already_taken 409 | 10 | PITFALL-11: partial registration leaves orphaned inactive tenant |
+| compute_settlement() reads trip_costs WHERE paid_by=driver — never a parallel expense ledger | 11 | PITFALL-03: parallel ledger double-counts same expenses |
+| Settlement draft re-reads costs at finalization — optimistic lock on costs_reconciled_at | 11 | PITFALL-04: costs changed after draft creation would produce incorrect balance |
+| GPS HMAC validation before tenant_id resolution | 12 | PITFALL-08: attacker who knows IMEI cannot inject positions without device_secret |
+| vehicle_last_position upsert table as fast read path — never query gps_positions for live display | 12 | PITFALL-07: 120,000 rows/day at 50 vehicles; raw event table must never be queried for live fleet map |
+| Tracking page target under 50KB — text-format position, no heavy map library | 12 | Low-end Android browsers on shared mobile data in Mozambique outside Maputo/Beira/Nampula |
 
 ### Architecture: v2.0 Phase Sequence
 
 ```
-Phase 5: Client entity + 4-migration sequence + CLI frontend
+Phase 8 (INFRA): Sentry + R2/S3 dual-provider + tenant limit guards
+  New packages: sentry-sdk[fastapi], aiobotocore[boto3] (replaces boto3), @sentry/nextjs, @sentry/vite-plugin
+  New backend: storage.py dual-provider, _check_*_limit() guards, /api/v1/tenant/limits endpoint
+  New frontend: LimitWarningBanner in layout.tsx
+
+Phase 9 (RLS): 47-table policy migration + role separation + cross-tenant test suite
+  ALEMBIC_DATABASE_URL / ADMIN_DATABASE_URL must be configured in Railway before migration runs
+  Single Alembic migration: ENABLE RLS + FORCE RLS + CREATE POLICY rls_{table} for all tenant tables
+  [Parallel: submit 7 WhatsApp templates to Meta for approval]
+
+Phase 5 (CLI): Client entity + 4-migration sequence + CLI frontend
   Migration (a): CREATE clients + RLS + GRANT
   Migration (b): ADD client_id FK (nullable) to contracts + billing_documents; ADD due_date to billing_documents
   Migration (c): Backfill — SELECT DISTINCT client_name → INSERT clients → UPDATE FKs
   Migration (d): CREATE payments + payment_allocations tables + RLS + GRANT
-
   Gate: SELECT count(*) FROM contracts WHERE client_id IS NULL = 0
         SELECT count(*) FROM billing_documents WHERE client_id IS NULL = 0
 
-Phase 6: Payments (only starts after Phase 5 gate passes)
+Phase 6 (PAY): Payments (only starts after Phase 5 gate passes)
   POST /api/v1/billing/payments (idempotency-key required)
   payment_allocations for invoice linking
   Advance payment support (no billing_document_id at creation)
 
-Phase 7: AR dashboard + aging (requires both clients + payments)
+Phase 7 (AR): AR dashboard + aging (requires both clients + payments)
   GET /clients/{id}/statement
   GET /clients/{id}/aging?as_of=YYYY-MM-DD
   GET /billing/ar-summary?as_of=YYYY-MM-DD
   Client statement PDF (fpdf2 + DejaVuSans — same as billing PDF)
+
+Phase 10 (NOTIF+ONBRD): Notifications + public registration
+  New modules: notifications/, onboarding/
+  New packages: aiosmtplib, phonenumbers, itsdangerous, stripe
+  POST /api/v1/onboarding/register (atomic, get_session_raw)
+  ARQ tasks: task_send_whatsapp, task_send_email with 30s/5min/30min backoff
+  Next.js: /register, /register/verify (excluded from auth middleware)
+
+Phase 11 (DESP): Driver financial settlement
+  New tables: driver_advances, trip_settlements (in trips module)
+  trips/despacho.py: advance state machine + compute_settlement() + approval workflow
+  ARQ task: task_generate_settlement_pdf (stores via files module → R2)
+  Multi-currency: fx_rate Numeric(10,6) + ZAR conversion at reconciliation time
+
+Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
+  New modules: gps/, tracking/
+  New packages: sse-starlette (fleet map SSE upgrade path)
+  New tables: gps_positions (monthly partitions), gps_devices, vehicle_last_position, tracking_tokens
+  POST /api/v1/gps/webhook/{imei} (HMAC auth, get_session_raw)
+  GET /api/v1/gps/vehicles/latest (RLS-scoped manager auth)
+  GET /api/v1/public/track/{token} (no auth, 30 req/min rate limit)
+  Next.js: /track/[token] Server Component (excluded from auth middleware matcher)
 ```
+
+### External Blockers — Start Immediately
+
+- **WhatsApp Business API Meta Approval (4-6 weeks)**: Register ROTAS on Meta for Developers, submit business verification, draft 7 templates in Portuguese. Start during Phase 8; submit templates during Phase 9. Blocks Phase 10.
+- **GPS Device Operator Survey (2-4 weeks)**: Survey each operator for device model, firmware, who has Teltonika Configurator access. Get IMEI list, coordinate reconfiguration window. Start during Phase 8. Blocks Phase 12.
 
 ### Blockers
 
-_None — roadmap defined, planning not yet started._
+_None — roadmap expanded, planning not yet started for new phases._
 
 ### Todos
 
-- [ ] Run pre-migration audit query before writing Phase 5 migration code: `SELECT tenant_id, lower(trim(client_name)), count(*) FROM contracts GROUP BY 1, 2 HAVING count(*) > 1` — review variant groups
-- [ ] Confirm `tailwind.config.*` exists in `apps/manager/` before Phase 3 dashboard work
-- [ ] Fix Node.js to `"engines": { "node": "20.x" }` in all `package.json` before Vercel deploy
+- [ ] Start WhatsApp Business API Meta approval process immediately (parallel to Phase 8)
+- [ ] Start GPS device operator survey immediately (parallel to Phase 8)
+- [ ] Configure ALEMBIC_DATABASE_URL and ADMIN_DATABASE_URL in Railway before Phase 9 planning
+- [ ] Decide 360dialog vs direct Meta Cloud API before Phase 10 planning
+- [ ] Verify Flutterwave Mozambique live availability before Phase 10 planning
+- [ ] Run GPS device field survey and obtain Teltonika/Coban JSON payload samples before Phase 12 planning
+- [ ] Run pre-migration audit query before writing Phase 5 migration code: `SELECT tenant_id, lower(trim(client_name)), count(*) FROM contracts GROUP BY 1, 2 HAVING count(*) > 1`
+- [ ] Confirm PostGIS availability on Railway PostgreSQL before any geofencing design (Phase 12+)
 
 ---
 
 ## Session Continuity
 
-_Last session: 2026-06-06 — v2.0 roadmap created (Phases 5, 6, 7 — 12 requirements, 100% mapped)_
+_Last session: 2026-06-06 — v2.0 roadmap expanded from 3 phases (CLI/PAY/AR, 12 reqs) to 8 phases (5-12, 32 reqs); added INFRA (Phase 8), RLS (Phase 9), NOTIF+ONBRD (Phase 10), DESP (Phase 11), GPS+TRK (Phase 12); all 32 v2.0 requirements mapped; REQUIREMENTS.md traceability updated; STATE.md milestone_name updated to plataforma-operacional-completa_
 
 ---
 
@@ -103,7 +176,7 @@ _Last session: 2026-06-06 — v2.0 roadmap created (Phases 5, 6, 7 — 12 requir
 
 **Core value**: A Mozambican driver can complete an entire trip — departure, refueling, stops, and delivery proof — without connectivity, and all data arrives intact at the manager when signal returns.
 
-**Current milestone**: v2.0 — Gestão de Clientes e Contas a Receber
+**Current milestone**: v2.0 — Plataforma Operacional Completa
 
 **Stack**: FastAPI 0.115 + Python 3.12 + SQLAlchemy 2.0 async + PostgreSQL 16 / Next.js 14 App Router + React 18 + Tailwind / Vite + Dexie.js 4
 
@@ -115,4 +188,4 @@ _Last session: 2026-06-06 — v2.0 roadmap created (Phases 5, 6, 7 — 12 requir
 
 **Codebase analysis**: `.planning/codebase/` (7 documents, generated 2026-06-04)
 
-**Research**: `.planning/research/ARCHITECTURE.md` + `.planning/research/PITFALLS.md` (generated 2026-06-06)
+**Research**: `.planning/research/SUMMARY.md` (generated 2026-06-06)

@@ -181,23 +181,23 @@ _Last updated: 2026-06-06_
 | AR-02 | Phase 7 | Pending |
 | AR-03 | Phase 7 | Pending |
 | AR-04 | Phase 7 | Pending |
-| INFRA-01 | TBD | Pending |
-| INFRA-02 | TBD | Pending |
-| INFRA-03 | TBD | Pending |
-| RLS-01 | TBD | Pending |
-| RLS-02 | TBD | Pending |
-| RLS-03 | TBD | Pending |
-| NOTIF-01 | TBD | Pending |
-| NOTIF-02 | TBD | Pending |
-| NOTIF-03 | TBD | Pending |
-| ONBRD-01 | TBD | Pending |
-| DESP-01 | TBD | Pending |
-| DESP-02 | TBD | Pending |
-| DESP-03 | TBD | Pending |
-| DESP-04 | TBD | Pending |
-| DESP-05 | TBD | Pending |
-| GPS-01 | TBD | Pending |
-| GPS-02 | TBD | Pending |
-| GPS-03 | TBD | Pending |
-| TRK-01 | TBD | Pending |
-| TRK-02 | TBD | Pending |
+| INFRA-01 | Phase 8 | Pending |
+| INFRA-02 | Phase 8 | Pending |
+| INFRA-03 | Phase 8 | Pending |
+| RLS-01 | Phase 9 | Pending |
+| RLS-02 | Phase 9 | Pending |
+| RLS-03 | Phase 9 | Pending |
+| NOTIF-01 | Phase 10 | Pending |
+| NOTIF-02 | Phase 10 | Pending |
+| NOTIF-03 | Phase 10 | Pending |
+| ONBRD-01 | Phase 10 | Pending |
+| DESP-01 | Phase 11 | Pending |
+| DESP-02 | Phase 11 | Pending |
+| DESP-03 | Phase 11 | Pending |
+| DESP-04 | Phase 11 | Pending |
+| DESP-05 | Phase 11 | Pending |
+| GPS-01 | Phase 12 | Pending |
+| GPS-02 | Phase 12 | Pending |
+| GPS-03 | Phase 12 | Pending |
+| TRK-01 | Phase 12 | Pending |
+| TRK-02 | Phase 12 | Pending |

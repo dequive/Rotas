@@ -13,9 +13,9 @@ Phases are ordered by hard dependency: a security bypass is active (SEC-05), the
 
 ## Phases
 
-- [ ] **Phase 1: Security Hardening + Deploy Foundation** — Close the active CVE, harden auth, and deploy the backend to a production environment
+- [x] **Phase 1: Security Hardening + Deploy Foundation** — Close the active CVE, harden auth, and deploy the backend to a production environment
 - [ ] **Phase 2: PWA Offline-First Completion** — Deliver the core product promise: driver app installs, works offline, syncs reliably
-- [ ] **Phase 3: Manager Dashboard + Reporting Layer** — Turn ROTAS from a data-collection tool into an operational management platform
+- [x] **Phase 3: Manager Dashboard + Reporting Layer** — Turn ROTAS from a data-collection tool into an operational management platform
 - [ ] **Phase 4: Production Hardening + Scale Preparation** — Production-grade reliability for multi-tenant SaaS at scale
 
 ---
@@ -152,16 +152,16 @@ Plans:
 
 - [x] 03-01-PLAN.md — Wave 0: Test stubs for all Phase 3 behaviors (CT-01, CT-02, CT-03, BILL-01/02/03, RPT-01/02) + conftest fixtures
 - [x] 03-02-PLAN.md — Wave 1: CT-01 N+1 query rewrite + CT-03 pagination + redis[asyncio] dependency (CT-01, CT-02, CT-03)
-- [ ] 03-03-PLAN.md — Wave 1: CT-02 Redis cache-aside + ARQ worker scaffold + ExportJob model + migration (CT-02)
+- [x] 03-03-PLAN.md — Wave 1: CT-02 Redis cache-aside + ARQ worker scaffold + ExportJob model + migration (CT-02)
 - [x] 03-04-PLAN.md — Wave 1: BILL-03 waiver workflow backend (POST /billing/waivers + approve/reject endpoints + RBAC) (BILL-03)
 - [x] 03-05-PLAN.md — Wave 1: RPT-01 analytics KPI endpoint + RPT-02 document expiry endpoint (RPT-01, RPT-02)
-- [ ] 03-06-PLAN.md — Wave 2: BILL-01 PDF (fpdf2 + DejaVuSans) + BILL-02 XLSX (openpyxl) + ARQ export jobs (BILL-01, BILL-02)
+- [x] 03-06-PLAN.md — Wave 2: BILL-01 PDF (fpdf2 + DejaVuSans) + BILL-02 XLSX (openpyxl) + ARQ export jobs (BILL-01, BILL-02)
 - [x] 03-07-PLAN.md — Wave 1: Tailwind v3 + shadcn@2.3.0 install in apps/manager + tailwind.config.ts + 10 components (D-01, D-02)
 - [x] 03-08-PLAN.md — Wave 2: Migrate SidebarLayout + ControlTowerOverview + CostMarginBoard to Tailwind + /analytics nav entry (D-03, D-05)
-- [ ] 03-09-PLAN.md — Wave 2: Migrate FleetComplianceBoard + BillingTripActions + FuelControlBoard + FleetHistoryBoard + Transport/Driver boards (D-03)
-- [ ] 03-10-PLAN.md — Wave 3: Waiver modals + export job polling UI in BillingTripActions (BILL-01, BILL-02, BILL-03 frontend)
-- [ ] 03-11-PLAN.md — Wave 3: /analytics page with KPI cards + driver summary + document expiry panel (RPT-01, RPT-02 frontend)
-- [ ] 03-12-PLAN.md — Wave 4: Phase 3 verification checkpoint (all backend tests + frontend build + full UX verification)
+- [x] 03-09-PLAN.md — Wave 2: Migrate FleetComplianceBoard + BillingTripActions + FuelControlBoard + FleetHistoryBoard + Transport/Driver boards (D-03)
+- [x] 03-10-PLAN.md — Wave 3: Waiver modals + export job polling UI in BillingTripActions (BILL-01, BILL-02, BILL-03 frontend)
+- [x] 03-11-PLAN.md — Wave 3: /analytics page with KPI cards + driver summary + document expiry panel (RPT-01, RPT-02 frontend)
+- [x] 03-12-PLAN.md — Wave 4: Phase 3 verification checkpoint (all backend tests + frontend build + full UX verification)
 
 **UI hint**: yes
 
@@ -255,27 +255,32 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Hardening + Deploy Foundation | 0/6 | Not started | - |
-| 2. PWA Offline-First Completion | 0/8 | Not started | - |
-| 3. Manager Dashboard + Reporting Layer | 0/12 | Not started | - |
-| 4. Production Hardening + Scale Preparation | 0/9 | Not started | - |
+| 1. Security Hardening + Deploy Foundation | 6/6 | Complete | 2026-06-06 |
+| 2. PWA Offline-First Completion | 7/8 | Field test pending | - |
+| 3. Manager Dashboard + Reporting Layer | 12/12 | Complete | 2026-06-06 |
+| 4. Production Hardening + Scale Preparation | 8/9 | RLS plan pending | - |
 
 ---
 
 ---
 
-# ROTAS — v2.0 Roadmap: Gestão de Clientes e Contas a Receber
+# ROTAS — v2.0 Roadmap: Plataforma Operacional Completa
 _Last updated: 2026-06-06_
 
 ---
 
 ## Overview (v2.0)
 
-**3 phases | 12 requirements | Milestone: Transform billing into a complete AR system**
+**8 phases | 32 requirements | Milestone: Transform ROTAS into a full operational platform**
 
-Phase 5 is the highest-risk phase of the milestone: it carries a live data migration (client_name → client_id) across two tables and establishes the schema foundation everything downstream depends on. Phase 6 cannot start until Phase 5 has zero NULL client_id rows confirmed. Phase 7 requires both the client entity (Phase 5) and payment records (Phase 6) to produce meaningful AR totals.
+This milestone extends ROTAS across five capability areas: financial client management (CLI/PAY/AR), production infrastructure hardening (INFRA), database-level tenant isolation (RLS), proactive communications and public SaaS onboarding (NOTIF/ONBRD), driver financial settlement (DESP), and GPS fleet visibility with customer tracking (GPS/TRK).
 
-The build order is determined by hard FK dependencies: clients must exist before payments can reference them, and payments must exist before aging can compute outstanding balances.
+**Execution sequencing advisory**: Phase 8 (INFRA) and Phase 9 (RLS) are infrastructure prerequisites that unlock subsequent phases. Although numbered 8-9, they should be executed before Phases 5-7 if Phase 4 plan 04-08 (RLS) has not yet completed. Phase 5 (CLI) explicitly depends on RLS infrastructure existing; Phase 10 (NOTIF+ONBRD) depends on Phase 8 tenant limits; Phase 12 (GPS+TRK) depends on Phase 9 RLS. WhatsApp template approval (4-6 weeks, external) must begin in parallel with Phase 8 execution. GPS device operator survey (2-4 weeks, external) must begin in parallel with Phase 8 execution.
+
+**Hard dependency chain**:
+- INFRA (Phase 8) → NOTIF+ONBRD (Phase 10) → DESP (Phase 11)
+- RLS (Phase 9) → GPS+TRK (Phase 12)
+- RLS (Phase 9) → CLI (Phase 5) → PAY (Phase 6) → AR (Phase 7)
 
 ---
 
@@ -284,6 +289,11 @@ The build order is determined by hard FK dependencies: clients must exist before
 - [ ] **Phase 5: Client Registry + Migration Foundation** — Clients become first-class entities; all existing contracts and invoices gain a client_id FK with zero data loss
 - [ ] **Phase 6: Payment Registration** — Managers can record total and partial payments against invoices, including advance payments
 - [ ] **Phase 7: Accounts Receivable + Aging Dashboard** — Client statements, aging buckets, AR KPIs, and PDF export complete the financial management loop
+- [ ] **Phase 8: Infrastructure Hardening** — Sentry error tracking, R2/S3 durable file storage, and tenant plan limit enforcement make ROTAS production-grade
+- [ ] **Phase 9: PostgreSQL RLS Policies** — Database-level tenant isolation across all 47+ tenant-owned tables as a second security layer
+- [ ] **Phase 10: Notifications + Self-Service Onboarding** — WhatsApp/email notification infrastructure and public registration enable SaaS launch
+- [ ] **Phase 11: Driver Financial Settlement (Despacho)** — Complete driver expense lifecycle: advance before departure, settlement after delivery, PDF document
+- [ ] **Phase 12: GPS Integration + Customer Tracking Portal** — Fleet map in manager dashboard, GPS webhook ingestion, shareable customer tracking links
 
 ---
 
@@ -293,7 +303,7 @@ The build order is determined by hard FK dependencies: clients must exist before
 
 **Goal**: A manager can create, search, and manage clients as first-class entities — and every existing contract and invoice is automatically associated with the correct client, with no data loss and no manual re-entry required.
 
-**Depends on**: Phase 4 (PostgreSQL RLS infrastructure must exist; Decimal type annotations must be clean; production deployment must be stable before a live data migration runs)
+**Depends on**: Phase 4 (PostgreSQL RLS infrastructure must exist — specifically plan 04-08 must complete, or Phase 9 must complete, before Phase 5 starts; Decimal type annotations must be clean; production deployment must be stable before a live data migration runs)
 
 **Requirements**: CLI-01, CLI-02, CLI-03, CLI-04, CLI-05
 
@@ -376,6 +386,148 @@ The build order is determined by hard FK dependencies: clients must exist before
 
 ---
 
+### Phase 8: Infrastructure Hardening
+
+**Goal**: Production errors are visible in real time, uploaded files survive server restarts, and tenants that exceed their plan limits are blocked before data integrity is compromised.
+
+**Depends on**: Nothing (infrastructure phase with no hard dependencies on other v2 phases — execute first or in parallel with Phase 9)
+
+**Requirements**: INFRA-01, INFRA-02, INFRA-03
+
+**Success Criteria** (what must be TRUE):
+  1. An unhandled exception in FastAPI, the ARQ worker, the Next.js manager, or the driver PWA appears as a Sentry event within 60 seconds — PII fields (driver name, cargo description, phone number) are absent from the Sentry payload
+  2. A delivery proof photo or billing PDF uploaded to ROTAS is retrievable after a Railway deploy (ephemeral disk wipe) — zero `storage_provider = local` records exist after the R2 migration completes
+  3. When a tenant attempts to create a vehicle beyond their `max_vehicles` limit, the API returns HTTP 403 with an `upgrade_url` field — the manager dashboard displays a usage warning banner when utilization reaches 80% of any plan limit
+
+**Architecture constraints**:
+- **Sentry**: `sentry_sdk.init()` in `backend/app/main.py` lifespan handler; `before_send` hook strips fields matching `["driver_name", "cargo_description", "phone", "nuit", "email"]` from all event extras and request data. `traces_sample_rate=0.05` in production. `@sentry/nextjs` wired in `next.config.mjs` for App Router. Driver PWA uses `@sentry/vite-plugin` in `vite.config.mjs`. ARQ worker initializes Sentry before starting the event loop.
+- **R2/S3**: Replace `boto3>=1.43` with `aiobotocore[boto3]>=3.7.0` in `pyproject.toml` — do not keep both, they conflict at the botocore layer. Implement dual-provider `storage.py` backend: `StorageProvider` enum with `LOCAL` and `R2` variants; `upload_file()` and `generate_presigned_url()` dispatch on `settings.storage_provider`. Migration script: iterate all `File` records with `storage_provider = "local"`, upload to R2, update record. Run migration before switching `settings.storage_provider` to `R2`. Verify zero local records before enabling the switch.
+- **Tenant limits**: Add `_check_vehicle_limit()`, `_check_driver_limit()`, `_check_user_limit()` guard functions called at the top of each `create_*` service function. Guards read `Tenant.max_vehicles` / `max_drivers` / `max_users` and compare against current counts. Return `ApiError("plan_limit_reached", ..., 403)` with `{"upgrade_url": settings.upgrade_url}` in the body. Cache tenant limit counts in Redis with TTL 30s to avoid per-request count queries. Dashboard `layout.tsx` fetches `GET /api/v1/tenant/limits` and renders a `<LimitWarningBanner>` component when any dimension is ≥ 80%.
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
+
+### Phase 9: PostgreSQL RLS Policies
+
+**Goal**: Tenant data is isolated at the database level — even if application-layer `tenant_id` filtering is accidentally removed, a cross-tenant data leak is impossible under the `rotas_app` role.
+
+**Depends on**: Nothing (standalone migration phase — execute before Phase 5 CLI, before Phase 12 GPS, and ideally before any new v2 migrations create new tables)
+
+**Requirements**: RLS-01, RLS-02, RLS-03
+
+**Success Criteria** (what must be TRUE):
+  1. All 47+ tables with `tenant_id` have `ENABLE ROW LEVEL SECURITY`, `FORCE ROW LEVEL SECURITY`, and a `CREATE POLICY` using `current_setting('app.tenant_id')` — confirmed by querying `pg_policies`
+  2. Alembic migrations and the ARQ worker operate without errors using the `rotas_admin` (BYPASSRLS) role — `ALEMBIC_DATABASE_URL` and `ADMIN_DATABASE_URL` are distinct from `DATABASE_URL` and configured in Railway
+  3. The cross-tenant test suite passes under `rotas_app` role — a query for tenant A's vehicles returns zero rows when the session `app.tenant_id` is set to tenant B's ID, with no explicit `WHERE tenant_id` filter in the query
+
+**Architecture constraints**:
+- **SET LOCAL vs SET**: The `after_begin` event listener in `database.py` must use `SET LOCAL app.tenant_id = ...` not `SET app.tenant_id = ...`. `SET` persists on pooled asyncpg connections and causes the next request reusing that connection to execute under the wrong tenant with no error raised. Verify this in the existing `database.py` before the migration runs.
+- **Role separation**: Three database URLs must exist in Railway config: `DATABASE_URL` (connects as `rotas_app` role — subject to RLS), `ALEMBIC_DATABASE_URL` (connects as `rotas_admin` — BYPASSRLS, for schema migrations), `ADMIN_DATABASE_URL` (connects as `rotas_admin` — BYPASSRLS, for ARQ cross-tenant jobs). All three must be configured before any RLS policy migration runs.
+- **Migration structure**: Single Alembic migration file. For each of the 47+ tenant-owned tables: `ALTER TABLE {table} ENABLE ROW LEVEL SECURITY; ALTER TABLE {table} FORCE ROW LEVEL SECURITY; CREATE POLICY rls_{table} ON {table} USING (tenant_id::text = current_setting('app.tenant_id', true));`. Tables without `tenant_id` (e.g., `tenants`, `idempotency_keys`) are explicitly excluded with a comment.
+- **New tables created in v2.0**: Every new table with `tenant_id` created in Phases 5-12 must include its RLS policy in the CREATE TABLE migration — not as a follow-up patch. This is mandatory for `clients`, `client_payments`, `payment_allocations`, `driver_advances`, `trip_settlements`, `gps_positions`, `gps_devices`, `vehicle_last_position`, `tracking_tokens`.
+- **Confirmation gate**: After migration runs, execute `SELECT tablename FROM pg_policies WHERE policyname LIKE 'rls_%'` and compare count against expected 47+ tables. Any gap is a blocker before Phase 5 starts.
+- **WhatsApp template parallel activity**: Draft and submit all 7 WhatsApp message templates to Meta for approval during Phase 9 execution. Templates needed: `trip_dispatched`, `delivery_completed`, `eta_update`, `document_expiring`, `settlement_approved`, `settlement_disputed`, `driver_blocked`. Meta approval takes 1-3 days per template; business verification takes 5-14 days. Submitting during Phase 9 ensures approval before Phase 10 (NOTIF) begins.
+
+**Plans**: TBD
+
+**UI hint**: no
+
+---
+
+### Phase 10: Notifications + Self-Service Onboarding
+
+**Goal**: Any Mozambican transportadora can register for ROTAS without contacting anyone — and once registered, the system proactively notifies managers about document expirations and drivers about settlement decisions via WhatsApp, with email as fallback.
+
+**Depends on**: Phase 8 (tenant limits must be enforced before public registration opens — PITFALL-19: new tenants created before limits are enforced can exceed plan constraints with no guard); WhatsApp templates must be approved by Meta before this phase closes (submitted during Phase 9)
+
+**Requirements**: NOTIF-01, NOTIF-02, NOTIF-03, ONBRD-01
+
+**Success Criteria** (what must be TRUE):
+  1. A fleet manager at a Mozambican transportadora not yet in ROTAS can complete the public registration form with company name, NUIT, and email — and receive an email verification link that activates their tenant account
+  2. A manager whose vehicle document expires in 30 days receives a WhatsApp message from the ROTAS business number — without any manual export or spreadsheet check
+  3. A manager contact without confirmed WhatsApp opt-in receives the same alert via email — the system never sends WhatsApp to unconfirmed numbers
+  4. All notification dispatch is non-blocking — the HTTP handler enqueues an ARQ task and returns immediately; delivery happens asynchronously with 3-attempt exponential backoff
+
+**Architecture constraints**:
+- **New modules**: `backend/app/modules/notifications/` (template management, notification log, ARQ dispatch tasks) and `backend/app/modules/onboarding/` (public registration flow, atomic tenant+owner creation)
+- **Onboarding**: `POST /api/v1/onboarding/register` uses `get_session_raw` (no JWT — public endpoint). Creates `Tenant` + `User` (role=owner) in a single atomic transaction. Sets `tenant.is_active = False` until email verification completes. Uses `itsdangerous.URLSafeTimedSerializer` to generate the verification token (stateless — no token DB table). Token embedded in `GET /api/v1/onboarding/verify?token=...` link sent by email. `IntegrityError` on duplicate NUIT must be caught and re-raised as `ApiError("slug_already_taken", ..., 409)`.
+- **Notifications**: `notification_templates` table stores approved Meta template names and parameter schemas. `notification_log` table records every dispatch attempt with status (queued/sent/failed/skipped). ARQ task `task_send_whatsapp(notification_id)` calls WhatsApp Business Cloud API v22.0 with retry policy: attempt 1 after 30s, attempt 2 after 5min, attempt 3 after 30min. `task_send_email(notification_id)` uses `aiosmtplib` for async SMTP — does not block the FastAPI event loop.
+- **Opt-in guard**: `dispatch_notification()` service function checks `contact.whatsapp_opt_in_confirmed` before enqueuing WhatsApp task. If false: enqueue email task instead. Never send WhatsApp to unconfirmed number — Meta suspends accounts for this (PITFALL-10). Add `whatsapp_opt_in_confirmed: bool = False` field to `Driver` model and customer contact model in this phase.
+- **Phone normalization**: All phone number fields validated and normalized to E.164 format (`+258...`) using `phonenumbers` library at input — in `Pydantic` validators on schemas. Prevents silent WhatsApp API failures from malformed numbers.
+- **BSP selection**: Resolve 360dialog vs direct Meta Cloud API before planning this phase. 360dialog recommended for launch (handles message routing + WABA provisioning); direct Meta Cloud API requires separate WABA setup.
+- **Next.js public pages**: `/register` and `/register/verify` routes excluded from `apps/manager/middleware.ts` auth redirect matcher. Server components only — no client-side auth state.
+- **Stripe**: Wire Stripe subscription webhook handler (`POST /api/v1/stripe/webhook`) in this phase even if checkout is disabled for v2.0. Subscription lifecycle events (`customer.subscription.updated`, `customer.subscription.deleted`) update `tenant.plan` field. Enables v2.1 to activate checkout without backend changes.
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
+
+### Phase 11: Driver Financial Settlement (Despacho)
+
+**Goal**: A manager can issue a cash advance to a driver before departure, and after the trip closes, compute, approve, and generate a PDF document for the financial settlement — with full audit trail and multi-currency support for cross-border routes.
+
+**Depends on**: Phase 10 (WhatsApp notification infrastructure must exist — settlement approval triggers WhatsApp notification to driver; DESP-03 explicitly requires notification dispatch)
+
+**Requirements**: DESP-01, DESP-02, DESP-03, DESP-04, DESP-05
+
+**Success Criteria** (what must be TRUE):
+  1. A manager can issue a cash advance to a driver for a specific trip, specifying amount, payment method, and disbursement date — the advance appears on the trip record with status `pending` until the manager marks it `disbursed`
+  2. After a trip closes, the system computes the settlement automatically: advance minus approved driver-paid expenses equals the balance, with sign indicating who owes whom
+  3. A manager can approve or dispute a settlement with a written justification — the driver receives a WhatsApp notification within 5 minutes of the decision; the settlement state is recorded in the audit log
+  4. A PDF settlement document is generated by the ARQ worker listing all expenses, the advance amount, the final balance, and the settlement date — the manager can download it from the trip detail page
+  5. A cross-border trip with ZAR-denominated expenses can be reconciled — the manager enters the MZN/ZAR exchange rate at reconciliation time and all amounts are converted to MZN in the settlement document
+
+**Architecture constraints**:
+- **New tables**: `driver_advances` and `trip_settlements` created within the existing `trips` module. `driver_advances` schema: `(id, trip_id, driver_id, tenant_id, amount Numeric(10,2), currency char(3), method varchar, status enum[pending/disbursed/cancelled], disbursed_at, created_by, created_at)`. `trip_settlements` schema: `(id, trip_id, driver_id, tenant_id, advance_total Numeric(10,2), expense_total Numeric(10,2), balance Numeric(10,2), currency char(3), status enum[draft/pending_approval/approved/disputed], approved_by, approved_at, dispute_reason, costs_reconciled_at, created_at)`. Both tables require RLS policies in their CREATE TABLE migration.
+- **Settlement computation**: `compute_settlement()` in `trips/despacho.py` queries `trip_costs WHERE paid_by = 'driver' AND approved = true` — never creates a parallel expense ledger (PITFALL-03). Sum of approved driver-paid costs = `expense_total`. `balance = advance_total - expense_total`. Positive balance means company owes driver; negative means driver owes company.
+- **State machine**: `driver_advances` follows `pending → disbursed → cancelled` (no backward transitions). `trip_settlements` follows `draft → pending_approval → approved | disputed`. Settlement creation sets `costs_reconciled_at` timestamp. Finalization re-reads `trip_costs` at approval time to catch any cost changes since draft — optimistic lock check: if `trip_costs` modified after `costs_reconciled_at`, reject with `409 settlement_costs_changed` (PITFALL-04).
+- **Multi-currency**: `DESP-05` — `trip_settlements` stores `fx_rate Numeric(10,6)` and `base_currency char(3)`. When trip has ZAR expenses, manager POSTs `{"fx_rate_mzn_zar": 1.23}` to the settlement endpoint. `compute_settlement()` converts each ZAR cost: `mzn_amount = zar_amount * fx_rate`. Settlement PDF always rendered in MZN. No automatic FX rate fetching — manual entry only.
+- **ARQ task**: `task_generate_settlement_pdf(settlement_id)` generates PDF using `fpdf2 + DejaVuSans.ttf` (same pattern as billing PDF). Stores result as a `File` record via the files module (R2 storage — Phase 8 must be complete). Manager downloads via `GET /api/v1/trips/{trip_id}/settlement/pdf`.
+- **Dexie schema**: If any settlement entity needs to be in the driver PWA sync queue (e.g., advance acknowledgment), `db.version()` must be incremented in `apps/driver/src/db.ts` — schema version bump is required or Dexie throws a schema version error (PITFALL-17). Assess scope before implementation.
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
+
+### Phase 12: GPS Integration + Customer Tracking Portal
+
+**Goal**: A fleet manager can see every vehicle's current position on a live map, and a client can follow their shipment via a shareable link — without installing any app or logging into ROTAS.
+
+**Depends on**: Phase 9 (RLS policies must exist before `gps_positions` table is created — GPS data is tenant-scoped and must be covered by policy at creation time); GPS device operator survey must be completed before implementation begins (external dependency — start survey during Phase 8 execution)
+
+**Requirements**: GPS-01, GPS-02, GPS-03, TRK-01, TRK-02
+
+**Success Criteria** (what must be TRUE):
+  1. A Teltonika or Coban GPS device configured to HTTP POST mode sends a position event to `POST /api/v1/gps/webhook/{imei}` and the position appears on the fleet map within 15 seconds — the webhook rejects requests with invalid HMAC signatures
+  2. A manager opens the fleet map in the dashboard and sees every vehicle's last known position as a pin — pins older than 5 minutes display a staleness indicator; the map refreshes every 10 seconds without a full page reload
+  3. A manager generates a tracking link for an active trip and shares it with the client — the client opens the link without logging in, sees the delivery status, last position in text form, and any delivery proof photo
+  4. The tracking page auto-refreshes every 5 minutes and shows a visual indicator when position data is more than 5 minutes old
+  5. The GPS webhook endpoint rejects more than 60 events per minute per IMEI — burst from misconfigured devices cannot degrade the database
+
+**Architecture constraints**:
+- **New modules**: `backend/app/modules/gps/` (webhook ingestion, device registration, HMAC auth, position storage) and `backend/app/modules/tracking/` (token generation, public payload assembly)
+- **GPS tables**: `gps_positions` (append-only, monthly PostgreSQL declarative partitions — `PARTITION BY RANGE (recorded_at)`, one partition per month, 90-day retention ARQ cron). `gps_devices` (IMEI registry: `imei`, `tenant_id`, `vehicle_id`, `device_secret` for HMAC, `is_active`). `vehicle_last_position` (upsert table for fast fleet map reads: `vehicle_id PK`, `lat`, `lon`, `speed`, `heading`, `recorded_at`, `updated_at`). All three tables require RLS policies in their CREATE TABLE migration.
+- **Webhook auth**: `POST /api/v1/gps/webhook/{imei}` uses `get_session_raw` (no JWT). HMAC-SHA256 validation: `expected = hmac.new(device_secret, request_body, sha256).hexdigest()`. Compare against `X-Device-Signature` header using `hmac.compare_digest()`. Resolve `tenant_id` and `vehicle_id` from `gps_devices` table after HMAC passes — never before. An attacker who knows an IMEI cannot inject positions without the device secret (PITFALL-08).
+- **Position normalization**: GPS devices (Teltonika FMB, Coban GT06) emit different JSON schemas. Normalization layer maps device-specific fields to internal schema: `{lat, lon, speed_kmh, heading_deg, accuracy_m, recorded_at}`. Obtain actual JSON payload samples from operators before implementing — device firmware version affects field names (MEDIUM confidence in research).
+- **Fleet map**: `GET /api/v1/gps/vehicles/latest` returns one row per vehicle from `vehicle_last_position` — never queries `gps_positions` directly for live display. Manager dashboard uses React Query `refetchInterval: 10000`. SSE upgrade (`sse-starlette`) is a Phase 12 enhancement if polling proves insufficient.
+- **Tracking tokens**: `tracking_tokens` table: `(id, trip_id, tenant_id, token varchar(64), expires_at, created_by, created_at)`. Token is 256 bits of `secrets.token_urlsafe(32)`. `POST /api/v1/tracking-tokens` (manager auth) creates token. `GET /api/v1/public/track/{token}` (no auth, `get_session_raw`) returns public payload: delivery status, last known position text, delivery proof photo URL if available. Rate limited to 30 req/min per IP via `slowapi` (PITFALL-05).
+- **Next.js tracking page**: `/track/[token]` is a Server Component. Excluded from `middleware.ts` auth matcher. Fetches from `/api/v1/public/track/{token}`. Staleness indicator: if `position.recorded_at < now - 5min`, show amber badge "Posição desactualizada". Page must be under 50KB total (low-end Android browsers on shared mobile data — no heavy map library on the tracking page; text-format position only unless interactive map is explicitly requested).
+- **ETA calculation**: GPS-03 — `GET /api/v1/trips/{id}/eta` computes estimated arrival using Haversine distance from `vehicle_last_position` to trip destination in `known_routes`, divided by `vehicle_last_position.speed_kmh`. Returns `null` when speed is 0 or position is stale. No PostGIS required — Haversine in Python is sufficient for < 200 vehicles.
+- **Storage bloat prevention**: 50 vehicles at 30s intervals = 120,000 rows/day. Monthly partitions are mandatory from day one (PITFALL-07). ARQ cron `task_expire_gps_partitions()` drops partitions older than 90 days.
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
+
 ## Coverage Check (v2.0)
 
 | Requirement | Phase | Category |
@@ -392,8 +544,28 @@ The build order is determined by hard FK dependencies: clients must exist before
 | AR-02 | Phase 7 | Accounts Receivable |
 | AR-03 | Phase 7 | Accounts Receivable |
 | AR-04 | Phase 7 | Accounts Receivable |
+| INFRA-01 | Phase 8 | Infrastructure |
+| INFRA-02 | Phase 8 | Infrastructure |
+| INFRA-03 | Phase 8 | Infrastructure |
+| RLS-01 | Phase 9 | Security |
+| RLS-02 | Phase 9 | Security |
+| RLS-03 | Phase 9 | Security |
+| NOTIF-01 | Phase 10 | Notifications |
+| NOTIF-02 | Phase 10 | Notifications |
+| NOTIF-03 | Phase 10 | Notifications |
+| ONBRD-01 | Phase 10 | Onboarding |
+| DESP-01 | Phase 11 | Settlement |
+| DESP-02 | Phase 11 | Settlement |
+| DESP-03 | Phase 11 | Settlement |
+| DESP-04 | Phase 11 | Settlement |
+| DESP-05 | Phase 11 | Settlement |
+| GPS-01 | Phase 12 | GPS |
+| GPS-02 | Phase 12 | GPS |
+| GPS-03 | Phase 12 | GPS |
+| TRK-01 | Phase 12 | Tracking |
+| TRK-02 | Phase 12 | Tracking |
 
-**Total v2.0 requirements mapped: 12/12**
+**Total v2.0 requirements mapped: 32/32**
 
 ---
 
@@ -404,3 +576,8 @@ The build order is determined by hard FK dependencies: clients must exist before
 | 5. Client Registry + Migration Foundation | 0/TBD | Not started | - |
 | 6. Payment Registration | 0/TBD | Not started | - |
 | 7. Accounts Receivable + Aging Dashboard | 0/TBD | Not started | - |
+| 8. Infrastructure Hardening | 0/TBD | Not started | - |
+| 9. PostgreSQL RLS Policies | 0/TBD | Not started | - |
+| 10. Notifications + Self-Service Onboarding | 0/TBD | Not started | - |
+| 11. Driver Financial Settlement (Despacho) | 0/TBD | Not started | - |
+| 12. GPS Integration + Customer Tracking Portal | 0/TBD | Not started | - |

@@ -6,6 +6,10 @@ import type {
   FleetHistoryLoadResult,
   VehicleHistory,
 } from "../lib/fleet-history-api";
+import { MonoCell } from "@/app/components/ui/MonoCell";
+import { PageHeader } from "@/app/components/ui/PageHeader";
+import { DataSourceBadge } from "@/app/components/ui/DataSourceBadge";
+import { EmptyStateInline } from "@/app/components/ui/EmptyState";
 
 interface FleetHistoryBoardProps {
   result: FleetHistoryLoadResult;
@@ -13,21 +17,13 @@ interface FleetHistoryBoardProps {
 
 export function FleetHistoryBoard({ result }: FleetHistoryBoardProps) {
   return (
-    <section className="domain-section" aria-labelledby="fleet-history-title">
-      <div className="domain-heading">
-        <div className="title">
-          <span className="eyebrow">Frota e Pessoas</span>
-          <h2 id="fleet-history-title">Históricos separados</h2>
-          <p>Trilhas operacionais independentes para viatura e motorista.</p>
-        </div>
-      </div>
-
-      <div className={`data-source ${result.source}`}>
-        <History size={15} />
-        <span>
-          {result.source === "api" ? "Históricos carregados da API ROTAS." : result.message}
-        </span>
-      </div>
+    <section className="mt-6" aria-labelledby="fleet-history-title">
+      <PageHeader
+        eyebrow="Frota e Pessoas"
+        title="Históricos separados"
+        description="Trilhas operacionais independentes para viatura e motorista."
+        actions={<DataSourceBadge source={result.source} message={result.message ?? undefined} />}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" aria-label="Historicos de frota">
         <VehicleTimeline history={result.vehicleHistory} />
@@ -39,13 +35,13 @@ export function FleetHistoryBoard({ result }: FleetHistoryBoardProps) {
 
 function VehicleTimeline({ history }: { history: VehicleHistory }) {
   return (
-    <article className="bg-panel border border-line rounded-lg overflow-hidden">
+    <article className="bg-surface border border-border rounded-lg overflow-hidden">
       <header className="history-header">
         <span className="queue-icon blue">
           <Truck size={16} />
         </span>
         <div>
-          <h3>{history.vehicle.plate}</h3>
+          <h3><MonoCell size="sm">{history.vehicle.plate}</MonoCell></h3>
           <p>
             {statusLabel(history.vehicle.status)} · {formatNumber(history.vehicle.currentKm)} km
           </p>
@@ -58,7 +54,7 @@ function VehicleTimeline({ history }: { history: VehicleHistory }) {
 
 function DriverTimeline({ history }: { history: DriverHistory }) {
   return (
-    <article className="bg-panel border border-line rounded-lg overflow-hidden">
+    <article className="bg-surface border border-border rounded-lg overflow-hidden">
       <header className="history-header">
         <span className="queue-icon green">
           <UserRound size={16} />
@@ -83,14 +79,14 @@ function Timeline({
   relatedKey: "driver_id" | "vehicle_id";
 }) {
   if (events.length === 0) {
-    return <p className="empty-state">Sem eventos registados.</p>;
+    return <EmptyStateInline label="Sem eventos registados." />;
   }
 
   return (
     <div className="history-list">
       {events.map((event) => (
         <div
-          className="px-4 py-3 flex items-start gap-3 border-b border-line last:border-0"
+          className="px-4 py-3 flex items-start gap-3 border-b border-border last:border-0"
           key={`${event.referenceType}:${event.referenceId}`}
         >
           <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${sourceToneClass(event.source)}`}>
@@ -103,7 +99,7 @@ function Timeline({
             </div>
             <p>{formatSummary(event.summary)}</p>
             <small>
-              {sourceLabel(event.source)} · {shortReference(event.referenceId)}
+              {sourceLabel(event.source)} · <MonoCell size="xs">{shortReference(event.referenceId)}</MonoCell>
               {typeof event.details[relatedKey] === "string"
                 ? ` · ${relatedLabel(relatedKey)} ${shortReference(event.details[relatedKey])}`
                 : ""}
@@ -125,11 +121,11 @@ function EventIcon({ event }: { event: FleetHistoryEvent }) {
 }
 
 function sourceToneClass(source: string) {
-  if (source.includes("fuel")) return "bg-cyan";
-  if (source === "checklists") return "bg-green";
-  if (source === "incidents" || source === "operations") return "bg-orange";
-  if (source === "audit") return "bg-blue";
-  return "bg-red";
+  if (source.includes("fuel")) return "bg-info";
+  if (source === "checklists") return "bg-success";
+  if (source === "incidents" || source === "operations") return "bg-warning";
+  if (source === "audit") return "bg-info";
+  return "bg-error";
 }
 
 function sourceLabel(source: string) {

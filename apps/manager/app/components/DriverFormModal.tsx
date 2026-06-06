@@ -25,8 +25,10 @@ export function DriverFormModal({ driver }: { driver?: Driver }) {
       license_number: fd.get("license_number"),
       license_category: fd.get("license_category"),
       license_valid_until: fd.get("license_valid_until"),
-      inatter_license: fd.get("inatter_license") || undefined,
-      inatter_valid_until: fd.get("inatter_valid_until") || undefined,
+      passport_number: fd.get("passport_number") || undefined,
+      passport_valid_until: fd.get("passport_valid_until") || undefined,
+      bi_number: fd.get("bi_number") || undefined,
+      bi_valid_until: fd.get("bi_valid_until") || undefined,
       employment_type: fd.get("employment_type"),
     };
     if (isEdit) payload.id = driver.id;
@@ -78,8 +80,12 @@ export function DriverFormModal({ driver }: { driver?: Driver }) {
               </div>
               <label>Validade carta<input name="license_valid_until" type="date" defaultValue={driver?.license_valid_until?.slice(0, 10)} required /></label>
               <div className="form-row">
-                <label>INATTER<input name="inatter_license" defaultValue={driver?.inatter_license ?? ""} /></label>
-                <label>Validade INATTER<input name="inatter_valid_until" type="date" defaultValue={driver?.inatter_valid_until?.slice(0, 10) ?? ""} /></label>
+                <label>Nº Passaporte<input name="passport_number" defaultValue={driver?.passport_number ?? ""} placeholder="Ex: P123456789" /></label>
+                <label>Validade Passaporte<input name="passport_valid_until" type="date" defaultValue={driver?.passport_valid_until?.slice(0, 10) ?? ""} /></label>
+              </div>
+              <div className="form-row">
+                <label>Nº B.I.<input name="bi_number" defaultValue={driver?.bi_number ?? ""} placeholder="Ex: 123456789B001MZ" /></label>
+                <label>Validade B.I.<input name="bi_valid_until" type="date" defaultValue={driver?.bi_valid_until?.slice(0, 10) ?? ""} /></label>
               </div>
               <label>Vínculo
                 <select name="employment_type" defaultValue={driver?.employment_type ?? "efectivo"}>

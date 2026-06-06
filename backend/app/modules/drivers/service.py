@@ -37,8 +37,10 @@ def serialize_driver(driver: Driver) -> dict:
         "license_number": driver.license_number,
         "license_category": driver.license_category,
         "license_valid_until": driver.license_valid_until,
-        "inatter_license": driver.inatter_license,
-        "inatter_valid_until": driver.inatter_valid_until,
+        "passport_number": driver.passport_number,
+        "passport_valid_until": driver.passport_valid_until,
+        "bi_number": driver.bi_number,
+        "bi_valid_until": driver.bi_valid_until,
         "inss_number": driver.inss_number,
         "employment_type": driver.employment_type,
         "documents": driver.documents,
@@ -628,10 +630,10 @@ async def renew_driver_document(
     *,
     actor_id: UUID | None = None,
 ) -> dict:
-    if document_type not in {"driving_license", "inatter_license"}:
+    if document_type not in {"driving_license", "passport", "bi"}:
         raise ApiError(
             "unsupported_driver_document",
-            "Supported driver documents are driving_license and inatter_license.",
+            "Supported driver documents are driving_license, passport and bi.",
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             details={"document_type": document_type},
         )
@@ -663,10 +665,14 @@ async def renew_driver_document(
         driver.license_valid_until = payload.valid_until
         if payload.reference:
             driver.license_number = payload.reference
-    if document_type == "inatter_license":
-        driver.inatter_valid_until = payload.valid_until
+    if document_type == "passport":
+        driver.passport_valid_until = payload.valid_until
         if payload.reference:
-            driver.inatter_license = payload.reference
+            driver.passport_number = payload.reference
+    if document_type == "bi":
+        driver.bi_valid_until = payload.valid_until
+        if payload.reference:
+            driver.bi_number = payload.reference
 
     await db.flush()
     await db.refresh(driver)

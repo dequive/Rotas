@@ -38,9 +38,12 @@ export default async function MotoristasPage() {
               <tr>
                 <th>Nome</th>
                 <th>Telefone</th>
-                <th>Carta</th>
+                <th>Carta de Condução</th>
                 <th>Validade carta</th>
-                <th>INATTER</th>
+                <th>Passaporte</th>
+                <th>Val. passaporte</th>
+                <th>B.I.</th>
+                <th>Val. B.I.</th>
                 <th>Score</th>
                 <th>Estado</th>
                 <th>Acções</th>
@@ -49,7 +52,7 @@ export default async function MotoristasPage() {
             <tbody>
               {drivers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="empty-row">Sem motoristas registados.</td>
+                  <td colSpan={11} className="empty-row">Sem motoristas registados.</td>
                 </tr>
               ) : (
                 drivers.map((d) => {
@@ -68,7 +71,10 @@ export default async function MotoristasPage() {
                         <span className="muted-line">Cat. {d.license_category}</span>
                       </td>
                       <td>{formatDate(d.license_valid_until)}</td>
-                      <td>{d.inatter_license ?? "-"}</td>
+                      <td>{d.passport_number ?? <span className="muted-line">—</span>}</td>
+                      <td>{d.passport_valid_until ? formatDate(d.passport_valid_until) : <span className="muted-line">—</span>}</td>
+                      <td>{d.bi_number ?? <span className="muted-line">—</span>}</td>
+                      <td>{d.bi_valid_until ? formatDate(d.bi_valid_until) : <span className="muted-line">—</span>}</td>
                       <td>
                         <span className={`badge ${d.score >= 80 ? "green" : d.score >= 50 ? "orange" : "red"}`}>
                           {d.score}

@@ -242,7 +242,8 @@ function exceptionTypeLabel(value: string) {
 function documentTypeLabel(value: string) {
   const labels: Record<string, string> = {
     driving_license: "Carta de condução",
-    inatter_license: "Licença INATTER",
+    passport: "Passaporte",
+    bi: "Bilhete de Identidade",
     inspection: "Inspecção",
     insurance: "Seguro",
   };

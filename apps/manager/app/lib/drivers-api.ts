@@ -8,8 +8,10 @@ export interface Driver {
   license_number: string;
   license_category: string;
   license_valid_until: string;
-  inatter_license: string | null;
-  inatter_valid_until: string | null;
+  passport_number: string | null;
+  passport_valid_until: string | null;
+  bi_number: string | null;
+  bi_valid_until: string | null;
   employment_type: string;
   status: string;
   score: number;
@@ -22,8 +24,10 @@ export interface CreateDriverPayload {
   license_number: string;
   license_category: string;
   license_valid_until: string;
-  inatter_license?: string;
-  inatter_valid_until?: string;
+  passport_number?: string;
+  passport_valid_until?: string;
+  bi_number?: string;
+  bi_valid_until?: string;
   employment_type: string;
 }
 

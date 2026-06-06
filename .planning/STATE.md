@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
 milestone: v2.0
-milestone_name: plataforma-operacional-completa
-status: Roadmap defined — ready for Phase 8 planning (execute 8+9 before 5)
-last_updated: "2026-06-06T12:00:00.000Z"
+milestone_name: milestone
+status: "Roadmap expanded to 8 phases (5-12) — awaiting `/gsd:plan-phase 8`"
+last_updated: "2026-06-06T19:32:41.109Z"
 last_activity: 2026-06-06
 progress:
-  total_phases: 8
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_phases: 13
+  completed_phases: 3
+  total_plans: 43
+  completed_plans: 35
 ---
 
 # ROTAS — Project State
@@ -20,10 +20,10 @@ _Last updated: 2026-06-06_
 
 ## Current Phase
 
-Phase: 5 — Client Registry + Migration Foundation (awaiting Phase 8 + 9 prerequisites)
-Plan: Not started
-Status: Roadmap expanded to 8 phases (5-12) — awaiting `/gsd:plan-phase 8`
-Last activity: 2026-06-06 — v2.0 roadmap expanded from 3 phases (CLI/PAY/AR) to 8 phases (adds INFRA/RLS/NOTIF+ONBRD/DESP/GPS+TRK); 32/32 requirements mapped
+Phase: 4.1 — UI Design System and Component Library
+Plan: 02 (04.1-01 complete)
+Status: In Progress — Plan 01 complete (CSS foundation, design tokens, IBM Plex Mono, 6 shadcn components)
+Last activity: 2026-06-06
 
 ---
 
@@ -48,10 +48,16 @@ Phase 12 (GPS+TRK) — requires Phase 9 complete + GPS device survey complete
 
 ## Accumulated Context (v2.0)
 
+### Roadmap Evolution
+
+- Phase 4.1 inserted after Phase 4: UI Design System and Component Library (URGENT — foundational for all v2.0 UI work)
+
 ### Key Decisions
 
 | Decision | Phase | Rationale |
 |----------|-------|-----------|
+| muted Tailwind token → var(--muted-color) not var(--muted) | 4.1 | Prevents HSL token (#213 27% 96% background surface) from being used as text color |
+| Legacy CSS classes stay outside @layer base | 4.1 | .shell, .sidebar etc. are regular CSS rules; wrapping in layer would break cascade order |
 | SEC-05 (python-jose → PyJWT) first in Phase 1 | 1 | Active CVE — auth bypass active before any external user |
 | Cross-tenant regression tests before CT-01 | 1 → 3 | CT-01 query rewrite is highest-risk window for cross-tenant data leaks |
 | ARQ for background jobs (PDF, XLSX, KPI refresh) | 3 | Uses Redis already provisioned; asyncio-native; avoids blocking HTTP responses |

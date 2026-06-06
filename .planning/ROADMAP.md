@@ -299,6 +299,24 @@ This milestone extends ROTAS across five capability areas: financial client mana
 
 ## Phase Details (v2.0)
 
+### Phase 04.1: UI Design System and Component Library (INSERTED)
+
+**Goal:** Every page in the manager app uses consistent design tokens, shared primitive components, and delivers a premium B2B SaaS experience with IBM Plex Mono on all data values and amber as the sole accent color.
+
+**Requirements**: DS-01, DS-02, DS-03, DS-04, DS-05, DS-07, DS-08, DS-09
+**Depends on:** Phase 4
+**Plans:** 8 plans
+
+Plans:
+- [ ] 04.1-01-PLAN.md — Wave 1: CSS foundation fix (remove oklch override, consolidate @layer base, extend Tailwind config, install shadcn components)
+- [ ] 04.1-02-PLAN.md — Wave 2: Core primitives A (StatusBadge, KpiCard, PageHeader, SectionHeader, WorkQueue)
+- [ ] 04.1-03-PLAN.md — Wave 2: Core primitives B (DataTable, MonoCell, MoneyCell, EmptyState, DataSourceBadge)
+- [ ] 04.1-04-PLAN.md — Wave 3: SidebarLayout redesign (4 grouped sections, amber active indicator)
+- [ ] 04.1-05-PLAN.md — Wave 4: Migrate ControlTowerOverview + FleetComplianceBoard
+- [ ] 04.1-06-PLAN.md — Wave 4: Migrate FuelControlBoard + FleetHistoryBoard + TransportCargoBoard + CostMarginBoard
+- [ ] 04.1-07-PLAN.md — Wave 5: Migrate page.tsx billing section
+- [ ] 04.1-08-PLAN.md — Wave 6: Legacy CSS cleanup + visual checkpoint
+
 ### Phase 5: Client Registry + Migration Foundation
 
 **Goal**: A manager can create, search, and manage clients as first-class entities â€” and every existing contract and invoice is automatically associated with the correct client, with no data loss and no manual re-entry required.

@@ -156,30 +156,42 @@ def driver_compliance_violations(
     *,
     policy: dict | None = None,
 ) -> list[dict]:
+    """Return compliance violations for a driver.
+
+    Checks driving_license, passport, and bi — mirroring driver_compliance_warnings()
+    coverage. Violations are:
+    - missing_document: document is required by policy but valid_until is None
+    - expired_document: valid_until is in the past
+
+    Default required set (when policy has no driver_required_documents):
+    {"driving_license", "passport", "bi"} — same as warnings behavior.
+    """
     policy = policy or {}
     today = _today()
     violations = []
     required_documents = set(_required_documents(policy, "driver_required_documents"))
-    if "driving_license" in required_documents and driver.license_valid_until is None:
-        violations.append({"code": "missing_document", "document_type": "driving_license"})
-    if "license" in required_documents and driver.license_valid_until is None:
-        violations.append({"code": "missing_document", "document_type": "license"})
-    if driver.license_valid_until and driver.license_valid_until < today:
-        violations.append(
-            {
-                "code": "expired_document",
-                "document_type": "driving_license",
-                "valid_until": driver.license_valid_until.isoformat(),
-            }
-        )
-    if driver.license_valid_until and driver.license_valid_until < today:
-        violations.append(
-            {
-                "code": "expired_document",
-                "document_type": "license",
-                "valid_until": driver.license_valid_until.isoformat(),
-            }
-        )
+    if not required_documents:
+        required_documents = {"driving_license", "passport", "bi"}
+
+    candidates = {
+        "driving_license": driver.license_valid_until,
+        "passport":        driver.passport_valid_until,
+        "bi":              driver.bi_valid_until,
+    }
+    for document_type, valid_until in candidates.items():
+        if document_type not in required_documents:
+            continue
+        if valid_until is None:
+            violations.append({"code": "missing_document", "document_type": document_type})
+            continue
+        if valid_until < today:
+            violations.append(
+                {
+                    "code": "expired_document",
+                    "document_type": document_type,
+                    "valid_until": valid_until.isoformat(),
+                }
+            )
     return violations
 
 

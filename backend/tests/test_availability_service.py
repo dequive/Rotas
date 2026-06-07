@@ -122,48 +122,45 @@ def test_all_three_expired_produces_three_violations():
 
 
 # ---------------------------------------------------------------------------
-# Test 6: Empty driver_required_documents defaults to {driving_license, passport, bi}
+# Test 6: Expired docs are always violations regardless of policy
 # ---------------------------------------------------------------------------
 
-def test_empty_required_documents_defaults_to_all_three():
+def test_expired_docs_always_violate_regardless_of_policy():
+    """expired_document is raised for any expired field — no policy required."""
     yesterday = _today() - timedelta(days=1)
     driver = _driver(
         license_valid_until=yesterday,
         passport_valid_until=yesterday,
         bi_valid_until=yesterday,
     )
-    # Empty list in policy — should default to all three
+    # Empty required_documents — but expired dates still produce violations
     policy = {"driver_required_documents": []}
     violations = driver_compliance_violations(driver, policy=policy)
     expired_doc_types = {
         v["document_type"] for v in violations if v["code"] == "expired_document"
     }
     assert expired_doc_types == {"driving_license", "passport", "bi"}, (
-        f"Empty required_documents should default to all three docs, got: {violations}"
+        f"All three expired docs should produce violations regardless of policy, got: {violations}"
     )
 
 
 # ---------------------------------------------------------------------------
-# Test 7: All None expiry + no required_documents policy → [] (missing is only
-#          a violation when required by policy; default set applies but None expiry
-#          for all three should produce missing_document for each)
+# Test 7: All None expiry + no policy → [] (missing_document only when policy
+#          explicitly requires the document)
 # ---------------------------------------------------------------------------
 
-def test_all_none_expiry_no_policy_produces_missing_violations():
-    """With default required docs and all None expiry, each is missing_document."""
+def test_all_none_expiry_no_policy_returns_empty():
+    """With no policy and all None expiry, returns [] — missing_document requires explicit policy."""
     driver = _driver(
         license_valid_until=None,
         passport_valid_until=None,
         bi_valid_until=None,
     )
-    # No required_documents key in policy → defaults to {driving_license, passport, bi}
-    # None expiry when document is required → missing_document
+    # No required_documents in policy → missing dates are NOT violations
+    # (operators can onboard drivers without all dates upfront)
     violations = driver_compliance_violations(driver, policy={})
-    missing_doc_types = {
-        v["document_type"] for v in violations if v["code"] == "missing_document"
-    }
-    assert missing_doc_types == {"driving_license", "passport", "bi"}, (
-        f"All three should be missing_document when None and required, got: {violations}"
+    assert violations == [], (
+        f"No policy + all None expiry should return [], got: {violations}"
     )
 
 

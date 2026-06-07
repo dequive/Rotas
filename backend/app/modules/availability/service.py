@@ -158,20 +158,21 @@ def driver_compliance_violations(
 ) -> list[dict]:
     """Return compliance violations for a driver.
 
-    Checks driving_license, passport, and bi — mirroring driver_compliance_warnings()
-    coverage. Violations are:
-    - missing_document: document is required by policy but valid_until is None
-    - expired_document: valid_until is in the past
+    Two violation types with different scoping rules:
 
-    Default required set (when policy has no driver_required_documents):
-    {"driving_license", "passport", "bi"} — same as warnings behavior.
+    - expired_document: raised for any of {driving_license, passport, bi} where
+      valid_until is set AND is in the past. No policy required — an expired date
+      is always a violation regardless of tenant configuration.
+
+    - missing_document: raised only when the tenant policy explicitly lists the
+      document type in driver_required_documents AND valid_until is None. Matches
+      vehicle_compliance_violations() behavior — "missing" is a policy choice, not
+      a universal default, so operators can onboard drivers without all dates upfront.
     """
     policy = policy or {}
     today = _today()
     violations = []
-    required_documents = set(_required_documents(policy, "driver_required_documents"))
-    if not required_documents:
-        required_documents = {"driving_license", "passport", "bi"}
+    required_for_missing = set(_required_documents(policy, "driver_required_documents"))
 
     candidates = {
         "driving_license": driver.license_valid_until,
@@ -179,12 +180,10 @@ def driver_compliance_violations(
         "bi":              driver.bi_valid_until,
     }
     for document_type, valid_until in candidates.items():
-        if document_type not in required_documents:
-            continue
         if valid_until is None:
-            violations.append({"code": "missing_document", "document_type": document_type})
-            continue
-        if valid_until < today:
+            if document_type in required_for_missing:
+                violations.append({"code": "missing_document", "document_type": document_type})
+        elif valid_until < today:
             violations.append(
                 {
                     "code": "expired_document",

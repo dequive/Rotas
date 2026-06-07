@@ -191,11 +191,12 @@ def driver_compliance_warnings(
     policy = policy or {}
     required_documents = set(_required_documents(policy, "driver_required_documents"))
     if not required_documents:
-        required_documents = {"driving_license", "license"}
+        required_documents = {"driving_license", "passport", "bi"}
 
     candidates = {
         "driving_license": driver.license_valid_until,
-        "license": driver.license_valid_until,
+        "passport": driver.passport_valid_until,
+        "bi": driver.bi_valid_until,
     }
     warnings = []
     for document_type, valid_until in candidates.items():

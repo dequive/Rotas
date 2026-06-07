@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { LimitWarningBanner, type TenantLimits } from "@/app/components/LimitWarningBanner";
+import { DocumentExpiryBanner, type ExpiryAlert } from "@/app/components/DocumentExpiryBanner";
 
 export const metadata: Metadata = {
   title: "ROTAS — Gestão de Frotas",
@@ -50,8 +51,44 @@ async function getTenantLimits(): Promise<TenantLimits | null> {
   }
 }
 
+/**
+ * Safe document expiry fetch — returns [] instead of throwing when unauthenticated.
+ *
+ * Fetches GET /api/v1/analytics/document-expiry?horizon_days=30.
+ * Cache strategy: revalidate: 60 — documents renew slowly, 60s is sufficient.
+ */
+async function getDocumentExpiry(): Promise<ExpiryAlert[]> {
+  try {
+    const jar = await cookies();
+    const accessToken = jar.get("rotas_access_token")?.value;
+    const tenantId = jar.get("rotas_tenant_id")?.value;
+
+    if (!accessToken || !tenantId) return [];
+
+    const res = await fetch(
+      `${API_BASE}/api/v1/analytics/document-expiry?horizon_days=30`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+          "X-Tenant-Id": tenantId,
+        },
+        next: { revalidate: 60 },
+      }
+    );
+
+    if (!res.ok) return [];
+    return (await res.json()) as ExpiryAlert[];
+  } catch {
+    return [];
+  }
+}
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const limits = await getTenantLimits();
+  const [limits, expiryAlerts] = await Promise.all([
+    getTenantLimits(),
+    getDocumentExpiry(),
+  ]);
 
   return (
     <html lang="pt">
@@ -65,6 +102,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <LimitWarningBanner limits={limits} />
+        <DocumentExpiryBanner alerts={expiryAlerts} />
         {children}
       </body>
     </html>

@@ -278,3 +278,30 @@ Key rules enforced at all times:
 - Badges: always with a colored dot (`::before` circle). Never plain text badges.
 - Decoration: minimal. No blobs, decorative gradients, or illustration backgrounds.
 - In QA mode: flag any component that doesn't match DESIGN.md tokens.
+
+## v2.0 Migration Rules
+
+Every new table with `tenant_id` created in Phases 5-12 MUST include the following RLS
+statements in the same CREATE TABLE migration -- never as a follow-up patch:
+
+```sql
+ALTER TABLE {table} ENABLE ROW LEVEL SECURITY;
+ALTER TABLE {table} FORCE ROW LEVEL SECURITY;
+CREATE POLICY rls_{table} ON {table}
+    USING (tenant_id::text = current_setting('app.tenant_id', true));
+```
+
+Additionally, grant `rotas_app` read/write access in the same migration:
+
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE ON {table} TO rotas_app;
+```
+
+**Rationale:** The export_jobs gap (Phase 9) was caused by a table created on a parallel
+Alembic branch after the RLS migration ran. GRANT...ON ALL TABLES only covers tables
+existing at migration execution time. Co-locating RLS + GRANT in the CREATE TABLE migration
+prevents this class of gap permanently.
+
+**Enforcement:** Plan-checkers for Phases 10-12 must verify any new `tenant_id` table in
+`files_modified` has a corresponding RLS block in the same migration file. Fail as blocker
+if absent.

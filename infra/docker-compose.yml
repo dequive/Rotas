@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: rotas-postgres
+    environment:
+      POSTGRES_DB: rotas
+      POSTGRES_USER: rotas
+      POSTGRES_PASSWORD: rotas
+    ports:
+      - "55432:5432"
+    volumes:
+      - rotas_postgres_data:/var/lib/postgresql/data
+      - ./postgres-init.sql:/docker-entrypoint-initdb.d/01-rotas-roles.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rotas -d rotas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: rotas-redis
+    ports:
+      - "6381:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - rotas_redis_data:/data
+
+volumes:
+  rotas_postgres_data:
+  rotas_redis_data:

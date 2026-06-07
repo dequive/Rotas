@@ -290,7 +290,7 @@ This milestone extends ROTAS across five capability areas: financial client mana
 - [ ] **Phase 6: Payment Registration** — Managers can record total and partial payments against invoices, including advance payments
 - [ ] **Phase 7: Accounts Receivable + Aging Dashboard** — Client statements, aging buckets, AR KPIs, and PDF export complete the financial management loop
 - [ ] **Phase 8: Infrastructure Hardening** — Sentry error tracking, R2/S3 durable file storage, and tenant plan limit enforcement make ROTAS production-grade
-- [ ] **Phase 9: PostgreSQL RLS Policies** — Database-level tenant isolation across all 47+ tenant-owned tables as a second security layer
+- [x] **Phase 9: PostgreSQL RLS Policies** — Database-level tenant isolation across all 47+ tenant-owned tables as a second security layer (completed 2026-06-07)
 - [ ] **Phase 10: Notifications + Self-Service Onboarding** — WhatsApp/email notification infrastructure and public registration enable SaaS launch
 - [ ] **Phase 11: Driver Financial Settlement (Despacho)** — Complete driver expense lifecycle: advance before departure, settlement after delivery, PDF document
 - [ ] **Phase 12: GPS Integration + Customer Tracking Portal** — Fleet map in manager dashboard, GPS webhook ingestion, shareable customer tracking links
@@ -605,7 +605,7 @@ Plans:
 | 6. Payment Registration | 0/TBD | Not started | - |
 | 7. Accounts Receivable + Aging Dashboard | 0/TBD | Not started | - |
 | 8. Infrastructure Hardening | 0/8 | Not started | - |
-| 9. PostgreSQL RLS Policies | 0/TBD | Not started | - |
+| 9. PostgreSQL RLS Policies | 0/TBD | Complete    | 2026-06-07 |
 | 10. Notifications + Self-Service Onboarding | 0/TBD | Not started | - |
 | 11. Driver Financial Settlement (Despacho) | 0/TBD | Not started | - |
 | 12. GPS Integration + Customer Tracking Portal | 0/TBD | Not started | - |

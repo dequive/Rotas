@@ -149,11 +149,10 @@ async def create_user(
     if not tenant or not tenant.is_active:
         raise ApiError("tenant_not_found", "Tenant not found or inactive.", status_code=404)
 
-    await _check_user_limit(db, tenant, redis)
-
     email = _normalize_email(payload.email)
     _validate_role(payload.role)
     _validate_password(payload.password)
+    # Duplicate check before limit check — 409 takes precedence over 403
     if await _email_exists(db, tenant_id, email):
         raise ApiError(
             "user_email_conflict",
@@ -161,6 +160,8 @@ async def create_user(
             status_code=status.HTTP_409_CONFLICT,
             details={"email": email},
         )
+
+    await _check_user_limit(db, tenant, redis)
 
     user = User(
         tenant_id=tenant_id,

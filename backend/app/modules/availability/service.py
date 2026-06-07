@@ -162,8 +162,8 @@ def driver_compliance_violations(
     required_documents = set(_required_documents(policy, "driver_required_documents"))
     if "driving_license" in required_documents and driver.license_valid_until is None:
         violations.append({"code": "missing_document", "document_type": "driving_license"})
-    if "inatter_license" in required_documents and driver.inatter_valid_until is None:
-        violations.append({"code": "missing_document", "document_type": "inatter_license"})
+    if "license" in required_documents and driver.license_valid_until is None:
+        violations.append({"code": "missing_document", "document_type": "license"})
     if driver.license_valid_until and driver.license_valid_until < today:
         violations.append(
             {
@@ -172,12 +172,12 @@ def driver_compliance_violations(
                 "valid_until": driver.license_valid_until.isoformat(),
             }
         )
-    if driver.inatter_valid_until and driver.inatter_valid_until < today:
+    if driver.license_valid_until and driver.license_valid_until < today:
         violations.append(
             {
                 "code": "expired_document",
-                "document_type": "inatter_license",
-                "valid_until": driver.inatter_valid_until.isoformat(),
+                "document_type": "license",
+                "valid_until": driver.license_valid_until.isoformat(),
             }
         )
     return violations
@@ -191,11 +191,11 @@ def driver_compliance_warnings(
     policy = policy or {}
     required_documents = set(_required_documents(policy, "driver_required_documents"))
     if not required_documents:
-        required_documents = {"driving_license", "inatter_license"}
+        required_documents = {"driving_license", "license"}
 
     candidates = {
         "driving_license": driver.license_valid_until,
-        "inatter_license": driver.inatter_valid_until,
+        "license": driver.license_valid_until,
     }
     warnings = []
     for document_type, valid_until in candidates.items():

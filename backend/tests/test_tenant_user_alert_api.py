@@ -226,7 +226,7 @@ async def test_tenant_me_and_user_management_are_tenant_scoped() -> None:
             },
         )
         assert limit_response.status_code == 403
-        assert "upgrade_url" in limit_response.json().get("details", {})
+        assert "upgrade_url" in limit_response.json().get("error", {}).get("details", {})
 
         other_tenant_response = await client.post(
             "/api/v1/users",

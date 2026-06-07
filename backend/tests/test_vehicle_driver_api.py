@@ -341,7 +341,7 @@ async def test_tenant_compliance_policy_requires_missing_documents() -> None:
         assert tenant_row is not None
         tenant_row.compliance_policy = {
             "vehicle_required_documents": ["insurance"],
-            "driver_required_documents": ["inatter_license"],
+            "driver_required_documents": ["driving_license"],
         }
         vehicle = Vehicle(
             tenant_id=tenant.id,
@@ -399,7 +399,7 @@ async def test_tenant_compliance_policy_requires_missing_documents() -> None:
         assert driver_block.status_code == 409
         assert driver_block.json()["error"]["code"] == "driver_compliance_blocked"
         assert driver_block.json()["error"]["details"]["violations"][0]["document_type"] == (
-            "inatter_license"
+            "driving_license"
         )
 
 
@@ -518,7 +518,7 @@ async def test_document_renewal_links_files_and_unblocks_assignment() -> None:
         assert tenant_row is not None
         tenant_row.compliance_policy = {
             "vehicle_required_documents": ["insurance"],
-            "driver_required_documents": ["inatter_license"],
+            "driver_required_documents": ["driving_license"],
         }
         vehicle = Vehicle(
             tenant_id=tenant.id,
@@ -587,13 +587,13 @@ async def test_document_renewal_links_files_and_unblocks_assignment() -> None:
         driver_file = await client.post(
             "/api/v1/files/upload",
             headers=auth_headers(tenant.id),
-            data={"file_type": "inatter_license", "entity_type": "driver_document"},
+            data={"file_type": "driving_license", "entity_type": "driver_document"},
             files={"upload": ("inatter.pdf", b"inatter-renewal", "application/pdf")},
         )
         assert driver_file.status_code == 200
         driver_file_id = driver_file.json()["id"]
         driver_renewal = await client.post(
-            f"/api/v1/drivers/{driver.id}/documents/inatter_license/renew",
+            f"/api/v1/drivers/{driver.id}/documents/driving_license/renew",
             headers={**auth_headers(tenant.id), "Idempotency-Key": "driver-doc-renew:001"},
             json={
                 "valid_until": "2031-01-01",
@@ -602,8 +602,8 @@ async def test_document_renewal_links_files_and_unblocks_assignment() -> None:
             },
         )
         assert driver_renewal.status_code == 200
-        assert driver_renewal.json()["inatter_valid_until"] == "2031-01-01"
-        assert driver_renewal.json()["documents"]["inatter_license"]["file_id"] == driver_file_id
+        assert driver_renewal.json()["license_valid_until"] == "2031-01-01"
+        assert driver_renewal.json()["documents"]["driving_license"]["file_id"] == driver_file_id
 
         unblocked = await client.post(
             "/api/v1/trips",
@@ -658,7 +658,7 @@ async def test_vehicle_limit_returns_403_with_upgrade_url() -> None:
             json={"plate": f"LIM-{uuid4().hex[:6].upper()}", "category": "pesado"},
         )
         assert limit_response.status_code == 403
-        assert "upgrade_url" in limit_response.json().get("details", {})
+        assert "upgrade_url" in limit_response.json().get("error", {}).get("details", {})
 
 
 @pytest.mark.skip(reason="Wave 3 — null limit guard not yet implemented")

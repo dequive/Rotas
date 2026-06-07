@@ -1,5 +1,7 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
+import { LimitWarningBanner, type TenantLimits } from "@/app/components/LimitWarningBanner";
 
 export const metadata: Metadata = {
   title: "ROTAS — Gestão de Frotas",
@@ -11,7 +13,46 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+/**
+ * Safe limits fetch — reads session cookies without redirecting.
+ *
+ * Unlike apiFetch(), this helper returns null instead of throwing/redirecting
+ * when the user is unauthenticated. This keeps the root layout safe for the
+ * /login page and any other unauthenticated routes.
+ *
+ * Cache strategy: revalidate: 30 matches the Redis TTL on the backend (INFRA-03 / D-15).
+ */
+async function getTenantLimits(): Promise<TenantLimits | null> {
+  try {
+    const jar = await cookies();
+    const accessToken = jar.get("rotas_access_token")?.value;
+    const tenantId = jar.get("rotas_tenant_id")?.value;
+
+    // No session — unauthenticated route (e.g. /login). Hide banner silently.
+    if (!accessToken || !tenantId) return null;
+
+    const res = await fetch(`${API_BASE}/api/v1/tenant/limits`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "X-Tenant-Id": tenantId,
+      },
+      next: { revalidate: 30 },
+    });
+
+    if (!res.ok) return null;
+    return (await res.json()) as TenantLimits;
+  } catch {
+    // Banner is non-critical — if fetch fails, hide it rather than crash layout
+    return null;
+  }
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const limits = await getTenantLimits();
+
   return (
     <html lang="pt">
       <head>
@@ -22,7 +63,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <LimitWarningBanner limits={limits} />
+        {children}
+      </body>
     </html>
   );
 }

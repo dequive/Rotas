@@ -40,11 +40,11 @@ const DIMENSION_LABELS: Record<"vehicles" | "drivers" | "users", string> = {
 };
 
 /**
- * pct from the API is a float 0–1 (e.g. 0.8 = 80%).
- * Thresholds: warning at pct >= 0.8, critical at pct >= 1.0.
+ * pct from the API is 0–100 (e.g. 80.0 = 80%).
+ * Thresholds: warning at pct >= 80, critical at pct >= 100.
  */
-const WARNING_THRESHOLD = 0.8;
-const CRITICAL_THRESHOLD = 1.0;
+const WARNING_THRESHOLD = 80;
+const CRITICAL_THRESHOLD = 100;
 
 export function LimitWarningBanner({ limits }: LimitWarningBannerProps) {
   if (!limits) return null;

@@ -34,7 +34,7 @@ async function getTenantLimits(): Promise<TenantLimits | null> {
     // No session — unauthenticated route (e.g. /login). Hide banner silently.
     if (!accessToken || !tenantId) return null;
 
-    const res = await fetch(`${API_BASE}/api/v1/tenant/limits`, {
+    const res = await fetch(`${API_BASE}/api/v1/tenants/me/limits`, {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,

@@ -5,6 +5,7 @@ Start command: arq app.jobs.worker.WorkerSettings
 This worker:
 - Runs daily maintenance schedule cron at 02:00 UTC (MAINT-01 D-07)
 - Handles per-vehicle immediate maintenance checks (MAINT-01 D-01)
+- Runs daily document expiry scan at 03:00 UTC (scan_expiring_documents)
 - Uses ADMIN_DATABASE_URL with rotas_admin role (BYPASSRLS) per D-18
 
 IMPORTANT: This worker must be deployed as a separate Railway service from the HTTP backend.
@@ -17,6 +18,7 @@ from arq import cron
 from arq.connections import RedisSettings
 
 from app.config import get_settings
+from app.jobs.tasks.document_expiry import scan_expiring_documents
 from app.jobs.tasks.maintenance import check_maintenance_schedules, check_vehicle_maintenance
 
 logger = logging.getLogger(__name__)
@@ -44,10 +46,12 @@ async def shutdown(ctx: dict[str, Any]) -> None:
 
 
 class WorkerSettings:
-    functions = [check_maintenance_schedules, check_vehicle_maintenance]
+    functions = [check_maintenance_schedules, check_vehicle_maintenance, scan_expiring_documents]
     cron_jobs = [
         # D-07: daily safety net for calendar-based maintenance plans
-        cron(check_maintenance_schedules, hour={2}, minute=0, run_at_startup=False)
+        cron(check_maintenance_schedules, hour={2}, minute=0, run_at_startup=False),
+        # 260607-o5b: daily document expiry scan — offset by 1h to avoid DB contention
+        cron(scan_expiring_documents, hour={3}, minute=0, run_at_startup=False),
     ]
     on_startup = startup
     on_shutdown = shutdown

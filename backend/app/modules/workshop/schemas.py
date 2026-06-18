@@ -1,7 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MaintenanceRequestCreate(BaseModel):
@@ -97,3 +98,99 @@ class MaintenancePlanCreate(BaseModel):
 class WorkOrderCloseRequest(BaseModel):
     actual_cost: float | None = Field(default=None, ge=0)
     notes: str = Field(min_length=1)
+
+
+# --- Workshop Staff Rates ---
+
+class WorkshopStaffRateCreate(BaseModel):
+    user_id: UUID
+    hourly_rate: Decimal = Field(gt=0)
+    effective_from: date
+
+
+class WorkshopStaffRateOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    tenant_id: UUID
+    user_id: UUID
+    hourly_rate: Decimal
+    effective_from: date
+    created_at: datetime
+
+
+# --- Task Assignment ---
+
+class TaskAssignRequest(BaseModel):
+    assigned_to: UUID
+    estimated_minutes: int | None = Field(default=None, ge=1)
+
+
+# --- Tool Calibration ---
+
+class ToolCalibrationCreate(BaseModel):
+    calibrated_by: UUID | None = None
+    calibrated_at: datetime
+    next_due_at: datetime
+    notes: str | None = None
+
+
+class ToolCalibrationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    tool_id: UUID
+    calibrated_by: UUID | None
+    calibrated_at: datetime
+    next_due_at: datetime
+    notes: str | None
+    created_at: datetime
+
+
+class ToolUpdateRequest(BaseModel):
+    status: str | None = None
+    location: str | None = None
+    calibration_interval_days: int | None = Field(default=None, ge=1)
+    category: str | None = None
+
+
+# --- Serialized Spare Parts ---
+
+class SerialItemCreate(BaseModel):
+    serial_number: str = Field(min_length=1, max_length=120)
+    notes: str | None = None
+
+
+class SerialItemInstallRequest(BaseModel):
+    vehicle_id: UUID
+
+
+class SerialItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    part_id: UUID
+    serial_number: str
+    status: str
+    vehicle_id: UUID | None
+    installed_at: datetime | None
+    scrapped_at: datetime | None
+    notes: str | None
+    created_at: datetime
+
+
+# --- Vehicle History ---
+
+class VehicleHistoryEvent(BaseModel):
+    event_type: str
+    event_date: datetime
+    title: str
+    description: str | None
+    reference_id: UUID
+    odometer_reading: int | None
+
+
+class VehicleHistoryResponse(BaseModel):
+    events: list[VehicleHistoryEvent]
+    next_cursor: str | None
+    total_count: int

@@ -1,9 +1,9 @@
 import { requireSession } from "@/app/lib/auth";
+import { apiFetch } from "@/app/lib/api";
 import { SidebarLayout } from "@/app/components/SidebarLayout";
 import { PageHeader } from "@/app/components/ui/PageHeader";
 import { AlertsClient } from "./AlertsClient";
-import { loadAlerts } from "@/app/lib/alerts-api";
-import { apiFetch } from "@/app/lib/api";
+import type { Alert } from "@/app/lib/alerts-api";
 import type { ExpiryAlert } from "@/app/components/DocumentExpiryBanner";
 
 async function getDocumentExpiry(): Promise<ExpiryAlert[]> {
@@ -17,24 +17,36 @@ async function getDocumentExpiry(): Promise<ExpiryAlert[]> {
   }
 }
 
+async function getSystemAlerts(): Promise<{ data: Alert[]; error: string | null }> {
+  try {
+    const data = await apiFetch<Alert[]>("/api/v1/alerts", { revalidate: 5 });
+    return { data, error: null };
+  } catch (err) {
+    return { data: [], error: err instanceof Error ? err.message : "Erro ao carregar alertas do sistema." };
+  }
+}
+
 export default async function AlertasPage() {
   await requireSession();
 
-  // Load document expiry and system alerts in parallel
-  const [expiryAlerts, systemAlerts] = await Promise.all([
+  const [expiryAlerts, { data: systemAlerts, error: systemAlertsError }] = await Promise.all([
     getDocumentExpiry(),
-    loadAlerts(),
+    getSystemAlerts(),
   ]);
 
   return (
     <SidebarLayout active="alertas">
       <div className="w-full max-w-5xl mx-auto space-y-6">
-        <PageHeader 
-          title="Central de Alertas" 
+        <PageHeader
+          title="Central de Alertas"
           description="Avisos do sistema, vencimentos de documentos e eventos críticos da frota em tempo real."
         />
 
-        <AlertsClient expiryAlerts={expiryAlerts} systemAlerts={systemAlerts} />
+        <AlertsClient
+          expiryAlerts={expiryAlerts}
+          systemAlerts={systemAlerts}
+          systemAlertsError={systemAlertsError}
+        />
       </div>
     </SidebarLayout>
   );

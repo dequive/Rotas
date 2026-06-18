@@ -41,25 +41,19 @@ export function SettingsClient({
     setError(null);
     setSuccess(null);
 
-    try {
-      await updateUserProfile(userId, {
-        full_name: fullName,
-        email: email,
-        phone: phone || null,
-      });
+    const result = await updateUserProfile(userId, {
+      full_name: fullName,
+      email,
+      phone: phone || null,
+    });
 
+    if (result.ok) {
       setSuccess("Perfil atualizado com sucesso!");
       router.refresh();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro de comunicação com o servidor.";
-      if (message.includes("403")) {
-        setError("Permissão insuficiente para alterar dados do utilizador. Apenas administradores podem atualizar perfis.");
-      } else {
-        setError(message);
-      }
-    } finally {
-      setLoading(false);
+    } else {
+      setError(result.error);
     }
+    setLoading(false);
   };
 
   return (

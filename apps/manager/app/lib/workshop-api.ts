@@ -67,38 +67,52 @@ function parseAmount(value: string | number | null): number | null {
   return Number.isFinite(num) ? num : null;
 }
 
-export async function loadWorkOrders(status?: string): Promise<WorkOrder[]> {
-  const url = status
-    ? `/api/v1/workshop/work-orders?status=${status}&limit=500`
-    : "/api/v1/workshop/work-orders?limit=500";
-  const data = await apiFetch<ApiWorkOrder[]>(url, { revalidate: 10 });
-  return data.map((item) => ({
-    id: item.id,
-    work_order_number: item.work_order_number,
-    vehicle_id: item.vehicle_id,
-    diagnosis: item.diagnosis,
-    planned_work: item.planned_work,
-    estimated_cost: parseAmount(item.estimated_cost),
-    actual_cost: parseAmount(item.actual_cost),
-    status: item.status as WorkOrder["status"],
-    created_at: item.created_at,
-    updated_at: item.updated_at,
-  }));
+const PAGE_LIMIT = 500;
+
+export interface WorkOrdersResult {
+  data: WorkOrder[];
+  truncated: boolean;
+  error: string | null;
+}
+
+export async function loadWorkOrders(status?: string): Promise<WorkOrdersResult> {
+  try {
+    const qs = new URLSearchParams({ limit: String(PAGE_LIMIT) });
+    if (status) qs.set("status", status);
+    const raw = await apiFetch<ApiWorkOrder[]>(`/api/v1/workshop/work-orders?${qs}`, { revalidate: 10 });
+    const data = raw.map((item) => ({
+      id: item.id,
+      work_order_number: item.work_order_number,
+      vehicle_id: item.vehicle_id,
+      diagnosis: item.diagnosis,
+      planned_work: item.planned_work,
+      estimated_cost: parseAmount(item.estimated_cost),
+      actual_cost: parseAmount(item.actual_cost),
+      status: item.status as WorkOrder["status"],
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+    }));
+    return { data, truncated: raw.length === PAGE_LIMIT, error: null };
+  } catch (err) {
+    return { data: [], truncated: false, error: err instanceof Error ? err.message : "Erro ao carregar ordens de trabalho." };
+  }
 }
 
 export async function loadMaintenanceRequests(status?: string): Promise<MaintenanceRequest[]> {
-  const url = status
-    ? `/api/v1/workshop/maintenance-requests?status=${status}&limit=500`
-    : "/api/v1/workshop/maintenance-requests?limit=500";
-  const data = await apiFetch<ApiMaintenanceRequest[]>(url, { revalidate: 10 });
-  return data.map((item) => ({
-    id: item.id,
-    vehicle_id: item.vehicle_id,
-    request_type: item.request_type,
-    priority: item.priority as MaintenanceRequest["priority"],
-    description: item.description,
-    odometer_reading: item.odometer_reading,
-    status: item.status as MaintenanceRequest["status"],
-    requested_at: item.requested_at,
-  }));
+  try {
+    const qs = new URLSearchParams({ limit: String(PAGE_LIMIT) });
+    if (status) qs.set("status", status);
+    return (await apiFetch<ApiMaintenanceRequest[]>(`/api/v1/workshop/maintenance-requests?${qs}`, { revalidate: 10 })).map((item) => ({
+      id: item.id,
+      vehicle_id: item.vehicle_id,
+      request_type: item.request_type,
+      priority: item.priority as MaintenanceRequest["priority"],
+      description: item.description,
+      odometer_reading: item.odometer_reading,
+      status: item.status as MaintenanceRequest["status"],
+      requested_at: item.requested_at,
+    }));
+  } catch {
+    return [];
+  }
 }

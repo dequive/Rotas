@@ -2,34 +2,36 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Clock, ShieldAlert, CheckCircle, HelpCircle } from "lucide-react";
+import { AlertTriangle, Clock, ShieldAlert, CheckCircle } from "lucide-react";
 import { SectionHeader } from "@/app/components/ui/SectionHeader";
 import { EmptyState } from "@/app/components/ui/EmptyState";
 import { StatusBadge } from "@/app/components/ui/StatusBadge";
 import type { ExpiryAlert } from "@/app/components/DocumentExpiryBanner";
 import type { Alert } from "@/app/lib/alerts-api";
-import { updateAlertStatus } from "@/app/lib/alerts-api";
+import { resolveAlert } from "./actions";
 
 interface Props {
   expiryAlerts: ExpiryAlert[];
   systemAlerts: Alert[];
+  systemAlertsError: string | null;
 }
 
-export function AlertsClient({ expiryAlerts, systemAlerts }: Props) {
+export function AlertsClient({ expiryAlerts, systemAlerts, systemAlertsError }: Props) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"documentos" | "sistema">("documentos");
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [resolveError, setResolveError] = useState<string | null>(null);
 
   const handleResolveAlert = async (alertId: string) => {
     setResolvingId(alertId);
-    try {
-      await updateAlertStatus(alertId, "resolved");
+    setResolveError(null);
+    const result = await resolveAlert(alertId);
+    if (result.ok) {
       router.refresh();
-    } catch (err) {
-      console.error("Erro ao resolver alerta:", err);
-    } finally {
-      setResolvingId(null);
+    } else {
+      setResolveError(result.error);
     }
+    setResolvingId(null);
   };
 
   const pendingSystemAlerts = systemAlerts.filter(a => a.status === "pending" || a.status === "read");
@@ -101,7 +103,12 @@ export function AlertsClient({ expiryAlerts, systemAlerts }: Props) {
       ) : (
         <section>
           <SectionHeader title="Alertas Ativos de Frota e Telemetria" count={pendingSystemAlerts.length} />
-          {pendingSystemAlerts.length === 0 ? (
+          {(systemAlertsError || resolveError) && (
+            <div className="mt-3 p-3 bg-error-bg border border-error/30 rounded-md text-xs font-semibold text-error">
+              {resolveError ?? systemAlertsError}
+            </div>
+          )}
+          {!systemAlertsError && pendingSystemAlerts.length === 0 ? (
             <div className="bg-surface border border-border rounded-lg overflow-hidden mt-3">
               <EmptyState
                 icon={CheckCircle}
@@ -109,7 +116,7 @@ export function AlertsClient({ expiryAlerts, systemAlerts }: Props) {
                 description="Nenhum alerta crítico ou evento de telemetria pendente de resolução."
               />
             </div>
-          ) : (
+          ) : !systemAlertsError ? (
             <div className="space-y-3 mt-3">
               {pendingSystemAlerts.map((alert) => (
                 <div
@@ -137,7 +144,7 @@ export function AlertsClient({ expiryAlerts, systemAlerts }: Props) {
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
         </section>
       )}
     </div>

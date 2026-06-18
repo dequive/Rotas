@@ -23,11 +23,13 @@ export default async function ManutencaoPage() {
   await requireSession();
 
   // Load backend data concurrently
-  const [imminentAlerts, workOrders, vehicles] = await Promise.all([
+  const [imminentAlerts, workOrdersResult, vehicles] = await Promise.all([
     loadImminentMaintenanceAlerts(),
     loadWorkOrders(),
     loadVehicles(),
   ]);
+
+  const { data: workOrders, truncated: workOrdersTruncated, error: workOrdersError } = workOrdersResult;
 
   // Create a plate mapping dictionary
   const vehiclePlateMap = new Map<string, string>();
@@ -96,9 +98,20 @@ export default async function ManutencaoPage() {
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted">
               Ordens de Trabalho e Intervenções
             </h3>
+            {workOrdersTruncated && (
+              <span className="text-xs text-warning font-semibold">
+                A mostrar os primeiros 500 registos
+              </span>
+            )}
           </div>
 
-          <DataTable isEmpty={workOrders.length === 0} emptyLabel="Nenhuma ordem de trabalho ativa encontrada.">
+          {workOrdersError && (
+            <div className="p-3 bg-error-bg border border-error/30 rounded-md text-xs font-semibold text-error">
+              {workOrdersError}
+            </div>
+          )}
+
+          <DataTable isEmpty={workOrders.length === 0} emptyLabel={workOrdersError ? "Não foi possível carregar as ordens de trabalho." : "Nenhuma ordem de trabalho ativa encontrada."}>
             <TableHeader>
               <TableRow>
                 <RotasTableHeader>Nº Ordem</RotasTableHeader>

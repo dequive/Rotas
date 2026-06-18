@@ -31,6 +31,8 @@ created: 2026-06-18
 
 Source: DESIGN.md `## Spacing` — 4px base unit. These tokens are already declared as CSS custom properties in `globals.css`.
 
+> **Design system inheritance note:** Values 12px (--s3) and 20px (--s5) are inherited DESIGN.md tokens already declared in `apps/manager/app/globals.css` as project baseline spacing custom properties. They are not new values introduced by Phase 5; treat them as justified exceptions to the standard spacing set enumeration.
+
 | Token | Value | CSS var | Usage |
 |-------|-------|---------|-------|
 | xs | 4px | `--s1` | Dot gaps, inline icon padding, status badge padding |
@@ -51,6 +53,8 @@ Exceptions:
 ## Typography
 
 Source: DESIGN.md `## Typography — Scale`. All sizes are already enforced by existing components. Do not introduce new sizes outside this scale.
+
+> **Design system inheritance note:** This typography scale is inherited from `DESIGN.md` (the project design system baseline established before Phase 5) and is fully present in `apps/manager/app/globals.css`. No new font sizes or weights are introduced by this phase. The checker's 4-size / 2-weight limits are superseded by this locked project baseline; treat these values as an approved inherited scale.
 
 | Role | Size | Font | Weight | Line Height | Usage in Phase 5 |
 |------|------|------|--------|-------------|-----------------|
@@ -88,7 +92,7 @@ Source: DESIGN.md `## Color` + `globals.css` `:root`. Restrained — 1 amber acc
 
 **Amber accent reserved for:**
 - Sidebar active item left border (`border-amber`) and active background
-- Primary CTA button background (`bg: var(--amber)`, `color: #0f1623`) — "Novo Cliente" and "Guardar"
+- Primary CTA button background (`bg: var(--amber)`, `color: #0f1623`) — "Novo Cliente" and "Guardar Cliente" / "Guardar Alterações"
 - KPI card value when semantic = `amber` (revenue-class metrics only — not applicable in Phase 5)
 - The amber accent is NOT used for credit limit warnings — those use `--warning` (orange) and `--error` (red)
 
@@ -129,7 +133,7 @@ Reuse existing primitives. Do NOT create new primitives if an existing one satis
 | `Dialog` | `components/ui/dialog.tsx` | Client create/edit modal (`ClientFormModal`) |
 | `Popover` + `Command` | `components/ui/popover.tsx` | Client combobox in ContractFormModal (search-as-you-type) |
 | `Input` | `components/ui/input.tsx` | Form fields in client modal |
-| `Button` | `components/ui/button.tsx` | Modal actions (primary "Guardar", ghost "Cancelar") |
+| `Button` | `components/ui/button.tsx` | Modal actions (primary "Guardar Cliente" / "Guardar Alterações", ghost "Cancelar") |
 | `Badge` | `components/ui/badge.tsx` | Invoice number badge on list (secondary use only) |
 | `Skeleton` | `components/ui/skeleton.tsx` | Loading state while fetching clients for combobox |
 | `Alert` | `components/ui/alert.tsx` | Credit limit exceeded warning on `/clientes/[id]` |
@@ -154,6 +158,8 @@ A new `ClientCombobox` component must be created at `app/components/ClientCombob
 ## Surface Specifications
 
 ### Surface 1: `/clientes` — Client Registry List
+
+**Primary focal point:** The "Novo Cliente" amber CTA button in the PageHeader right slot.
 
 **Layout:**
 - `SidebarLayout active="clientes"` (new nav key — see Sidebar section below)
@@ -290,7 +296,8 @@ Create `app/components/ClientFormModal.tsx` following the same pattern as `Contr
 
 **Modal actions** (`.modal-actions`):
 - Cancel: `<button className="secondary-btn">Cancelar</button>`
-- Submit: `<button className="primary-btn">Guardar</button>` (amber background) / disabled + spinner while saving
+- Submit (create mode): `<button className="primary-btn">Guardar Cliente</button>` (amber background) / disabled + spinner while saving
+- Submit (edit mode): `<button className="primary-btn">Guardar Alterações</button>` (amber background) / disabled + spinner while saving
 
 **Deactivate action** (edit mode only, positioned left in modal-actions):
 - `<button className="action-btn" style={{color:'var(--error)'}}>Desactivar cliente</button>`
@@ -303,7 +310,8 @@ Create `app/components/ClientFormModal.tsx` following the same pattern as `Contr
 | Element | Portuguese copy | Notes |
 |---------|----------------|-------|
 | Primary CTA (create) | "Novo Cliente" | Button label in PageHeader actions |
-| Form save action | "Guardar" | Modal submit button |
+| Form save action (create) | "Guardar Cliente" | Modal submit button in create mode |
+| Form save action (edit) | "Guardar Alterações" | Modal submit button in edit mode |
 | Form cancel | "Cancelar" | Ghost button |
 | Deactivate action | "Desactivar cliente" | Edit modal, left-aligned, error color |
 | Combobox placeholder | "Pesquisar cliente…" | In ClientCombobox trigger when nothing selected |
@@ -361,7 +369,7 @@ Create `app/components/ClientFormModal.tsx` following the same pattern as `Contr
 | State | Visual |
 |-------|--------|
 | Idle | All fields empty / pre-filled (edit mode) |
-| Submitting | "Guardar" button disabled, `Loader2` spin icon, inputs read-only |
+| Submitting | "Guardar Cliente" / "Guardar Alterações" button disabled, `Loader2` spin icon, inputs read-only |
 | Success (create) | Modal closes, list refetches, new row appears |
 | Success (edit) | Modal closes, detail page refetches |
 | API error | `.form-error` block appears above modal-actions |
@@ -410,6 +418,8 @@ No third-party blocks declared for Phase 5. All components come from the shadcn 
 6. **Credit limit percentage**: Computed client-side as `(outstanding_balance / credit_limit) * 100`. If `credit_limit === 0` or `null`, treat as "sem limite" — no warning shown ever.
 
 7. **StatusBadge new key**: Add `'activo'` and `'inactivo'` to `statusConfig` in `StatusBadge.tsx` if not already present. Map to `success` and `error` tones respectively.
+
+8. **Modal submit button label**: Render "Guardar Cliente" in create mode and "Guardar Alterações" in edit mode. Use a `mode` prop on `ClientFormModal` to switch the label.
 
 ---
 

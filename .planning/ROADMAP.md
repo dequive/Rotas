@@ -699,8 +699,8 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 Plans:
 - [x] 13.5-01-PLAN.md — Wave 1: Alembic migration (3 new tables + ALTER TABLE additions + RLS + GRANT)
 - [x] 13.5-02-PLAN.md — Wave 2: ORM models extension + Pydantic schemas for all new entities
-- [ ] 13.5-03-PLAN.md — Wave 3: Service layer (staff rates, calibration, serial parts, vehicle history) + 11 new endpoints
-- [ ] 13.5-04-PLAN.md — Wave 4: Frontend UI (PartsInventoryTable, ToolsTable, 4-tab /manutencao, /viaturas/[id]/historico)
+- [x] 13.5-03-PLAN.md — Wave 3: Service layer (staff rates, calibration, serial parts, vehicle history) + 11 new endpoints
+- [x] 13.5-04-PLAN.md — Wave 4: Frontend UI (PartsInventoryTable, ToolsTable, 4-tab /manutencao, /viaturas/[id]/historico)
 - [ ] 13.5-05-PLAN.md — Wave 5: Automated tests (23 tests across 4 new test files)
 
 **UI hint**: yes
@@ -970,7 +970,7 @@ Plans:
 
 **Requirements**: SEC-RBAC-01 a SEC-RBAC-05
 **Depends on:** Phase 9 (RLS — os dois planos partilham infra de isolamento), Phase 13 (Frontend usa roles nos componentes de UI)
-**Plans:** 2/5 plans executed
+**Plans:** 4/5 plans executed
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 22 to break down)

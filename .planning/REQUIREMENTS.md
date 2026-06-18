@@ -129,7 +129,7 @@ _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de
 - [x] **WSHOP-02**: Ferramentas expandidas com `category`, `location`, `serial_number`, `purchase_date`, `purchase_cost`, `calibration_interval_days`; tabela `tool_calibrations` com histórico completo de calibrações (`calibrated_by`, `calibrated_at`, `next_due_at`, `notes`); alerta automático para ferramentas críticas com calibração a vencer em 30 dias; endpoints de registo de calibração e histórico
 - [x] **WSHOP-03**: Catálogo de peças expandido com `category` (filtro/pneu/bateria/correia/outro), `shelf_location`, `supplier_name`, `lead_time_days`, `reorder_quantity`; tabela `spare_part_serial_items` para peças com número de série individual (pneus, baterias, extintores); endpoints para registar, instalar e consultar peças serializadas por veículo; endpoint `GET /workshop/spare-parts/low-stock` lista peças abaixo do stock mínimo
 - [x] **WSHOP-04**: Endpoint `GET /api/v1/vehicles/{vehicle_id}/history` com timeline unificada — agrega via UNION ALL: `maintenance_requests`, `work_orders`, `fuel_logs/vehicle_refuels`, `checklists`, `trip_incidents`, `maintenance_schedule`; cada evento tem `event_type`, `event_date`, `title`, `description`, `reference_id`, `odometer_reading`; paginação cursor-based por data; filtros por tipo e período
-- [ ] **WSHOP-05**: UI expandida `/manutencao` com 4 tabs (Ordens de Trabalho / Peças e Stock / Ferramentas / Planos Preventivos); componentes `PartsInventoryTable` (badge "stock baixo") e `ToolsTable` (badge calibração a vencer); nova página `/viaturas/[id]/historico` com timeline de eventos com filtros por tipo; links "Ver Histórico" em `/frota` e nas ordens de trabalho
+- [x] **WSHOP-05**: UI expandida `/manutencao` com 4 tabs (Ordens de Trabalho / Peças e Stock / Ferramentas / Planos Preventivos); componentes `PartsInventoryTable` (badge "stock baixo") e `ToolsTable` (badge calibração a vencer); nova página `/viaturas/[id]/historico` com timeline de eventos com filtros por tipo; links "Ver Histórico" em `/frota` e nas ordens de trabalho
 
 ### Frontend Completo — Manager (FE)
 
@@ -272,7 +272,7 @@ _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de
 | WSHOP-02 | Phase 13.5 | Complete |
 | WSHOP-03 | Phase 13.5 | Complete |
 | WSHOP-04 | Phase 13.5 | Complete |
-| WSHOP-05 | Phase 13.5 | Pending |
+| WSHOP-05 | Phase 13.5 | Complete |
 | FE-01 | Phase 13 | Pending |
 | FE-02 | Phase 13 | Pending |
 | FE-03 | Phase 13 | Pending |

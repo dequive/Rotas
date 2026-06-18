@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 15.1-01-PLAN.md — Wave 0 test stubs for FDOC + OPDOC requirements (23 stubs)
-last_updated: "2026-06-18T23:35:41.174Z"
+stopped_at: Completed 13.5-04-PLAN.md
+last_updated: "2026-06-18T23:39:31.789Z"
 last_activity: 2026-06-18
 progress:
   total_phases: 13
@@ -25,7 +25,7 @@ Phase: 05 (CLI — Client Registry + Migration Foundation)
 Plan: 02 complete (2/5)
 Status: 05-02 complete 2026-06-19 — 3 migrations (b/c/d): client_id FKs + due_date + backfill + payments scaffold; 181 tests pass
 Last activity: 2026-06-18
-Stopped at: Completed 15.1-01-PLAN.md — Wave 0 test stubs for FDOC + OPDOC requirements (23 stubs)
+Stopped at: Completed 13.5-04-PLAN.md
 
 ### Completed v3.0 Phases
 

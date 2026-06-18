@@ -343,7 +343,7 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 05-01-PLAN.md � Wave 1: clients backend (model, migration a, service, router) + Wave 0 test stubs (CLI-01, CLI-02)
+- [x] 05-01-PLAN.md � Wave 1: clients backend (model, migration a, service, router) + Wave 0 test stubs (CLI-01, CLI-02)
 - [ ] 05-02-PLAN.md � Wave 1: FK migrations (b) + pre-audit + backfill (c) + payments scaffold (d) (CLI-03)
 - [ ] 05-03-PLAN.md � Wave 2: /clientes list page + /clientes/[id] detail page + ClientFormModal + sidebar nav (CLI-01, CLI-02)
 - [ ] 05-04-PLAN.md � Wave 2: ContractFormModal ClientCombobox + backend contracts schema/service update (CLI-04)
@@ -797,6 +797,43 @@ Plans:
 - [ ] 15-05-PLAN.md — Wave 3: FISC-03 compliance report ARQ task + GET /billing/compliance-report endpoint
 
 **UI hint**: yes (campos no formulário de viagem e veículo)
+
+---
+
+### Phase 15.1: Documentos Fiscais e Operacionais
+
+**Goal**: Completar o ciclo documental do ROTAS — documentos fiscais (Nota de Débito, Nota de Crédito, Fatura-Recibo, Recibo, AR básico) e documentos operacionais do transporte moçambicano (Guia de Remessa, Carta de Porte Internacional, DAV/INATTER, checklist por tipo de viagem).
+
+**Depends on**: Phase 15 (IVA e numeração fiscal já implementados)
+
+**Requirements**: FDOC-01, FDOC-02, FDOC-03, FDOC-04, FDOC-05, OPDOC-01, OPDOC-02, OPDOC-03, OPDOC-04, OPDOC-05
+
+**Success Criteria** (what must be TRUE):
+
+  1. `POST /billing/documents/{id}/debit-note` cria Nota de Débito com `invoice_number` sequencial e `parent_document_id` definido
+  2. `POST /billing/documents/{id}/credit-note` cria Nota de Crédito; documento pai inalterado
+  3. `POST /billing/documents/{id}/invoice-receipt` transita pai para `paid` e cria Fatura-Recibo
+  4. `GET /billing/ar?aging_bucket=31_60` retorna apenas documentos com `days_overdue` entre 31 e 60 dias
+  5. `POST /cargo/trips/{id}/guia-remessa` cria `transport_document` e retorna URL de PDF
+  6. `POST /cargo/trips/{id}/carta-porte` cria CPI com `border_post` e `country_destination` em `extra_fields`
+  7. `GET /cargo/trips/{id}/document-checklist` retorna documentos obrigatórios correctos: 4 para viagem nacional, 5+ para internacional
+  8. Todos os endpoints filtram por `tenant_id` — testes de isolamento cross-tenant passam
+
+**Implementation Notes**:
+
+- **FDOC-01**: `ALTER TABLE billing_documents ADD COLUMN document_type VARCHAR(30) NOT NULL DEFAULT 'invoice'`, `ADD COLUMN parent_document_id UUID REFERENCES billing_documents(id)`, `ADD COLUMN due_date DATE`, `ADD COLUMN client_nuit VARCHAR(20)`. Tabela já tem RLS.
+- **FDOC-02/03**: `create_debit_note()` e `create_credit_note()` chamam `_assign_invoice_number()` do FISC-01 — Notas de Débito e Crédito também recebem número sequencial fiscal. Parent deve ter `status IN ('issued', 'paid')`.
+- **FDOC-04**: `create_invoice_receipt()` faz `UPDATE billing_documents SET status='paid', paid_at=now()` no parent E cria novo documento `invoice_receipt` ligado por `parent_document_id`. `create_receipt()` cria `receipt` sem alterar o parent (pagamento parcial).
+- **FDOC-05**: `days_overdue` e `aging_bucket` são **campos calculados em runtime** (não colunas na BD) — adicionados ao `serialize_billing_document()`. `GET /billing/ar` filtra por `status='issued' AND due_date IS NOT NULL` ordenado por `due_date ASC`.
+- **OPDOC-01**: `ALTER TABLE transport_documents ADD COLUMN extra_fields JSONB`, `ADD COLUMN recipient_nuit VARCHAR(20)`. Tabela já tem RLS — sem nova migração RLS necessária.
+- **OPDOC-02 (Guia de Remessa)**: PDF via `fpdf2` (mesmo padrão que faturas). Campos obrigatórios: `client_name` (remetente), `recipient_name`, `origin`, `destination`, `document_number`. `extra_fields = {cargo_description, package_count, gross_weight}`.
+- **OPDOC-03 (CPI)**: `extra_fields = {border_post, country_destination, sadc_cpi_number, consignee_name, consignee_nuit}`. PDF bilingue PT/EN.
+- **OPDOC-04 (DAV)**: Registo digital da guia física emitida pelo INATTER. `extra_fields = {authorization_code, inatter_office, valid_routes}`. Sem geração de PDF (documento físico externo).
+- **OPDOC-05 (Checklist)**: Endpoint calculado — sem nova tabela. Lógica: `trip.destination` internacional (fronteira) → exige CPI. `cargo_manifests.is_hazmat=true` → exige `declaracao_carga_perigosa`.
+
+**Plans**: TBD
+
+**UI hint**: no (backend + endpoints only; UI na fase seguinte de design)
 
 ---
 

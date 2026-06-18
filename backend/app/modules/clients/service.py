@@ -2,11 +2,12 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi import status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
+from app.modules.billing.models import BillingDocument
 from app.modules.clients.models import Client
 from app.modules.clients.schemas import ClientCreate, ClientPatch
 
@@ -26,26 +27,30 @@ def serialize_client(client: Client, outstanding_balance: Decimal | None = None)
         "credit_limit": client.credit_limit,
         "is_active": client.is_active,
         "outstanding_balance": outstanding_balance,
-        # Phase 5 interim: client_id FK on billing_documents added in Plan 02.
-        # outstanding_balance is always 0 until Plan 02 backfill completes.
-        "outstanding_balance_estimate": True,
+        # Phase 5 Plan 02: outstanding_balance is now live — client_id FK on billing_documents
+        # added via migration e5f6a7b8c9d0. outstanding_balance_estimate removed in Plan 02.
+        "outstanding_balance_estimate": False,
         "created_at": client.created_at,
         "updated_at": client.updated_at,
     }
 
 
 async def _get_outstanding_balance(
-    db: AsyncSession, client_id: UUID, tenant_id: UUID  # noqa: ARG001
+    db: AsyncSession, client_id: UUID, tenant_id: UUID
 ) -> Decimal:
-    """Phase 5 interim: returns 0 until Plan 02 adds client_id FK to billing_documents.
+    """Sum total_amount of issued billing documents for this client.
 
-    Plan 02 will add BillingDocument.client_id and update this function to:
-        select(func.coalesce(func.sum(BillingDocument.total_amount), 0))
-        .where(BillingDocument.client_id == client_id,
-               BillingDocument.tenant_id == tenant_id,
-               BillingDocument.status == "issued")
+    Uses BillingDocument.client_id FK added in Plan 02 migration (b).
+    Only 'issued' status documents count as outstanding — draft/paid/voided are excluded.
     """
-    return Decimal("0.00")
+    result = await db.execute(
+        select(func.coalesce(func.sum(BillingDocument.total_amount), 0)).where(
+            BillingDocument.client_id == client_id,
+            BillingDocument.tenant_id == tenant_id,
+            BillingDocument.status == "issued",
+        )
+    )
+    return Decimal(str(result.scalar_one()))
 
 
 async def list_clients(

@@ -40,6 +40,11 @@ class Trip(Base):
     cargo_class: Mapped[str | None] = mapped_column(String(40))
     cargo_weight: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     cargo_volume: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    payload_override_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    is_hazmat: Mapped[bool] = mapped_column(Boolean(), server_default="false", nullable=False, default=False)
+    hazmat_class: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    un_number: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    hazmat_label: Mapped[str | None] = mapped_column(String(50), nullable=True)
     cargo_volumes: Mapped[int | None] = mapped_column(Integer)
     cargo_file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"))
     load_state: Mapped[str | None] = mapped_column(String(40))
@@ -75,9 +80,7 @@ class Trip(Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     operational_close_notes: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -124,9 +127,7 @@ class TripStop(Base):
     expense_category: Mapped[str | None] = mapped_column(String(60))
     stopped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     resumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class TripCost(Base):
@@ -154,9 +155,7 @@ class TripCost(Base):
     source_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     incurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class DispatchClearance(Base):
@@ -179,9 +178,7 @@ class DispatchClearance(Base):
     blocked_reason: Mapped[str | None] = mapped_column(Text)
     approved_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -201,9 +198,7 @@ class TripExecutionEvent(Base):
     notes: Mapped[str | None] = mapped_column(Text)
     reported_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     source: Mapped[str] = mapped_column(String(40), default="manual")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class TripIncident(Base):
@@ -230,13 +225,10 @@ class TripIncident(Base):
     reported_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     resolved_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-
 
 
 class KnownRoute(Base):
@@ -255,9 +247,7 @@ class KnownRoute(Base):
     despacho_carregado: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     notes: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

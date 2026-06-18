@@ -27,12 +27,14 @@ class BillingDocument(Base):
     issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # SM-01: State machine audit fields
-    overdue_since_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    overdue_since_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     cancellation_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
     file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    invoice_number: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    iva_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -67,9 +69,9 @@ class BillingItem(Base):
     unit_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     status: Mapped[str] = mapped_column(String(30), default="draft", index=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    iva_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    iva_amount: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class ExportJob(Base):
@@ -81,12 +83,8 @@ class ExportJob(Base):
         Index("ix_export_jobs_tenant_entity_type", "tenant_id", "entity_id", "job_type"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tenants.id"), nullable=False
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
     job_type: Mapped[str] = mapped_column(
         String(30), nullable=False
     )  # 'billing_pdf', 'billing_xlsx'
@@ -102,9 +100,7 @@ class ExportJob(Base):
         ForeignKey("files.id"), nullable=True
     )  # Populated by ARQ worker after storage.py refactor (INFRA-02)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

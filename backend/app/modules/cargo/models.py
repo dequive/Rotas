@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -31,9 +31,7 @@ class LoadPermit(Base):
     file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"))
     status: Mapped[str] = mapped_column(String(30), default="pending", index=True)
     notes: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -61,9 +59,11 @@ class CargoManifest(Base):
     issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"))
     status: Mapped[str] = mapped_column(String(30), default="draft", index=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    is_hazmat: Mapped[bool] = mapped_column(Boolean(), server_default="false", nullable=False, default=False)
+    hazmat_class: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    un_number: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    hazmat_label: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -90,9 +90,7 @@ class TransportDocument(Base):
     file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"))
     status: Mapped[str] = mapped_column(String(30), default="pending", index=True)
     notes: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -130,12 +128,12 @@ class DeliveryProof(Base):
     rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     rejected_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     rejection_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    dispute_opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    dispute_opened_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     resolved_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

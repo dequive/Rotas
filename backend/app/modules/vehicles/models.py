@@ -1,6 +1,8 @@
 import uuid
 from datetime import datetime
 
+from decimal import Decimal
+
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -29,9 +31,8 @@ class Vehicle(Base):
     photo_file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"))
     avg_consumption_target: Mapped[float | None] = mapped_column(Numeric(10, 2))
     fuel_limit_daily: Mapped[float | None] = mapped_column(Numeric(10, 2))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    max_payload_kg: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

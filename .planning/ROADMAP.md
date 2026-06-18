@@ -343,11 +343,11 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 05-01-PLAN.md � Wave 1: clients backend (model, migration a, service, router) + Wave 0 test stubs (CLI-01, CLI-02)
-- [ ] 05-02-PLAN.md � Wave 1: FK migrations (b) + pre-audit + backfill (c) + payments scaffold (d) (CLI-03)
-- [ ] 05-03-PLAN.md � Wave 2: /clientes list page + /clientes/[id] detail page + ClientFormModal + sidebar nav (CLI-01, CLI-02)
-- [ ] 05-04-PLAN.md � Wave 2: ContractFormModal ClientCombobox + backend contracts schema/service update (CLI-04)
-- [ ] 05-05-PLAN.md � Wave 3: CLI-05 display (MonoCell in billing table) + test_invoice_number_format stub (CLI-05)
+- [ ] 05-01-PLAN.md � Wave 1: clients backend (model, migration a, service, router) + Wave 0 test stubs (CLI-01, CLI-02)
+- [ ] 05-02-PLAN.md � Wave 1: FK migrations (b) + pre-audit + backfill (c) + payments scaffold (d) (CLI-03)
+- [ ] 05-03-PLAN.md � Wave 2: /clientes list page + /clientes/[id] detail page + ClientFormModal + sidebar nav (CLI-01, CLI-02)
+- [ ] 05-04-PLAN.md � Wave 2: ContractFormModal ClientCombobox + backend contracts schema/service update (CLI-04)
+- [ ] 05-05-PLAN.md � Wave 3: CLI-05 display (MonoCell in billing table) + test_invoice_number_format stub (CLI-05)
 
 **UI hint**: yes
 
@@ -650,6 +650,7 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 - [ ] **Phase 13: Frontend Completeness** — As 4 páginas do manager referenciadas no sidebar mas sem implementação real: `/manutencao`, `/cobranca`, `/alertas`, `/settings`
 - [ ] **Phase 14: Domain State Machines** — Fechar state machines incompletas de `BillingDocument`, `Contract`, `DeliveryProof` e `DispatchClearance` — o núcleo financeiro e documental fica coerente
 - [ ] **Phase 15: Fiscal Compliance + Segurança de Carga** — IVA Moçambique, numeração fiscal, validação de peso vs capacidade, suporte hazmat
+- [ ] **Phase 15.1: Documentos Fiscais Completos** — Estender billing_documents com document_type (invoice/debit_note/credit_note/invoice_receipt/receipt/proforma) e parent_document_id; criar Nota de Débito, Nota de Crédito, Fatura-Recibo e Recibo; AR básico com due_date e aging
 - [ ] **Phase 16: HOS + Availability** — Driver Hours of Service and vehicle/driver availability calendar
 - [ ] **Phase 17: Enterprise Infrastructure v2** — Distributed rate limiting, structured logging, Prometheus metrics, advanced worker heartbeat (completed 2026-06-18)
 - [ ] **Phase 18: Analytics + Insurance** — Client profitability, insurance management, deep BI layer
@@ -696,7 +697,7 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 **Plans**: 5 plans
 
 Plans:
-- [ ] 13.5-01-PLAN.md — Wave 1: Alembic migration (3 new tables + ALTER TABLE additions + RLS + GRANT)
+- [x] 13.5-01-PLAN.md — Wave 1: Alembic migration (3 new tables + ALTER TABLE additions + RLS + GRANT)
 - [ ] 13.5-02-PLAN.md — Wave 2: ORM models extension + Pydantic schemas for all new entities
 - [ ] 13.5-03-PLAN.md — Wave 3: Service layer (staff rates, calibration, serial parts, vehicle history) + 11 new endpoints
 - [ ] 13.5-04-PLAN.md — Wave 4: Frontend UI (PartsInventoryTable, ToolsTable, 4-tab /manutencao, /viaturas/[id]/historico)
@@ -921,7 +922,7 @@ Plans:
 
 **Requirements**: SEC-RBAC-01 a SEC-RBAC-05
 **Depends on:** Phase 9 (RLS — os dois planos partilham infra de isolamento), Phase 13 (Frontend usa roles nos componentes de UI)
-**Plans:** 0 plans
+**Plans:** 1/5 plans executed
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 22 to break down)

@@ -123,6 +123,14 @@ _Last updated: 2026-06-06_
 ## v3.0 Requirements — TMS Enterprise Completo
 _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de 2026-06-18_
 
+### Oficina Operacional Avançada (WSHOP)
+
+- [x] **WSHOP-01**: Atribuição de tarefas de work order a mecânicos (`assigned_to` FK → `users.id`), com estimativa de tempo (`estimated_minutes`) e registo de tempo real (`actual_minutes`); custo de mão de obra calculado automaticamente a partir de taxa horária (`workshop_staff_rates`) e acumulado no campo `labor_cost` do `WorkOrder`; endpoint `GET /workshop/kpis` expõe horas totais, custo de mão de obra e work orders por mecânico
+- [x] **WSHOP-02**: Ferramentas expandidas com `category`, `location`, `serial_number`, `purchase_date`, `purchase_cost`, `calibration_interval_days`; tabela `tool_calibrations` com histórico completo de calibrações (`calibrated_by`, `calibrated_at`, `next_due_at`, `notes`); alerta automático para ferramentas críticas com calibração a vencer em 30 dias; endpoints de registo de calibração e histórico
+- [x] **WSHOP-03**: Catálogo de peças expandido com `category` (filtro/pneu/bateria/correia/outro), `shelf_location`, `supplier_name`, `lead_time_days`, `reorder_quantity`; tabela `spare_part_serial_items` para peças com número de série individual (pneus, baterias, extintores); endpoints para registar, instalar e consultar peças serializadas por veículo; endpoint `GET /workshop/spare-parts/low-stock` lista peças abaixo do stock mínimo
+- [ ] **WSHOP-04**: Endpoint `GET /api/v1/vehicles/{vehicle_id}/history` com timeline unificada — agrega via UNION ALL: `maintenance_requests`, `work_orders`, `fuel_logs/vehicle_refuels`, `checklists`, `trip_incidents`, `maintenance_schedule`; cada evento tem `event_type`, `event_date`, `title`, `description`, `reference_id`, `odometer_reading`; paginação cursor-based por data; filtros por tipo e período
+- [ ] **WSHOP-05**: UI expandida `/manutencao` com 4 tabs (Ordens de Trabalho / Peças e Stock / Ferramentas / Planos Preventivos); componentes `PartsInventoryTable` (badge "stock baixo") e `ToolsTable` (badge calibração a vencer); nova página `/viaturas/[id]/historico` com timeline de eventos com filtros por tipo; links "Ver Histórico" em `/frota` e nas ordens de trabalho
+
 ### Frontend Completo — Manager (FE)
 
 - [ ] **FE-01**: Página `/manutencao` exposta no sidebar — lista de work orders, ordens de serviço e manutenções preventivas do workshop; integrada nos 26 endpoints existentes do módulo workshop
@@ -260,6 +268,11 @@ _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de
 | GPS-03 | Phase 12 | Pending |
 | TRK-01 | Phase 12 | Pending |
 | TRK-02 | Phase 12 | Pending |
+| WSHOP-01 | Phase 13.5 | Complete |
+| WSHOP-02 | Phase 13.5 | Complete |
+| WSHOP-03 | Phase 13.5 | Complete |
+| WSHOP-04 | Phase 13.5 | Pending |
+| WSHOP-05 | Phase 13.5 | Pending |
 | FE-01 | Phase 13 | Pending |
 | FE-02 | Phase 13 | Pending |
 | FE-03 | Phase 13 | Pending |

@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Phase 14 + 17 fully implemented — Phase 15 (Fiscal+Load) and Phase 16 (HOS+Avail) are now unblocked; can run in parallel
-last_updated: "2026-06-18T16:24:50.668Z"
+stopped_at: Completed 13.5-01-PLAN.md — workshop expansion schema migration
+last_updated: "2026-06-18T22:55:36.488Z"
 last_activity: 2026-06-18
 progress:
-  total_phases: 19
+  total_phases: 13
   completed_phases: 6
-  total_plans: 64
+  total_plans: 59
   completed_plans: 53
 ---
 
@@ -25,7 +25,7 @@ Phase: 15 + 16 (v3.0 — both now unblocked)
 Plan: Not started
 Status: Phase 14 (SM-01..SM-04 all waves ✅) + Phase 17 (INFRA2-01..INFRA2-04 all waves ✅) complete 2026-06-18
 Last activity: 2026-06-18
-Stopped at: Phase 14 + 17 fully implemented — Phase 15 (Fiscal+Load) and Phase 16 (HOS+Avail) are now unblocked; can run in parallel
+Stopped at: Completed 13.5-01-PLAN.md — workshop expansion schema migration
 
 ### Completed v3.0 Phases
 

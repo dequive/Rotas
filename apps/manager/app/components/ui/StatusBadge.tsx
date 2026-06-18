@@ -37,6 +37,10 @@ const statusConfig = {
   'pending':        { label: 'Pendente',       dot: 'bg-warning',  bg: 'bg-warning-bg',  text: 'text-warning' },
   'approved':       { label: 'Aprovado',       dot: 'bg-success',  bg: 'bg-success-bg',  text: 'text-success' },
   'blocked':        { label: 'Bloqueado',      dot: 'bg-error',    bg: 'bg-error-bg',    text: 'text-error' },
+
+  // ── Client statuses ───────────────────────────────────
+  'activo':         { label: 'Activo',         dot: 'bg-success',  bg: 'bg-success-bg',  text: 'text-success' },
+  'inactivo':       { label: 'Inactivo',       dot: 'bg-error',    bg: 'bg-error-bg',    text: 'text-error' },
 } as const
 
 export type StatusKey = keyof typeof statusConfig

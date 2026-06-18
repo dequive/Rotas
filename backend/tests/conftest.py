@@ -1,12 +1,17 @@
-import pytest
-import httpx
+# ruff: noqa: E402
+import os
 from uuid import uuid4
 
-from app.database import AsyncSessionLocal, engine, import_all_models
-from app.main import app
-from app.modules.tenants.models import Tenant
-from app.modules.drivers.models import Driver
-from app.modules.vehicles.models import Vehicle
+import httpx
+import pytest
+
+os.environ.setdefault("DEV_TEST_TOKEN", "test-token")
+
+from app.database import AsyncSessionLocal, engine, import_all_models  # noqa: E402
+from app.main import app  # noqa: E402
+from app.modules.drivers.models import Driver  # noqa: E402
+from app.modules.tenants.models import Tenant  # noqa: E402
+from app.modules.vehicles.models import Vehicle  # noqa: E402
 
 import_all_models()
 
@@ -70,7 +75,8 @@ async def async_client():
 # ── Phase 3 additions ─────────────────────────────────────────────────────────
 
 import json as _json
-from datetime import UTC, datetime as _datetime
+from datetime import UTC
+from datetime import datetime as _datetime
 from decimal import Decimal as _Decimal
 from unittest.mock import AsyncMock  # noqa: E402
 
@@ -184,6 +190,21 @@ def second_tenant_headers():
 
 
 @pytest.fixture
+def client_payload():
+    return {
+        "trading_name": "Cimentos de Moçambique Lda",
+        "legal_name": "Cimentos de Moçambique, Lda.",
+        "nuit": "400123456",
+        "address": "Av. das FPLM 1234",
+        "city": "Maputo",
+        "phone": "+258840000000",
+        "email": "facturacao@cimentos.co.mz",
+        "payment_terms_days": 30,
+        "credit_limit": "50000.00",
+    }
+
+
+@pytest.fixture
 def owner_headers(auth_headers):
     """Auth headers for a user with role=owner. Re-uses auth_headers (test token is admin)."""
     return auth_headers
@@ -205,6 +226,7 @@ async def viewer_headers(db, tenant_id):
     await db.refresh(user)
 
     from app.config import get_settings
+
     settings = get_settings()
     token = _jwt.encode(
         {

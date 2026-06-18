@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import status
@@ -136,3 +137,102 @@ async def patch_contract(
     await db.commit()
     await db.refresh(contract)
     return serialize_contract(contract)
+
+
+# ── SM-02: Contract State Machine ────────────────────────────────────────────
+
+_CONTRACT_VALID_TRANSITIONS: dict[str, set[str]] = {
+    "draft":      {"active"},
+    "active":     {"paused", "expired", "terminated"},
+    "paused":     {"active", "expired", "terminated"},
+    "expired":    {"active", "terminated"},   # active = renew with new ends_at
+    "terminated": set(),  # terminal
+}
+
+
+async def transition_contract(
+    db: AsyncSession,
+    *,
+    contract: Contract,
+    new_status: str,
+    user_id: UUID,
+    tenant_id: UUID,
+    termination_reason: str | None = None,
+    new_ends_at: datetime | None = None,
+) -> Contract:
+    """Guard-enforced state transition for Contract (SM-02).
+
+    Raises ApiError(409) for invalid transitions.
+    All transitions are recorded in audit_log within the same transaction.
+    """
+    allowed = _CONTRACT_VALID_TRANSITIONS.get(contract.status, set())
+    if new_status not in allowed:
+        raise ApiError(
+            "invalid_state_transition",
+            f"Contract cannot transition from '{contract.status}' to '{new_status}'",
+            status_code=409,
+        )
+    if new_status == "terminated" and not termination_reason:
+        raise ApiError(
+            "termination_reason_required",
+            "termination_reason is required when terminating a contract",
+            status_code=422,
+        )
+
+    old_status = contract.status
+    contract.status = new_status
+    now = datetime.now(UTC)
+
+    if new_status == "paused":
+        contract.paused_at = now
+    elif new_status == "active" and old_status == "paused":
+        contract.paused_at = None
+    elif new_status == "active" and old_status == "expired":
+        # Renew: must provide new ends_at
+        if not new_ends_at:
+            raise ApiError(
+                "ends_at_required",
+                "new_ends_at is required when renewing an expired contract",
+                status_code=422,
+            )
+        contract.ends_at = new_ends_at
+        contract.renewed_at = now
+    elif new_status == "terminated":
+        contract.terminated_at = now
+        contract.termination_reason = termination_reason
+
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        action=f"contract.{new_status}",
+        entity_type="contract",
+        entity_id=contract.id,
+        user_id=user_id,
+        old_values={"status": old_status},
+        new_values={"status": new_status},
+    )
+    db.add(contract)
+    return contract
+
+
+async def renew_contract(
+    db: AsyncSession,
+    *,
+    contract_id: UUID,
+    tenant_id: UUID,
+    user_id: UUID,
+    new_ends_at: datetime,
+) -> Contract:
+    """SM-02: Renew an expired contract by extending ends_at and setting status='active'."""
+    contract = await db.get(Contract, contract_id)
+    if not contract or contract.tenant_id != tenant_id:
+        raise ApiError("contract_not_found", "Contract not found", status_code=404)
+    return await transition_contract(
+        db,
+        contract=contract,
+        new_status="active",
+        user_id=user_id,
+        tenant_id=tenant_id,
+        new_ends_at=new_ends_at,
+    )
+

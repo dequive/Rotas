@@ -30,3 +30,13 @@ class BillingWaiverResponse(BaseModel):
     reason: str
     approved_by: UUID | None
     created_at: datetime
+
+
+# SM-01: BillingDocument state machine request schemas
+class BillingDocumentMarkPaidRequest(BaseModel):
+    paid_at: datetime | None = None
+
+
+class BillingDocumentCancelRequest(BaseModel):
+    cancellation_reason: str = Field(..., min_length=5, max_length=500)
+

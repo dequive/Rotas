@@ -1,5 +1,6 @@
 """ARQ background worker for ROTAS. Handles billing export jobs and KPI cache refresh."""
 from arq.connections import RedisSettings
+from arq import cron
 
 from app.config import get_settings
 
@@ -11,9 +12,14 @@ async def startup(ctx: dict) -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.config import get_settings as _get_settings
+    from app.core.logging import configure_structlog  # INFRA2-02
     from app.main import _scrub_pii
 
     _settings = _get_settings()
+
+    # INFRA2-02: Configure structured logging before anything else
+    configure_structlog(json_logs=_settings.environment == "production")
+
     # INFRA-01: Sentry in ARQ worker — init before any job processing (D-04)
     if _settings.sentry_dsn_backend:
         sentry_sdk.init(
@@ -23,14 +29,16 @@ async def startup(ctx: dict) -> None:
             before_send=_scrub_pii,
         )
     # D-18 / RLS-02: ARQ worker uses rotas_admin role (BYPASSRLS) for cross-tenant queries.
-    # resolved_admin_database_url falls back to database_url in local dev where RLS may not
-    # be active — no local dev config change required.
     admin_engine = create_async_engine(
         _settings.resolved_admin_database_url,
         pool_pre_ping=True,
     )
     ctx["db_factory"] = async_sessionmaker(admin_engine, expire_on_commit=False)
     ctx["admin_engine"] = admin_engine  # store for cleanup in shutdown
+
+    import structlog
+    _logger = structlog.get_logger("worker")
+    _logger.info("arq_worker_started")
 
 
 async def shutdown(ctx: dict) -> None:
@@ -108,13 +116,13 @@ async def generate_billing_export(
                 content=artifact.content,
                 filename=artifact.filename,
                 mime_type=artifact.mime_type,
-                file_type=export_format,          # "billing_pdf" | "billing_xlsx"
+                file_type=export_format,
                 entity_type="billing_document",
                 entity_id=UUID(document_id),
             )
             job.status = "done"
-            job.file_id = file_obj.id             # FK to files table (INFRA-02)
-            job.file_path = file_obj.storage_key  # backward compat — storage_key not OS path
+            job.file_id = file_obj.id
+            job.file_path = file_obj.storage_key
             await db.commit()
             return {"job_id": job_id, "status": "done", "file_id": str(file_obj.id)}
 
@@ -125,11 +133,99 @@ async def generate_billing_export(
             return {"error": str(exc)}
 
 
+# ── SM-01: BillingDocument overdue cron ──────────────────────────────────────
+
+async def task_mark_overdue_billing_documents(ctx: dict) -> str:
+    """SM-01: Daily cron — mark issued BillingDocuments past due_date as overdue.
+
+    Runs daily at 01:00 Africa/Maputo (23:00 UTC).
+    Uses BYPASSRLS admin session — operates across all tenants.
+    """
+    import structlog
+    from datetime import datetime, timezone
+
+    from sqlalchemy import and_, update
+
+    from app.modules.billing.models import BillingDocument
+
+    logger = structlog.get_logger("worker")
+
+    async with ctx["db_factory"]() as db:
+        now = datetime.now(timezone.utc)
+        result = await db.execute(
+            update(BillingDocument)
+            .where(
+                and_(
+                    BillingDocument.status == "issued",
+                    BillingDocument.billing_period_end < now,
+                )
+            )
+            .values(status="overdue", overdue_since_at=now)
+            .returning(BillingDocument.id)
+        )
+        overdue_ids = result.scalars().all()
+        await db.commit()
+
+    count = len(overdue_ids)
+    logger.info("task_mark_overdue_billing_documents", count=count)
+    return f"Marked {count} billing documents as overdue"
+
+
+# ── SM-02: Contract expiration cron ──────────────────────────────────────────
+
+async def task_expire_contracts(ctx: dict) -> str:
+    """SM-02: Daily cron — mark active/paused Contracts past ends_at as expired.
+
+    Runs daily at 00:30 Africa/Maputo (22:30 UTC).
+    Uses BYPASSRLS admin session — operates across all tenants.
+    """
+    import structlog
+    from datetime import datetime, timezone
+
+    from sqlalchemy import and_, update
+
+    from app.modules.contracts.models import Contract
+
+    logger = structlog.get_logger("worker")
+
+    async with ctx["db_factory"]() as db:
+        now = datetime.now(timezone.utc)
+        result = await db.execute(
+            update(Contract)
+            .where(
+                and_(
+                    Contract.status.in_(["active", "paused"]),
+                    Contract.ends_at != None,
+                    Contract.ends_at < now,
+                )
+            )
+            .values(status="expired")
+            .returning(Contract.id)
+        )
+        expired_ids = result.scalars().all()
+        await db.commit()
+
+    count = len(expired_ids)
+    logger.info("task_expire_contracts", count=count)
+    return f"Expired {count} contracts"
+
+
 class WorkerSettings:
-    functions = [generate_billing_export]
+    functions = [
+        generate_billing_export,
+        task_mark_overdue_billing_documents,
+        task_expire_contracts,
+    ]
+    cron_jobs = [
+        # SM-01: Mark overdue billing documents — 01:00 Africa/Maputo = 23:00 UTC
+        cron(task_mark_overdue_billing_documents, hour=23, minute=0),
+        # SM-02: Expire contracts — 00:30 Africa/Maputo = 22:30 UTC
+        cron(task_expire_contracts, hour=22, minute=30),
+    ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     max_jobs = 10
     max_tries = 3
-    keep_result = 86400  # 24 hours — keep job results for 1 day
+    keep_result = 86400  # 24 hours
     on_startup = startup
     on_shutdown = shutdown
+

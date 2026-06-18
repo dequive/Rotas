@@ -236,3 +236,50 @@ async def download_job_file(
         else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
     return FileResponse(path=job.file_path, media_type=content_type)
+
+
+# ── SM-01: BillingDocument state machine endpoints ───────────────────────────
+
+@router.patch("/documents/{document_id}/mark-paid", summary="Mark billing document as paid (SM-01)")
+async def mark_billing_document_paid(
+    document_id: UUID,
+    payload: schemas.BillingDocumentMarkPaidRequest,
+    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """SM-01: Transition BillingDocument from 'issued' or 'overdue' to 'paid'.
+    Returns HTTP 409 if the current status does not allow the transition.
+    """
+    doc = await service.mark_billing_document_paid(
+        db,
+        document_id=document_id,
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        paid_at=payload.paid_at,
+    )
+    await db.commit()
+    await db.refresh(doc)
+    return {"id": doc.id, "status": doc.status, "paid_at": doc.paid_at}
+
+
+@router.patch("/documents/{document_id}/cancel", summary="Cancel billing document (SM-01)")
+async def cancel_billing_document(
+    document_id: UUID,
+    payload: schemas.BillingDocumentCancelRequest,
+    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """SM-01: Transition BillingDocument to 'cancelled'. Requires cancellation_reason.
+    Allowed from 'draft' or 'overdue'. Returns HTTP 409 for invalid transitions.
+    """
+    doc = await service.cancel_billing_document(
+        db,
+        document_id=document_id,
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        reason=payload.cancellation_reason,
+    )
+    await db.commit()
+    await db.refresh(doc)
+    return {"id": doc.id, "status": doc.status, "cancellation_reason": doc.cancellation_reason}
+

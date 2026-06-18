@@ -1,7 +1,8 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ContractCreate(BaseModel):
@@ -43,3 +44,10 @@ class ContractResponse(ContractCreate):
     status: str
     created_at: datetime
     updated_at: datetime
+
+
+# SM-02: Contract state machine transition request schema
+class ContractTransitionRequest(BaseModel):
+    action: Literal["activate", "pause", "resume", "expire", "terminate", "renew"]
+    termination_reason: str | None = Field(None, min_length=5, max_length=500)
+    new_ends_at: datetime | None = None

@@ -12,6 +12,8 @@ from slowapi.errors import RateLimitExceeded
 from app.config import get_settings
 from app.core.errors import install_error_handlers
 from app.core.limiter import limiter
+from app.core.logging import configure_structlog
+from app.core.middleware import StructlogRequestMiddleware
 from app.core.request_context import RequestContextMiddleware
 from app.database import import_all_models
 from app.modules.alerts.router import router as alerts_router
@@ -76,6 +78,9 @@ def _scrub_pii(event: dict, hint: dict) -> dict | None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # INFRA2-02: Configure structured logging first — before any other init
+    configure_structlog(json_logs=settings.environment == "production")
+
     # INFRA-01: Sentry init — silent when DSN absent (D-02)
     if settings.sentry_dsn_backend:
         sentry_sdk.init(
@@ -117,6 +122,8 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 install_error_handlers(app)
 app.add_middleware(RequestContextMiddleware)
+# INFRA2-02: HTTP request logging — placed after RequestContextMiddleware so request_id is in scope
+app.add_middleware(StructlogRequestMiddleware)
 
 # SEC-02 / D-11: Always attach CORSMiddleware. In production, startup validator ensures
 # cors_origins is non-empty. In development, empty list means no cross-origin requests allowed.

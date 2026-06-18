@@ -795,3 +795,115 @@ def _serialize_export(document: BillingDocument, stored_file: File, export_forma
         "download_url": f"/api/v1/files/{stored_file.id}/download",
         "message": "Documento gerado com layout profissional ROTAS.",
     }
+
+
+# ── SM-01: BillingDocument State Machine ─────────────────────────────────────
+
+_BILLING_VALID_TRANSITIONS: dict[str, set[str]] = {
+    "draft":     {"issued", "cancelled"},
+    "issued":    {"paid", "overdue", "cancelled"},
+    "overdue":   {"paid", "cancelled"},
+    "paid":      set(),       # terminal
+    "cancelled": set(),       # terminal
+}
+
+
+async def transition_billing_document(
+    db: AsyncSession,
+    *,
+    document: BillingDocument,
+    new_status: str,
+    user_id: UUID,
+    tenant_id: UUID,
+    paid_at: datetime | None = None,
+    cancellation_reason: str | None = None,
+) -> BillingDocument:
+    """Guard-enforced state transition for BillingDocument (SM-01).
+
+    Raises ApiError(409) for invalid transitions.
+    All transitions are recorded in audit_log within the same transaction.
+    """
+    allowed = _BILLING_VALID_TRANSITIONS.get(document.status, set())
+    if new_status not in allowed:
+        raise ApiError(
+            "invalid_state_transition",
+            f"BillingDocument cannot transition from '{document.status}' to '{new_status}'",
+            status_code=409,
+        )
+    if new_status == "cancelled" and not cancellation_reason:
+        raise ApiError(
+            "cancellation_reason_required",
+            "cancellation_reason is required when cancelling a billing document",
+            status_code=422,
+        )
+
+    old_status = document.status
+    document.status = new_status
+
+    if new_status == "paid":
+        document.paid_at = paid_at or datetime.now(UTC)
+    elif new_status == "overdue":
+        document.overdue_since_at = datetime.now(UTC)
+    elif new_status == "cancelled":
+        document.cancellation_reason = cancellation_reason
+
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        action=f"billing.document.{new_status}",
+        entity_type="billing_document",
+        entity_id=document.id,
+        user_id=user_id,
+        old_values={"status": old_status},
+        new_values={
+            "status": new_status,
+            "paid_at": document.paid_at.isoformat() if document.paid_at else None,
+        },
+    )
+    db.add(document)
+    return document
+
+
+async def mark_billing_document_paid(
+    db: AsyncSession,
+    *,
+    document_id: UUID,
+    tenant_id: UUID,
+    user_id: UUID,
+    paid_at: datetime | None = None,
+) -> BillingDocument:
+    """SM-01: Transition BillingDocument to 'paid'. Allowed from 'issued' or 'overdue'."""
+    doc = await db.get(BillingDocument, document_id)
+    if not doc or doc.tenant_id != tenant_id:
+        raise ApiError("not_found", "BillingDocument not found", status_code=404)
+    return await transition_billing_document(
+        db,
+        document=doc,
+        new_status="paid",
+        user_id=user_id,
+        tenant_id=tenant_id,
+        paid_at=paid_at,
+    )
+
+
+async def cancel_billing_document(
+    db: AsyncSession,
+    *,
+    document_id: UUID,
+    tenant_id: UUID,
+    user_id: UUID,
+    reason: str,
+) -> BillingDocument:
+    """SM-01: Transition BillingDocument to 'cancelled'. Requires reason. Allowed from 'draft' or 'overdue'."""
+    doc = await db.get(BillingDocument, document_id)
+    if not doc or doc.tenant_id != tenant_id:
+        raise ApiError("not_found", "BillingDocument not found", status_code=404)
+    return await transition_billing_document(
+        db,
+        document=doc,
+        new_status="cancelled",
+        user_id=user_id,
+        tenant_id=tenant_id,
+        cancellation_reason=reason,
+    )
+

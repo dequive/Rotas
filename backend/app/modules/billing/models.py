@@ -26,6 +26,9 @@ class BillingDocument(Base):
     status: Mapped[str] = mapped_column(String(30), default="draft", index=True)
     issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # SM-01: State machine audit fields
+    overdue_since_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancellation_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
     file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

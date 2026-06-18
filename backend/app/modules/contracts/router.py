@@ -5,10 +5,12 @@ from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.errors import ApiError
 from app.core.idempotency import execute_http_idempotent
 from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
 from app.core.deps import get_session
 from app.modules.contracts import schemas, service
+from app.modules.contracts.models import Contract
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
 
@@ -79,3 +81,51 @@ async def patch_contract(
         payload,
         actor_id=principal.user_id,
     )
+
+
+# ── SM-02: Contract state machine endpoint ───────────────────────────────────
+
+@router.patch("/{contract_id}/status", summary="Transition contract status (SM-02)")
+async def transition_contract_status(
+    contract_id: UUID,
+    payload: schemas.ContractTransitionRequest,
+    principal: Annotated[Principal, Depends(require_roles("owner", "admin"))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """SM-02: Transition Contract between allowed states.
+
+    Actions and resulting status:
+    - activate  → active   (from draft)
+    - pause     → paused   (from active)
+    - resume    → active   (from paused)
+    - expire    → expired  (manual; cron also does this automatically)
+    - terminate → terminated (requires termination_reason)
+    - renew     → active   (from expired; requires new_ends_at)
+
+    Returns HTTP 409 for invalid transitions.
+    """
+    action_to_status = {
+        "activate":  "active",
+        "pause":     "paused",
+        "resume":    "active",
+        "expire":    "expired",
+        "terminate": "terminated",
+        "renew":     "active",
+    }
+    new_status = action_to_status[payload.action]
+    contract = await db.get(Contract, contract_id)
+    if not contract or contract.tenant_id != principal.tenant_id:
+        raise ApiError("contract_not_found", "Contract not found", status_code=404)
+    updated = await service.transition_contract(
+        db,
+        contract=contract,
+        new_status=new_status,
+        user_id=principal.user_id,
+        tenant_id=principal.tenant_id,
+        termination_reason=payload.termination_reason,
+        new_ends_at=payload.new_ends_at,
+    )
+    await db.commit()
+    await db.refresh(updated)
+    return service.serialize_contract(updated)
+

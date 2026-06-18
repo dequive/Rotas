@@ -831,7 +831,18 @@ Plans:
 - **OPDOC-04 (DAV)**: Registo digital da guia física emitida pelo INATTER. `extra_fields = {authorization_code, inatter_office, valid_routes}`. Sem geração de PDF (documento físico externo).
 - **OPDOC-05 (Checklist)**: Endpoint calculado — sem nova tabela. Lógica: `trip.destination` internacional (fronteira) → exige CPI. `cargo_manifests.is_hazmat=true` → exige `declaracao_carga_perigosa`.
 
-**Plans**: TBD
+**Plans**: 9 plans
+
+Plans:
+- [ ] 15.1-01-PLAN.md — Wave 0: Test stubs for all FDOC/OPDOC requirements
+- [ ] 15.1-02-PLAN.md — Wave 1A: DDL — billing_documents extension (FDOC-01)
+- [ ] 15.1-03-PLAN.md — Wave 1B: DDL — transport_documents extension (OPDOC-01)
+- [ ] 15.1-04-PLAN.md — Wave 2A: Nota de Débito + Nota de Crédito (FDOC-02, FDOC-03)
+- [ ] 15.1-05-PLAN.md — Wave 2B: Fatura-Recibo, Recibo + AR endpoint (FDOC-04, FDOC-05)
+- [ ] 15.1-06-PLAN.md — Wave 3A: Guia de Remessa (OPDOC-02)
+- [ ] 15.1-07-PLAN.md — Wave 3B: Carta de Porte Internacional + DAV/INATTER (OPDOC-03, OPDOC-04)
+- [ ] 15.1-08-PLAN.md — Wave 3C: Document Checklist per Trip (OPDOC-05)
+- [ ] 15.1-09-PLAN.md — Wave 4: Implement tests + full suite validation
 
 **UI hint**: no (backend + endpoints only; UI na fase seguinte de design)
 

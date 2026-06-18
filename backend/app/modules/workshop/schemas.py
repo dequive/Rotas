@@ -37,6 +37,7 @@ class WorkOrderTaskCreate(BaseModel):
 
 class WorkOrderTaskCompleteRequest(BaseModel):
     notes: str | None = None
+    actual_minutes: int | None = Field(default=None, ge=1)
 
 
 class SparePartInventoryCreate(BaseModel):

@@ -1,9 +1,9 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
 
 from fastapi import status
-from sqlalchemy import select
+from sqlalchemy import func, select, text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
@@ -19,25 +19,33 @@ from app.modules.workshop.models import (
     MaintenanceSchedule,
     SparePartInventory,
     SparePartMovement,
+    SparePartSerialItem,
+    ToolCalibration,
     ToolCheckout,
     WorkOrder,
     WorkOrderTask,
+    WorkshopStaffRate,
     WorkshopTool,
 )
 from app.modules.workshop.schemas import (
     MaintenancePartIssueCreate,
     MaintenancePlanCreate,
     MaintenanceRequestCreate,
+    SerialItemCreate,
     SparePartInventoryCreate,
     SparePartReceiptCreate,
+    TaskAssignRequest,
+    ToolCalibrationCreate,
     ToolCheckoutCreate,
     ToolReturnCreate,
+    ToolUpdateRequest,
     WorkOrderApproveRequest,
     WorkOrderCloseRequest,
     WorkOrderCreate,
     WorkOrderTaskCompleteRequest,
     WorkOrderTaskCreate,
     WorkOrderTransitionRequest,
+    WorkshopStaffRateCreate,
     WorkshopToolCreate,
 )
 
@@ -85,6 +93,7 @@ def serialize_work_order(item: WorkOrder) -> dict:
         "planned_work": item.planned_work,
         "estimated_cost": item.estimated_cost,
         "actual_cost": item.actual_cost,
+        "labor_cost": str(item.labor_cost) if item.labor_cost is not None else "0",
         "status": item.status,
         "approved_by": item.approved_by,
         "approved_at": item.approved_at,
@@ -106,6 +115,9 @@ def serialize_work_order_task(item: WorkOrderTask) -> dict:
         "completed_by": item.completed_by,
         "completed_at": item.completed_at,
         "completion_notes": item.completion_notes,
+        "assigned_to": str(item.assigned_to) if item.assigned_to else None,
+        "estimated_minutes": item.estimated_minutes,
+        "actual_minutes": item.actual_minutes,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
     }
@@ -174,6 +186,12 @@ def serialize_tool(item: WorkshopTool) -> dict:
         "is_critical": item.is_critical,
         "calibration_due_at": item.calibration_due_at,
         "status": item.status,
+        "category": item.category,
+        "location": item.location,
+        "serial_number": item.serial_number,
+        "purchase_date": item.purchase_date.isoformat() if item.purchase_date else None,
+        "purchase_cost": str(item.purchase_cost) if item.purchase_cost else None,
+        "calibration_interval_days": item.calibration_interval_days,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
     }
@@ -317,7 +335,9 @@ class SparePartMovementService:
         movement_unit_cost = (
             _decimal(unit_cost)
             if unit_cost is not None
-            else previous_average_cost if direction == "out" else None
+            else previous_average_cost
+            if direction == "out"
+            else None
         )
         item = SparePartMovement(
             tenant_id=tenant_id,
@@ -736,6 +756,25 @@ async def complete_work_order_task(
     item.completed_by = actor_id
     item.completed_at = now_utc()
     item.completion_notes = payload.notes
+    # Labor cost accumulation — only when actual_minutes provided and task has a completer
+    if payload.actual_minutes and actor_id:
+        item.actual_minutes = payload.actual_minutes
+        rate_result = await db.execute(
+            select(WorkshopStaffRate)
+            .where(
+                WorkshopStaffRate.tenant_id == tenant_id,
+                WorkshopStaffRate.user_id == actor_id,
+                WorkshopStaffRate.effective_from <= func.current_date(),
+            )
+            .order_by(WorkshopStaffRate.effective_from.desc())
+            .limit(1)
+        )
+        active_rate = rate_result.scalar_one_or_none()
+        if active_rate:
+            labor_hours = Decimal(str(payload.actual_minutes)) / Decimal("60")
+            labor_amount = (labor_hours * active_rate.hourly_rate).quantize(Decimal("0.01"))
+            # work_order was already fetched at the start of this function
+            work_order.labor_cost = (work_order.labor_cost or Decimal("0")) + labor_amount
     await record_audit_log(
         db,
         tenant_id=tenant_id,
@@ -1268,9 +1307,8 @@ async def evaluate_maintenance_schedule(
     )
     created: list[MaintenanceSchedule] = []
     for plan, vehicle in rows:
-        overdue = (
-            (plan.next_due_km is not None and vehicle.current_km >= plan.next_due_km)
-            or (plan.next_due_at is not None and plan.next_due_at <= now_utc())
+        overdue = (plan.next_due_km is not None and vehicle.current_km >= plan.next_due_km) or (
+            plan.next_due_at is not None and plan.next_due_at <= now_utc()
         )
         if not overdue:
             continue
@@ -1355,9 +1393,10 @@ async def evaluate_maintenance_schedule(
             db.add(next_schedule)
             await db.flush()
     await db.commit()
-    return {"created": len(created), "overdue": await list_maintenance_schedule(
-        db, tenant_id, status_filter="overdue"
-    )}
+    return {
+        "created": len(created),
+        "overdue": await list_maintenance_schedule(db, tenant_id, status_filter="overdue"),
+    }
 
 
 async def _trigger_maintenance_work_order(
@@ -1470,13 +1509,10 @@ async def get_imminent_maintenance_alerts(
     )
     alerts = []
     for plan, vehicle in rows:
-        overdue = (
-            (plan.next_due_at is not None and plan.next_due_at < now)
-            or (
-                plan.next_due_km is not None
-                and vehicle.current_km is not None
-                and vehicle.current_km >= plan.next_due_km
-            )
+        overdue = (plan.next_due_at is not None and plan.next_due_at < now) or (
+            plan.next_due_km is not None
+            and vehicle.current_km is not None
+            and vehicle.current_km >= plan.next_due_km
         )
         trigger_type = (
             "overdue"
@@ -1500,6 +1536,406 @@ async def get_imminent_maintenance_alerts(
             }
         )
     return alerts
+
+
+# ---------------------------------------------------------------------------
+# Task 1A: Staff pillar service functions
+# ---------------------------------------------------------------------------
+
+def serialize_staff_rate(rate: WorkshopStaffRate) -> dict:
+    return {
+        "id": str(rate.id),
+        "tenant_id": str(rate.tenant_id),
+        "user_id": str(rate.user_id),
+        "hourly_rate": str(rate.hourly_rate),
+        "effective_from": rate.effective_from.isoformat(),
+        "created_at": rate.created_at.isoformat(),
+    }
+
+
+async def assign_task_to_mechanic(
+    task_id: UUID,
+    data: TaskAssignRequest,
+    tenant_id: UUID,
+    db: AsyncSession,
+) -> dict:
+    result = await db.execute(
+        select(WorkOrderTask).where(
+            WorkOrderTask.id == task_id,
+            WorkOrderTask.tenant_id == tenant_id,
+        )
+    )
+    task = result.scalar_one_or_none()
+    if task is None:
+        raise ApiError("task_not_found", "Task not found", status.HTTP_404_NOT_FOUND)
+    task.assigned_to = data.assigned_to
+    task.estimated_minutes = data.estimated_minutes
+    await db.commit()
+    await db.refresh(task)
+    return serialize_work_order_task(task)
+
+
+async def get_workshop_staff_rates(tenant_id: UUID, db: AsyncSession) -> list[dict]:
+    result = await db.execute(
+        select(WorkshopStaffRate)
+        .where(WorkshopStaffRate.tenant_id == tenant_id)
+        .order_by(WorkshopStaffRate.effective_from.desc())
+    )
+    return [serialize_staff_rate(r) for r in result.scalars().all()]
+
+
+async def create_staff_rate(
+    data: WorkshopStaffRateCreate,
+    tenant_id: UUID,
+    db: AsyncSession,
+) -> dict:
+    rate = WorkshopStaffRate(
+        tenant_id=tenant_id,
+        user_id=data.user_id,
+        hourly_rate=data.hourly_rate,
+        effective_from=data.effective_from,
+    )
+    db.add(rate)
+    await db.commit()
+    await db.refresh(rate)
+    return serialize_staff_rate(rate)
+
+
+async def get_workshop_kpis(tenant_id: UUID, db: AsyncSession) -> dict:
+    # Open work orders count
+    open_wo_result = await db.execute(
+        select(func.count()).select_from(WorkOrder).where(
+            WorkOrder.tenant_id == tenant_id,
+            WorkOrder.status.not_in(["closed", "cancelled"]),
+        )
+    )
+    open_work_orders = open_wo_result.scalar() or 0
+
+    # Pending tasks count
+    pending_tasks_result = await db.execute(
+        select(func.count()).select_from(WorkOrderTask).where(
+            WorkOrderTask.tenant_id == tenant_id,
+            WorkOrderTask.status == "pending",
+        )
+    )
+    pending_tasks = pending_tasks_result.scalar() or 0
+
+    # Total labor hours from actual_minutes
+    labor_minutes_result = await db.execute(
+        select(func.coalesce(func.sum(WorkOrderTask.actual_minutes), 0)).where(
+            WorkOrderTask.tenant_id == tenant_id,
+            WorkOrderTask.actual_minutes.isnot(None),
+        )
+    )
+    total_labor_minutes = labor_minutes_result.scalar() or 0
+    total_labor_hours = float(total_labor_minutes) / 60.0
+
+    # Total labor cost from work_orders.labor_cost
+    labor_cost_result = await db.execute(
+        select(func.coalesce(func.sum(WorkOrder.labor_cost), 0)).where(
+            WorkOrder.tenant_id == tenant_id,
+        )
+    )
+    total_labor_cost = str(labor_cost_result.scalar() or 0)
+
+    # Work orders by mechanic (JOIN users for name field)
+    mechanic_result = await db.execute(
+        sa_text("""
+            SELECT wot.assigned_to::text AS user_id,
+                   u.full_name AS name,
+                   COUNT(DISTINCT wo.id) AS work_order_count,
+                   COALESCE(SUM(wot.actual_minutes), 0) / 60.0 AS total_hours
+            FROM work_order_tasks wot
+            JOIN users u ON u.id = wot.assigned_to
+            JOIN work_orders wo ON wo.id = wot.work_order_id
+            WHERE wot.tenant_id = :tenant_id AND wot.assigned_to IS NOT NULL
+            GROUP BY wot.assigned_to, u.full_name
+        """),
+        {"tenant_id": str(tenant_id)},
+    )
+    work_orders_by_mechanic = [
+        {
+            "user_id": row.user_id,
+            "name": row.name,
+            "work_order_count": row.work_order_count,
+            "total_hours": float(row.total_hours),
+        }
+        for row in mechanic_result.fetchall()
+    ]
+
+    return {
+        "open_work_orders": open_work_orders,
+        "pending_tasks": pending_tasks,
+        "total_labor_hours": total_labor_hours,
+        "total_labor_cost": total_labor_cost,
+        "work_orders_by_mechanic": work_orders_by_mechanic,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Task 1B: Tools pillar service functions
+# ---------------------------------------------------------------------------
+
+def serialize_tool_calibration(cal: ToolCalibration) -> dict:
+    return {
+        "id": str(cal.id),
+        "tool_id": str(cal.tool_id),
+        "calibrated_by": str(cal.calibrated_by) if cal.calibrated_by else None,
+        "calibrated_at": cal.calibrated_at.isoformat(),
+        "next_due_at": cal.next_due_at.isoformat(),
+        "notes": cal.notes,
+        "created_at": cal.created_at.isoformat(),
+    }
+
+
+async def record_tool_calibration(
+    tool_id: UUID,
+    data: ToolCalibrationCreate,
+    tenant_id: UUID,
+    db: AsyncSession,
+) -> dict:
+    tool_result = await db.execute(
+        select(WorkshopTool).where(
+            WorkshopTool.id == tool_id,
+            WorkshopTool.tenant_id == tenant_id,
+        )
+    )
+    tool = tool_result.scalar_one_or_none()
+    if tool is None:
+        raise ApiError("tool_not_found", "Tool not found", status.HTTP_404_NOT_FOUND)
+
+    cal = ToolCalibration(
+        tenant_id=tenant_id,
+        tool_id=tool_id,
+        calibrated_by=data.calibrated_by,
+        calibrated_at=data.calibrated_at,
+        next_due_at=data.next_due_at,
+        notes=data.notes,
+    )
+    db.add(cal)
+
+    # Update tool.calibration_due_at to next_due_at
+    tool.calibration_due_at = data.next_due_at
+
+    # Auto-alert: ONLY when ALL THREE conditions are true:
+    # 1. tool is critical
+    # 2. calibration_interval_days is NOT None (tool has a defined interval)
+    # 3. next_due_at falls within 30 days from now
+    if (
+        tool.is_critical
+        and tool.calibration_interval_days is not None
+        and data.next_due_at <= now_utc() + timedelta(days=30)
+    ):
+        await ensure_exception(
+            db,
+            tenant_id,
+            entity_type="workshop_tool",
+            entity_id=tool_id,
+            exception_type="tool_calibration_due",
+            severity="high",
+            title=f"Calibracao da ferramenta critica vence em menos de 30 dias",
+            message=(
+                f"Calibracao vence em: {data.next_due_at.date().isoformat()}"
+            ),
+            source_type="tool_calibration",
+        )
+
+    await db.commit()
+    await db.refresh(cal)
+    return serialize_tool_calibration(cal)
+
+
+async def list_tool_calibration_history(
+    tool_id: UUID,
+    tenant_id: UUID,
+    db: AsyncSession,
+) -> list[dict]:
+    result = await db.execute(
+        select(ToolCalibration)
+        .where(
+            ToolCalibration.tool_id == tool_id,
+            ToolCalibration.tenant_id == tenant_id,
+        )
+        .order_by(ToolCalibration.calibrated_at.desc())
+    )
+    return [serialize_tool_calibration(c) for c in result.scalars().all()]
+
+
+async def update_tool(
+    tool_id: UUID,
+    data: ToolUpdateRequest,
+    tenant_id: UUID,
+    db: AsyncSession,
+) -> dict:
+    result = await db.execute(
+        select(WorkshopTool).where(
+            WorkshopTool.id == tool_id,
+            WorkshopTool.tenant_id == tenant_id,
+        )
+    )
+    tool = result.scalar_one_or_none()
+    if tool is None:
+        raise ApiError("tool_not_found", "Tool not found", status.HTTP_404_NOT_FOUND)
+    if data.status is not None:
+        tool.status = data.status
+    if data.location is not None:
+        tool.location = data.location
+    if data.calibration_interval_days is not None:
+        tool.calibration_interval_days = data.calibration_interval_days
+    if data.category is not None:
+        tool.category = data.category
+    await db.commit()
+    await db.refresh(tool)
+    return serialize_tool(tool)
+
+
+# ---------------------------------------------------------------------------
+# Task 1C: Serial parts service functions
+# ---------------------------------------------------------------------------
+
+def serialize_serial_item(item: SparePartSerialItem) -> dict:
+    return {
+        "id": str(item.id),
+        "part_id": str(item.part_id),
+        "serial_number": item.serial_number,
+        "status": item.status,
+        "vehicle_id": str(item.vehicle_id) if item.vehicle_id else None,
+        "installed_at": item.installed_at.isoformat() if item.installed_at else None,
+        "scrapped_at": item.scrapped_at.isoformat() if item.scrapped_at else None,
+        "notes": item.notes,
+        "created_at": item.created_at.isoformat(),
+    }
+
+
+async def register_serial_item(
+    part_id: UUID,
+    data: SerialItemCreate,
+    tenant_id: UUID,
+    db: AsyncSession,
+) -> dict:
+    part_result = await db.execute(
+        select(SparePartInventory).where(
+            SparePartInventory.id == part_id,
+            SparePartInventory.tenant_id == tenant_id,
+        )
+    )
+    if part_result.scalar_one_or_none() is None:
+        raise ApiError("part_not_found", "Spare part not found", status.HTTP_404_NOT_FOUND)
+
+    item = SparePartSerialItem(
+        tenant_id=tenant_id,
+        part_id=part_id,
+        serial_number=data.serial_number,
+        notes=data.notes,
+        status="in_stock",
+    )
+    try:
+        db.add(item)
+        await db.commit()
+        await db.refresh(item)
+    except Exception:
+        await db.rollback()
+        raise ApiError(
+            "serial_number_exists",
+            "Serial number already registered for this tenant",
+            status.HTTP_409_CONFLICT,
+        )
+    return serialize_serial_item(item)
+
+
+async def install_serial_item(
+    serial_id: UUID,
+    vehicle_id: UUID,
+    tenant_id: UUID,
+    db: AsyncSession,
+) -> dict:
+    result = await db.execute(
+        select(SparePartSerialItem).where(
+            SparePartSerialItem.id == serial_id,
+            SparePartSerialItem.tenant_id == tenant_id,
+        )
+    )
+    item = result.scalar_one_or_none()
+    if item is None:
+        raise ApiError(
+            "serial_item_not_found", "Serial item not found", status.HTTP_404_NOT_FOUND
+        )
+    if item.status != "in_stock":
+        raise ApiError(
+            "serial_item_not_in_stock",
+            "Serial item is not available for installation",
+            status.HTTP_409_CONFLICT,
+        )
+
+    item.status = "installed"
+    item.vehicle_id = vehicle_id
+    item.installed_at = now_utc()
+
+    part_result = await db.execute(
+        select(SparePartInventory).where(SparePartInventory.id == item.part_id)
+    )
+    part = part_result.scalar_one()
+    new_quantity = (part.current_quantity or Decimal("0")) - Decimal("1")
+    movement = SparePartMovement(
+        tenant_id=tenant_id,
+        inventory_id=item.part_id,
+        movement_type="serial_install",
+        direction="out",
+        quantity=Decimal("1"),
+        balance_after_quantity=new_quantity,
+        unit_cost=part.average_unit_cost,
+        total_cost=part.average_unit_cost,
+        request_reference=f"serial-install-{serial_id}",
+        source_type="spare_part_serial_item",
+        source_id=serial_id,
+        occurred_at=now_utc(),
+    )
+    db.add(movement)
+    part.current_quantity = new_quantity
+
+    await db.commit()
+    await db.refresh(item)
+    return serialize_serial_item(item)
+
+
+async def get_installed_parts_for_vehicle(
+    vehicle_id: UUID,
+    tenant_id: UUID,
+    db: AsyncSession,
+) -> list[dict]:
+    result = await db.execute(
+        select(SparePartSerialItem).where(
+            SparePartSerialItem.tenant_id == tenant_id,
+            SparePartSerialItem.vehicle_id == vehicle_id,
+            SparePartSerialItem.status == "installed",
+        )
+    )
+    return [serialize_serial_item(i) for i in result.scalars().all()]
+
+
+async def list_low_stock_parts(tenant_id: UUID, db: AsyncSession) -> dict:
+    result = await db.execute(
+        select(SparePartInventory).where(
+            SparePartInventory.tenant_id == tenant_id,
+            SparePartInventory.status == "active",
+            SparePartInventory.current_quantity <= SparePartInventory.minimum_quantity,
+        )
+    )
+    items = result.scalars().all()
+    serialized = [
+        {
+            "id": str(p.id),
+            "sku": p.sku,
+            "name": p.name,
+            "current_quantity": str(p.current_quantity),
+            "minimum_quantity": str(p.minimum_quantity),
+            "reorder_quantity": p.reorder_quantity,
+            "supplier_name": p.supplier_name,
+            "lead_time_days": p.lead_time_days,
+        }
+        for p in items
+    ]
+    return {"items": serialized, "total": len(serialized)}
 
 
 async def _find_spare_part_movement(

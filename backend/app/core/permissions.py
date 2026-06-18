@@ -10,9 +10,14 @@ OWNER = "owner"
 ADMIN = "admin"
 MANAGER = "manager"
 VIEWER = "viewer"
-DASHBOARD_ROLES = {OWNER, ADMIN, MANAGER, VIEWER}
+MECHANIC = "mechanic"
+DASHBOARD_ROLES = {OWNER, ADMIN, MANAGER, VIEWER, MECHANIC}
 WRITE_ROLES = {OWNER, ADMIN, MANAGER}
 ADMIN_ROLES = {OWNER, ADMIN}
+# Workshop write: mechanic + standard write roles
+WORKSHOP_WRITE_ROLES = {OWNER, ADMIN, MANAGER, MECHANIC}
+# Workshop read: mechanic + standard dashboard roles
+WORKSHOP_READ_ROLES = {OWNER, ADMIN, MANAGER, VIEWER, MECHANIC}
 
 
 def require_roles(*roles: str) -> Callable:

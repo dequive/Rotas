@@ -47,10 +47,26 @@ class Settings(BaseSettings):
     r2_bucket: str = Field(default="", validation_alias="R2_BUCKET")
     r2_endpoint_url: str = Field(default="", validation_alias="R2_ENDPOINT_URL")
     r2_access_key_id: str = Field(default="", validation_alias="R2_ACCESS_KEY_ID")
-    r2_secret_access_key: SecretStr = Field(default=SecretStr(""), validation_alias="R2_SECRET_ACCESS_KEY")
+    r2_secret_access_key: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias="R2_SECRET_ACCESS_KEY",
+    )
 
     # INFRA-03: Upgrade URL — drives 403 body and dashboard banner (D-16)
     upgrade_url: str = Field(default="", validation_alias="UPGRADE_URL")
+
+    # Self-service transactional messaging.
+    manager_public_url: str = Field(
+        default="http://localhost:3000",
+        validation_alias="MANAGER_PUBLIC_URL",
+    )
+    email_provider: str = Field(default="none", validation_alias="EMAIL_PROVIDER")
+    email_from_address: str = Field(default="", validation_alias="EMAIL_FROM_ADDRESS")
+    smtp_host: str = Field(default="", validation_alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, validation_alias="SMTP_PORT")
+    smtp_username: str = Field(default="", validation_alias="SMTP_USERNAME")
+    smtp_password: SecretStr = Field(default=SecretStr(""), validation_alias="SMTP_PASSWORD")
+    smtp_use_tls: bool = Field(default=True, validation_alias="SMTP_USE_TLS")
 
     @property
     def resolved_admin_database_url(self) -> str:
@@ -79,6 +95,41 @@ class Settings(BaseSettings):
             if self.redis_url == "redis://localhost:6381":
                 raise ValueError(
                     "REDIS_URL must be set to a production Redis URL when ENVIRONMENT=production."
+                )
+            if self.storage_provider.lower() != "r2":
+                raise ValueError(
+                    "STORAGE_PROVIDER must be set to 'r2' when ENVIRONMENT=production."
+                )
+            missing_r2 = [
+                name
+                for name, value in {
+                    "R2_BUCKET": self.r2_bucket,
+                    "R2_ENDPOINT_URL": self.r2_endpoint_url,
+                    "R2_ACCESS_KEY_ID": self.r2_access_key_id,
+                    "R2_SECRET_ACCESS_KEY": self.r2_secret_access_key.get_secret_value(),
+                }.items()
+                if not value
+            ]
+            if missing_r2:
+                raise ValueError(
+                    "R2 storage settings are required when ENVIRONMENT=production: "
+                    + ", ".join(missing_r2)
+                )
+            if self.email_provider.lower() == "none":
+                raise ValueError(
+                    "EMAIL_PROVIDER must be configured when ENVIRONMENT=production."
+                )
+            if not self.email_from_address:
+                raise ValueError(
+                    "EMAIL_FROM_ADDRESS must be configured when ENVIRONMENT=production."
+                )
+            if not self.manager_public_url.startswith("https://"):
+                raise ValueError(
+                    "MANAGER_PUBLIC_URL must be an HTTPS URL when ENVIRONMENT=production."
+                )
+            if self.email_provider.lower() == "smtp" and not self.smtp_host:
+                raise ValueError(
+                    "SMTP_HOST must be configured when EMAIL_PROVIDER=smtp in production."
                 )
         return self
 

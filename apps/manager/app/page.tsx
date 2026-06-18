@@ -18,6 +18,7 @@ import { FleetHistoryBoard } from "./components/FleetHistoryBoard";
 import { MaintenanceImminentPanel } from "./components/MaintenanceImminentPanel";
 import { FuelControlBoard } from "./components/FuelControlBoard";
 import { SidebarLayout } from "./components/SidebarLayout";
+import { TmsExecutiveDashboard } from "./components/TmsExecutiveDashboard";
 import { TransportCargoBoard } from "./components/TransportCargoBoard";
 import { KpiCard } from "./components/ui/KpiCard";
 import { WorkQueue } from "./components/ui/WorkQueue";
@@ -126,6 +127,7 @@ const apiConfig = getApiConfig();
   return (
     <SidebarLayout active="operacao">
       <div className="w-full">
+        <TmsExecutiveDashboard controlTower={controlTower} billingTrips={trips} />
         <ControlTowerOverview result={controlTower} />
         <TransportCargoBoard apiConfig={apiConfig} result={controlTower} />
         <FleetComplianceBoard apiConfig={apiConfig} result={controlTower} />

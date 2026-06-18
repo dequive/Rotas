@@ -18,10 +18,26 @@ export async function POST(req: NextRequest) {
   }
 
   const data = (await upstream.json()) as {
-    access_token: string;
-    refresh_token: string;
-    user: { id: string; tenant_id: string; role: string; full_name: string };
+    access_token?: string;
+    refresh_token?: string;
+    user?: { id: string; tenant_id: string; role: string; full_name: string };
+    mfa_required?: boolean;
+    mfa_challenge?: string;
+    expires_in?: number;
   };
+
+  if (data.mfa_required) {
+    return NextResponse.json({
+      ok: true,
+      mfaRequired: true,
+      mfaChallenge: data.mfa_challenge,
+      expiresIn: data.expires_in,
+    });
+  }
+
+  if (!data.access_token || !data.refresh_token || !data.user) {
+    return NextResponse.json({ error: "Resposta de autenticação inválida." }, { status: 502 });
+  }
 
   const jar = await cookies();
   // SEC-04 / D-12: Secure flag prevents cookie transmission over HTTP in production.

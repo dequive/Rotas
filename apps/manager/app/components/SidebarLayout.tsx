@@ -12,6 +12,7 @@ import {
   ReceiptText,
   Route,
   Settings,
+  ShieldCheck,
   Truck,
   Users,
   Wrench,
@@ -64,6 +65,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "rotas-config", label: "Destinos",   href: "/rotas-config", icon: MapPin      },
       { key: "alertas",      label: "Alertas",    href: "/#alertas",     icon: AlertTriangle },
+      { key: "security",     label: "Segurança",  href: "/security",     icon: ShieldCheck },
       { key: "settings",     label: "Definições", href: "/settings",     icon: Settings    },
     ],
   },

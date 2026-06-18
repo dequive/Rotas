@@ -20,6 +20,7 @@ from arq.connections import RedisSettings
 from app.config import get_settings
 from app.jobs.tasks.document_expiry import scan_expiring_documents
 from app.jobs.tasks.maintenance import check_maintenance_schedules, check_vehicle_maintenance
+from app.jobs.tasks.notifications import deliver_queued_notifications
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +47,18 @@ async def shutdown(ctx: dict[str, Any]) -> None:
 
 
 class WorkerSettings:
-    functions = [check_maintenance_schedules, check_vehicle_maintenance, scan_expiring_documents]
+    functions = [
+        check_maintenance_schedules,
+        check_vehicle_maintenance,
+        scan_expiring_documents,
+        deliver_queued_notifications,
+    ]
     cron_jobs = [
         # D-07: daily safety net for calendar-based maintenance plans
         cron(check_maintenance_schedules, hour={2}, minute=0, run_at_startup=False),
         # 260607-o5b: daily document expiry scan — offset by 1h to avoid DB contention
         cron(scan_expiring_documents, hour={3}, minute=0, run_at_startup=False),
+        cron(deliver_queued_notifications, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),
     ]
     on_startup = startup
     on_shutdown = shutdown

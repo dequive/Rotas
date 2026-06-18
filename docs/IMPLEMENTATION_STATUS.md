@@ -1,0 +1,263 @@
+# ROTAS Implementation Status
+
+## Done
+
+- Product/engineering documentation consolidated for the MVP.
+- Engineering standards documented with SOLID, clean architecture, testing, security and domain rules.
+- Domain rules for cargo contracts, Load Permit, cargo manifest, delivery proof and monthly billing by discharge date added.
+- Modular FastAPI backend scaffold created with core modules, SQLAlchemy models, routers and error envelope.
+- Manager dashboard scaffold created in Next.js.
+- Driver PWA scaffold created in Vite/React with Dexie local queue.
+- Local Postgres and Redis infrastructure described in `infra/docker-compose.yml`.
+- Alembic configured for real database migrations.
+- Initial Alembic migration generated and applied locally.
+- Billing domain tests added for discharge-date billing.
+- Contract module added as first-class domain concept and linked to trips, cargo documents, delivery proofs and billing.
+- ADR-007 accepted: MVP primary flow is trip-first with optional contract, while supporting contract-first for mature clients.
+- ADR-008 accepted: Load Permit is client-issued and delivery proof validation is manual in the MVP.
+- First backend vertical slice implemented: contract creation, trip-first creation, contract association, Load Permit capture, delivery proof submission, manual validation, billable candidate listing, draft billing document generation and issue/finalize billing document flow.
+- API-level cargo/billing workflow test added for the public HTTP contract from trip-first creation through billing issue.
+- Export placeholder added for issued billing documents; draft billing documents are intentionally blocked from export.
+- Idempotent pilot seed script added for a Maputo tenant, heavy vehicle, driver and cargo transport contract.
+- Vehicle and driver CRUD services implemented with tenant isolation, plan limits, duplicate checks, search, patching and vehicle QR deep-link generation.
+- Offline sync batch service implemented with per-tenant idempotency keys, request hashing, replay handling, conflict detection and dispatch for trip/cargo write operations.
+- Manager dashboard billing screen implemented with queues for uncontracted trips, delivery-proof validation, billing drafts and billed trips.
+- Manager billing screen now loads `GET /api/v1/billing/billable-trips` when `ROTAS_TENANT_ID` is configured, with explicit fallback data when API configuration is absent/unavailable.
+- Idempotent pilot demo flow script added: creates a complete trip with Load Permit, cargo manifest, transport guide, validated delivery proof and issued billing document.
+- Checklist template and checklist submission services implemented, including tenant isolation, active template validation, vehicle/driver validation, blocking item evaluation and required-photo checks.
+- Offline sync dispatch now supports checklist creation with idempotency.
+- Pilot seed now includes a pre-departure heavy-vehicle checklist template.
+- Fuel log service implemented with tenant isolation, vehicle/driver validation, odometer regression protection, consumption calculation, anomaly flagging, stats, anomaly listing and manager verification.
+- Offline sync dispatch now supports fuel log creation with idempotency.
+- Driver PWA fuel-entry screen implemented with offline queue submission, local photo queue placeholders for receipt/odometer photos, manual sync action and tenant-aware sync headers.
+- File upload module implemented with tenant-scoped local storage, SHA-256 hashing, metadata confirmation, file lookup and upload endpoint for PWA receipt/odometer photos.
+- Driver PWA sync now uploads queued receipt/odometer photos first, stores returned `file_id`s, and then submits `fuel_log` with `receiptFileId`/`odometerFileId` while preserving idempotency.
+- Driver PWA checklist screen implemented with backend template loading, fallback pre-departure template, blocking/photo-required item capture, offline queue submission and photo upload before checklist sync.
+- Manager billing dashboard now includes API-backed row actions for associating a contract to an uncontracted trip, manually validating a delivery proof and creating/issuing a billing document for billable trips.
+- Manager billing table keeps the action column sticky so operational actions stay visible while horizontally scrolling the billing data.
+- Billing documents now have a real list endpoint with item counts, period filters and status filters.
+- Manager billing document cards now load from `GET /api/v1/billing/documents` when API configuration is present, falling back to demo cards otherwise.
+- Billing document export now generates real PDF and XLSX files locally, stores them as tenant-scoped file records, returns `file_id`, checksum, size and a download URL.
+- Generated billing PDFs use a professional ROTAS layout with branded header, contract/client/period metadata, itemised trip table and totals section.
+- Generated XLSX exports use OpenXML with styled title/header rows, controlled column widths, itemised trip rows and total lines.
+- Integrated master delivery plan added in `docs/ROTAS_MASTER_DELIVERY_PLAN.md`, aligning transport operations, fleet availability, cargo documents, fuel operations, workshop operations, cost governance, billing, exceptions and control tower.
+- Engineering standards updated to treat fuel, workshop, parts, tools, availability and operational exceptions as first-class domains with movement-based stock and audit requirements.
+- Wave 1 Transport Operations foundation started: `trip_orders` module added with create/list/get/confirm/assign/cancel endpoints.
+- `trips` now supports `trip_order_id` and database-level partial unique constraints that prevent one active vehicle or driver from being assigned to conflicting active trips.
+- `TripOrderService.assign_trip_order` validates tenant ownership, order status, active vehicle/driver state and active-trip conflicts before creating a planned trip from the order.
+- Critical trip-order creation/confirmation/assignment now writes audit log records through the audit service.
+- Availability rules centralized in `app.modules.availability.service` for reuse by trip orders, dispatch and future workshop blocking.
+- Wave 2 started: trip departure authorizations, trip execution events and trip incidents added with migrations, models, endpoints and audit writes.
+- Trip departure now requires an approved authorization; load-permit-required trips are blocked until a Load Permit exists and the load-permit check is approved.
+- Incident reporting now creates a trip incident and an execution event; high/critical incidents can move an active trip into `incident` state.
+- Operational close implemented for trips: closure requires arrived/delivered/incident state, blocks open high/critical incidents, and requires validated delivery proof or an active `no_pod` operational waiver.
+- Operational waiver module added with create/list/revoke endpoints and audit writes; this supports controlled exceptions without hiding operational risk.
+- Trips now record `closed_at`, `closed_by` and operational close notes, and closure emits a `completed` execution event plus `trip.closed` audit log.
+- Read endpoints added for departure authorizations, trip execution events and trip incidents so dashboards can consume operational state without duplicating domain logic.
+- First Control Tower read model added at `GET /api/v1/control-tower`, aggregating trip orders, dispatch state, active trips, incidents, pending delivery validation, billing readiness, waivers, active vehicles and active drivers.
+- Control Tower queues now expose blocked dispatches, open incidents and delivery proofs pending validation as actionable operational worklists.
+- Manager dashboard now consumes `GET /api/v1/control-tower`, presenting operational KPIs, exception-led worklists and fleet-capacity facts above the transport billing workspace.
+- Wave 3 Fuel Operations started with first-class `fuel_tanks`, `fuel_purchases`, `fuel_receipts`, `fuel_movements`, `vehicle_refuels` and `fuel_stock_counts` entities.
+- `FuelMovementService` is the single writer for tank balance: receipt and vehicle refuel flows lock the tank row, validate capacity/stock and emit auditable movements atomically.
+- Fuel receipts require an approved purchase and cannot exceed purchased liters; a fully received purchase transitions to `received`.
+- Internal vehicle refuels inherit the tank weighted-average unit cost, can be linked to a trip and update `trip.total_fuel_cost`.
+- Basic Fuel Control Board read model added at `GET /api/v1/fuel-operations/board`, exposing stock, pending purchases and low-stock tanks.
+- Billing candidate listing now includes operationally closed trips as well as delivered trips, preventing valid completed transports from disappearing after close.
+- Persistent `operational_exceptions` domain added with idempotent creation, list, acknowledge and resolve flows plus audit logs.
+- Fuel Operations now generates persistent exceptions for low tank stock, relevant stock-count variance and internal refuels without an associated trip.
+- Control Tower backend and manager dashboard now expose persistent operational exceptions as an actionable worklist alongside derived dispatch, incident and delivery-proof queues.
+- Manager dashboard now includes a Fuel Control Board backed by `GET /api/v1/fuel-operations/board`, with tank stock, weighted average cost, pending purchases and low-stock replenishment queue.
+- Fuel receipt creation now rejects duplicate delivery-note numbers within the same purchase, with a matching partial unique database index for concurrent protection.
+- Fuel stock counts now create explicit pending reconciliations when physical and theoretical stock differ; admin approval emits an auditable `stock_adjustment` movement instead of mutating tank balance directly.
+- Fuel stock-adjustment approval enforces segregation of duties when user identity is available: the stock counter cannot approve their own adjustment.
+- Fuel tank movement locking now refreshes the locked row before calculating the next balance, preventing stale-session overdraw during simultaneous vehicle refuels.
+- Wave 4 Workshop Operations started with first-class `maintenance_requests` and `work_orders`, tenant-scoped create/list endpoints and audited work-order approval and closure.
+- Approved, in-progress and quality-check work orders now block new vehicle assignments through the centralized availability service while closed work orders release the vehicle automatically.
+- Trip-first creation now also uses centralized vehicle/driver availability rules, preventing a direct trip from bypassing an active workshop block.
+- Control Tower now exposes active work-order counts and an actionable workshop queue with blocked vehicle plates and planned work.
+- Workshop work orders now follow explicit `draft -> approved -> in_progress -> quality_check -> closed` transitions instead of allowing direct closure from approval.
+- First-class `work_order_tasks` now support create/list/complete flows with audit logs; work orders cannot enter quality check while tasks remain pending.
+- Reporting a `breakdown` trip incident now automatically creates a linked high/urgent maintenance request in the same transaction, connecting transport execution to workshop triage.
+- Module closure matrix added at `docs/MODULE_CLOSURE_MATRIX.md`, defining evidence-based closure criteria, current gaps and implementation order for every backend domain.
+- Spare-parts inventory added with `spare_parts_inventory`, `spare_part_movements` and `maintenance_parts_used`; stock changes only through the movement service with row locking, weighted-average cost, audit logs and low-stock exceptions.
+- Spare-part receipts and work-order issues use tenant-scoped request references for replay-safe idempotency and reject conflicting payload reuse.
+- Workshop tools added with `workshop_tools` and `tool_checkouts`; active checkout uniqueness is enforced in PostgreSQL and checked in the service layer.
+- Tool checkout and return flows are replay-safe, audit status changes, block unavailable or damaged tools, and reject critical tools with expired calibration.
+- Work orders cannot enter quality check while tasks remain pending or tools remain checked out.
+- Control Tower now exposes low spare-part stock and overdue tool-checkout KPIs.
+- Trip costs now require tenant-scoped `request_reference` values, support replay-safe idempotency, reject conflicting reference reuse and emit audit logs.
+- Trip operational close now reconciles fuel cost, expense cost, total transport cost, contractual revenue and actual margin before finalizing the trip.
+- Closing a work order linked to a breakdown maintenance request automatically records an idempotent `workshop_maintenance` trip cost and refreshes trip totals.
+- The trip-cost migration uses expand/backfill/contract for existing rows by assigning stable `legacy:<id>` references before enforcing non-null uniqueness.
+- Preventive maintenance added with idempotent `maintenance_plans`, overdue `maintenance_schedule` evaluation and persistent `maintenance_overdue` exceptions.
+- Re-evaluating preventive schedules does not duplicate overdue schedule rows or operational exceptions.
+- Control Tower now exposes overdue preventive maintenance alongside active work orders, low spare-part stock and overdue tool checkouts.
+- Tenant-aware `GET /tenants/me` now returns the active tenant configuration from PostgreSQL.
+- User management now supports tenant-scoped list/create/patch operations, plan limits, normalized duplicate-email checks, role validation, `scrypt` password hashes and audit logs.
+- Alerts now support tenant-scoped list/create/status flows with request-reference replay protection, conflicting-replay rejection, timestamps and audit logs.
+- Audit snapshots are normalized centrally before JSON persistence, allowing safe UUID and datetime capture across modules.
+- Authentication now issues validated short-lived JWT access tokens and opaque hashed refresh tokens with rotation and logout revocation.
+- Authenticated requests derive tenant, actor, role and scope from signed claims; a mismatching tenant header is rejected.
+- Driver pairing now uses expiring one-time codes stored as hashes, audited administrative issuance, active device registration and rotatable PWA sessions.
+- The legacy `Bearer test-token` path remains available only in development/test environments for domain-regression fixtures.
+- Reusable HTTP idempotency support now reserves keys before mutation, replays cached responses, rejects changed-payload reuse and releases reservations after known domain failures.
+- HTTP idempotency uses the existing `idempotency_keys` source of truth and centralizes canonical hashing plus 30/90-day TTL policy for both direct HTTP and offline sync.
+- Direct HTTP replay protection now covers contract, trip-order, trip, cargo-document and billing-document creation endpoints.
+- Direct HTTP replay protection now also covers critical trip transitions, Fuel Operations writes, direct checklist/fuel PWA submissions, workshop creates, master-data creates, file presign and multipart upload.
+- Billing export `GET` is now observationally idempotent per format and reuses the existing generated file instead of persisting a new artifact on every read.
+- File presign and multipart upload now enforce upload size, SHA-256 format and supported MIME policies consistently.
+- Persistent operational exceptions now create deterministic dashboard alerts transactionally; resolving an exception dismisses its linked alert automatically.
+- Control Tower now exposes active-alert counts and an actionable alerts queue alongside operational exceptions.
+- Cross-module audit coverage expanded for cargo documents, delivery proof validation, billing draft/issue/export flows, file presign/upload/confirm/generated artifacts, contracts, vehicles, drivers, checklists and classic fuel logs.
+- Failed checklist completion now creates a persistent `checklist_failed` operational exception and linked dashboard alert in the same transaction, making blocked pre-departure checks visible to operations.
+- Vehicle and driver assignment now enforces compliance gates through the centralized availability service: required vehicle documents and expired driver licenses/INATTER records block assignment unless an active operational waiver exists.
+- Cargo delivery proof disputes are now explicit and idempotent: a disputed proof moves the trip to `delivery_disputed`, blocks validation/billing, writes audit logs and creates a persistent `delivery_proof_disputed` exception with linked alert.
+- Control Tower now exposes cost governance signals from reconciled trips: total transport cost, contractual revenue, margin, negative-margin trip count, unreconciled closed trips and a negative-margin worklist.
+- Failed checklists now have a domain resolution flow that marks the checklist as resolved, writes audit logs and resolves the linked operational exception plus dashboard alert.
+- Vehicle and driver histories are now exposed as separate tenant-scoped timelines: each aggregates its own audits, trips, checklists, refuels, incidents and relevant waivers while cross-referencing the other actor only inside event details.
+- Manager dashboard now includes a Fleet History Board that renders vehicle and driver histories as two separate operational timelines, with API-backed loading and demo fallback.
+- Request correlation is now centralized through `X-Request-Id`: every request receives a normalized id, error envelopes and response headers expose it, and audit logs persist it as `correlation_id` with a query filter.
+- Manager Control Tower now surfaces vehicle and driver document-expiry compliance queues, keeping fleet and driver compliance visible before dispatch blocking occurs.
+- Product module taxonomy consolidated around responsibilities: Centro de Comando, Frota e Pessoas, Transporte e Carga, Custos e Margem, Combustivel, Oficina e Manutencao, Cobranca, Administracao Operacional and Suporte Tecnico-Operacional.
+- Module-by-module closure started with Transporte e Carga; direct trip mutations now write audit logs consistently with order-first flows, and the module has a dedicated closure checklist in `docs/modules/TRANSPORTE_E_CARGA_CLOSURE.md`.
+- Delivery-proof disputes now have a domain resolution flow: accepted disputes validate the proof and restore billing readiness, while rejected disputes return the trip to pending delivery proof; both outcomes close the linked operational exception and alert.
+- Control Tower now exposes dedicated follow-up queues for failed checklists and disputed delivery proofs alongside generic operational exceptions.
+- Tenants now support admin-managed `compliance_policy` settings for required vehicle and driver documents, with audited updates through `PATCH /api/v1/tenants/me`.
+- Vehicle/driver availability now combines tenant-level compliance policy with entity-level document data, blocking missing or expired required documents unless an active operational waiver exists.
+- Control Tower now exposes preventive compliance queues for vehicle and driver documents approaching expiry, using each tenant's `document_expiry_warning_days` policy with a 30-day default.
+- Vehicle and driver documents now have renewal endpoints that update validity dates, link uploaded file records, persist document metadata and write audit logs.
+- Driver records now include a `documents` JSON field for document-file linkage and renewal metadata while preserving first-class license/INATTER validity fields for availability checks.
+- Manager dashboard now includes a dedicated Transporte e Carga board backed by Control Tower data, surfacing open orders, departure authorizations, active trips, incidents, failed checklists, pending discharge proofs and disputed discharge proofs in one operational module view.
+- Transporte e Carga board now includes API-backed operational actions to validate pending delivery proofs, accept/reject disputed delivery proofs and resolve failed checklists from the module queue.
+- Control Tower now exposes pending departure authorizations and operational-close candidate queues, allowing the Transporte e Carga board to approve/re-evaluate authorizations, start approved trips, resolve incidents and close ready trips from the module view.
+- Delivery SLA evaluation added for Transporte e Carga: `POST /api/v1/trips/sla/evaluate` marks overdue active trips as delayed, records a delayed execution event and creates an idempotent `trip_delivery_sla_breached` exception/alert.
+- Control Tower and the Transporte e Carga board now expose delayed trips as a dedicated SLA queue.
+- Tenant compliance policy now supports `cargo_required_documents_by_type`, allowing Transporte e Carga to require Load Permit, cargo manifest and specific transport document types per cargo category.
+- Departure authorization now validates real cargo documents against the tenant policy and blocks departure when required cargo documents are missing, even if the operator submits all manual checks as complete.
+- Tenant compliance policy now also supports `trip_required_stops_by_cargo_type`, and operational close blocks trips until all mandatory stops for the cargo category are recorded.
+- Direct trip creation now converts concurrent active vehicle/driver conflicts into a controlled `assignment_conflict` response instead of leaking a database integrity error.
+- Trip departure now locks the trip row during the transition so concurrent start requests cannot create duplicate `dispatched` execution events.
+- Cargo auxiliary-document audit snapshots now capture full operational metadata for Load Permits, cargo manifests, transport documents and delivery proofs.
+- Transporte e Carga is marked closed for MVP in `docs/modules/TRANSPORTE_E_CARGA_CLOSURE.md` and `docs/MODULE_CLOSURE_MATRIX.md`.
+- Frota e Pessoas closure started with a dedicated checklist in `docs/modules/FROTA_E_PESSOAS_CLOSURE.md`.
+- Vehicle and driver availability now have explicit dashboard read endpoints: `GET /api/v1/vehicles/{vehicle_id}/availability` and `GET /api/v1/drivers/{driver_id}/availability`.
+- Availability summaries expose `available`, blockers, compliance violations, expiry warnings, active waivers and active trip/workshop references without mutating source state.
+- Manager now includes a Frota e Pessoas compliance board with direct document-renewal actions for expiring vehicle and driver documents.
+- Frota e Pessoas is marked closed for MVP in `docs/modules/FROTA_E_PESSOAS_CLOSURE.md` and `docs/MODULE_CLOSURE_MATRIX.md`.
+- Local domain terminology clarified: operational `dispatch_clearance` is shown as autorizacao de saida, while `despacho` means the driver's long-course travel allowance.
+- Custos e Margem now records driver `despacho` through `POST /api/v1/trips/{trip_id}/driver-despacho`, calculating the allowance from the transporter's manually maintained despacho table in tenant policy and reconciling trip margin.
+- Administracao Operacional now has dedicated API endpoints to read and manually update the driver's despacho table: `GET/PUT /api/v1/tenants/me/driver-despacho-table`.
+- Manager now exposes an Administracao Operacional section for manually filling the despacho table, including table metadata, long-course minimum distance and editable distance tiers.
+- Control Tower now exposes `driver_despacho_pending`, a queue of long-course trips without a recorded driver despacho cost.
+- Manager now includes a Custos e Margem board with real-cost KPIs, negative-margin trips and a direct action to launch driver despacho from pending long-course trips.
+- Billing document creation now enforces margin governance: a reconciled trip with negative actual margin is blocked until an active `negative_margin_approved` operational waiver exists.
+- Manager Custos e Margem now lets authorized operators approve a negative-margin trip through the same audited operational-waiver flow before billing proceeds.
+- Public onboarding now creates a trial tenant and owner account through `POST /api/v1/onboarding/register`, with a Manager self-service registration page and production demo-fallback guards.
+- Password recovery now supports public request and completion endpoints with hashed one-time reset tokens, audit logs, refresh-token revocation and Manager forgot/reset password pages.
+- Transactional email now has a tenant-scoped `notification_outbox`, idempotent enqueue service, SMTP-capable ARQ delivery task and production startup checks requiring an email path.
+- Public onboarding now enqueues an email-verification message, tracks `users.email_verified_at`, exposes `POST /api/v1/onboarding/verify-email` and includes a Manager `/verify-email` confirmation page.
+- Dashboard authentication now exposes protected session management at `/api/v1/auth/sessions`, records refresh-token IP/user-agent metadata, and supports audited refresh-session revocation from the Manager Security page.
+- Dashboard accounts now support optional TOTP MFA with setup, confirmation, login challenge, disable flow, audited state changes and Manager Security controls.
+- Production startup validation now requires R2 storage configuration, and RLS roles are enforced as login-capable database roles for application/runtime parity.
+- Manager dashboard now includes a TMS executive dashboard inspired by production transport-management suites, consolidating fleet, drivers, dispatch pressure, shipment/trip status, recent operational activity, live-route overview, monitored trips and operational health from existing Control Tower and billing data.
+
+## Validated
+
+- `python -m compileall -q backend\app` passes.
+- `npm install` passes.
+- `npm run typecheck` passes for manager and driver.
+- `npm --workspace apps/manager run build` passes.
+- Driver PWA build passes on this Windows/OneDrive machine when `HOME` and `USERPROFILE` are set to `C:\tmp`.
+- `.\.venv\Scripts\python.exe -m ruff check app tests` passes.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 17 API/domain tests.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 19 API/domain tests after Wave 1 trip-order foundation.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 21 API/domain tests after dispatch/execution/incident foundation.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 23 API/domain tests after operational close and waiver support.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 24 API/domain tests after Control Tower read model support.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 26 API/domain tests after Fuel Operations movement-led stock support, closed-trip billing regression coverage and persistent operational exception lifecycle support.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 28 API/domain tests after controlled fuel-stock reconciliation, duplicate receipt protection and simultaneous-refuel concurrency coverage.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 29 API/domain tests after the Workshop Operations foundation, availability blocking and vehicle-release regression coverage.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 29 API/domain tests after work-order task lifecycle, controlled workshop transitions and automatic breakdown maintenance-request coverage.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 31 API/domain tests after spare-part movement idempotency, tool checkout accountability and workshop resource-control coverage.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 31 API/domain tests after trip-cost replay protection, operational-close margin reconciliation and workshop-to-trip cost integration.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 32 API/domain tests after preventive-maintenance idempotency and overdue-schedule exception coverage.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 34 API/domain tests after tenant, user and alert service closure.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 36 API/domain tests after JWT, refresh rotation, logout and driver pairing closure.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 37 API/domain tests after reusable HTTP idempotency extraction and critical-create adoption.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 38 API/domain tests after expanded HTTP replay protection, idempotent billing exports, file validation and exception-to-alert integration.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 38 API/domain tests after transversal audit coverage and checklist-failure exception coverage.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 40 API/domain tests after compliance waiver gates, cargo delivery-proof disputes and Control Tower cost governance.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 40 API/domain tests after checklist failure resolution, delivery-dispute resolution and new Control Tower follow-up queues.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 41 API/domain tests after tenant-level compliance policy configuration.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 41 API/domain tests after preventive document-expiry queues in Control Tower.
+- `.\.venv\Scripts\python.exe -m alembic upgrade head` applies `aa94e2d0b7c1_add_tenant_compliance_policy`.
+- `.\.venv\Scripts\python.exe -m pytest -q` passes with 42 API/domain tests after vehicle/driver document renewal workflows.
+- `.\.venv\Scripts\python.exe -m alembic upgrade head` applies `bf5c3a9e21d4_add_driver_documents`.
+- `npm --workspace apps/manager run build` and `npm --workspace apps/manager run typecheck` pass after the dedicated Transporte e Carga board.
+- `npm --workspace apps/manager run build` and `npm --workspace apps/manager run typecheck` pass after Transporte e Carga operational actions.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_control_tower_api.py -q --tb=short` passes after pending-dispatch and operational-close Control Tower queues.
+- `npm --workspace apps/manager run build` and `npm --workspace apps/manager run typecheck` pass after dispatch, incident and operational-close board actions.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_dispatch_execution_api.py tests\test_control_tower_api.py -q --tb=short` passes after SLA evaluation and delayed-trip queue support.
+- `npm --workspace apps/manager run build` and `npm --workspace apps/manager run typecheck` pass after the SLA queue and evaluation action.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_dispatch_execution_api.py tests\test_tenant_user_alert_api.py -q --tb=short` passes after cargo-document policy enforcement by cargo type.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_dispatch_execution_api.py tests\test_tenant_user_alert_api.py -q --tb=short` passes after mandatory-stop policy enforcement by cargo type.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_trip_orders_api.py tests\test_dispatch_execution_api.py -q --tb=short` passes after expanded assignment/dispatch concurrency regression coverage.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_cargo_billing_flow.py -q --tb=short` passes after granular cargo-document audit snapshots.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_vehicle_driver_api.py -q --tb=short` passes after detailed vehicle/driver availability summary endpoints.
+- `npm --workspace apps/manager run build` and `npm --workspace apps/manager run typecheck` pass after the Frota e Pessoas compliance-renewal board.
+- Headless Chrome screenshots verify the Frota e Pessoas compliance board in desktop and 390px mobile viewports.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_dispatch_execution_api.py tests\test_tenant_user_alert_api.py -q --tb=short` passes after transporter despacho table support.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_control_tower_api.py tests\test_dispatch_execution_api.py tests\test_tenant_user_alert_api.py -q --tb=short` passes after the driver despacho pending queue and Cost Margin board support.
+- `npm --workspace apps/manager run typecheck` passes after the manual despacho table UI.
+- `npm --workspace apps/manager run typecheck` passes after onboarding and password-recovery public pages.
+- `.\.venv\Scripts\python.exe -m ruff check ...` passes for the touched auth/onboarding/config/migration/test files in the self-service tranche.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_password_reset_api.py -q --tb=short` passes after applying the password-reset migration locally.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_notifications_service.py tests\test_password_reset_api.py -q --tb=short` passes after the notification outbox integration.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_onboarding_api.py -q --tb=short` passes after email verification is added to public onboarding.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_auth_api.py -q --tb=short` passes after session listing and revocation support.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_auth_api.py -q --tb=short` passes after optional dashboard MFA support.
+- `.\.venv\Scripts\python.exe -m pytest tests\test_rls.py -q --tb=short` passes with the notification and self-service token tables included in RLS coverage.
+- `.\.venv\Scripts\python.exe -m pytest --collect-only -q` collects 154 tests after the self-service tranche.
+- Playwright screenshots validated the manual despacho table UI on desktop (`1440x1200`) and mobile (`390x1000`).
+- `npm --workspace apps/manager run typecheck` passes after the TMS executive dashboard upgrade.
+- `npm --workspace apps/manager run build` reached the optimized production build step for the TMS dashboard tranche, but did not finish within the 180-second desktop shell timeout and emitted no compilation error before timeout.
+- `.\.venv\Scripts\python.exe -m alembic upgrade head` passes against local Postgres on `55432`.
+- `.\.venv\Scripts\python.exe -m scripts.seed_pilot` runs idempotently against local Postgres.
+- FastAPI app imports with 100 routes.
+- Integration tests cover trip-first cargo billing flow against local Postgres at service and API levels, including the rule that a draft billing document does not mark a trip as billed until the billing document is issued.
+- API tests cover vehicle and driver CRUD, tenant-scoped uniqueness and QR deep-link generation.
+- API test covers sync idempotency: duplicate PWA submission replays the cached result without creating a second delivery proof; same key with changed payload returns conflict.
+- `npm --workspace apps/manager run typecheck` passes.
+- Manager dashboard responds locally at `http://localhost:3100`.
+- `.\.venv\Scripts\python.exe -m scripts.demo_pilot_flow` runs idempotently against local Postgres.
+- API tests cover checklist template creation, checklist completion failure/success and idempotent sync replay for checklist creation.
+- API tests cover fuel log creation, consumption/anomaly calculation, manager verification, odometer regression rejection and idempotent sync replay for fuel creation.
+- API tests cover tenant-scoped file upload/get, presign/confirm metadata and sync fuel creation with receipt/odometer `file_id`s.
+- Driver PWA typecheck/build passes after the fuel-entry screen.
+- Driver PWA typecheck/build passes after the checklist screen.
+- Headless Chrome screenshots verify the driver dashboard, fuel panel and checklist panel render within a 390px mobile viewport without horizontal clipping.
+- Headless Chrome screenshot verifies the manager billing action column remains visible in the desktop dashboard.
+- API tests cover billing document listing after draft creation.
+- API tests cover PDF/XLSX export generation and file download for issued billing documents.
+- Manager Control Tower passes production build and visual QA in desktop and 390px mobile viewports; direct browser measurement confirms no horizontal overflow (`scrollWidth = 390`).
+- Manager Fuel Control Board passes visual QA in desktop and 390px mobile viewports with compact operational cards and responsive tank layouts.
+
+## Current Technical Notes
+
+- Backend dependencies are installed in `backend\.venv` locally; the environment is ignored by git.
+- No API endpoint intentionally returns `501 not_implemented`; the helper remains available only as a development guardrail.
+- Local Postgres uses port `55432` to avoid collision with other projects.
+- Vite/esbuild may fail under OneDrive if it tries to inspect `C:\Users\Quive`. Workaround:
+
+```powershell
+$env:HOME='C:\tmp'
+$env:USERPROFILE='C:\tmp'
+npm --workspace apps/driver run build
+```
+
+## Next Slice
+
+1. Add public plan selection, payment/subscription provisioning and tenant branding for production commercialization.
+2. Add onboarding resend-verification and stronger verified-email gates for production-only sensitive actions.
+3. Add MFA recovery-code support and stricter owner/admin MFA policy controls.
+4. Complete browser visual QA for the TMS executive dashboard once the local Manager dev server is reachable on an allowed browser origin.

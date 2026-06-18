@@ -1,4 +1,5 @@
 import { apiFetch } from "./api";
+import { throwWhenDemoFallbackDisabled } from "./runtime-guards";
 import { getApiConfig } from "./billing-api";
 
 export interface DriverDespachoTier {
@@ -70,6 +71,7 @@ export async function loadDriverDespachoTable(): Promise<DriverDespachoTableLoad
     const payload = await apiFetch<ApiDriverDespachoTableResponse>("/api/v1/tenants/me/driver-despacho-table");
     return { configured: payload.configured, table: normalizeTable(payload.table), source: "api", message: null };
   } catch (caught) {
+    throwWhenDemoFallbackDisabled("Tabela de despacho", caught);
     return {
       configured: false,
       table: fallbackTable,

@@ -1,0 +1,90 @@
+# Project Research Summary
+
+**Project:** ROTAS v2.0 -- Plataforma Operacional Completa
+**Domain:** Multi-tenant fleet management SaaS -- Mozambique logistics market
+**Researched:** 2026-06-06
+**Confidence:** HIGH (all findings grounded in direct codebase inspection + established patterns)
+
+---
+
+## Executive Summary
+
+ROTAS enters v2.0 as a working data-collection platform that must evolve into a full operational platform with GPS fleet visibility, driver financial settlement, customer shipment tracking, and proactive notifications. Research confirms the existing FastAPI modular monolith is the correct foundation, and all v2.0 additions are strictly additive. Seven new library additions (sse-starlette >=3.4.4, itsdangerous >=2.2.0, aiosmtplib >=5.1.1, phonenumbers >=9.0.0, stripe >=15.2.0, sentry-sdk[fastapi] >=2.61.1, aiobotocore[boto3] >=3.7.0) are surgical and well-justified. The most significant structural work is RLS policy deployment, already 80% implemented in the codebase, requiring careful phasing to avoid breaking Alembic and the ARQ worker.
+
+The recommended build order is dependency-driven. Infrastructure hardening (Sentry, R2/S3, tenant limits, RLS) must come before revenue-enabling features (onboarding, notifications), which must come before GPS-dependent features (customer portal). Four CRITICAL pitfalls identified: RLS SET vs SET LOCAL cross-tenant leak, Alembic blocked by RLS, settlement double-counting, and GPS webhook without tenant isolation. Each causes silent data corruption or financial errors if missed; each has a simple prevention.
+
+The two longest external lead-time items -- WhatsApp Business API Meta approval and GPS device reconfiguration coordination with operators -- must begin immediately in parallel with the first implementation phases. Meta business verification takes 5-14 days; template approval adds 1-3 days per template. Teltonika/Coban devices may require physical reconfiguration that operators cannot do without installer credentials. Both block entire feature areas if not started now.
+
+---
+
+## Key Findings
+
+### Stack Additions Confirmed for v2.0
+
+The existing stack (FastAPI, SQLAlchemy 2, asyncpg, Dexie.js 4, Next.js 14, ARQ, Redis, fpdf2, openpyxl, PyJWT, slowapi) requires seven new backend packages and one required frontend package. All versions confirmed from PyPI as of 2026-06-06.
+
+**New backend packages (add to pyproject.toml):**
+
+| Package | Version | Purpose | Rationale |
+|---------|---------|---------|-----------|
+| sse-starlette | >=3.4.4 | SSE endpoint for real-time GPS push to manager dashboard | Simpler than WebSocket for read-only push; works through Vercel proxy |
+| itsdangerous | >=2.2.0 | Signed tokens for customer portal URLs + email verification | Stateless; avoids a token DB table; Pallets project (high trust) |
+| aiosmtplib | >=5.1.1 | Async SMTP for email fallback notifications | Does not block FastAPI event loop; smtplib would |
+| phonenumbers | >=9.0.0 | Validate and normalize MZ phone numbers (+258) | Prevents silent WhatsApp API failures from malformed numbers |
+| stripe | >=15.2.0 | Subscription plan management for self-service onboarding | Supports MZN, metered billing, hosted checkout; lowest-friction moment to wire |
+| sentry-sdk[fastapi] | >=2.61.1 | Error tracking + SQLAlchemy slow query breadcrumbs | Auto-instruments FastAPI + SQLAlchemy; useful for Control Tower diagnosis |
+| aiobotocore[boto3] | >=3.7.0 | Async R2/S3 file operations; replaces standalone boto3 | Async-safe; boto3 alone blocks event loop on upload/download operations |
+| httpx | >=0.28.1 | WhatsApp API HTTP client (promote from dev to main deps) | Already installed; used for WhatsApp Business Cloud API calls from ARQ tasks |
+
+**One replacement:** boto3>=1.43 in pyproject.toml must be replaced with aiobotocore[boto3]>=3.7.0. Do not keep both -- they conflict at the botocore layer.
+
+**New frontend packages (apps/manager/):**
+
+| Package | Purpose | Status |
+|---------|---------|--------|
+| @sentry/nextjs | App Router error tracking (server + client) | Required |
+| leaflet + react-leaflet + @types/leaflet | Interactive map on customer portal | Optional -- only if interactive map required |
+
+**Explicitly rejected:** GeoAlchemy2/PostGIS (Haversine in Python sufficient for < 200 vehicles), WebSocket (SSE sufficient for read-only GPS push), TCP socket listener for Teltonika Codec 8 (HTTP webhook mode eliminates the need), whatsapp-python SDK wrappers (httpx directly is more maintainable), Celery (ARQ already configured), Mapbox/Google Maps (Leaflet + OSM is free, avoids API key exposure).
+
+---
+
+### Features: Table Stakes vs Differentiators
+
+**Must have -- table stakes for v2.0 launch:**
+
+| Feature Area | Table Stakes |
+|---|---|
+| GPS Integration | Fleet map with last-known position per vehicle, refresh every 60s via polling |
+| Driver Settlement (Despacho) | Advance issuance before departure, expense recording per trip, reconciliation calculation (advance minus approved expenses), settlement document PDF |
+| Customer Portal | Token-based shareable link, delivery status page in Portuguese, text-only location, no login required |
+| WhatsApp Notifications | Delivery confirmation to customer, document expiry alert to manager, settlement approved/disputed to driver |
+| Self-Service Onboarding | Registration form with NUIT, email verification, 14-day trial, company setup wizard |
+| Sync Conflict Resolution | Sync status badge in driver PWA (green/orange/red dot), manager conflict resolution queue |
+| Tenant Limits | Hard limit enforcement at API level (403 with upgrade CTA), max_vehicles/max_drivers/max_users enforced in service layer |
+
+**Should have -- differentiators for v2.0 quality:**
+
+- GPS: Historical track replay, ETA calculation from known_routes + current speed
+- Despacho: Per-expense approval/dispute workflow, multi-currency (MZN + ZAR), auto-import fuel costs from fuel_logs
+- Customer portal: Live map on tracking page (requires GPS), WhatsApp link sharing from trip detail
+- Notifications: ETA push updates, driver settlement notifications, driver compliance block alerts
+- Onboarding: Soft limit warnings at 80% of plan, grace period on plan downgrade
+- Conflict resolution: Auto-resolution rules for append-only entities (trip stops, checklist answers)
+
+**Defer to v2.1+:**
+
+- Geofencing (PostGIS decision needed; bounding-box SQL is the fallback if PostGIS unavailable on Railway)
+- Automated billing via Flutterwave/Paystack (Mozambique gateway availability needs live verification)
+- In-app driver to manager chat (WhatsApp deep-link is sufficient)
+- Driver payroll integration (out of scope; this is trip expense settlement, not HR)
+- Automatic FX rate fetching (no reliable free MZ-specific FX API; manager enters rate manually)
+- TCP socket server for Teltonika Codec 8 (not feasible on Railway without dedicated infra)
+
+**Mozambique-specific constraints shaping features:**
+
+- OSM coverage outside Maputo/Beira/Nampula is sparse -- do not attempt route-based ETA outside major corridors
+- Customer tracking page must be under 50KB total (low-end Android browsers on shared mobile data)
+- Email fallback is required, not optional (WhatsApp penetration varies in rural areas)
+- NUIT (9-digit tax ID) required on company registration for invoice issuance compliance
+- Normalize all phone numbers to E.164 at input with phonenumbers library

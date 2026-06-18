@@ -1,5 +1,6 @@
 import { apiFetch } from "./api";
 import { getApiConfig } from "./billing-api";
+import { throwWhenDemoFallbackDisabled } from "./runtime-guards";
 
 export interface ControlTowerSummary {
   tripOrdersOpen: number;
@@ -563,6 +564,7 @@ export async function loadControlTower(): Promise<ControlTowerLoadResult> {
     const payload = await apiFetch<ApiControlTower>("/api/v1/control-tower", { revalidate: 15 });
     return { tower: mapControlTower(payload), source: "api", message: null };
   } catch (error) {
+    throwWhenDemoFallbackDisabled("Control Tower", error);
     // Fallback gracioso se API não tiver dados suficientes ainda
     const { tenantId } = getApiConfig();
     if (!tenantId) {

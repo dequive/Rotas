@@ -28,13 +28,14 @@ from app.modules.drivers.router import router as drivers_router
 from app.modules.files.router import router as files_router
 from app.modules.fuel.operations_router import router as fuel_operations_router
 from app.modules.fuel.router import router as fuel_router
+from app.modules.onboarding.router import router as onboarding_router
 from app.modules.operational_exceptions.router import router as operational_exceptions_router
 from app.modules.operations.router import router as operations_router
 from app.modules.sync.router import router as sync_router
 from app.modules.tenants.router import router as tenants_router
 from app.modules.trip_orders.router import router as trip_orders_router
-from app.modules.trips.router import router as trips_router
 from app.modules.trips.known_routes_router import router as known_routes_router
+from app.modules.trips.router import router as trips_router
 from app.modules.users.router import router as users_router
 from app.modules.vehicles.router import router as vehicles_router
 from app.modules.workshop.router import router as workshop_router
@@ -141,6 +142,7 @@ async def version() -> dict[str, str]:
 api = settings.api_v1_prefix
 app.include_router(auth_router, prefix=api)
 app.include_router(driver_router, prefix=api)
+app.include_router(onboarding_router, prefix=api)
 app.include_router(tenants_router, prefix=api)
 app.include_router(contracts_router, prefix=api)
 app.include_router(users_router, prefix=api)

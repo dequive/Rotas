@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from app.core.passwords import hash_password
+from app.core.totp import generate_totp_code
 from app.database import AsyncSessionLocal, engine, import_all_models
 from app.main import app
 from app.modules.drivers.models import Driver
@@ -103,6 +104,103 @@ async def test_login_refresh_logout_and_tenant_mismatch() -> None:
 
 
 @pytest.mark.asyncio
+async def test_user_can_list_and_revoke_own_session() -> None:
+    tenant, _other_tenant, user, _driver = await create_entities()
+    async with await create_api_client() as client:
+        login_response = await client.post(
+            "/api/v1/auth/login",
+            json={"email": user.email, "password": "secure-password"},
+            headers={"User-Agent": "ROTAS test browser"},
+        )
+        assert login_response.status_code == 200
+        tokens = login_response.json()
+
+        sessions_response = await client.get(
+            "/api/v1/auth/sessions",
+            headers={
+                "Authorization": f"Bearer {tokens['access_token']}",
+                "X-Tenant-Id": str(tenant.id),
+            },
+        )
+        assert sessions_response.status_code == 200
+        sessions = sessions_response.json()
+        assert len(sessions) == 1
+        assert sessions[0]["active"] is True
+        assert sessions[0]["user_agent"] == "ROTAS test browser"
+
+        revoke_response = await client.delete(
+            f"/api/v1/auth/sessions/{sessions[0]['id']}",
+            headers={
+                "Authorization": f"Bearer {tokens['access_token']}",
+                "X-Tenant-Id": str(tenant.id),
+            },
+        )
+        assert revoke_response.status_code == 200
+        assert revoke_response.json()["revoked"] is True
+
+        refresh_response = await client.post(
+            "/api/v1/auth/refresh",
+            json={"refresh_token": tokens["refresh_token"]},
+        )
+        assert refresh_response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_mfa_setup_confirm_and_login_challenge() -> None:
+    tenant, _other_tenant, user, _driver = await create_entities()
+    async with await create_api_client() as client:
+        login_response = await client.post(
+            "/api/v1/auth/login",
+            json={"email": user.email, "password": "secure-password"},
+        )
+        tokens = login_response.json()
+        auth_headers = {
+            "Authorization": f"Bearer {tokens['access_token']}",
+            "X-Tenant-Id": str(tenant.id),
+        }
+
+        setup_response = await client.post("/api/v1/auth/mfa/setup", headers=auth_headers)
+        assert setup_response.status_code == 200
+        secret = setup_response.json()["secret"]
+        assert secret
+
+        confirm_response = await client.post(
+            "/api/v1/auth/mfa/confirm",
+            headers=auth_headers,
+            json={"code": generate_totp_code(secret)},
+        )
+        assert confirm_response.status_code == 200
+        assert confirm_response.json()["enabled"] is True
+
+        challenged_login = await client.post(
+            "/api/v1/auth/login",
+            json={"email": user.email, "password": "secure-password"},
+        )
+        assert challenged_login.status_code == 200
+        challenge_payload = challenged_login.json()
+        assert challenge_payload["mfa_required"] is True
+
+        verify_response = await client.post(
+            "/api/v1/auth/mfa/verify",
+            json={
+                "challenge_token": challenge_payload["mfa_challenge"],
+                "code": generate_totp_code(secret),
+            },
+        )
+        assert verify_response.status_code == 200
+        assert verify_response.json()["access_token"]
+
+        replay_response = await client.post(
+            "/api/v1/auth/mfa/verify",
+            json={
+                "challenge_token": challenge_payload["mfa_challenge"],
+                "code": generate_totp_code(secret),
+            },
+        )
+        assert replay_response.status_code == 401
+
+
+@pytest.mark.asyncio
 async def test_driver_pairing_consumes_code_and_rotates_session() -> None:
     _tenant, _other_tenant, user, driver = await create_entities()
     async with await create_api_client() as client:
@@ -151,7 +249,11 @@ async def test_alg_none_token_rejected() -> None:
     import json
 
     # Craft a forged JWT with alg=none — no signature required
-    header = base64.urlsafe_b64encode(json.dumps({"alg": "none", "typ": "JWT"}).encode()).rstrip(b"=").decode()
+    header = (
+        base64.urlsafe_b64encode(json.dumps({"alg": "none", "typ": "JWT"}).encode())
+        .rstrip(b"=")
+        .decode()
+    )
     payload = base64.urlsafe_b64encode(json.dumps({
         "sub": "dashboard:fake-user-id",
         "typ": "access",

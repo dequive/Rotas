@@ -1,0 +1,43 @@
+# ROTAS workspace
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Node / frontend
+node_modules/
+pnpm-lock.yaml
+yarn.lock
+.next/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local runtime
+*.log
+*.sqlite
+*.sqlite3
+tmp/
+
+# Generated documents / office temp files
+~$*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.gstack/

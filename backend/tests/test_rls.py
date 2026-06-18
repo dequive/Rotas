@@ -125,15 +125,16 @@ EXPECTED_RLS_TABLES = sorted([
     "drivers", "export_jobs", "fuel_logs", "fuel_movements", "fuel_purchases",
     "fuel_receipts", "fuel_stock_counts", "fuel_tanks", "idempotency_keys",
     "known_routes", "load_permits", "maintenance_parts_used", "maintenance_plans",
-    "maintenance_requests", "maintenance_schedule", "operational_exceptions",
-    "operational_waivers", "refresh_tokens", "spare_part_movements",
-    "spare_parts_inventory", "sync_events", "tool_checkouts",
-    "transport_documents", "trip_costs", "trip_execution_events",
-    "trip_incidents", "trip_orders", "trip_stops", "trips", "users",
+    "maintenance_requests", "maintenance_schedule", "email_verification_tokens",
+    "mfa_challenges", "operational_exceptions", "notification_outbox",
+    "operational_waivers", "password_reset_tokens", "refresh_tokens",
+    "spare_part_movements", "spare_parts_inventory",
+    "sync_events", "tool_checkouts", "transport_documents", "trip_costs",
+    "trip_execution_events", "trip_incidents", "trip_orders", "trip_stops", "trips", "users",
     "vehicle_refuels", "vehicles", "work_order_tasks", "work_orders",
     "workshop_tools",
 ])
-# 47 tables: 46 from migration 4b0a7802dc3c_add_rls_policies + export_jobs from gap-closure migration (plan 09-02)
+# 51 tables: base RLS set plus export_jobs and self-service token/outbox tables.
 
 INTENTIONALLY_EXCLUDED = {"files"}
 # files: cross-tenant file service access pattern (design decision in migration 4b0a7802dc3c)
@@ -141,7 +142,7 @@ INTENTIONALLY_EXCLUDED = {"files"}
 
 
 async def test_rls_all_tenant_tables_have_policy():
-    """RLS-01: All 47 tenant-scoped tables must have a tenant_isolation policy in pg_policies.
+    """RLS-01: All tenant-scoped tables must have a tenant_isolation policy in pg_policies.
 
     This test is intentionally RED until plan 09-02 applies the gap-closure migration that
     adds the RLS policy to export_jobs. The failure message will clearly show the gap.
@@ -236,7 +237,6 @@ async def test_rls_blocks_cross_tenant_vehicle_access():
         )
         db.add(v_a)
         await db.commit()
-        t_a_id = str(t_a.id)
         t_b_id = str(t_b.id)
         v_a_id = str(v_a.id)
 

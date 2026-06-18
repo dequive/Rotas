@@ -106,6 +106,7 @@ MODEL_MODULES = (
     "workshop",
     "control_tower",
     "alerts",
+    "notifications",
     "sync",
     "audit",
 )

@@ -1,4 +1,5 @@
 import { apiFetch } from "./api";
+import { throwWhenDemoFallbackDisabled } from "./runtime-guards";
 
 export type BillingStatus =
   | "pending_delivery_proof"
@@ -245,7 +246,7 @@ export function getApiConfig() {
   return {
     apiBaseUrl: process.env.ROTAS_API_BASE_URL ?? "http://localhost:8000",
     tenantId: process.env.ROTAS_TENANT_ID ?? null,
-    token: process.env.ROTAS_MANAGER_TOKEN ?? "test-token",
+    token: process.env.ROTAS_MANAGER_TOKEN ?? "",
   };
 }
 
@@ -254,6 +255,7 @@ export async function loadBillingTrips(): Promise<BillingTripLoadResult> {
     const payload = await apiFetch<ApiBillableTrip[]>("/api/v1/billing/billable-trips?limit=200", { revalidate: 15 });
     return { trips: payload.map(mapTrip), source: "api", message: null };
   } catch (error) {
+    throwWhenDemoFallbackDisabled("Billing", error);
     return {
       trips: fallbackTrips,
       source: "fallback",
@@ -291,7 +293,8 @@ export async function loadBillingDocuments(): Promise<BillingDocumentSummary[]> 
       amount: parseAmount(document.total_amount),
       status: mapDocumentStatus(document.status),
     }));
-  } catch {
+  } catch (error) {
+    throwWhenDemoFallbackDisabled("Billing documents", error);
     return fallbackDocuments;
   }
 }

@@ -1,4 +1,5 @@
 import { apiFetch } from "./api";
+import { throwWhenDemoFallbackDisabled } from "./runtime-guards";
 import { getApiConfig } from "./billing-api";
 
 export interface FleetHistoryEvent {
@@ -180,6 +181,7 @@ export async function loadFleetHistories(): Promise<FleetHistoryLoadResult> {
     ]);
 
     if (vehicles.length === 0 || drivers.length === 0) {
+      throwWhenDemoFallbackDisabled("Fleet histories", new Error("No vehicles or drivers available."));
       return fallbackResult("Registe ao menos uma viatura e um motorista para ver históricos reais.");
     }
 
@@ -195,6 +197,7 @@ export async function loadFleetHistories(): Promise<FleetHistoryLoadResult> {
       message: null,
     };
   } catch (error) {
+    throwWhenDemoFallbackDisabled("Fleet histories", error);
     return fallbackResult(error instanceof Error ? `Históricos: ${error.message}` : "Indisponível.");
   }
 }

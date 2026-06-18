@@ -1,0 +1,73 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Length 2353 >>
+stream
+0.063 0.125 0.200 rg 0 521 842 74 re f
+1.000 1.000 1.000 rg BT /F2 22 Tf 36 548 Td (ROTAS) Tj ET
+0.859 0.918 0.996 rg BT /F1 13 Tf 36 526 Td (Documento de Cobranca de Transporte) Tj ET
+1.000 1.000 1.000 rg BT /F1 9 Tf 650 548 Td (Pagina 1) Tj ET
+0.090 0.125 0.200 rg BT /F2 8 Tf 36 486 Td (Cliente) Tj ET
+0.090 0.125 0.200 rg BT /F1 11 Tf 36 472 Td (Cliente API) Tj ET
+0.090 0.125 0.200 rg BT /F2 8 Tf 280 486 Td (Contrato) Tj ET
+0.090 0.125 0.200 rg BT /F1 11 Tf 280 472 Td (CTR-3d79c4ab) Tj ET
+0.090 0.125 0.200 rg BT /F2 8 Tf 470 486 Td (Periodo) Tj ET
+0.090 0.125 0.200 rg BT /F1 11 Tf 470 472 Td (2026-07-01 a 2026-08-01) Tj ET
+0.090 0.125 0.200 rg BT /F2 8 Tf 675 486 Td (Estado) Tj ET
+0.090 0.125 0.200 rg BT /F2 11 Tf 675 472 Td (ISSUED) Tj ET
+0.859 0.918 0.996 rg 36 420 770 24 re f
+0.090 0.125 0.200 rg BT /F2 8 Tf 42 428 Td (Data) Tj ET
+0.090 0.125 0.200 rg BT /F2 8 Tf 100 428 Td (Origem) Tj ET
+0.090 0.125 0.200 rg BT /F2 8 Tf 190 428 Td (Destino) Tj ET
+0.090 0.125 0.200 rg BT /F2 8 Tf 286 428 Td (Carga) Tj ET
+0.090 0.125 0.200 rg BT /F2 8 Tf 444 428 Td (Load) Tj ET
+0.090 0.125 0.200 rg BT /F2 8 Tf 512 428 Td (Qtd) Tj ET
+0.090 0.125 0.200 rg BT /F2 8 Tf 568 428 Td (Unitario) Tj ET
+0.090 0.125 0.200 rg BT /F2 8 Tf 660 428 Td (Total) Tj ET
+0.973 0.980 0.988 rg 36 392 770 22 re f
+0.090 0.125 0.200 rg BT /F1 8 Tf 42 398 Td (2026-07-02) Tj ET
+0.090 0.125 0.200 rg BT /F1 8 Tf 100 398 Td (Beira) Tj ET
+0.090 0.125 0.200 rg BT /F1 8 Tf 190 398 Td (Nacala) Tj ET
+0.090 0.125 0.200 rg BT /F1 8 Tf 286 398 Td (Produtos manufaturados) Tj ET
+0.090 0.125 0.200 rg BT /F1 8 Tf 444 398 Td (loaded_loaded) Tj ET
+0.090 0.125 0.200 rg BT /F1 8 Tf 512 398 Td (12.00) Tj ET
+0.090 0.125 0.200 rg BT /F1 8 Tf 568 398 Td (8 800.00 MZN) Tj ET
+0.090 0.125 0.200 rg BT /F1 8 Tf 660 398 Td (8 800.00 MZN) Tj ET
+0.945 0.961 0.976 rg 560 62 246 72 re f
+0.090 0.125 0.200 rg BT /F2 9 Tf 580 110 Td (Subtotal) Tj ET
+0.090 0.125 0.200 rg BT /F1 9 Tf 680 110 Td (8 800.00 MZN) Tj ET
+0.090 0.125 0.200 rg BT /F2 9 Tf 580 92 Td (Imposto) Tj ET
+0.090 0.125 0.200 rg BT /F1 9 Tf 680 92 Td (0.00 MZN) Tj ET
+0.090 0.125 0.200 rg BT /F2 12 Tf 580 72 Td (Total) Tj ET
+0.090 0.125 0.200 rg BT /F2 12 Tf 680 72 Td (8 800.00 MZN) Tj ET
+0.090 0.125 0.200 rg BT /F1 8 Tf 36 42 Td (Documento gerado pelo ROTAS com base em viagens entregues e provas de descarga validadas.) Tj ET
+
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 5 0 R >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000185 00000 n 
+0000000260 00000 n 
+0000002665 00000 n 
+trailer << /Size 7 /Root 1 0 R >>
+startxref
+2801
+%%EOF

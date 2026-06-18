@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
@@ -25,11 +25,13 @@ async def list_users(
 
 @router.post("")
 async def create_user(
+    request: Request,
     payload: schemas.UserCreate,
     principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
+    redis = getattr(request.app.state, "redis", None)
     return await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
@@ -39,7 +41,7 @@ async def create_user(
         entity_type="user",
         payload=payload,
         handler=lambda: service.create_user(
-            db, principal.tenant_id, payload, actor_id=principal.user_id
+            db, principal.tenant_id, payload, actor_id=principal.user_id, redis=redis
         ),
     )
 

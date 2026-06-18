@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
@@ -35,11 +35,13 @@ async def list_vehicles(
 
 @router.post("")
 async def create_vehicle(
+    request: Request,
     payload: schemas.VehicleCreate,
     principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
+    redis = getattr(request.app.state, "redis", None)
     return await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
@@ -53,6 +55,7 @@ async def create_vehicle(
             principal.tenant_id,
             payload,
             actor_id=principal.user_id,
+            redis=redis,
         ),
     )
 

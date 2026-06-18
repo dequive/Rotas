@@ -1,4 +1,5 @@
 import { apiFetch } from "./api";
+import { throwWhenDemoFallbackDisabled } from "./runtime-guards";
 import { getApiConfig } from "./billing-api";
 
 export interface FuelTank {
@@ -102,6 +103,7 @@ export async function loadFuelControlBoard(): Promise<FuelControlBoardLoadResult
     const payload = await apiFetch<ApiFuelControlBoard>("/api/v1/fuel-operations/board", { revalidate: 15 });
     return { board: mapFuelControlBoard(payload), source: "api", message: null };
   } catch (error) {
+    throwWhenDemoFallbackDisabled("Fuel Control Board", error);
     return {
       board: fallbackBoard,
       source: "fallback",

@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: rotas
+          POSTGRES_USER: rotas
+          POSTGRES_PASSWORD: rotas
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U rotas -d rotas"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      ENVIRONMENT: test
+      JWT_SECRET_KEY: test-secret-at-least-32-chars-long-abc
+      DATABASE_URL: postgresql+asyncpg://rotas:rotas@localhost:5432/rotas
+      ADMIN_DATABASE_URL: postgresql+asyncpg://rotas_admin:rotas_admin_dev@localhost:5432/rotas
+      ALEMBIC_DATABASE_URL: postgresql+psycopg://rotas:rotas@localhost:5432/rotas
+      REDIS_URL: redis://localhost:6379
+      CORS_ORIGINS: '["http://localhost:3030"]'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: Initialize database roles
+        run: psql "$DATABASE_URL_PSQL" -f infra/postgres-init.sql
+        env:
+          DATABASE_URL_PSQL: postgresql://rotas:rotas@localhost:5432/rotas
+      - name: Install backend
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Lint backend
+        working-directory: backend
+        run: python -m ruff check app tests
+      - name: Run migrations
+        working-directory: backend
+        run: python -m alembic upgrade head
+      - name: Test backend
+        working-directory: backend
+        run: python -m pytest -q --tb=short
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    env:
+      ROTAS_ALLOW_DEMO_FALLBACK: "1"
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      VITE_ROTAS_API_BASE_URL: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build manager
+        run: npm --workspace apps/manager run build
+      - name: Build driver
+        run: npm --workspace apps/driver run build

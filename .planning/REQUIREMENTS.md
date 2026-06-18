@@ -7,7 +7,7 @@ _Last updated: 2026-06-06_
 
 - [x] **CLI-01**: Gestor pode criar, editar e desactivar um cliente com NUIT, nome comercial, morada, cidade, telefone e email — dentro do contexto do seu tenant
 - [x] **CLI-02**: Cliente tem prazo de pagamento padrão configurável (30/45/60/90 dias) e limite de crédito com aviso visual quando o saldo em aberto o ultrapassa
-- [ ] **CLI-03**: Sistema migra os registos `client_name` existentes em Contratos e Faturas para referências `client_id` sem perda de dados históricos — `client_name` mantido como cache desnormalizado
+- [x] **CLI-03**: Sistema migra os registos `client_name` existentes em Contratos e Faturas para referências `client_id` sem perda de dados históricos — `client_name` mantido como cache desnormalizado
 - [ ] **CLI-04**: Contrato referencia `client_id`; gestor selecciona cliente ao criar ou editar um contrato
 - [ ] **CLI-05**: Faturas emitidas têm número sequencial por tenant sem gaps (formato `AAAA/NNNN`) gerado por PostgreSQL SEQUENCE
 
@@ -128,7 +128,7 @@ _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de
 - [x] **WSHOP-01**: Atribuição de tarefas de work order a mecânicos (`assigned_to` FK → `users.id`), com estimativa de tempo (`estimated_minutes`) e registo de tempo real (`actual_minutes`); custo de mão de obra calculado automaticamente a partir de taxa horária (`workshop_staff_rates`) e acumulado no campo `labor_cost` do `WorkOrder`; endpoint `GET /workshop/kpis` expõe horas totais, custo de mão de obra e work orders por mecânico
 - [x] **WSHOP-02**: Ferramentas expandidas com `category`, `location`, `serial_number`, `purchase_date`, `purchase_cost`, `calibration_interval_days`; tabela `tool_calibrations` com histórico completo de calibrações (`calibrated_by`, `calibrated_at`, `next_due_at`, `notes`); alerta automático para ferramentas críticas com calibração a vencer em 30 dias; endpoints de registo de calibração e histórico
 - [x] **WSHOP-03**: Catálogo de peças expandido com `category` (filtro/pneu/bateria/correia/outro), `shelf_location`, `supplier_name`, `lead_time_days`, `reorder_quantity`; tabela `spare_part_serial_items` para peças com número de série individual (pneus, baterias, extintores); endpoints para registar, instalar e consultar peças serializadas por veículo; endpoint `GET /workshop/spare-parts/low-stock` lista peças abaixo do stock mínimo
-- [ ] **WSHOP-04**: Endpoint `GET /api/v1/vehicles/{vehicle_id}/history` com timeline unificada — agrega via UNION ALL: `maintenance_requests`, `work_orders`, `fuel_logs/vehicle_refuels`, `checklists`, `trip_incidents`, `maintenance_schedule`; cada evento tem `event_type`, `event_date`, `title`, `description`, `reference_id`, `odometer_reading`; paginação cursor-based por data; filtros por tipo e período
+- [x] **WSHOP-04**: Endpoint `GET /api/v1/vehicles/{vehicle_id}/history` com timeline unificada — agrega via UNION ALL: `maintenance_requests`, `work_orders`, `fuel_logs/vehicle_refuels`, `checklists`, `trip_incidents`, `maintenance_schedule`; cada evento tem `event_type`, `event_date`, `title`, `description`, `reference_id`, `odometer_reading`; paginação cursor-based por data; filtros por tipo e período
 - [ ] **WSHOP-05**: UI expandida `/manutencao` com 4 tabs (Ordens de Trabalho / Peças e Stock / Ferramentas / Planos Preventivos); componentes `PartsInventoryTable` (badge "stock baixo") e `ToolsTable` (badge calibração a vencer); nova página `/viaturas/[id]/historico` com timeline de eventos com filtros por tipo; links "Ver Histórico" em `/frota` e nas ordens de trabalho
 
 ### Frontend Completo — Manager (FE)
@@ -238,7 +238,7 @@ _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de
 | MAINT-01 | Phase 4 | Complete |
 | CLI-01 | Phase 5 | Complete |
 | CLI-02 | Phase 5 | Complete |
-| CLI-03 | Phase 5 | Pending |
+| CLI-03 | Phase 5 | Complete |
 | CLI-04 | Phase 5 | Pending |
 | CLI-05 | Phase 5 | Pending |
 | PAY-01 | Phase 6 | Pending |
@@ -271,7 +271,7 @@ _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de
 | WSHOP-01 | Phase 13.5 | Complete |
 | WSHOP-02 | Phase 13.5 | Complete |
 | WSHOP-03 | Phase 13.5 | Complete |
-| WSHOP-04 | Phase 13.5 | Pending |
+| WSHOP-04 | Phase 13.5 | Complete |
 | WSHOP-05 | Phase 13.5 | Pending |
 | FE-01 | Phase 13 | Pending |
 | FE-02 | Phase 13 | Pending |

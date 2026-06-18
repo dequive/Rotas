@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 13.5-02-PLAN.md — workshop ORM models, schemas, mechanic role
-last_updated: "2026-06-18T23:11:26.708Z"
+stopped_at: Completed 13.5-03-PLAN.md — workshop service functions, router endpoints, vehicle history
+last_updated: "2026-06-18T23:28:20.729Z"
 last_activity: 2026-06-19
 progress:
   total_phases: 13
   completed_phases: 6
   total_plans: 59
-  completed_plans: 54
+  completed_plans: 55
 ---
 
 # ROTAS — Project State
@@ -22,10 +22,10 @@ _Last updated: 2026-06-06_
 ## Current Phase
 
 Phase: 05 (CLI — Client Registry + Migration Foundation)
-Plan: 01 complete (1/5)
-Status: 05-01 complete 2026-06-19 — clients module backend (model, migration a, service, router, 6 tests passing)
+Plan: 02 complete (2/5)
+Status: 05-02 complete 2026-06-19 — 3 migrations (b/c/d): client_id FKs + due_date + backfill + payments scaffold; 181 tests pass
 Last activity: 2026-06-19
-Stopped at: Completed 13.5-02-PLAN.md — workshop ORM models, schemas, mechanic role
+Stopped at: Completed 13.5-03-PLAN.md — workshop service functions, router endpoints, vehicle history
 
 ### Completed v3.0 Phases
 
@@ -105,6 +105,8 @@ Phase 21 (Frontend E2E)  — new; E2E tests for stability
 | Four Alembic migrations for client migration — DDL and DML never in same file | 5 | Established pattern in this codebase (28 existing migrations); DDL+DML mixing causes transaction issues on some PG versions |
 | clients migration uses revision a2b3c4d5e6f7 (not plan-specified a1b2c3d4e5f6 which was already taken) | 5-01 | a1b2c3d4e5f6 assigned to add_waiver_status_pending_approval; merge migration 22fbf8416463 resolves dual-head conflict with a8f3b2c1d4e5 workshop expansion |
 | _get_outstanding_balance returns Decimal('0.00') in Plan 01 — client_id FK on billing_documents not yet added | 5-01 | Plan 02 migration (b) adds FK; outstanding_balance_estimate flag signals interim state to API consumers |
+| Plan 02 migration revision IDs: e5f6a7b8c9d0 (b), f6a7b8c9d0e1 (c), a7b8c9d0e1f2 (d) | 5-02 | Plan-specified b2c3d4e5f6a7 and d4e5f6a7b8c9 were taken by existing migrations; down_revision = 22fbf8416463 (merge head, not plan-specified a1b2c3d4e5f6) |
+| outstanding_balance_estimate flag removed in Plan 02 — _get_outstanding_balance now queries BillingDocument.client_id | 5-02 | FK live after migration e5f6a7b8c9d0; real sum(total_amount WHERE status='issued') query active |
 | RLS policy created in the CREATE TABLE migration — not a follow-up patch | 5, 8-12 | PITFALL-06: new tables not covered by existing RLS migration; must be explicit per table |
 | due_date added in Phase 5 migration (b) alongside client_id — not in Phase 7 | 5 | PITFALL-04: aging needs stored due_date from day one; adding later requires second backfill of all issued documents |
 | payment_allocations junction table created in Phase 6 — not deferred to Phase 7 | 6 | PITFALL-05: retrofitting allocation table after payment rows exist is high-risk schema migration |

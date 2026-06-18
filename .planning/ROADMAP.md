@@ -344,7 +344,7 @@ Plans:
 
 Plans:
 - [x] 05-01-PLAN.md � Wave 1: clients backend (model, migration a, service, router) + Wave 0 test stubs (CLI-01, CLI-02)
-- [ ] 05-02-PLAN.md � Wave 1: FK migrations (b) + pre-audit + backfill (c) + payments scaffold (d) (CLI-03)
+- [x] 05-02-PLAN.md � Wave 1: FK migrations (b) + pre-audit + backfill (c) + payments scaffold (d) (CLI-03)
 - [ ] 05-03-PLAN.md � Wave 2: /clientes list page + /clientes/[id] detail page + ClientFormModal + sidebar nav (CLI-01, CLI-02)
 - [ ] 05-04-PLAN.md � Wave 2: ContractFormModal ClientCombobox + backend contracts schema/service update (CLI-04)
 - [ ] 05-05-PLAN.md � Wave 3: CLI-05 display (MonoCell in billing table) + test_invoice_number_format stub (CLI-05)

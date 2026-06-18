@@ -116,3 +116,136 @@ export async function loadMaintenanceRequests(status?: string): Promise<Maintena
     return [];
   }
 }
+
+// ── Spare Parts Inventory ────────────────────────────────────────────────────
+
+export interface SparePart {
+  id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  current_quantity: number;
+  minimum_quantity: number;
+  average_unit_cost: number;
+  status: string;
+  category: string | null;
+  shelf_location: string | null;
+  supplier_name: string | null;
+  lead_time_days: number | null;
+  reorder_quantity: number | null;
+}
+
+export interface LowStockItem {
+  id: string;
+  sku: string;
+  name: string;
+  current_quantity: string;
+  minimum_quantity: string;
+  reorder_quantity: number | null;
+  supplier_name: string | null;
+  lead_time_days: number | null;
+}
+
+export interface LowStockResponse {
+  items: LowStockItem[];
+  total: number;
+}
+
+export async function loadSparePartsInventory(): Promise<SparePart[]> {
+  try {
+    return await apiFetch<SparePart[]>("/api/v1/workshop/spare-parts?limit=500", { revalidate: 30 });
+  } catch {
+    return [];
+  }
+}
+
+export async function loadLowStockParts(): Promise<LowStockResponse> {
+  try {
+    return await apiFetch<LowStockResponse>("/api/v1/workshop/spare-parts/low-stock", { revalidate: 30 });
+  } catch {
+    return { items: [], total: 0 };
+  }
+}
+
+// ── Tools ────────────────────────────────────────────────────────────────────
+
+export interface WorkshopToolItem {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  is_critical: boolean;
+  calibration_due_at: string | null;
+  category: string | null;
+  location: string | null;
+  serial_number: string | null;
+}
+
+export interface ToolCalibrationEvent {
+  id: string;
+  tool_id: string;
+  calibrated_by: string | null;
+  calibrated_at: string;
+  next_due_at: string;
+  notes: string | null;
+  created_at: string;
+}
+
+export async function loadTools(): Promise<WorkshopToolItem[]> {
+  try {
+    return await apiFetch<WorkshopToolItem[]>("/api/v1/workshop/tools?limit=500", { revalidate: 30 });
+  } catch {
+    return [];
+  }
+}
+
+export async function loadToolCalibrationHistory(toolId: string): Promise<ToolCalibrationEvent[]> {
+  try {
+    return await apiFetch<ToolCalibrationEvent[]>(`/api/v1/workshop/tools/${toolId}/calibration-history`, { revalidate: 30 });
+  } catch {
+    return [];
+  }
+}
+
+// ── Vehicle History ──────────────────────────────────────────────────────────
+
+export interface VehicleHistoryEvent {
+  event_type: string;
+  event_date: string;
+  title: string;
+  description: string | null;
+  reference_id: string;
+  odometer_reading: number | null;
+}
+
+export interface VehicleHistoryResponse {
+  events: VehicleHistoryEvent[];
+  next_cursor: string | null;
+  total_count: number;
+}
+
+export interface VehicleHistoryParams {
+  from?: string;
+  to?: string;
+  types?: string;
+  cursor?: string;
+  limit?: number;
+}
+
+export async function loadVehicleHistory(
+  vehicleId: string,
+  params?: VehicleHistoryParams
+): Promise<VehicleHistoryResponse> {
+  try {
+    const qs = new URLSearchParams();
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    if (params?.types) qs.set("types", params.types);
+    if (params?.cursor) qs.set("cursor", params.cursor);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const query = qs.toString() ? `?${qs}` : "";
+    return await apiFetch<VehicleHistoryResponse>(`/api/v1/vehicles/${vehicleId}/history${query}`, { revalidate: 10 });
+  } catch {
+    return { events: [], next_cursor: null, total_count: 0 };
+  }
+}

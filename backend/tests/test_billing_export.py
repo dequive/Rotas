@@ -1,10 +1,24 @@
 """BILL-01 (PDF UTF-8) and BILL-02 (XLSX format) export tests."""
 
+import re
+import zlib
+from decimal import Decimal
 from io import BytesIO
 from unittest.mock import MagicMock
 
-import pytest
 from openpyxl import load_workbook
+
+
+def _pdf_text(pdf_bytes: bytes) -> str:
+    """Decompress all FlateDecode streams in a PDF and return their text."""
+    parts = []
+    for m in re.finditer(rb"stream\r?\n(.*?)\r?\nendstream", pdf_bytes, re.DOTALL):
+        chunk = m.group(1)
+        try:
+            parts.append(zlib.decompress(chunk).decode("latin-1"))
+        except Exception:
+            parts.append(chunk.decode("latin-1", errors="replace"))
+    return "\n".join(parts)
 
 
 def _make_mock_document():
@@ -16,6 +30,10 @@ def _make_mock_document():
     doc.billing_period_end = None
     doc.status = "issued"
     doc.currency = "MZN"
+    doc.subtotal = Decimal("3001.00")
+    doc.tax_amount = Decimal("510.17")
+    doc.total_amount = Decimal("3511.17")
+    doc.iva_rate = Decimal("0.1700")
     return doc
 
 
@@ -88,25 +106,47 @@ def test_xlsx_currency_columns_have_format():
     assert "#,##0.00" in ws.cell(row=9, column=8).number_format
 
 
-@pytest.mark.skip(reason="Wave 0 stub — implement in Wave 2 after FISC-02 IVA fields land")
 def test_pdf_contains_iva_section():
-    """FISC-02: PDF output must contain a visible IVA line with rate % and amount.
+    """FISC-02: PDF renderer must call cell() with SUBTOTAL, IVA and TOTAL COM IVA labels.
 
-    After Wave 2 implementation:
-    - Render PDF with a billing document that has tax_amount > 0 and iva_rate = 0.17
-    - Decode PDF bytes and assert IVA text is present (e.g., b"IVA" in pdf_bytes)
-    - Verify subtotal, IVA line, and total-com-IVA are present as distinct lines
+    fpdf2 TrueType fonts encode text as glyph indices so raw bytes are not searchable.
+    We capture cell() calls instead to verify the labels are passed before encoding.
     """
-    pass
+    from unittest.mock import patch
+
+    from fpdf import FPDF
+
+    from app.modules.billing.exporters import render_billing_export
+
+    captured: list[str] = []
+    _orig_cell = FPDF.cell
+
+    def _capturing_cell(self, *args, **kwargs):
+        # text is 3rd positional or keyword
+        text = args[2] if len(args) > 2 else kwargs.get("text", "")
+        if text:
+            captured.append(str(text))
+        return _orig_cell(self, *args, **kwargs)
+
+    with patch.object(FPDF, "cell", _capturing_cell):
+        doc = _make_mock_document()
+        render_billing_export(doc, [_make_mock_item()], "pdf")
+
+    assert "SUBTOTAL" in captured, f"SUBTOTAL not rendered. Got: {captured}"
+    assert any("IVA" in t for t in captured), f"IVA label not rendered. Got: {captured}"
+    assert "TOTAL COM IVA" in captured, f"TOTAL COM IVA not rendered. Got: {captured}"
 
 
-@pytest.mark.skip(reason="Wave 0 stub — implement in Wave 2 after FISC-02 IVA fields land")
 def test_xlsx_iva_rows():
-    """FISC-02: XLSX output must have subtotal row, IVA row, and total-com-IVA row.
+    """FISC-02: XLSX output must have SUBTOTAL, IVA, and TOTAL COM IVA rows."""
+    from app.modules.billing.exporters import render_billing_export
 
-    After Wave 2 implementation:
-    - Render XLSX with a billing document that has iva_rate=0.17, tax_amount > 0
-    - Load workbook with openpyxl and scan rows for 'SUBTOTAL', 'IVA', 'TOTAL COM IVA'
-    - Confirm all three row labels exist in the worksheet
-    """
-    pass
+    doc = _make_mock_document()
+    artifact = render_billing_export(doc, [_make_mock_item()], "xlsx")
+    wb = load_workbook(BytesIO(artifact.content))
+    ws = wb.active
+
+    all_values = [ws.cell(row=r, column=1).value for r in range(1, ws.max_row + 1)]
+    assert "SUBTOTAL" in all_values, f"SUBTOTAL not found in column A. Values: {all_values}"
+    assert any("IVA" in str(v) for v in all_values if v), f"IVA row not found. Values: {all_values}"
+    assert "TOTAL COM IVA" in all_values, f"TOTAL COM IVA not found. Values: {all_values}"

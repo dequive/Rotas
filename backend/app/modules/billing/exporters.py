@@ -8,6 +8,7 @@ Design goals:
 - UTF-8: DejaVuSans covers full Latin Extended range — Portuguese diacritics
   (ã ç â ê é ô) and Mozambican names render without corruption.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -27,14 +28,14 @@ from app.modules.billing.models import BillingDocument, BillingItem
 FONTS_DIR = Path(__file__).parent / "fonts"
 
 # ── Brand palette ────────────────────────────────────────────────────────────
-_NAV     = (16, 32, 51)      # #102033 — deep navy (sidebar colour)
-_SOFT    = (245, 247, 250)   # #F5F7FA — light background
-_LINE    = (216, 222, 232)   # #D8DEE8 — subtle divider
-_INK     = (23, 32, 51)      # #172033 — body text
-_MUTED   = (102, 112, 133)   # #667085 — secondary text
-_WHITE   = (255, 255, 255)
-_GREEN   = (22, 121, 76)     # #16794C
-_ORANGE  = (180, 83, 9)      # #B45309
+_NAV = (16, 32, 51)  # #102033 — deep navy (sidebar colour)
+_SOFT = (245, 247, 250)  # #F5F7FA — light background
+_LINE = (216, 222, 232)  # #D8DEE8 — subtle divider
+_INK = (23, 32, 51)  # #172033 — body text
+_MUTED = (102, 112, 133)  # #667085 — secondary text
+_WHITE = (255, 255, 255)
+_GREEN = (22, 121, 76)  # #16794C
+_ORANGE = (180, 83, 9)  # #B45309
 
 
 @dataclass(frozen=True)
@@ -64,6 +65,7 @@ def render_billing_export(
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _money(value, currency: str = "MZN") -> str:
     amount = Decimal(str(value or 0))
     return f"{amount:,.2f} {currency}"
@@ -92,17 +94,20 @@ def _status_label(status: str | None) -> str:
 
 # ── PDF ───────────────────────────────────────────────────────────────────────
 
+
 class _RotasPDF(FPDF):
     """FPDF subclass with tenant-branded header and footer."""
 
-    def __init__(self, doc_number: str, issue_date: str, issuer_name: str, issuer_contact: str | None):
+    def __init__(
+        self, doc_number: str, issue_date: str, issuer_name: str, issuer_contact: str | None
+    ):
         super().__init__(orientation="P", unit="mm", format="A4")
         self._doc_number = doc_number
         self._issue_date = issue_date
         self._issuer_name = issuer_name
         self._issuer_contact = issuer_contact
-        self.add_font("DejaVu",  "",  str(FONTS_DIR / "DejaVuSans.ttf"))
-        self.add_font("DejaVu",  "B", str(FONTS_DIR / "DejaVuSans-Bold.ttf"))
+        self.add_font("DejaVu", "", str(FONTS_DIR / "DejaVuSans.ttf"))
+        self.add_font("DejaVu", "B", str(FONTS_DIR / "DejaVuSans-Bold.ttf"))
         self.set_auto_page_break(auto=True, margin=18)
         self.set_margins(left=15, top=15, right=15)
 
@@ -203,8 +208,16 @@ def _render_pdf(
     scale = usable / sum(COL_W)
     COL_W = [round(w * scale, 1) for w in COL_W]
 
-    HEADERS = ["Data", "Origem", "Destino", "Carga / Descrição", "Estado", "Qtd",
-               f"Unit. {currency}", f"Total {currency}"]
+    HEADERS = [
+        "Data",
+        "Origem",
+        "Destino",
+        "Carga / Descrição",
+        "Estado",
+        "Qtd",
+        f"Unit. {currency}",
+        f"Total {currency}",
+    ]
 
     # Header row
     pdf.set_fill_color(*_NAV)
@@ -212,8 +225,7 @@ def _render_pdf(
     pdf.set_font("DejaVu", "B", 7.5)
     ALIGN = ["C", "L", "L", "L", "C", "C", "R", "R"]
     for w, label, align in zip(COL_W, HEADERS, ALIGN):
-        pdf.cell(w, 7, label, border=0, fill=True, align=align,
-                 new_x=XPos.RIGHT, new_y=YPos.TOP)
+        pdf.cell(w, 7, label, border=0, fill=True, align=align, new_x=XPos.RIGHT, new_y=YPos.TOP)
     pdf.ln()
 
     # Data rows
@@ -240,8 +252,9 @@ def _render_pdf(
         ]
         row_h = 6
         for w, (text, align) in zip(COL_W, values):
-            pdf.cell(w, row_h, text, border=0, fill=fill, align=align,
-                     new_x=XPos.RIGHT, new_y=YPos.TOP)
+            pdf.cell(
+                w, row_h, text, border=0, fill=fill, align=align, new_x=XPos.RIGHT, new_y=YPos.TOP
+            )
         pdf.ln()
 
     # ── Totals block ─────────────────────────────────────────────────────────
@@ -251,24 +264,54 @@ def _render_pdf(
     pdf.line(15, pdf.get_y(), 195, pdf.get_y())
     pdf.ln(4)
 
-    # Right-aligned total
-    total_label_w = sum(COL_W[:6])
-    total_val_w   = COL_W[6] + COL_W[7]
+    # FISC-02: Three-line totals block — SUBTOTAL / IVA / TOTAL COM IVA
+    label_w = sum(COL_W[:6])
+    val_w = COL_W[6] + COL_W[7]
 
+    subtotal = _money_val(document.subtotal) if document.subtotal else grand_total
+    tax_amount = _money_val(document.tax_amount) if document.tax_amount else Decimal(0)
+    total_amount = _money_val(document.total_amount) if document.total_amount else subtotal + tax_amount
+
+    iva_pct = int(float(document.iva_rate) * 100) if document.iva_rate else 17
+    iva_label = f"IVA ({iva_pct}%)"
+
+    def _totals_row(label: str, value: Decimal, bold: bool = False, fill_color=_SOFT):
+        pdf.set_fill_color(*fill_color)
+        pdf.set_text_color(*_INK)
+        pdf.set_font("DejaVu", "B" if bold else "", 9)
+        pdf.cell(label_w, 7, label, fill=True, align="R", new_x=XPos.RIGHT, new_y=YPos.TOP)
+        pdf.cell(
+            val_w, 7, f"{value:,.2f} {currency}", fill=True, align="R",
+            new_x=XPos.LMARGIN, new_y=YPos.NEXT
+        )
+
+    _totals_row("SUBTOTAL", subtotal)
+    _totals_row(iva_label, tax_amount)
+    pdf.ln(1)
+    pdf.set_draw_color(*_LINE)
+    pdf.set_line_width(0.2)
+    pdf.line(15 + label_w, pdf.get_y(), 195, pdf.get_y())
+    pdf.ln(1)
+    _totals_row("TOTAL COM IVA", total_amount, bold=True, fill_color=_NAV)
+    # Fix text colour for the nav-fill row (white on dark)
+    # Re-render with correct colours since _totals_row uses _INK
+    pdf.set_y(pdf.get_y() - 7)
     pdf.set_fill_color(*_NAV)
     pdf.set_text_color(*_WHITE)
     pdf.set_font("DejaVu", "B", 9)
-    pdf.cell(total_label_w, 8, "TOTAL A PAGAR", fill=True, align="R",
-             new_x=XPos.RIGHT, new_y=YPos.TOP)
-    pdf.cell(total_val_w, 8, f"{grand_total:,.2f} {currency}", fill=True, align="R",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(label_w, 7, "TOTAL COM IVA", fill=True, align="R", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(
+        val_w, 7, f"{total_amount:,.2f} {currency}", fill=True, align="R",
+        new_x=XPos.LMARGIN, new_y=YPos.NEXT
+    )
 
     # ── Payment conditions note ───────────────────────────────────────────────
     pdf.ln(6)
     pdf.set_font("DejaVu", "", 7.5)
     pdf.set_text_color(*_MUTED)
     pdf.multi_cell(
-        0, 5,
+        0,
+        5,
         "Este documento foi gerado automaticamente pelo sistema ROTAS. "
         "Qualquer contestação deve ser comunicada no prazo de 10 dias úteis após a emissão.",
         align="L",
@@ -279,6 +322,7 @@ def _render_pdf(
 
 
 # ── XLSX ──────────────────────────────────────────────────────────────────────
+
 
 def _xlsx_fill(hex_rgb: str) -> PatternFill:
     return PatternFill(fill_type="solid", fgColor=hex_rgb)
@@ -331,8 +375,16 @@ def _render_xlsx(
     # ── Table header (row 8) ──────────────────────────────────────────────────
     HEADER_ROW = 8
     DATA_START = 9
-    HEADERS = ["Data descarga", "Origem", "Destino", "Carga / Descrição",
-               "Estado carga", "Qtd", f"Unit. {currency}", f"Total {currency}"]
+    HEADERS = [
+        "Data descarga",
+        "Origem",
+        "Destino",
+        "Carga / Descrição",
+        "Estado carga",
+        "Qtd",
+        f"Unit. {currency}",
+        f"Total {currency}",
+    ]
     COL_WIDTHS = [14, 22, 22, 34, 14, 8, 20, 20]
 
     header_fill = _xlsx_fill("102033")
@@ -354,7 +406,7 @@ def _render_xlsx(
     grand_total = Decimal(0)
 
     even_fill = _xlsx_fill("F5F7FA")
-    odd_fill  = _xlsx_fill("FFFFFF")
+    odd_fill = _xlsx_fill("FFFFFF")
 
     for row_offset, item in enumerate(items):
         row = DATA_START + row_offset
@@ -385,22 +437,34 @@ def _render_xlsx(
 
         ws.row_dimensions[row].height = 16
 
-    # ── Total row ─────────────────────────────────────────────────────────────
-    total_row = DATA_START + len(items)
-    ws.merge_cells(f"A{total_row}:G{total_row}")
-    label_cell = ws.cell(row=total_row, column=1, value="TOTAL A PAGAR")
-    label_cell.font = Font(bold=True, size=10, color="FFFFFF")
-    label_cell.fill = _xlsx_fill("102033")
-    label_cell.alignment = Alignment(horizontal="right", vertical="center")
-    label_cell.border = _xlsx_border()
+    # ── FISC-02: Three totals rows — SUBTOTAL / IVA / TOTAL COM IVA ──────────
+    subtotal_val = float(_money_val(document.subtotal)) if document.subtotal else float(grand_total)
+    tax_val = float(_money_val(document.tax_amount)) if document.tax_amount else 0.0
+    total_val = float(_money_val(document.total_amount)) if document.total_amount else subtotal_val + tax_val
+    iva_pct = int(float(document.iva_rate) * 100) if document.iva_rate else 17
 
-    total_cell = ws.cell(row=total_row, column=8, value=float(grand_total))
-    total_cell.font = Font(bold=True, size=10, color="FFFFFF")
-    total_cell.fill = _xlsx_fill("102033")
-    total_cell.number_format = CURRENCY_FMT
-    total_cell.alignment = Alignment(horizontal="right", vertical="center")
-    total_cell.border = _xlsx_border()
-    ws.row_dimensions[total_row].height = 20
+    def _totals_xlsx_row(row: int, label: str, value: float, bold: bool = False, dark: bool = False):
+        ws.merge_cells(f"A{row}:G{row}")
+        lc = ws.cell(row=row, column=1, value=label)
+        lc.font = Font(bold=bold, size=9, color="FFFFFF" if dark else "172033")
+        lc.fill = _xlsx_fill("102033" if dark else "F5F7FA")
+        lc.alignment = Alignment(horizontal="right", vertical="center")
+        lc.border = _xlsx_border()
+        vc = ws.cell(row=row, column=8, value=value)
+        vc.font = Font(bold=bold, size=9, color="FFFFFF" if dark else "172033")
+        vc.fill = _xlsx_fill("102033" if dark else "F5F7FA")
+        vc.number_format = CURRENCY_FMT
+        vc.alignment = Alignment(horizontal="right", vertical="center")
+        vc.border = _xlsx_border()
+        ws.row_dimensions[row].height = 18
+
+    subtotal_row = DATA_START + len(items)
+    iva_row = subtotal_row + 1
+    total_row = subtotal_row + 2
+
+    _totals_xlsx_row(subtotal_row, "SUBTOTAL", subtotal_val)
+    _totals_xlsx_row(iva_row, f"IVA ({iva_pct}%)", tax_val)
+    _totals_xlsx_row(total_row, "TOTAL COM IVA", total_val, bold=True, dark=True)
 
     # Freeze panes below header row so data scrolls but header stays
     ws.freeze_panes = ws.cell(row=DATA_START, column=1)

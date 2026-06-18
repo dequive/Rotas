@@ -16,6 +16,7 @@ from app.modules.operations.service import has_active_waiver
 from app.modules.tenants.models import Tenant
 from app.modules.trip_orders.models import TripOrder
 from app.modules.trips.costs import reconcile_trip_costs, record_trip_cost, serialize_trip_cost
+from app.modules.vehicles.models import Vehicle
 from app.modules.trips.models import (
     DispatchClearance,
     Trip,
@@ -490,6 +491,27 @@ async def create_trip(
             raise ApiError("contract_not_found", "Contract not found.", status_code=404)
         contract_reference = contract.contract_reference
 
+    # LOAD-01: Payload weight guard
+    _vehicle = await db.get(Vehicle, payload.vehicle_id)
+    if (
+        _vehicle is not None
+        and _vehicle.max_payload_kg is not None
+        and payload.cargo_weight is not None
+        and payload.cargo_weight > _vehicle.max_payload_kg
+        and not payload.payload_override_reason
+    ):
+        excess = float(payload.cargo_weight - _vehicle.max_payload_kg)
+        raise ApiError(
+            "payload_exceeded",
+            f"Cargo weight exceeds vehicle max payload capacity by {excess:.2f} kg.",
+            status_code=409,
+            details={
+                "cargo_weight_kg": float(payload.cargo_weight),
+                "max_payload_kg": float(_vehicle.max_payload_kg),
+                "excess_kg": excess,
+            },
+        )
+
     trip = Trip(
         tenant_id=tenant_id,
         contract_id=payload.contract_id,
@@ -501,12 +523,18 @@ async def create_trip(
         destination_location=None,
         cargo_type=payload.cargo_type,
         cargo_class=payload.cargo_class,
+        cargo_weight=payload.cargo_weight,
         load_state=payload.load_state,
         requires_load_permit=payload.requires_load_permit,
         requires_cargo_manifest=payload.requires_cargo_manifest,
         planned_departure=payload.planned_departure,
         planned_arrival=payload.planned_arrival,
         contract_reference=contract_reference,
+        payload_override_reason=payload.payload_override_reason,
+        is_hazmat=payload.is_hazmat,
+        hazmat_class=payload.hazmat_class,
+        un_number=payload.un_number,
+        hazmat_label=payload.hazmat_label,
         status="draft",
         billing_status="pending_delivery_proof",
     )
@@ -558,6 +586,27 @@ async def start_trip(
             details={"status": trip.status},
         )
 
+    # LOAD-01: Payload weight guard at start time
+    if trip.cargo_weight is not None:
+        _start_vehicle = await db.get(Vehicle, trip.vehicle_id)
+        if (
+            _start_vehicle is not None
+            and _start_vehicle.max_payload_kg is not None
+            and trip.cargo_weight > _start_vehicle.max_payload_kg
+            and not trip.payload_override_reason
+        ):
+            excess = float(trip.cargo_weight - _start_vehicle.max_payload_kg)
+            raise ApiError(
+                "payload_exceeded",
+                f"Cannot start trip — cargo weight exceeds vehicle capacity by {excess:.2f} kg.",
+                status_code=409,
+                details={
+                    "cargo_weight_kg": float(trip.cargo_weight),
+                    "max_payload_kg": float(_start_vehicle.max_payload_kg),
+                    "excess_kg": excess,
+                },
+            )
+
     old_values = {
         "status": trip.status,
         "km_start": trip.km_start,
@@ -584,6 +633,34 @@ async def start_trip(
     )
     await db.commit()
     await db.refresh(trip)
+
+    # LOAD-02: Create hazmat_active alert — best-effort, trip start must not fail on alert error
+    if trip.is_hazmat:
+        try:
+            from app.modules.alerts.schemas import AlertCreate
+            from app.modules.alerts.service import create_alert
+
+            await create_alert(
+                db,
+                tenant_id=tenant_id,
+                payload=AlertCreate(
+                    request_reference=f"hazmat_active_{trip.id}",
+                    alert_type="hazmat_active",
+                    priority="high",
+                    entity_type="trip",
+                    entity_id=trip.id,
+                    title=f"Viagem hazmat em curso: classe {trip.hazmat_class or 'N/D'}",
+                    message=f"Trip {trip.id} started with hazmat cargo. Class={trip.hazmat_class}, UN={trip.un_number}",
+                ),
+                actor_id=actor_id,
+            )
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Failed to create hazmat_active alert for trip %s", trip.id, exc_info=True
+            )
+
     return serialize_trip(trip)
 
 

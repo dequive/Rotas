@@ -19,13 +19,12 @@ from app.modules.cargo.schemas import (
 from app.modules.operational_exceptions.service import ensure_exception, resolve_active_exceptions
 from app.modules.trips.models import Trip
 
-
 _DELIVERY_PROOF_VALID_TRANSITIONS: dict[str, set[str]] = {
-    "pending":  {"accepted", "rejected"},
+    "pending": {"accepted", "rejected"},
     "rejected": {"disputed"},
     "disputed": {"resolved"},
-    "accepted": set(),   # terminal
-    "resolved": set(),   # terminal
+    "accepted": set(),  # terminal
+    "resolved": set(),  # terminal
 }
 
 
@@ -139,7 +138,17 @@ async def create_load_permit(
     *,
     actor_id: UUID | None = None,
 ) -> dict:
-    await _require_trip(db, tenant_id, trip_id)
+    trip = await _require_trip(db, tenant_id, trip_id)
+
+    # LOAD-02: Hazmat declaration guard
+    if trip.is_hazmat and (not trip.hazmat_class or not trip.hazmat_class.strip()):
+        raise ApiError(
+            "hazmat_declaration_required",
+            "Trip is marked as hazmat — hazmat_class must be declared on the trip before creating a Load Permit.",
+            status_code=422,
+            details={"trip_id": str(trip_id), "is_hazmat": True},
+        )
+
     permit = LoadPermit(tenant_id=tenant_id, trip_id=trip_id, **payload.model_dump())
     db.add(permit)
     await db.flush()
@@ -325,9 +334,14 @@ async def accept_delivery_proof(
         db.add(trip)
 
     await record_audit_log(
-        db, tenant_id=tenant_id, action="delivery_proof.accepted",
-        entity_type="delivery_proof", entity_id=proof.id, user_id=user_id,
-        old_values={"status": "pending"}, new_values={"status": "accepted"},
+        db,
+        tenant_id=tenant_id,
+        action="delivery_proof.accepted",
+        entity_type="delivery_proof",
+        entity_id=proof.id,
+        user_id=user_id,
+        old_values={"status": "pending"},
+        new_values={"status": "accepted"},
     )
     db.add(proof)
     return proof
@@ -374,9 +388,14 @@ async def reject_delivery_proof(
     )
 
     await record_audit_log(
-        db, tenant_id=tenant_id, action="delivery_proof.rejected",
-        entity_type="delivery_proof", entity_id=proof.id, user_id=user_id,
-        old_values={"status": "pending"}, new_values={"status": "rejected", "rejection_reason": rejection_reason},
+        db,
+        tenant_id=tenant_id,
+        action="delivery_proof.rejected",
+        entity_type="delivery_proof",
+        entity_id=proof.id,
+        user_id=user_id,
+        old_values={"status": "pending"},
+        new_values={"status": "rejected", "rejection_reason": rejection_reason},
     )
     db.add(proof)
     return proof

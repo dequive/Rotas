@@ -11,6 +11,7 @@ This worker:
 IMPORTANT: This worker must be deployed as a separate Railway service from the HTTP backend.
 Command: arq app.jobs.worker.WorkerSettings
 """
+
 import logging
 from typing import Any
 
@@ -18,7 +19,9 @@ from arq import cron
 from arq.connections import RedisSettings
 
 from app.config import get_settings
+from app.jobs.tasks.billing_export import task_export_compliance_report
 from app.jobs.tasks.document_expiry import scan_expiring_documents
+from app.jobs.tasks.housekeeping import run_housekeeping
 from app.jobs.tasks.maintenance import check_maintenance_schedules, check_vehicle_maintenance
 from app.jobs.tasks.notifications import deliver_queued_notifications
 
@@ -52,12 +55,15 @@ class WorkerSettings:
         check_vehicle_maintenance,
         scan_expiring_documents,
         deliver_queued_notifications,
+        run_housekeeping,
+        task_export_compliance_report,
     ]
     cron_jobs = [
         # D-07: daily safety net for calendar-based maintenance plans
         cron(check_maintenance_schedules, hour={2}, minute=0, run_at_startup=False),
         # 260607-o5b: daily document expiry scan — offset by 1h to avoid DB contention
         cron(scan_expiring_documents, hour={3}, minute=0, run_at_startup=False),
+        cron(run_housekeeping, hour={4}, minute=0, run_at_startup=False),
         cron(deliver_queued_notifications, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),
     ]
     on_startup = startup

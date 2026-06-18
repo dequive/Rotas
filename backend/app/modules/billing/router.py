@@ -8,10 +8,10 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.core.idempotency import execute_http_idempotent
 from app.core.permissions import ADMIN_ROLES, DASHBOARD_ROLES, WRITE_ROLES, require_roles
-from app.core.deps import get_session
 from app.modules.billing import schemas, service
 
 router = APIRouter(prefix="/billing", tags=["billing"])
@@ -188,9 +188,36 @@ async def create_export_job(
     """
     arq_redis = getattr(request.app.state, "arq_redis", None)
     if arq_redis is None:
-        raise ApiError("redis_unavailable", "Export service temporarily unavailable.", status_code=503)
+        raise ApiError(
+            "redis_unavailable", "Export service temporarily unavailable.", status_code=503
+        )
     return await service.enqueue_export_job(
         db, principal.tenant_id, document_id, export_format, arq_redis
+    )
+
+
+@router.get("/compliance-report", status_code=202)
+async def get_compliance_report(
+    month: str,
+    request: Request,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """FISC-03: Enqueue monthly compliance XLSX export for AT submission.
+
+    Returns ExportJob ID for polling via GET /billing/jobs/{job_id}/status
+    Query param: ?month=YYYY-MM (e.g. ?month=2026-01)
+    """
+    arq_redis = getattr(request.app.state, "arq_redis", None)
+    if arq_redis is None:
+        raise ApiError(
+            "redis_unavailable", "Export service temporarily unavailable.", status_code=503
+        )
+    return await service.create_compliance_report_job(
+        db=db,
+        tenant_id=principal.tenant_id,
+        month=month,
+        arq=arq_redis,
     )
 
 
@@ -211,8 +238,9 @@ async def download_job_file(
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """BILL-01/02: Download completed export file. Tenant-isolated — no public URL."""
-    from app.modules.billing.models import ExportJob
     from sqlalchemy import select as sa_select
+
+    from app.modules.billing.models import ExportJob
 
     job = await db.scalar(
         sa_select(ExportJob).where(
@@ -239,6 +267,7 @@ async def download_job_file(
 
 
 # ── SM-01: BillingDocument state machine endpoints ───────────────────────────
+
 
 @router.patch("/documents/{document_id}/mark-paid", summary="Mark billing document as paid (SM-01)")
 async def mark_billing_document_paid(
@@ -282,4 +311,3 @@ async def cancel_billing_document(
     await db.commit()
     await db.refresh(doc)
     return {"id": doc.id, "status": doc.status, "cancellation_reason": doc.cancellation_reason}
-

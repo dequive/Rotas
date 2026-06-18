@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -12,12 +13,18 @@ class TripCreate(BaseModel):
     destination: str
     cargo_type: str | None = None
     cargo_class: str | None = None
+    cargo_weight: Decimal | None = None
     load_state: str | None = None
     requires_load_permit: bool = False
     requires_cargo_manifest: bool = False
     planned_departure: datetime | None = None
     planned_arrival: datetime | None = None
     contract_reference: str | None = None
+    payload_override_reason: str | None = None
+    is_hazmat: bool = False
+    hazmat_class: str | None = None
+    un_number: str | None = None
+    hazmat_label: str | None = None
 
 
 class StartTripRequest(BaseModel):

@@ -1,9 +1,11 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID
 
 from arq.connections import ArqRedis
 from fastapi import status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
@@ -21,6 +23,36 @@ from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
 
 NEGATIVE_MARGIN_APPROVAL_WAIVER = "negative_margin_approved"
+
+
+async def _assign_invoice_number(
+    db: AsyncSession,
+    document: "BillingDocument",
+    tenant_id: UUID,
+) -> str:
+    """Assign a sequential invoice number from a per-tenant per-year PostgreSQL SEQUENCE.
+
+    Format: YYYY/NNNN (e.g., 2026/0001). Idempotent — returns existing number unchanged.
+    New sequences are created lazily so tenants provisioned after the migration still work.
+    """
+    if document.invoice_number:
+        return document.invoice_number
+
+    year = datetime.now(UTC).year
+    tid_clean = str(tenant_id).replace("-", "")
+    seq_name = f"invoice_seq_{tid_clean}_{year}"
+
+    await db.execute(
+        text(
+            f'CREATE SEQUENCE IF NOT EXISTS "{seq_name}" '
+            f"START 1 INCREMENT 1 NO MINVALUE NO MAXVALUE CACHE 1"
+        )
+    )
+    result = await db.execute(text(f"SELECT nextval('{seq_name}')"))
+    seq_val = result.scalar_one()
+    invoice_number = f"{year}/{seq_val:04d}"
+    document.invoice_number = invoice_number
+    return invoice_number
 
 
 async def create_billing_waiver(
@@ -193,6 +225,8 @@ def serialize_billing_item(item: BillingItem) -> dict:
         "quantity": item.quantity,
         "unit_price": item.unit_price,
         "amount": item.amount,
+        "iva_rate": item.iva_rate,
+        "iva_amount": item.iva_amount,
         "status": item.status,
         "created_at": item.created_at,
     }
@@ -215,6 +249,8 @@ def serialize_billing_document(document: BillingDocument, items: list[BillingIte
         "issued_at": document.issued_at,
         "paid_at": document.paid_at,
         "file_id": document.file_id,
+        "invoice_number": document.invoice_number,
+        "iva_rate": document.iva_rate,
         "items": [serialize_billing_item(item) for item in items],
     }
 
@@ -239,6 +275,7 @@ def serialize_billing_document_summary(
         "issued_at": document.issued_at,
         "paid_at": document.paid_at,
         "file_id": document.file_id,
+        "invoice_number": document.invoice_number,
         "item_count": item_count,
         "created_at": document.created_at,
     }
@@ -351,8 +388,7 @@ async def list_documents(
         query.order_by(BillingDocument.created_at.desc()).limit(limit).offset(offset)
     )
     return [
-        serialize_billing_document_summary(document, int(count or 0))
-        for document, count in rows
+        serialize_billing_document_summary(document, int(count or 0)) for document, count in rows
     ]
 
 
@@ -441,7 +477,9 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
             .order_by(TransportDocument.created_at.desc())
         )
 
-        amount = contract.default_unit_price or 0
+        amount = Decimal(str(contract.default_unit_price or 0))
+        iva_rate = Decimal("0.1700")
+        iva_amount = (amount * iva_rate).quantize(Decimal("0.01"))
         item = BillingItem(
             tenant_id=tenant_id,
             contract_id=contract.id,
@@ -463,6 +501,8 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
             quantity=proof.quantity_delivered,
             unit_price=contract.default_unit_price,
             amount=amount,
+            iva_rate=iva_rate,
+            iva_amount=iva_amount,
             status="draft",
         )
         db.add(item)
@@ -575,6 +615,19 @@ async def issue_document(
     issued_at = payload.issued_at or datetime.now(UTC)
     old_document_values = {"status": document.status, "issued_at": document.issued_at}
     trip_old_values: dict[UUID, dict] = {}
+
+    # FISC-01: Assign sequential invoice number from PostgreSQL SEQUENCE
+    await _assign_invoice_number(db, document, tenant_id)
+
+    # FISC-02: Recompute IVA totals from per-item iva_amount values
+    document.subtotal = sum(item.amount for item in items).quantize(Decimal("0.01"))
+    document.tax_amount = sum(
+        (item.iva_amount or Decimal("0")) for item in items
+    ).quantize(Decimal("0.01"))
+    document.total_amount = (document.subtotal + document.tax_amount).quantize(Decimal("0.01"))
+    rates = {item.iva_rate for item in items if item.iva_rate is not None}
+    document.iva_rate = rates.pop() if len(rates) == 1 else None
+
     document.status = "issued"
     document.issued_at = issued_at
 
@@ -591,7 +644,17 @@ async def issue_document(
             trip.billed_at = issued_at
             trip.billing_document_id = document.id
 
-    await db.flush()
+    for _attempt in range(2):
+        try:
+            await db.flush()
+            break
+        except IntegrityError:
+            if _attempt == 0:
+                await db.rollback()
+                document.invoice_number = None
+                await _assign_invoice_number(db, document, tenant_id)
+            else:
+                raise
     await record_audit_log(
         db,
         tenant_id=tenant_id,
@@ -602,6 +665,7 @@ async def issue_document(
         new_values={
             "status": document.status,
             "issued_at": document.issued_at,
+            "invoice_number": document.invoice_number,
             "item_count": len(items),
         },
     )
@@ -770,6 +834,60 @@ async def enqueue_export_job(
     return {"job_id": str(job_record.id), "status": "queued"}
 
 
+async def create_compliance_report_job(
+    db: AsyncSession,
+    tenant_id: UUID,
+    month: str,
+    arq: "ArqRedis",
+) -> dict:
+    """Create an ExportJob and enqueue the ARQ task for monthly compliance XLSX (FISC-03).
+
+    Args:
+        month: YYYY-MM format string, e.g. "2026-01"
+    Returns:
+        dict with job_id and status
+    """
+    from app.modules.billing.models import ExportJob
+
+    try:
+        datetime.strptime(month, "%Y-%m")
+    except ValueError:
+        raise ApiError(
+            "invalid_month_format",
+            "month must be in YYYY-MM format (e.g. 2026-01)",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
+    existing = await db.scalar(
+        select(ExportJob).where(
+            ExportJob.tenant_id == tenant_id,
+            ExportJob.job_type == "compliance_report",
+            ExportJob.status.in_(["queued", "processing"]),
+        )
+    )
+    if existing:
+        return {"job_id": str(existing.id), "status": existing.status}
+
+    job = ExportJob(
+        tenant_id=tenant_id,
+        job_type="compliance_report",
+        entity_id=None,
+        status="queued",
+    )
+    db.add(job)
+    await db.flush()
+
+    await arq.enqueue_job(
+        "task_export_compliance_report",
+        str(job.id),
+        month,
+        str(tenant_id),
+    )
+
+    await db.commit()
+    return {"job_id": str(job.id), "status": job.status}
+
+
 async def get_export_job_status(db: AsyncSession, tenant_id: UUID, job_id: UUID) -> dict:
     """Return current status of an export job. Tenant-isolated."""
     from app.modules.billing.models import ExportJob
@@ -800,11 +918,11 @@ def _serialize_export(document: BillingDocument, stored_file: File, export_forma
 # ── SM-01: BillingDocument State Machine ─────────────────────────────────────
 
 _BILLING_VALID_TRANSITIONS: dict[str, set[str]] = {
-    "draft":     {"issued", "cancelled"},
-    "issued":    {"paid", "overdue", "cancelled"},
-    "overdue":   {"paid", "cancelled"},
-    "paid":      set(),       # terminal
-    "cancelled": set(),       # terminal
+    "draft": {"issued", "cancelled"},
+    "issued": {"paid", "overdue", "cancelled"},
+    "overdue": {"paid", "cancelled"},
+    "paid": set(),  # terminal
+    "cancelled": set(),  # terminal
 }
 
 
@@ -906,4 +1024,3 @@ async def cancel_billing_document(
         tenant_id=tenant_id,
         cancellation_reason=reason,
     )
-

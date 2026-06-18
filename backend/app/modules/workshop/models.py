@@ -91,7 +91,10 @@ class WorkOrderTask(Base):
     completed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completion_notes: Mapped[str | None] = mapped_column(Text)
-    assigned_to: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    assigned_to: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL", name="fk_work_order_tasks_assigned_to_users"),
+        nullable=True,
+    )
     estimated_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     actual_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -316,11 +319,18 @@ class SparePartSerialItem(Base):
     __tablename__ = "spare_part_serial_items"
     __table_args__ = (
         UniqueConstraint("tenant_id", "serial_number", name="uq_spare_part_serial_items_tenant_serial"),
+        Index("ix_spare_part_serial_items_tenant_part", "tenant_id", "part_id"),
+        Index(
+            "ix_spare_part_serial_items_tenant_vehicle",
+            "tenant_id",
+            "vehicle_id",
+            postgresql_where=text("vehicle_id IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
-    part_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("spare_parts_inventory.id"), index=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    part_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("spare_parts_inventory.id"))
     serial_number: Mapped[str] = mapped_column(String(120), nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="in_stock", nullable=False)
     vehicle_id: Mapped[uuid.UUID | None] = mapped_column(

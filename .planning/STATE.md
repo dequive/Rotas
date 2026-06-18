@@ -72,6 +72,7 @@ Phase 21 (Frontend E2E)  — new; E2E tests for stability
 ### Roadmap Evolution
 
 - Phase 4.1 inserted after Phase 4: UI Design System and Component Library (URGENT — foundational for all v2.0 UI work)
+- Phase 22 added (2026-06-18): RBAC Permission-Based — refactor dos dois planos (platform vs tenant), roles em português com agregados gestao/operacional/finance, `require_permission()` granular, `tenant_roles` custom, migração dos 174 call sites de `require_roles`
 
 ### Key Decisions
 

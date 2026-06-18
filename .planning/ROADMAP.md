@@ -648,6 +648,7 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 - [ ] **Phase 19: Customs/Border Crossing** — Workflows for cross-border routes, documentation, and border dispatch
 - [ ] **Phase 20: Route Optimization** — Distance matrix, waypoint sequencing, integration with routing providers
 - [ ] **Phase 21: Frontend E2E Tests** — Playwright E2E testing suite to prevent visual and functional UI regressions
+- [ ] **Phase 22: RBAC Permission-Based** — Refactor do sistema de roles e permissões: dois planos (platform vs tenant), roles em português com agregados de gestão e operacional, `require_permission()` granular por domínio, `tenant_roles` custom para owner/director, migração dos 174 call sites de `require_roles`
 
 ---
 
@@ -862,6 +863,17 @@ Plans:
 
 **Total v3.0 requirements mapped: 26/26**
 
+### Phase 22: RBAC Permission-Based
+
+**Goal:** Qualquer endpoint do backend verifica uma permissão granular (`trips.write`, `billing.read`, `fleet.admin`) em vez de um role string hardcoded. O owner ou director de um tenant pode criar roles custom com as permissões exactas que pretende. O plano de plataforma (operadores ROTAS) está completamente separado do plano de tenant.
+
+**Requirements**: SEC-RBAC-01 a SEC-RBAC-05
+**Depends on:** Phase 9 (RLS — os dois planos partilham infra de isolamento), Phase 13 (Frontend usa roles nos componentes de UI)
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 22 to break down)
+
 ---
 
 ## Progress Table (v3.0)
@@ -874,3 +886,4 @@ Plans:
 | 16. Hours of Service + Availability Router | 0/TBD | Not started | - |
 | 17. Infrastructure Enterprise v2 | 0/TBD | Not started | - |
 | 18. Analytics Avançado + Gestão de Seguros | 0/TBD | Not started | - |
+| 22. RBAC Permission-Based | 0/TBD | Not started | - |

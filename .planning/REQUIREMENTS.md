@@ -120,23 +120,82 @@ _Last updated: 2026-06-06_
 
 ---
 
+## v3.0 Requirements — TMS Enterprise Completo
+_Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de 2026-06-18_
+
+### Frontend Completo — Manager (FE)
+
+- [ ] **FE-01**: Página `/manutencao` exposta no sidebar — lista de work orders, ordens de serviço e manutenções preventivas do workshop; integrada nos 26 endpoints existentes do módulo workshop
+- [ ] **FE-02**: Página `/cobranca` dedicada com lista de billing documents, filtros por contrato/período, acções de emissão e download; substituição da secção embutida em page.tsx
+- [ ] **FE-03**: Página `/alertas` com lista de alertas activos, reconhecimento e registo de resolução; ligada ao módulo alerts backend
+- [ ] **FE-04**: Página `/settings` com configurações de tenant (logo, timezone, moeda, compliance policy, limites de plano), gestão de users/roles e pairing de dispositivos de motoristas
+
+### State Machines de Domínio (SM)
+
+- [ ] **SM-01**: `BillingDocument` state machine completa — transições `draft → issued → paid → overdue → cancelled`; campo `overdue_since_at` calculado a partir de `due_date`; ARQ cron diário marca documentos vencidos; API PATCH `/billing/documents/{id}/mark-paid` registado em audit log
+- [ ] **SM-02**: `Contract` state machine — transições `draft → active → paused → expired → terminated`; campo `status` obrigatório; renovação manual via PATCH; alertas de expiração 30/15/7 dias integrados com módulo notifications
+- [ ] **SM-03**: `DeliveryProof` state machine — transições `pending → accepted → rejected → disputed → resolved`; gestor aceita ou rejeita via PATCH; disputa cria `operational_exception`; resolução requer supervisor (owner/admin); todas as transições registadas em audit log; viagem só muda para `billable` após prova aceite
+- [ ] **SM-04**: `DispatchClearance` state machine — transições `pending → approved → rejected → escalated`; rejeição exige `rejection_reason`; escalation notifica `owner/admin` via ARQ; SLA de resposta configurável por tenant
+
+### Compliance Fiscal Moçambique (FISC)
+
+- [ ] **FISC-01**: Numeração sequencial de faturas sem gaps por tenant — PostgreSQL SEQUENCE `invoice_seq_{tenant_id}` criada no onboarding; formato `AAAA/NNNN` auditável; duplicação ou salto de número retorna HTTP 409
+- [ ] **FISC-02**: Cálculo de IVA Moçambique — taxa padrão 17%, taxa reduzida 5% (géneros alimentares), taxa zero (exportações/isentos); campo `iva_rate` e `iva_amount` em `billing_documents` e `billing_items`; breakdown no PDF de fatura
+- [ ] **FISC-03**: Exportação de relatório de compliance — CSV/XLSX mensal com todas as faturas emitidas, pagas e canceladas com campos NUIT do cliente; pronto para entrega à AT Moçambique
+
+### Segurança Operacional — Carga (LOAD)
+
+- [ ] **LOAD-01**: Validação de peso vs capacidade do veículo no momento do carregamento — `cargo_weight` comparado contra `vehicle.max_payload_kg`; sobrecarga bloqueante com override por admin com justificação em audit log; campo `max_payload_kg` adicionado ao modelo `Vehicle`
+- [ ] **LOAD-02**: Suporte a carga perigosa (hazmat) — flag `is_hazmat` em `trips` e `cargo_manifests`; campos `un_number`, `hazmat_class`, `hazmat_label` em `cargo_manifests`; gestor deve declarar hazmat antes de emissão de Load Permit; alerta automático ao control tower quando viagem hazmat activa
+
+### Hours of Service (HOS)
+
+- [ ] **HOS-01**: Registo de horas de condução por motorista por dia — calculado a partir de `trip.actual_departure` e `trip.actual_arrival` mais `trip_stops` de tipo `pernoite`; dados visíveis no scorecard do motorista
+- [ ] **HOS-02**: Alerta quando motorista ultrapassa 9h de condução num dia ou 48h numa semana — integrado com módulo alerts; ARQ cron diário; trips bloqueadas para motorista em violação de HOS (com override de admin)
+
+### Disponibilidade e Workshop (AVAIL)
+
+- [ ] **AVAIL-01**: Router do módulo `availability` exposto — endpoints `GET /api/v1/availability/drivers` e `GET /api/v1/availability/vehicles` com disponibilidade actual (em viagem / em manutenção / disponível) e próxima disponibilidade estimada
+- [ ] **AVAIL-02**: Workshop integrado no lifecycle de veículos — `work_order` activo bloqueia atribuição de viagem à viatura; endpoint `GET /vehicles/{id}/availability` inclui razão do bloqueio e ETA de resolução
+
+### Infraestrutura Enterprise (INFRA2)
+
+- [ ] **INFRA2-01**: Rate limiting distribuído via Redis — substituição do rate limiter in-memory por `slowapi` + Redis backend; funciona correctamente em deployment multi-worker Railway; limites configuráveis por rota e por tenant
+- [ ] **INFRA2-02**: Logging estruturado — integração Python `structlog` no FastAPI backend e ARQ worker; logs em formato JSON com `request_id`, `tenant_id`, `user_id`, `duration_ms`, `status_code`; configurado para agregação (Railway Logs / Datadog / CloudWatch)
+- [ ] **INFRA2-03**: Métricas e monitoring — endpoint `GET /api/v1/health/deep` verifica DB, Redis e worker activo; exposição de métricas Prometheus em `/metrics` (requests, latência p50/p95/p99, erros por módulo); alerta quando p95 > 2s
+- [ ] **INFRA2-04**: Health check profundo — `/health` actual substituído por response que inclui status DB (ping query), Redis (ping), ARQ worker (last heartbeat < 60s); retorna HTTP 503 se qualquer dependência crítica falhar
+
+### Analytics Avançado (ANA)
+
+- [ ] **ANA-01**: Dashboard de KPIs TMS completos — custo total por rota, receita por contrato, margem bruta por viagem, NPS de entrega (baseado em cargo_condition), top-5 rotas por volume e receita, top-5 motoristas por km e por score; todos filtráveis por período e tenant
+- [ ] **ANA-02**: Relatório de combustível avançado — consumo real vs target por veículo, desvio percentual, top-5 viaturas por anomalia de consumo, evolução mensal de custo/litro; exportável em XLSX
+- [ ] **ANA-03**: Relatório de compliance documental — lista de documentos vencidos e a vencer por veículo e motorista com dias restantes; exportável em PDF para reunião de gestão
+
+### Gestão de Seguros (INS)
+
+- [ ] **INS-01**: Registo de apólices de seguro por veículo — campos `policy_number`, `insurer`, `coverage_type` (responsabilidade civil, compreensivo, carga), `premium_amount`, `valid_from`, `valid_until`; alertas de renovação 60/30/7 dias
+- [ ] **INS-02**: Registo de sinistros — `incident_id` (FK para `trip_incidents`), `claim_number`, `claim_date`, `estimated_damage`, `status` (aberto / em análise / pago / rejeitado); sinistro associado à viatura e à viagem
+
+---
+
 ## Out of Scope
 
 - **App nativa iOS/Android** — PWA cobre o caso de uso; distribuição via app stores desnecessária
 - **GPS streaming via servidor TCP** — dispositivos configurados para HTTP POST; TCP socket não viável em Railway
 - **Marketplace B2C** — produto é B2B SaaS para transportadoras
-- **Otimização de rotas por IA** — foco é gestão operacional e conformidade
 - **Integração com ERP de terceiros** — API própria cobre exportação; integrações são futuro
 - **Integração com cartão de combustível** — mercado moçambicano não tem rede de fuel cards
-- **Módulo de folha de pagamento de motoristas** — fora do domínio de gestão de frota
-- **Cadeia de frio / monitorização de temperatura** — nicho, adiar para v3
-- **Geofencing** — requer PostGIS não confirmado no Railway; bounding-box é v2.1
+- **Cadeia de frio / monitorização de temperatura** — nicho, adiar para v4
 - **Stripe pagamento activado** — webhook wired mas checkout desactivado; pagamento automático é v2.1
 - **Trial de 14 dias** — onboarding self-service entra directamente com plano; trial é v2.1
 - **Fatura multi-contrato** — uma fatura agrega um único contrato; consolidação é v2.1
-- **Nota de crédito / débito** — requer journal entry completo; pós-v2.0
-- **Multi-moeda em faturamento cliente** — operações em MZN; FX em faturas é v2.1
+- **Nota de crédito / débito** — requer journal entry completo; pós-v3.0
 - **SAFT-MZ / AT certification** — geração de documentos correcta; certificação formal é iniciativa legal separada
+- **Route Optimization por IA** — sem matrix de distâncias externa; Haversine cobre ETA; optimização é v4
+- **Customs/Border Crossing completo** — workflow de desalfandegamento é v4 (baixo volume actual)
+- **Carbon/Emissions tracking** — cálculo de CO₂ é v4 (regulação Moçambique não exige ainda)
+- **BI connectors (Tableau/Power BI)** — exportação XLSX cobre caso de uso; connectors são v4
+- **SCIM / OAuth2 SSO** — autenticação directa cobre PMEs alvo; SSO empresarial é v4
 
 ---
 
@@ -201,3 +260,29 @@ _Last updated: 2026-06-06_
 | GPS-03 | Phase 12 | Pending |
 | TRK-01 | Phase 12 | Pending |
 | TRK-02 | Phase 12 | Pending |
+| FE-01 | Phase 13 | Pending |
+| FE-02 | Phase 13 | Pending |
+| FE-03 | Phase 13 | Pending |
+| FE-04 | Phase 13 | Pending |
+| SM-01 | Phase 14 | Pending |
+| SM-02 | Phase 14 | Pending |
+| SM-03 | Phase 14 | Pending |
+| SM-04 | Phase 14 | Pending |
+| FISC-01 | Phase 15 | Pending |
+| FISC-02 | Phase 15 | Pending |
+| FISC-03 | Phase 15 | Pending |
+| LOAD-01 | Phase 15 | Pending |
+| LOAD-02 | Phase 15 | Pending |
+| HOS-01 | Phase 16 | Pending |
+| HOS-02 | Phase 16 | Pending |
+| AVAIL-01 | Phase 16 | Pending |
+| AVAIL-02 | Phase 16 | Pending |
+| INFRA2-01 | Phase 17 | Pending |
+| INFRA2-02 | Phase 17 | Pending |
+| INFRA2-03 | Phase 17 | Pending |
+| INFRA2-04 | Phase 17 | Pending |
+| ANA-01 | Phase 18 | Pending |
+| ANA-02 | Phase 18 | Pending |
+| ANA-03 | Phase 18 | Pending |
+| INS-01 | Phase 18 | Pending |
+| INS-02 | Phase 18 | Pending |

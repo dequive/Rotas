@@ -1,13 +1,13 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: milestone
-status: executing
-stopped_at: Completed 09-01-PLAN.md — RLS pre-flight patch and test suite
-last_updated: "2026-06-07T16:36:59.772Z"
-last_activity: 2026-06-07
+milestone: v3.0
+milestone_name: tms-enterprise-completo
+status: planning
+stopped_at: v3.0 roadmap created from audit report 2026-06-18 — Phase 13 is next
+last_updated: "2026-06-18T12:09:00.000Z"
+last_activity: 2026-06-18
 progress:
-  total_phases: 13
+  total_phases: 19
   completed_phases: 5
   total_plans: 54
   completed_plans: 52
@@ -21,29 +21,38 @@ _Last updated: 2026-06-06_
 
 ## Current Phase
 
-Phase: 09
+Phase: 13 (v3.0 — first phase)
 Plan: Not started
-Status: In Progress — Awaiting human visual checkpoint (Plan 08 Task 2: browser verification of amber button, IBM Plex Mono KPI values, sidebar sections, status dot badges)
-Last activity: 2026-06-07
-Stopped at: Completed 09-01-PLAN.md — RLS pre-flight patch and test suite
+Status: Planning — v3.0 roadmap criado a 2026-06-18; aguarda execução de Phase 13
+Last activity: 2026-06-18
+Stopped at: v3.0 ROADMAP.md e REQUIREMENTS.md criados — próximo passo é `/gsd-plan-phase 13`
 
 ---
 
 ## Execution Order Advisory
 
-Phase 5 (CLI) depends on RLS infrastructure. Execute in this order:
-
+### v2.0 (em curso) — Concluir primeiro
 ```
-Phase 8 (INFRA) — no dependencies, start immediately
-Phase 9 (RLS)   — no dependencies, start immediately (parallel with 8)
-  [During Phase 9: submit 7 WhatsApp templates to Meta for approval]
-  [During Phase 8: run GPS device operator survey with fleet clients]
-Phase 5 (CLI)   — requires Phase 9 RLS complete
-Phase 6 (PAY)   — requires Phase 5 complete + zero NULL client_id gate
-Phase 7 (AR)    — requires Phase 6 complete
-Phase 10 (NOTIF+ONBRD) — requires Phase 8 complete + WhatsApp templates approved
-Phase 11 (DESP) — requires Phase 10 complete
-Phase 12 (GPS+TRK) — requires Phase 9 complete + GPS device survey complete
+Phase 8 (INFRA)         — start immediately (Sentry, R2, tenant limits)
+Phase 5 (CLI)           — requires Phase 9 RLS ✅ complete
+Phase 6 (PAY)           — requires Phase 5 + zero NULL client_id gate
+Phase 7 (AR)            — requires Phase 6
+Phase 10 (NOTIF+ONBRD)  — requires Phase 8 + WhatsApp templates approved
+Phase 11 (DESP)         — requires Phase 10
+Phase 12 (GPS+TRK)      — requires Phase 9 ✅ + GPS device survey
+Phase 04.1 (UI)         — 1 plan remaining (04.1-08 legacy CSS cleanup)
+Phase 2 (PWA)           — 1 plan remaining (02-07 SyncStatusBanner)
+Phase 4 (RLS plan)      — 1 plan remaining (04-08 RLS)
+```
+
+### v3.0 — Execution Order
+```
+Phase 17 (INFRA2)       — no dependencies; run in parallel with Phase 13
+Phase 13 (Frontend)     — requires Phase 8 + 04.1 complete
+Phase 14 (State Machines) — no new dependencies; can run in parallel with Phase 13
+Phase 15 (Fiscal+Load)  — requires Phase 14 (SM-01 DeliveryProof)
+Phase 16 (HOS+Avail)    — requires Phase 14 (work order SM)
+Phase 18 (Analytics+Ins) — requires Phases 13 + 14 + 15
 ```
 
 ---
@@ -172,18 +181,29 @@ Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
 
 ### Blockers
 
-_None — roadmap expanded, planning not yet started for new phases._
+_None — v3.0 roadmap criado; nenhum bloqueio activo._
 
 ### Todos
 
+**v2.0 — Pendentes antes de iniciar v3.0:**
 - [ ] Start WhatsApp Business API Meta approval process immediately (parallel to Phase 8)
 - [ ] Start GPS device operator survey immediately (parallel to Phase 8)
-- [ ] Configure ALEMBIC_DATABASE_URL and ADMIN_DATABASE_URL in Railway before Phase 9 planning
+- [ ] Configure ALEMBIC_DATABASE_URL and ADMIN_DATABASE_URL in Railway
 - [ ] Decide 360dialog vs direct Meta Cloud API before Phase 10 planning
 - [ ] Verify Flutterwave Mozambique live availability before Phase 10 planning
 - [ ] Run GPS device field survey and obtain Teltonika/Coban JSON payload samples before Phase 12 planning
 - [ ] Run pre-migration audit query before writing Phase 5 migration code: `SELECT tenant_id, lower(trim(client_name)), count(*) FROM contracts GROUP BY 1, 2 HAVING count(*) > 1`
 - [ ] Confirm PostGIS availability on Railway PostgreSQL before any geofencing design (Phase 12+)
+- [ ] Complete Phase 04.1-08 (legacy CSS cleanup)
+- [ ] Complete Phase 02-07 (SyncStatusBanner) + 02-08 (field test)
+- [ ] Complete Phase 04-08 (RLS plan)
+
+**v3.0 — Antes de iniciar Phase 13:**
+- [ ] Verificar requisitos da AT Moçambique para numeração sequencial de faturas (FISC-01)
+- [ ] Confirmar se `alerts.acknowledge` endpoint existe no backend ou precisa ser criado (FE-03)
+- [ ] Auditar sidebar actual (`SidebarLayout.tsx`) para confirmar quais entradas já existem vs. faltam
+- [ ] Verificar se `availability` module tem `router.py` ou apenas `service.py` (AVAIL-01 research)
+- [ ] Confirmar versão de `slowapi` instalada e compatibilidade com Redis backend (INFRA2-01)
 
 ---
 
@@ -197,11 +217,13 @@ _Last session: 2026-06-06 — v2.0 roadmap expanded from 3 phases (CLI/PAY/AR, 1
 
 **Core value**: A Mozambican driver can complete an entire trip — departure, refueling, stops, and delivery proof — without connectivity, and all data arrives intact at the manager when signal returns.
 
-**Current milestone**: v2.0 — Plataforma Operacional Completa
+**Current milestone**: v3.0 — TMS Enterprise Completo
+
+**Previous milestone**: v2.0 — Plataforma Operacional Completa (in progress, Phases 5-12)
 
 **Stack**: FastAPI 0.115 + Python 3.12 + SQLAlchemy 2.0 async + PostgreSQL 16 / Next.js 14 App Router + React 18 + Tailwind / Vite + Dexie.js 4
 
-**Deploy target**: Vercel (manager) + Railway or Render (backend FastAPI)
+**Deploy target**: Vercel (manager) + Railway (backend FastAPI)
 
 **Roadmap**: `.planning/ROADMAP.md`
 
@@ -210,3 +232,5 @@ _Last session: 2026-06-06 — v2.0 roadmap expanded from 3 phases (CLI/PAY/AR, 1
 **Codebase analysis**: `.planning/codebase/` (7 documents, generated 2026-06-04)
 
 **Research**: `.planning/research/SUMMARY.md` (generated 2026-06-06)
+
+**Audit source**: Auditoria exaustiva realizada em 2026-06-18 (43 migrações, 22 routers, 21 módulos, 2 frontends)

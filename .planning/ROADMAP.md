@@ -609,3 +609,257 @@ Plans:
 | 10. Notifications + Self-Service Onboarding | 0/TBD | Not started | - |
 | 11. Driver Financial Settlement (Despacho) | 0/TBD | Not started | - |
 | 12. GPS Integration + Customer Tracking Portal | 0/TBD | Not started | - |
+
+---
+
+---
+
+# ROTAS — v3.0 Roadmap: TMS Enterprise Completo
+_Last updated: 2026-06-18_
+
+---
+
+## Overview (v3.0)
+
+**6 phases | 20 requirements | Milestone: Fechar todos os gaps críticos identificados na auditoria de 2026-06-18**
+
+Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS Enterprise completa e auditável. As lacunas foram identificadas por análise exaustiva de 43 migrações, 22 routers, 21 módulos e 2 frontends. As fases estão ordenadas por dependência e impacto de produção.
+
+**Hard dependency chain**:
+- Phase 14 (State Machines) → Phase 15 (Fiscal — DeliveryProof SM necessário para billing)
+- Phase 14 (State Machines) → Phase 16 (HOS + Avail — vehicle availability depende de work order SM)
+- Phase 13 + 14 + 15 → Phase 18 (Analytics precisa de dados correctos das SMs)
+- Phase 17 (Infra v2) — sem dependências, pode correr em paralelo com Phase 13
+
+**Parallel external actions during Phase 13**:
+- Confirmar PostGIS disponível no Railway (necessário para eventual Geofencing v4)
+- Verificar requisitos AT Moçambique para numeração de faturas (FISC-01)
+
+---
+
+## Phases (v3.0)
+
+- [ ] **Phase 13: Frontend Completeness** — As 4 páginas do manager referenciadas no sidebar mas sem implementação real: `/manutencao`, `/cobranca`, `/alertas`, `/settings`
+- [ ] **Phase 14: Domain State Machines** — Fechar state machines incompletas de `BillingDocument`, `Contract`, `DeliveryProof` e `DispatchClearance` — o núcleo financeiro e documental fica coerente
+- [ ] **Phase 15: Fiscal Compliance + Segurança de Carga** — IVA Moçambique, numeração fiscal, validação de peso vs capacidade, suporte hazmat
+- [ ] **Phase 16: Hours of Service + Availability Router** — HOS tracking de motoristas, módulo `availability` exposto via API, workshop integrado no lifecycle de veículos
+- [ ] **Phase 17: Infrastructure Enterprise v2** — Rate limiting distribuído Redis, logging estruturado, métricas Prometheus, health checks profundos
+- [ ] **Phase 18: Analytics Avançado + Gestão de Seguros** — KPIs TMS completos, relatórios de combustível e compliance, registo de apólices e sinistros
+
+---
+
+## Phase Details (v3.0)
+
+### Phase 13: Frontend Completeness
+
+**Goal**: Um gestor que clica em qualquer entrada do sidebar chega a uma página funcional — sem ecrãs em branco ou redirects para a página principal.
+
+**Depends on**: Phases 8 (workshop tem 26 endpoints, mas Infra/Sentry deve estar activo antes de expor novas páginas de produção), 04.1 (design system completo)
+
+**Requirements**: FE-01, FE-02, FE-03, FE-04
+
+**Success Criteria** (what must be TRUE):
+  1. Gestor abre `/manutencao` e vê lista de work orders activos e preventivos da sua frota — dados reais do módulo workshop backend
+  2. Gestor abre `/cobranca` e pode filtrar faturas por contrato, período e estado, emitir e descarregar PDF — sem aceder à página principal
+  3. Gestor abre `/alertas` e vê alertas activos com acção de reconhecimento; alertas resolvidos desaparecem da lista imediatamente
+  4. Gestor abre `/settings` e pode actualizar configurações de tenant, gerir utilizadores/roles e ver dispositivos de motoristas emparelhados
+
+**Implementation Notes**:
+
+- **`/manutencao`**: Next.js page Server Component; chama `GET /api/v1/workshop/work-orders` (já existe), `GET /api/v1/workshop/maintenance-plans` e `GET /api/v1/workshop/maintenance-schedule`. Três tabs: Work Orders Activos / Manutenções Preventivas / Inventário de Peças. Usa `WorkQueue` e `DataTable` do design system 04.1.
+- **`/cobranca`**: Página dedicada separada do `page.tsx` principal. `BillingDocumentList` com filtros (`contract_id`, `status`, `period_start`, `period_end`). Acções inline: emitir, marcar pago (SM-01), download PDF/XLSX (ARQ export job com polling). Waiver modal reutilizado do Phase 3.
+- **`/alertas`**: `AlertList` com `react-query` `refetchInterval: 30000`. Card por alerta com severity badge (amber dot para warning, vermelho para critical). Acção `PATCH /api/v1/alerts/{id}/acknowledge` — apenas owners/admins. Tabs: Activos / Reconhecidos / Resolvidos.
+- **`/settings`**: Três secções — Tenant (PATCH `/api/v1/tenants/me`), Utilizadores (GET/POST/PATCH `/api/v1/users`), Dispositivos de Motoristas (`GET /api/v1/drivers` com `driver_devices`). Compliance policy toggle (exige documentos obrigatórios antes de viagem).
+- **Sidebar update**: Adicionar entradas `Manutenção`, `Alertas` e `Definições` ao `SidebarLayout` nas secções correctas (Frota / Operações / Config). Verificar que todas as rotas estão excluídas do auth matcher apenas onde necessário.
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
+
+### Phase 14: Domain State Machines
+
+**Goal**: Nenhuma entidade financeira ou documental fica num estado inválido — `BillingDocument`, `Contract`, `DeliveryProof` e `DispatchClearance` têm state machines explícitas com transições auditadas e guards no service layer.
+
+**Depends on**: Nothing (backend-only; pode iniciar em paralelo com Phase 13)
+
+**Requirements**: SM-01, SM-02, SM-03, SM-04
+
+**Success Criteria** (what must be TRUE):
+  1. Um `BillingDocument` emitido com `due_date` passada é automaticamente marcado `overdue` pelo ARQ cron — sem intervenção manual; um PATCH `/billing/documents/{id}/mark-paid` transiciona para `paid` e regista o evento em audit log
+  2. Um `Contract` expirado (`ends_at < today`) não pode receber novas viagens sem renovação explícita; PATCH `/contracts/{id}/renew` reactiva o contrato e regista a transição
+  3. Uma `DeliveryProof` rejeitada por um gestor cria automaticamente um `operational_exception` do tipo `delivery_rejected` — a viagem permanece `pending_delivery_proof` e não pode ser faturada
+  4. Um `DispatchClearance` recusado regista `rejection_reason` e notifica o criador via ARQ; escalation para owner/admin após SLA configurado sem resposta
+
+**Implementation Notes**:
+
+- **SM-01 (BillingDocument)**: Adicionar estados `paid` e `overdue` ao enum existente. ARQ cron `task_mark_overdue_billing_documents()` diário: `UPDATE billing_documents SET status='overdue', overdue_since_at=NOW() WHERE status='issued' AND due_date < NOW()`. PATCH endpoint `/billing/documents/{id}/mark-paid` requer `owner/admin`, registra `billing.document_paid` em audit log, actualiza `paid_at`. `cancelled` só disponível para `draft` ou `overdue` com justificação.
+- **SM-02 (Contract)**: Adicionar campo `status` ao modelo `Contract` com enum `draft/active/paused/expired/terminated`. Migration: `ALTER TABLE contracts ADD COLUMN status VARCHAR DEFAULT 'active'`. PATCH `/contracts/{id}/status` com allowed transitions por role. ARQ cron `task_expire_contracts()`: marca `expired` quando `ends_at < NOW()`. Alerta de expiração criado 30/15/7 dias antes via módulo `alerts`.
+- **SM-03 (DeliveryProof)**: Adicionar estado explícito ao modelo `DeliveryProof` — verificar se campo `status` já existe (tem `pending/validated/verified/rejected`). Adicionar `accepted` e `disputed` se necessário. PATCH `/cargo/delivery-proofs/{id}/accept` e `/reject`. Transição `rejected` → cria `operational_exception` automaticamente no mesmo service call. Transição `accepted` → verifica se `trip.contract_id` existe → actualiza `trip.billing_status = 'billable'`.
+- **SM-04 (DispatchClearance)**: Adicionar `rejected` e `escalated` ao enum. `rejected` exige campo `rejection_reason` (NOT NULL). `escalated` disparado por ARQ task `task_escalate_pending_clearances()` quando `created_at + tenant.clearance_sla_hours < NOW()`. Notificação ARQ para `owner/admin` na escalação.
+- **Todos os transitions**: Registados com `record_audit_log()` dentro da mesma transacção DB — padrão estabelecido no codebase. Transitions inválidas retornam `ApiError("invalid_state_transition", ..., 409)`.
+
+**Plans**: TBD
+
+**UI hint**: no
+
+---
+
+### Phase 15: Fiscal Compliance + Segurança de Carga
+
+**Goal**: Uma fatura emitida pelo ROTAS tem número sequencial sem gaps, IVA discriminado à taxa correcta moçambicana e o peso da carga é validado contra a capacidade do veículo antes de cada viagem.
+
+**Depends on**: Phase 14 (SM-01 BillingDocument completo antes de adicionar campos fiscais às faturas)
+
+**Requirements**: FISC-01, FISC-02, FISC-03, LOAD-01, LOAD-02
+
+**Success Criteria** (what must be TRUE):
+  1. Um tenant ao emitir a sua primeira fatura recebe número `2026/0001`; a segunda recebe `2026/0002` — PostgreSQL SEQUENCE garante que não há gaps mesmo sob concorrência
+  2. A fatura PDF inclui linha de subtotal, linha de IVA (17% ou 5% ou 0%) e linha de total com IVA — taxas seleccionáveis por billing item
+  3. Relatório mensal de compliance exportado em XLSX lista todas as faturas com NUIT do cliente e valor de IVA — adequado para submissão à AT
+  4. Tentativa de criar viagem com `cargo_weight > vehicle.max_payload_kg` retorna HTTP 409 com `payload_exceeded` — com detalhe de kg em excesso
+  5. Viagem com carga hazmat exige declaração de `hazmat_class` e `un_number` antes de emissão de Load Permit
+
+**Implementation Notes**:
+
+- **FISC-01 (Sequência de faturas)**: PostgreSQL SEQUENCE `invoice_seq_{tenant_id}` criada no onboarding (PATCH `/api/v1/onboarding/register` service). `billing_documents.invoice_number VARCHAR(12)` adicionado por migration. Gerado em `create_billing_document()`: `SELECT nextval('invoice_seq_{tenant_id}')` e formatted como `f"{year}/{seq:04d}"`. UNIQUE constraint `(tenant_id, invoice_number)`. Retry em `IntegrityError` improvável mas necessário por segurança.
+- **FISC-02 (IVA)**: Adicionar `iva_rate NUMERIC(5,4)` (e.g. `0.1700`) e `iva_amount NUMERIC(10,2)` a `billing_items` e `billing_documents`. `iva_rate` seleccionável por item: `standard` (0.17), `reduced` (0.05), `zero` (0.00). `billing_documents.tax_amount` (já existe) passa a ser calculado como `SUM(billing_items.iva_amount)`. PDF gerado por `fpdf2` actualizado para mostrar linha de IVA com % e valor.
+- **FISC-03 (Compliance report)**: Novo endpoint `GET /api/v1/billing/compliance-report?month=YYYY-MM` — retorna job ID de ARQ export. ARQ task `task_export_compliance_report(month, tenant_id)` gera XLSX com colunas: `invoice_number`, `client_nuit`, `client_name`, `issued_at`, `subtotal`, `iva_rate`, `iva_amount`, `total_amount`, `status`. Usa padrão ARQ/ExportJob já estabelecido na Phase 3.
+- **LOAD-01 (Peso vs capacidade)**: Adicionar `max_payload_kg NUMERIC(10,2)` ao modelo `Vehicle` (migration nullable). Service `create_trip()` e `start_trip()` verificam: `if trip.cargo_weight and vehicle.max_payload_kg and trip.cargo_weight > vehicle.max_payload_kg: raise ApiError("payload_exceeded", ...)`. Override por `admin/owner` com campo `payload_override_reason` (registado em audit log). UI: campo no formulário de veículo + warning visual no Control Tower quando viagem near-limit.
+- **LOAD-02 (Hazmat)**: Adicionar `is_hazmat BOOLEAN DEFAULT FALSE`, `hazmat_class VARCHAR(10)`, `un_number VARCHAR(10)`, `hazmat_label VARCHAR(50)` a `trips` e `cargo_manifests`. Se `trip.is_hazmat = True`, `create_load_permit()` exige `hazmat_class IS NOT NULL` — senão `ApiError("hazmat_declaration_required", ..., 422)`. Alert criado automaticamente no `control_tower` quando viagem hazmat fica `in_progress`.
+
+**Plans**: TBD
+
+**UI hint**: yes (campos no formulário de viagem e veículo)
+
+---
+
+### Phase 16: Hours of Service + Availability Router
+
+**Goal**: Um gestor sabe em tempo real quantas horas um motorista conduziu hoje e esta semana — e o módulo `availability` finalmente tem endpoints que o dashboard pode consumir.
+
+**Depends on**: Phase 14 (work order state machine necessária para `availability` de veículos ser precisa)
+
+**Requirements**: HOS-01, HOS-02, AVAIL-01, AVAIL-02
+
+**Success Criteria** (what must be TRUE):
+  1. `GET /api/v1/availability/drivers` retorna lista de motoristas com status actual (`driving`, `resting`, `available`, `hos_violation`) e horas acumuladas hoje e esta semana
+  2. `GET /api/v1/availability/vehicles` retorna lista de viaturas com status (`in_trip`, `in_maintenance`, `available`) e `available_at` estimado quando em manutenção
+  3. Um motorista com 9h+ de condução no dia actual não pode ser atribuído a nova viagem sem override de `admin` com justificação em audit log
+  4. Um veículo com `work_order` activo em estado `in_progress` é marcado `in_maintenance` — não pode receber nova atribuição de viagem
+
+**Implementation Notes**:
+
+- **HOS-01 (Cálculo de horas)**: Novo serviço `hos_service.py` em `backend/app/modules/drivers/`. Função `calculate_driving_hours(driver_id, date, db)`: query `trips WHERE driver_id=X AND actual_departure::date = date AND status IN ('in_progress','completed')`, soma `(actual_arrival - actual_departure) - SUM(trip_stops.duration WHERE stop_type='pernoite')`. Arredondamento para baixo em segundos convertidos para horas. Exposto no scorecard do motorista (campo adicional).
+- **HOS-02 (Alertas e bloqueio)**: ARQ cron `task_check_hos_violations()` diário às 06:00 Africa/Maputo: para cada driver activo calcula horas dia e semana; se `> 9h day OR > 48h week`, cria `Alert` tipo `hos_violation`. `create_trip()` service verifica HOS antes de atribuição — se violação activa, retorna `ApiError("hos_violation_active", ..., 409)` com `{override_required: true}`. Override via campo `hos_override_reason` (requer `admin/owner`).
+- **AVAIL-01 (Router de availability)**: Registar `availability` router em `main.py` e `database.py` MODEL_MODULES (actualmente o módulo existe mas não está registado — gap crítico identificado na auditoria). Implementar `GET /api/v1/availability/drivers?status=&limit=&offset=` e `GET /api/v1/availability/vehicles?status=&limit=&offset=`. Dados agregados de `trips`, `work_orders` e `driver_devices`. Cache Redis TTL 30s (mesmo padrão do Control Tower).
+- **AVAIL-02 (Workshop integration)**: `create_trip_order()` e `assign_driver_vehicle()` verificam: `active_work_order = db.query(WorkOrder).filter(vehicle_id=X, status='in_progress').first()`. Se existe: `ApiError("vehicle_in_maintenance", ..., 409)` com `{work_order_id, expected_completion: work_order.estimated_completion_at}`. `GET /api/v1/vehicles/{id}` adiciona campo `availability` com `status` e `work_order_summary`.
+
+**Plans**: TBD
+
+**UI hint**: yes (availability panel no Control Tower sidebar)
+
+---
+
+### Phase 17: Infrastructure Enterprise v2
+
+**Goal**: O ROTAS funciona correctamente em Railway multi-worker, os logs são estruturados e pesquisáveis, métricas de latência são visíveis e health checks distinguem dependências saudáveis de falhas.
+
+**Depends on**: Nothing (infra phase — pode correr em paralelo com Phases 13-16)
+
+**Requirements**: INFRA2-01, INFRA2-02, INFRA2-03, INFRA2-04
+
+**Success Criteria** (what must be TRUE):
+  1. Um deploy Railway com 4 workers Gunicorn (já configurado Phase 4) tem rate limiting correctamente partilhado — um cliente que esgota o limite em Worker 1 é recusado em Worker 2 sem reinício de contador
+  2. Cada request ao FastAPI produz uma linha de log JSON com `request_id`, `tenant_id`, `method`, `path`, `status_code`, `duration_ms` — visível no Railway Logs
+  3. `GET /api/v1/health/deep` retorna `{"status": "ok", "db": "ok", "redis": "ok", "arq_worker": "ok"}` quando tudo está saudável — retorna HTTP 503 se qualquer componente falhar
+  4. `/metrics` Prometheus expõe `http_requests_total`, `http_request_duration_seconds` (histogram com p50/p95/p99) e `active_tenants` — Grafana Cloud conectado ao endpoint
+
+**Implementation Notes**:
+
+- **INFRA2-01 (Redis rate limiting)**: Substituir `slowapi` `InMemoryRateLimiter` por `slowapi` com `RedisRateLimiter(redis_url=settings.redis_url)`. Instalar `redis[asyncio]>=5.0` (já em `pyproject.toml` potencialmente — verificar). Limites: `/auth/login` 10/min, `/driver-auth/pair` 10/min, `/api/v1/sync/batch` 60/min, `/api/v1/gps/webhook` 60/min por IMEI. Configurar `REDIS_URL` no Railway — usar a mesma instância Redis do ARQ worker.
+- **INFRA2-02 (Structured logging)**: Adicionar `structlog>=24.0` a `pyproject.toml`. Configurar em `app/main.py` lifespan: `structlog.configure(processors=[...structlog.stdlib.add_log_level, structlog.processors.TimeStamper(fmt="iso"), structlog.processors.JSONRenderer()])`. Middleware FastAPI adiciona `request_id` e `tenant_id` ao contexto `structlog` via `structlog.contextvars.bind_contextvars()`. Replace `print()` e `logging.info()` statements por `logger = structlog.get_logger()`. ARQ worker configura o mesmo `structlog` antes de iniciar event loop.
+- **INFRA2-03 (Prometheus)**: Instalar `prometheus-fastapi-instrumentator>=7.0`. Em `main.py` lifespan: `Instrumentator().instrument(app).expose(app, endpoint="/metrics")`. Adicionar gauge custom `active_tenants` (count query com Redis cache TTL 300s). Railway: configurar scrape do Prometheus se Grafana Cloud disponível; senão, Railway Metrics é suficiente para MVP de monitoring.
+- **INFRA2-04 (Health check profundo)**: Substituir `GET /health` existente por endpoint com checks reais: `db`: `await db.execute(text("SELECT 1"))` com timeout 2s; `redis`: `await redis.ping()` com timeout 1s; `arq_worker`: query `redis.get("arq:health:{worker_id}")` — ARQ worker actualiza esta chave cada 30s via heartbeat task. Retorna HTTP 200 se todos OK, HTTP 503 com detalhes dos componentes falhados. Registado em Railway como health check path.
+
+**Plans**: TBD
+
+**UI hint**: no
+
+---
+
+### Phase 18: Analytics Avançado + Gestão de Seguros
+
+**Goal**: Um director de operações abre o dashboard e vê — numa única vista — as rotas mais rentáveis, os motoristas com melhor performance, os veículos com anomalias de consumo e as apólices a renovar.
+
+**Depends on**: Phases 13, 14, 15 (dados correctos de state machines e compliance fiscal necessários para analytics serem fiáveis)
+
+**Requirements**: ANA-01, ANA-02, ANA-03, INS-01, INS-02
+
+**Success Criteria** (what must be TRUE):
+  1. `/analytics` mostra custo por rota (top-10), margem bruta por contrato, NPS de entrega (% carga intacta vs danificada), top-5 motoristas por km e score — todos filtráveis por período
+  2. Relatório de combustível XLSX exportável mostra consumo real vs target por veículo com desvio %  e evolução mensal de custo/litro
+  3. Relatório de compliance documental PDF lista todos os documentos vencidos e a vencer em 30 dias — adequado para reunião de gestão quinzenal
+  4. Um gestor regista apólice de seguro para um veículo — recebe alerta 30 dias antes da renovação sem qualquer acção manual
+  5. Um sinistro é associado a um `trip_incident` existente — o registo inclui número de processo do seguro e estado de resolução
+
+**Implementation Notes**:
+
+- **ANA-01 (KPIs completos)**: Estender `GET /api/v1/analytics/kpis` existente com novos campos. Custo por rota: `GROUP BY (trips.origin, trips.destination)` com `SUM(total_transport_cost)/COUNT(*)`. Margem bruta: `(contract.unit_price * billing_items.quantity) - trip.total_transport_cost`. NPS entrega: `COUNT(delivery_proofs WHERE cargo_condition='intact') / COUNT(delivery_proofs) * 100`. Top-5 motoristas: já calculado no scorecard Phase 4 — agregar por período. Cache Redis TTL 300s (KPIs pesados, actualização menos frequente).
+- **ANA-02 (Relatório combustível)**: Novo endpoint `GET /api/v1/analytics/fuel-report?month=YYYY-MM` → ARQ job `task_export_fuel_report`. Query: `SELECT vehicle_id, SUM(liters), SUM(total_cost), AVG(consumption_l_per_100km), vehicle.avg_consumption_target FROM fuel_logs JOIN vehicles GROUP BY vehicle_id`. Calcula `deviation_pct = (actual - target) / target * 100`. XLSX: linha por veículo, coluna por semana (evolução). Anomalia: `deviation_pct > 20%` destacado a vermelho via `openpyxl` cell fill.
+- **ANA-03 (Compliance report)**: Novo endpoint `GET /api/v1/analytics/compliance-report` → ARQ job `task_export_compliance_pdf`. PDF com duas secções: (1) Documentos vencidos (hoje ou antes) por veículo/motorista; (2) A vencer nos próximos 30 dias. Usa `fpdf2 + DejaVuSans` (padrão estabelecido). Logo do tenant no cabeçalho. Paginação automática.
+- **INS-01 (Apólices)**: Novo modelo `VehicleInsurance` em `backend/app/modules/vehicles/models.py` (ou sub-módulo `insurance`). Campos: `id`, `tenant_id`, `vehicle_id`, `policy_number`, `insurer`, `coverage_type` (enum: `civil_liability/comprehensive/cargo`), `premium_amount Numeric(10,2)`, `valid_from DATE`, `valid_until DATE`, `notes TEXT`, `created_at`. Migration com RLS policy + GRANT no mesmo ficheiro. Endpoints: CRUD em `/api/v1/vehicles/{id}/insurance`. ARQ cron de renovação: cria `Alert` 60/30/7 dias antes de `valid_until`.
+- **INS-02 (Sinistros)**: Modelo `InsuranceClaim` com campos: `id`, `tenant_id`, `vehicle_id`, `insurance_id` (FK), `incident_id` (FK para `trip_incidents` nullable), `claim_number`, `claim_date DATE`, `estimated_damage Numeric(10,2)`, `status` (enum: `open/under_review/paid/rejected`), `resolved_at`, `notes`. Endpoints: CRUD em `/api/v1/vehicles/{id}/insurance/{insurance_id}/claims`. Status transitions auditadas. UI: tab "Sinistros" na página de detalhe de veículo.
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
+
+## Coverage Check (v3.0)
+
+| Requirement | Phase | Category |
+|-------------|-------|----------|
+| FE-01 | Phase 13 | Frontend |
+| FE-02 | Phase 13 | Frontend |
+| FE-03 | Phase 13 | Frontend |
+| FE-04 | Phase 13 | Frontend |
+| SM-01 | Phase 14 | State Machines |
+| SM-02 | Phase 14 | State Machines |
+| SM-03 | Phase 14 | State Machines |
+| SM-04 | Phase 14 | State Machines |
+| FISC-01 | Phase 15 | Fiscal |
+| FISC-02 | Phase 15 | Fiscal |
+| FISC-03 | Phase 15 | Fiscal |
+| LOAD-01 | Phase 15 | Load Safety |
+| LOAD-02 | Phase 15 | Load Safety |
+| HOS-01 | Phase 16 | HOS |
+| HOS-02 | Phase 16 | HOS |
+| AVAIL-01 | Phase 16 | Availability |
+| AVAIL-02 | Phase 16 | Availability |
+| INFRA2-01 | Phase 17 | Infrastructure |
+| INFRA2-02 | Phase 17 | Infrastructure |
+| INFRA2-03 | Phase 17 | Infrastructure |
+| INFRA2-04 | Phase 17 | Infrastructure |
+| ANA-01 | Phase 18 | Analytics |
+| ANA-02 | Phase 18 | Analytics |
+| ANA-03 | Phase 18 | Analytics |
+| INS-01 | Phase 18 | Insurance |
+| INS-02 | Phase 18 | Insurance |
+
+**Total v3.0 requirements mapped: 26/26**
+
+---
+
+## Progress Table (v3.0)
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 13. Frontend Completeness | 0/TBD | Not started | - |
+| 14. Domain State Machines | 0/TBD | Not started | - |
+| 15. Fiscal Compliance + Segurança de Carga | 0/TBD | Not started | - |
+| 16. Hours of Service + Availability Router | 0/TBD | Not started | - |
+| 17. Infrastructure Enterprise v2 | 0/TBD | Not started | - |
+| 18. Analytics Avançado + Gestão de Seguros | 0/TBD | Not started | - |

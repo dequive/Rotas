@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-06-18T23:02:58.966Z"
-last_activity: 2026-06-18
+stopped_at: Completed 13.5-02-PLAN.md — workshop ORM models, schemas, mechanic role
+last_updated: "2026-06-18T23:11:26.708Z"
+last_activity: 2026-06-19
 progress:
   total_phases: 13
   completed_phases: 6
@@ -25,7 +25,7 @@ Phase: 05 (CLI — Client Registry + Migration Foundation)
 Plan: 01 complete (1/5)
 Status: 05-01 complete 2026-06-19 — clients module backend (model, migration a, service, router, 6 tests passing)
 Last activity: 2026-06-19
-Stopped at: Completed 05-01-PLAN.md
+Stopped at: Completed 13.5-02-PLAN.md — workshop ORM models, schemas, mechanic role
 
 ### Completed v3.0 Phases
 

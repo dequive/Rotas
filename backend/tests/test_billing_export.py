@@ -1,7 +1,9 @@
 """BILL-01 (PDF UTF-8) and BILL-02 (XLSX format) export tests."""
+
 from io import BytesIO
 from unittest.mock import MagicMock
 
+import pytest
 from openpyxl import load_workbook
 
 
@@ -84,3 +86,27 @@ def test_xlsx_currency_columns_have_format():
     # Row 9 = first data row; columns 7-8 = unit price / total
     assert "#,##0.00" in ws.cell(row=9, column=7).number_format
     assert "#,##0.00" in ws.cell(row=9, column=8).number_format
+
+
+@pytest.mark.skip(reason="Wave 0 stub — implement in Wave 2 after FISC-02 IVA fields land")
+def test_pdf_contains_iva_section():
+    """FISC-02: PDF output must contain a visible IVA line with rate % and amount.
+
+    After Wave 2 implementation:
+    - Render PDF with a billing document that has tax_amount > 0 and iva_rate = 0.17
+    - Decode PDF bytes and assert IVA text is present (e.g., b"IVA" in pdf_bytes)
+    - Verify subtotal, IVA line, and total-com-IVA are present as distinct lines
+    """
+    pass
+
+
+@pytest.mark.skip(reason="Wave 0 stub — implement in Wave 2 after FISC-02 IVA fields land")
+def test_xlsx_iva_rows():
+    """FISC-02: XLSX output must have subtotal row, IVA row, and total-com-IVA row.
+
+    After Wave 2 implementation:
+    - Render XLSX with a billing document that has iva_rate=0.17, tax_amount > 0
+    - Load workbook with openpyxl and scan rows for 'SUBTOTAL', 'IVA', 'TOTAL COM IVA'
+    - Confirm all three row labels exist in the worksheet
+    """
+    pass

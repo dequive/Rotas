@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LoadPermitCreate(BaseModel):
@@ -82,8 +82,12 @@ class ValidateDeliveryProofRequest(BaseModel):
 
 class DisputeDeliveryProofRequest(BaseModel):
     reason: str
-    dispute_type: str = "document_mismatch"
-    notes: str | None = None
+    dispute_type: str = Field(..., max_length=50)
+    notes: str | None = Field(None, max_length=500)
+
+
+class DeliveryProofRejectRequest(BaseModel):
+    rejection_reason: str = Field(..., min_length=10, max_length=1000)
 
 
 class ResolveDeliveryProofDisputeRequest(BaseModel):

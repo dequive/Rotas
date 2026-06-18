@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -38,6 +38,12 @@ class TripOrder(Base):
     assigned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     assigned_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     status: Mapped[str] = mapped_column(String(30), default="draft", index=True)
+    # SM-04: DispatchClearance state machine fields
+    rejection_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejected_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    escalated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    clearance_sla_hours: Mapped[int | None] = mapped_column(Integer(), nullable=True, default=24)
     priority: Mapped[str] = mapped_column(String(30), default="normal", index=True)
     estimated_distance_km: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     estimated_fuel_cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))

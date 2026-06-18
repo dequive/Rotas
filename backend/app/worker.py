@@ -40,6 +40,12 @@ async def startup(ctx: dict) -> None:
     _logger = structlog.get_logger("worker")
     _logger.info("arq_worker_started")
 
+    # INFRA2-04: Enqueue first heartbeat immediately
+    from datetime import datetime, timezone
+    redis = ctx.get("redis")
+    if redis:
+        await redis.setex("arq:health:worker_heartbeat", 90, datetime.now(timezone.utc).isoformat())
+
 
 async def shutdown(ctx: dict) -> None:
     if "admin_engine" in ctx:
@@ -210,17 +216,112 @@ async def task_expire_contracts(ctx: dict) -> str:
     return f"Expired {count} contracts"
 
 
+# ── SM-04: DispatchClearance escalation cron ───────────────────────────────
+
+async def task_escalate_pending_clearances(ctx: dict) -> str:
+    """SM-04: Hourly cron — escalate pending dispatch clearances past SLA."""
+    import structlog
+    from sqlalchemy import select, update, and_
+    from datetime import datetime, timezone, timedelta
+    from app.modules.trip_orders.models import TripOrder
+
+    logger = structlog.get_logger("worker")
+
+    async with ctx["db_factory"]() as db:
+        now = datetime.now(timezone.utc)
+        result = await db.execute(
+            select(TripOrder).where(
+                and_(
+                    TripOrder.status == "pending",
+                    TripOrder.created_at < now - timedelta(hours=1),
+                )
+            )
+        )
+        pending_orders = result.scalars().all()
+
+        escalated = []
+        for order in pending_orders:
+            sla = order.clearance_sla_hours or 24
+            if (now - order.created_at.replace(tzinfo=timezone.utc)) > timedelta(hours=sla):
+                order.status = "escalated"
+                order.escalated_at = now
+                db.add(order)
+                escalated.append(order.id)
+
+        await db.commit()
+
+    count = len(escalated)
+    logger.info("task_escalate_pending_clearances", escalated_count=count)
+    return f"Escalated {count} dispatch clearances past SLA"
+
+
+# ── INFRA2-03: Prometheus metrics update cron ──────────────────────────────
+
+async def task_update_active_tenants_metric(ctx: dict) -> str:
+    """INFRA2-03: Update Prometheus active_tenants gauge every 5 minutes."""
+    import structlog
+    from sqlalchemy import select, func
+    from app.modules.tenants.models import Tenant
+
+    logger = structlog.get_logger("worker")
+
+    async with ctx["db_factory"]() as db:
+        result = await db.execute(
+            select(func.count()).where(Tenant.is_active == True)
+        )
+        count = result.scalar_one_or_none() or 0
+
+    try:
+        from prometheus_client import Gauge
+        g = Gauge("rotas_active_tenants_total", "Number of active tenants in the platform")
+        g.set(count)
+    except Exception:
+        pass
+
+    logger.info("task_update_active_tenants_metric", active_tenants=count)
+    return f"Active tenants: {count}"
+
+
+# ── INFRA2-04: Worker heartbeat ───────────────────────────────────────────
+
+async def task_worker_heartbeat(ctx: dict) -> str:
+    """INFRA2-04: Worker heartbeat — update Redis key every 30 seconds."""
+    import structlog
+    from datetime import datetime, timezone
+
+    logger = structlog.get_logger("worker")
+    now = datetime.now(timezone.utc).isoformat()
+
+    redis = ctx.get("redis")
+    if redis:
+        await redis.setex("arq:health:worker_heartbeat", 90, now)
+        logger.info("task_worker_heartbeat", timestamp=now)
+        return f"Heartbeat: {now}"
+    else:
+        logger.warning("task_worker_heartbeat_no_redis")
+        return "No Redis — heartbeat skipped"
+
+
 class WorkerSettings:
     functions = [
         generate_billing_export,
         task_mark_overdue_billing_documents,
         task_expire_contracts,
+        task_escalate_pending_clearances,
+        task_update_active_tenants_metric,
+        task_worker_heartbeat,
     ]
     cron_jobs = [
         # SM-01: Mark overdue billing documents — 01:00 Africa/Maputo = 23:00 UTC
         cron(task_mark_overdue_billing_documents, hour=23, minute=0),
         # SM-02: Expire contracts — 00:30 Africa/Maputo = 22:30 UTC
         cron(task_expire_contracts, hour=22, minute=30),
+        # SM-04: Hourly escalation check
+        cron(task_escalate_pending_clearances, minute=15),
+        # INFRA2-03: Every 5 minutes
+        cron(task_update_active_tenants_metric, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),
+        # INFRA2-04: Worker heartbeat (every minute in ARQ cron if second not supported)
+        cron(task_worker_heartbeat, minute=set(range(60))),
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     max_jobs = 10

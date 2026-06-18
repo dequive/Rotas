@@ -3,11 +3,15 @@ from contextlib import asynccontextmanager
 import arq
 import sentry_sdk
 from arq.connections import RedisSettings as ArqRedisSettings
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from prometheus_client import Gauge
+from prometheus_fastapi_instrumentator import Instrumentator
 from redis.asyncio import Redis
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 
 from app.config import get_settings
 from app.core.errors import install_error_handlers
@@ -15,7 +19,7 @@ from app.core.limiter import limiter
 from app.core.logging import configure_structlog
 from app.core.middleware import StructlogRequestMiddleware
 from app.core.request_context import RequestContextMiddleware
-from app.database import import_all_models
+from app.database import engine as _engine, import_all_models
 from app.modules.alerts.router import router as alerts_router
 from app.modules.analytics.router import router as analytics_router
 from app.modules.audit.router import router as audit_router
@@ -108,6 +112,27 @@ async def lifespan(app: FastAPI):
     except Exception:
         app.state.arq_redis = None
 
+    # App state database engine
+    app.state.engine = _engine
+
+    # INFRA2-03: Prometheus metrics
+    _instrumentator = Instrumentator(
+        should_group_status_codes=True,
+        should_ignore_untemplated=True,
+        should_respect_env_var=False,
+        should_instrument_requests_inprogress=True,
+        excluded_handlers=["/metrics", "/health", "/health/deep"],
+        inprogress_labels=True,
+    )
+    _instrumentator.instrument(app)
+    _instrumentator.expose(app, endpoint="/metrics", include_in_schema=False)
+
+    _active_tenants_gauge = Gauge(
+        "rotas_active_tenants_total",
+        "Number of active tenants in the platform",
+    )
+    app.state.active_tenants_gauge = _active_tenants_gauge
+
     yield
 
     if app.state.redis is not None:
@@ -136,9 +161,76 @@ app.add_middleware(
 )
 
 
-@app.get("/health", tags=["operation"])
-async def health() -> dict[str, str]:
+@app.get("/health", tags=["operation"], include_in_schema=False)
+async def health_simple() -> dict[str, str]:
+    """Lightweight health check for Railway TCP probe. Always returns 200."""
     return {"status": "ok"}
+
+
+@app.get("/health/deep", tags=["operation"])
+async def health_deep(request: Request) -> dict:
+    import asyncio
+    from datetime import datetime, timezone
+
+    checks: dict[str, str] = {}
+    overall_ok = True
+
+    # 1. Database check
+    try:
+        async with request.app.state.engine.begin() as conn:
+            await asyncio.wait_for(
+                conn.execute(text("SELECT 1")),
+                timeout=2.0,
+            )
+        checks["db"] = "ok"
+    except Exception as e:
+        checks["db"] = f"error: {type(e).__name__}"
+        overall_ok = False
+
+    # 2. Redis check
+    redis = getattr(request.app.state, "redis", None)
+    if redis:
+        try:
+            await asyncio.wait_for(redis.ping(), timeout=1.0)
+            checks["redis"] = "ok"
+        except Exception as e:
+            checks["redis"] = f"error: {type(e).__name__}"
+            overall_ok = False
+    else:
+        checks["redis"] = "not_configured"
+        if settings.environment == "production":
+            overall_ok = False
+
+    # 3. ARQ worker check
+    try:
+        if redis:
+            heartbeat = await redis.get("arq:health:worker_heartbeat")
+            if heartbeat:
+                last_beat = datetime.fromisoformat(heartbeat)
+                age_seconds = (datetime.now(timezone.utc) - last_beat).total_seconds()
+                if age_seconds < 90:
+                    checks["arq_worker"] = f"ok (last beat {int(age_seconds)}s ago)"
+                else:
+                    checks["arq_worker"] = f"stale (last beat {int(age_seconds)}s ago)"
+                    overall_ok = False
+            else:
+                checks["arq_worker"] = "no_heartbeat (worker may be starting)"
+        else:
+            checks["arq_worker"] = "unknown (no Redis)"
+    except Exception as e:
+        checks["arq_worker"] = f"error: {type(e).__name__}"
+        overall_ok = False
+
+    result = {
+        "status": "ok" if overall_ok else "degraded",
+        "checks": checks,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if overall_ok:
+        return result
+    else:
+        return JSONResponse(status_code=503, content=result)
 
 
 @app.get("/version", tags=["operation"])

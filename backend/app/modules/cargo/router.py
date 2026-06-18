@@ -9,6 +9,7 @@ from app.core.idempotency import execute_http_idempotent
 from app.core.permissions import WRITE_ROLES, require_roles
 from app.core.deps import get_session
 from app.modules.cargo import schemas, service
+from app.modules.cargo.schemas import DeliveryProofRejectRequest
 
 router = APIRouter(prefix="/trips/{trip_id}", tags=["cargo"])
 
@@ -199,3 +200,39 @@ async def resolve_delivery_proof_dispute(
             payload,
         ),
     )
+
+
+@router.patch("/delivery-proof/{proof_id}/accept", summary="Accept delivery proof (SM-03)")
+async def accept_delivery_proof_endpoint(
+    trip_id: UUID,
+    proof_id: UUID,
+    db: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(require_roles("owner", "admin", "manager")),
+):
+    from app.modules.cargo.service import accept_delivery_proof
+    proof = await accept_delivery_proof(
+        db, proof_id=proof_id,
+        tenant_id=principal.tenant_id, user_id=principal.user_id,
+    )
+    await db.commit()
+    await db.refresh(proof)
+    return proof
+
+
+@router.patch("/delivery-proof/{proof_id}/reject", summary="Reject delivery proof (SM-03)")
+async def reject_delivery_proof_endpoint(
+    trip_id: UUID,
+    proof_id: UUID,
+    body: DeliveryProofRejectRequest,
+    db: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(require_roles("owner", "admin", "manager")),
+):
+    from app.modules.cargo.service import reject_delivery_proof
+    proof = await reject_delivery_proof(
+        db, proof_id=proof_id,
+        tenant_id=principal.tenant_id, user_id=principal.user_id,
+        rejection_reason=body.rejection_reason,
+    )
+    await db.commit()
+    await db.refresh(proof)
+    return proof

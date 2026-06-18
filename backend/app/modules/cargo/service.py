@@ -20,6 +20,15 @@ from app.modules.operational_exceptions.service import ensure_exception, resolve
 from app.modules.trips.models import Trip
 
 
+_DELIVERY_PROOF_VALID_TRANSITIONS: dict[str, set[str]] = {
+    "pending":  {"accepted", "rejected"},
+    "rejected": {"disputed"},
+    "disputed": {"resolved"},
+    "accepted": set(),   # terminal
+    "resolved": set(),   # terminal
+}
+
+
 def now_utc() -> datetime:
     return datetime.now(UTC)
 
@@ -282,6 +291,95 @@ async def create_delivery_proof(
         "status": proof.status,
         "trip_billing_status": trip.billing_status,
     }
+
+
+async def accept_delivery_proof(
+    db: AsyncSession,
+    *,
+    proof_id: UUID,
+    tenant_id: UUID,
+    user_id: UUID,
+) -> DeliveryProof:
+    """SM-03: Accept delivery proof — sets trip.billing_status = 'billable'."""
+    proof = await db.get(DeliveryProof, proof_id)
+    if not proof or proof.tenant_id != tenant_id:
+        raise ApiError("not_found", "DeliveryProof not found", status_code=404)
+
+    allowed = _DELIVERY_PROOF_VALID_TRANSITIONS.get(proof.status, set())
+    if "accepted" not in allowed:
+        raise ApiError(
+            "invalid_state_transition",
+            f"DeliveryProof cannot be accepted from status '{proof.status}'",
+            status_code=409,
+        )
+
+    now = datetime.utcnow()
+    proof.status = "accepted"
+    proof.accepted_at = now
+    proof.accepted_by = user_id
+
+    # Update trip billing_status to billable
+    trip = await db.get(Trip, proof.trip_id)
+    if trip:
+        trip.billing_status = "billable"
+        db.add(trip)
+
+    await record_audit_log(
+        db, tenant_id=tenant_id, action="delivery_proof.accepted",
+        entity_type="delivery_proof", entity_id=proof.id, user_id=user_id,
+        old_values={"status": "pending"}, new_values={"status": "accepted"},
+    )
+    db.add(proof)
+    return proof
+
+
+async def reject_delivery_proof(
+    db: AsyncSession,
+    *,
+    proof_id: UUID,
+    tenant_id: UUID,
+    user_id: UUID,
+    rejection_reason: str,
+) -> DeliveryProof:
+    """SM-03: Reject delivery proof — creates operational_exception automatically."""
+    proof = await db.get(DeliveryProof, proof_id)
+    if not proof or proof.tenant_id != tenant_id:
+        raise ApiError("not_found", "DeliveryProof not found", status_code=404)
+
+    allowed = _DELIVERY_PROOF_VALID_TRANSITIONS.get(proof.status, set())
+    if "rejected" not in allowed:
+        raise ApiError(
+            "invalid_state_transition",
+            f"DeliveryProof cannot be rejected from status '{proof.status}'",
+            status_code=409,
+        )
+
+    now = datetime.utcnow()
+    proof.status = "rejected"
+    proof.rejected_at = now
+    proof.rejected_by = user_id
+    proof.rejection_reason = rejection_reason
+
+    # Create operational_exception automatically (same transaction)
+    await ensure_exception(
+        db,
+        tenant_id=tenant_id,
+        entity_type="trip",
+        entity_id=proof.trip_id,
+        exception_type="delivery_rejected",
+        severity="high",
+        title="Delivery Proof Rejected",
+        message=f"Delivery proof rejected: {rejection_reason}",
+        actor_id=user_id,
+    )
+
+    await record_audit_log(
+        db, tenant_id=tenant_id, action="delivery_proof.rejected",
+        entity_type="delivery_proof", entity_id=proof.id, user_id=user_id,
+        old_values={"status": "pending"}, new_values={"status": "rejected", "rejection_reason": rejection_reason},
+    )
+    db.add(proof)
+    return proof
 
 
 async def validate_delivery_proof(

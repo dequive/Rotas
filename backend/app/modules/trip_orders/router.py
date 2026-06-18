@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
@@ -9,6 +9,7 @@ from app.core.idempotency import execute_http_idempotent
 from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
 from app.core.deps import get_session
 from app.modules.trip_orders import schemas, service
+from app.modules.trip_orders.schemas import DispatchClearanceRejectRequest
 
 router = APIRouter(prefix="/trip-orders", tags=["trip-orders"])
 
@@ -143,3 +144,28 @@ async def cancel_trip_order(
             actor_id=principal.user_id,
         ),
     )
+
+
+@router.patch("/{order_id}/reject", summary="Reject dispatch clearance (SM-04)")
+async def reject_dispatch_endpoint(
+    order_id: UUID,
+    body: DispatchClearanceRejectRequest,
+    db: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(require_roles("owner", "admin")),
+    request: Request = None,
+):
+    from app.modules.trip_orders.service import reject_dispatch_clearance
+    order = await reject_dispatch_clearance(
+        db, order_id=order_id, tenant_id=principal.tenant_id,
+        user_id=principal.user_id, rejection_reason=body.rejection_reason,
+    )
+    await db.commit()
+    await db.refresh(order)
+    # Enqueue notification (non-blocking)
+    if request and hasattr(request.app.state, "arq_redis") and request.app.state.arq_redis:
+        await request.app.state.arq_redis.enqueue_job(
+            "task_notify_dispatch_rejected",
+            order_id=str(order.id),
+            tenant_id=str(principal.tenant_id),
+        )
+    return order

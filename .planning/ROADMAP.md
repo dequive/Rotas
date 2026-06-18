@@ -340,7 +340,14 @@ Plans:
 - `client_name` is kept on `BillingDocument` and `Contract` as a denormalized snapshot â€” do not drop it; it has independent archival and legal value
 - PostgreSQL SEQUENCE for invoice numbering must be tenant-scoped: one sequence per tenant or a composite sequence pattern â€” never a Python MAX+1 counter
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Wave 1: clients backend (model, migration a, service, router) + Wave 0 test stubs (CLI-01, CLI-02)
+- [ ] 05-02-PLAN.md — Wave 1: FK migrations (b) + pre-audit + backfill (c) + payments scaffold (d) (CLI-03)
+- [ ] 05-03-PLAN.md — Wave 2: /clientes list page + /clientes/[id] detail page + ClientFormModal + sidebar nav (CLI-01, CLI-02)
+- [ ] 05-04-PLAN.md — Wave 2: ContractFormModal ClientCombobox + backend contracts schema/service update (CLI-04)
+- [ ] 05-05-PLAN.md — Wave 3: CLI-05 display (MonoCell in billing table) + test_invoice_number_format stub (CLI-05)
 
 **UI hint**: yes
 
@@ -601,7 +608,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 5. Client Registry + Migration Foundation | 0/TBD | Not started | - |
+| 5. Client Registry + Migration Foundation | 0/5 | In progress | - |
 | 6. Payment Registration | 0/TBD | Not started | - |
 | 7. Accounts Receivable + Aging Dashboard | 0/TBD | Not started | - |
 | 8. Infrastructure Hardening | 0/8 | Not started | - |

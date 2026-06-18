@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.0
-milestone_name: tms-enterprise-completo
-status: in_progress
-stopped_at: Phase 14 + Phase 17 (all waves) complete 2026-06-18 — Phase 15 + Phase 16 next (now unblocked)
-last_updated: "2026-06-18T18:00:00.000Z"
+milestone: v2.0
+milestone_name: milestone
+status: completed
+stopped_at: Phase 14 + 17 fully implemented — Phase 15 (Fiscal+Load) and Phase 16 (HOS+Avail) are now unblocked; can run in parallel
+last_updated: "2026-06-18T16:24:50.668Z"
 last_activity: 2026-06-18
 progress:
   total_phases: 19
-  completed_phases: 7
-  total_plans: 54
-  completed_plans: 56
+  completed_phases: 6
+  total_plans: 64
+  completed_plans: 53
 ---
 
 # ROTAS — Project State
@@ -28,6 +28,7 @@ Last activity: 2026-06-18
 Stopped at: Phase 14 + 17 fully implemented — Phase 15 (Fiscal+Load) and Phase 16 (HOS+Avail) are now unblocked; can run in parallel
 
 ### Completed v3.0 Phases
+
 - [x] **Phase 14** — Domain State Machines (SM-01 BillingDocument, SM-02 Contract, SM-03 DeliveryProof, SM-04 DispatchClearance)
 - [x] **Phase 17** — Infrastructure Enterprise v2 (INFRA2-01 distributed rate limiting, INFRA2-02 structured logging, INFRA2-03 Prometheus metrics, INFRA2-04 deep health check + worker heartbeat)
 
@@ -36,6 +37,7 @@ Stopped at: Phase 14 + 17 fully implemented — Phase 15 (Fiscal+Load) and Phase
 ## Execution Order Advisory
 
 ### v2.0 (em curso) — Concluir primeiro
+
 ```
 Phase 8 (INFRA)         — start immediately (Sentry, R2, tenant limits)
 Phase 5 (CLI)           — requires Phase 9 RLS ✅ complete
@@ -44,12 +46,13 @@ Phase 7 (AR)            — requires Phase 6
 Phase 10 (NOTIF+ONBRD)  — requires Phase 8 + WhatsApp templates approved
 Phase 11 (DESP)         — requires Phase 10
 Phase 12 (GPS+TRK)      — requires Phase 9 ✅ + GPS device survey
-Phase 04.1 (UI)         — 1 plan remaining (04.1-08 legacy CSS cleanup)
-Phase 2 (PWA)           — 1 plan remaining (02-07 SyncStatusBanner)
+Phase 04.1 (UI)         — ✅ complete (04.1-08 done: .topbar, .toolbar, .queue-list, .queue-item removed; build clean)
+Phase 2 (PWA)           — 02-07 ✅ done; 02-08 field test pending
 Phase 4 (RLS plan)      — 1 plan remaining (04-08 RLS)
 ```
 
 ### v3.0 — Execution Order
+
 ```
 Phase 17 (INFRA2)       — no dependencies; run in parallel with Phase 13
 Phase 13 (Frontend)     — requires Phase 8 + 04.1 complete
@@ -57,6 +60,9 @@ Phase 14 (State Machines) — no new dependencies; can run in parallel with Phas
 Phase 15 (Fiscal+Load)  — requires Phase 14 (SM-01 DeliveryProof)
 Phase 16 (HOS+Avail)    — requires Phase 14 (work order SM)
 Phase 18 (Analytics+Ins) — requires Phases 13 + 14 + 15
+Phase 19 (Customs/Border) — new; requires Phase 14
+Phase 20 (Route Optim)   — new; requires GPS/Maps integration
+Phase 21 (Frontend E2E)  — new; E2E tests for stability
 ```
 
 ---
@@ -182,6 +188,7 @@ Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260607-o5b | Document expiry compliance fix and proactive alerts | 2026-06-07 | f4c04b5 | [260607-o5b](./quick/260607-o5b-document-expiry-compliance-fix-and-proac/) |
+| 260618-po2 | Fix Phase 13.5 production issues in manager (8 bugs: auth headers, NEXT_PUBLIC misuse, silent errors, KPI dedup, hardcoded email, stub tabs) | 2026-06-18 | 8b5c000 | [260618-po2](./quick/260618-po2-fix-phase-13-5-production-issues-in-mana/) |
 
 ### Blockers
 
@@ -190,6 +197,7 @@ _None — v3.0 roadmap criado; nenhum bloqueio activo._
 ### Todos
 
 **v2.0 — Pendentes antes de iniciar v3.0:**
+
 - [ ] Start WhatsApp Business API Meta approval process immediately (parallel to Phase 8)
 - [ ] Start GPS device operator survey immediately (parallel to Phase 8)
 - [ ] Configure ALEMBIC_DATABASE_URL and ADMIN_DATABASE_URL in Railway
@@ -198,11 +206,11 @@ _None — v3.0 roadmap criado; nenhum bloqueio activo._
 - [ ] Run GPS device field survey and obtain Teltonika/Coban JSON payload samples before Phase 12 planning
 - [ ] Run pre-migration audit query before writing Phase 5 migration code: `SELECT tenant_id, lower(trim(client_name)), count(*) FROM contracts GROUP BY 1, 2 HAVING count(*) > 1`
 - [ ] Confirm PostGIS availability on Railway PostgreSQL before any geofencing design (Phase 12+)
-- [ ] Complete Phase 04.1-08 (legacy CSS cleanup)
+- [x] Confirmed Phase 8 (Sentry/R2/limits) is COMPLETE (08-01 through 08-08 executed)
+- [x] Corrigir 278 ruff warnings — FIXED: `ruff check --fix` and `ruff format` executed
+- [x] Complete Phase 04.1-08 (legacy CSS cleanup)
 - [x] Complete Phase 02-07 (SyncStatusBanner) + [ ] 02-08 (field test)
-- [x] Complete Phase 04-08 (RLS plan) — DONE: implemented during Phase 9; database.py ContextVar+after_begin, 4 Alembic migrations, 5 tests in test_rls.py all verified present
-
-**v3.0 — Antes de iniciar Phase 13:**
+- [x] Complete Phase 04-08 (RLS plan) — DONE: implemented during Phase 9
 - [ ] Verificar requisitos da AT Moçambique para numeração sequencial de faturas (FISC-01)
 - [ ] Confirmar se `alerts.acknowledge` endpoint existe no backend ou precisa ser criado (FE-03)
 - [ ] Auditar sidebar actual (`SidebarLayout.tsx`) para confirmar quais entradas já existem vs. faltam

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import DASHBOARD_ROLES, WORKSHOP_WRITE_ROLES, require_roles
+from app.core.permissions import DASHBOARD_ROLES, WORKSHOP_READ_ROLES, WORKSHOP_WRITE_ROLES, require_roles
 from app.modules.workshop import schemas, service
 
 router = APIRouter(prefix="/workshop", tags=["workshop"])
@@ -379,3 +379,114 @@ async def get_imminent_maintenance_alerts(
     return await service.get_imminent_maintenance_alerts(
         db, principal.tenant_id, days_ahead=days_ahead, km_ahead=km_ahead
     )
+
+
+# ---------------------------------------------------------------------------
+# New endpoints — Task 2A (Wave 3)
+# All mutations use WORKSHOP_WRITE_ROLES (includes mechanic).
+# Reads use WORKSHOP_READ_ROLES (includes viewer + mechanic).
+# Existing 18 endpoints above are unchanged.
+# ---------------------------------------------------------------------------
+
+@router.get("/kpis")
+async def get_workshop_kpis(
+    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.get_workshop_kpis(principal.tenant_id, db)
+
+
+@router.patch("/work-orders/{work_order_id}/tasks/{task_id}")
+async def assign_task(
+    work_order_id: UUID,
+    task_id: UUID,
+    payload: schemas.TaskAssignRequest,
+    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.assign_task_to_mechanic(task_id, payload, principal.tenant_id, db)
+
+
+@router.get("/staff-rates")
+async def list_staff_rates(
+    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_READ_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.get_workshop_staff_rates(principal.tenant_id, db)
+
+
+@router.post("/staff-rates", status_code=201)
+async def create_staff_rate(
+    payload: schemas.WorkshopStaffRateCreate,
+    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.create_staff_rate(payload, principal.tenant_id, db)
+
+
+@router.post("/tools/{tool_id}/calibrations", status_code=201)
+async def record_calibration(
+    tool_id: UUID,
+    payload: schemas.ToolCalibrationCreate,
+    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.record_tool_calibration(tool_id, payload, principal.tenant_id, db)
+
+
+@router.get("/tools/{tool_id}/calibration-history")
+async def get_calibration_history(
+    tool_id: UUID,
+    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_READ_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.list_tool_calibration_history(tool_id, principal.tenant_id, db)
+
+
+@router.patch("/tools/{tool_id}")
+async def patch_tool(
+    tool_id: UUID,
+    payload: schemas.ToolUpdateRequest,
+    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.update_tool(tool_id, payload, principal.tenant_id, db)
+
+
+# IMPORTANT: /spare-parts/low-stock MUST appear before /spare-parts/{part_id}/serials
+# so FastAPI does not attempt to parse "low-stock" as a UUID path parameter.
+@router.get("/spare-parts/low-stock")
+async def get_low_stock(
+    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_READ_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.list_low_stock_parts(principal.tenant_id, db)
+
+
+@router.post("/spare-parts/{part_id}/serials", status_code=201)
+async def register_serial(
+    part_id: UUID,
+    payload: schemas.SerialItemCreate,
+    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.register_serial_item(part_id, payload, principal.tenant_id, db)
+
+
+@router.post("/spare-parts/serials/{serial_id}/install")
+async def install_serial(
+    serial_id: UUID,
+    payload: schemas.SerialItemInstallRequest,
+    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.install_serial_item(serial_id, payload.vehicle_id, principal.tenant_id, db)
+
+
+@router.get("/vehicles/{vehicle_id}/installed-parts")
+async def get_installed_parts(
+    vehicle_id: UUID,
+    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_READ_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.get_installed_parts_for_vehicle(vehicle_id, principal.tenant_id, db)

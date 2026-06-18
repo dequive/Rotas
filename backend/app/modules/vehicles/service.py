@@ -417,6 +417,181 @@ async def list_vehicle_history(
 
 
 
+async def get_vehicle_history(
+    vehicle_id: UUID,
+    tenant_id: UUID,
+    from_date,
+    to_date,
+    types: list[str] | None,
+    cursor: str | None,
+    limit: int,
+    db: AsyncSession,
+) -> dict:
+    """Cursor-paginated vehicle history aggregating 6 entity types via raw UNION ALL.
+
+    Cursor format: base64("{event_date_iso}|{uuid}")
+    Response: {"events": [...], "next_cursor": str|null, "total_count": int}
+    """
+    import base64
+    from datetime import datetime as _dt
+
+    ALL_TYPES = {"maintenance_request", "work_order", "fuel", "checklist", "incident", "schedule"}
+    active_types = set(types) & ALL_TYPES if types else ALL_TYPES
+
+    sub_queries: list[str] = []
+
+    if "maintenance_request" in active_types:
+        sub_queries.append("""
+            SELECT 'maintenance_request' AS event_type,
+                   requested_at AS event_date,
+                   request_type AS title,
+                   description,
+                   id::text AS reference_id,
+                   odometer_reading
+            FROM maintenance_requests
+            WHERE tenant_id = :tenant_id AND vehicle_id = :vehicle_id
+        """)
+
+    if "work_order" in active_types:
+        sub_queries.append("""
+            SELECT 'work_order' AS event_type,
+                   created_at AS event_date,
+                   work_order_number AS title,
+                   planned_work AS description,
+                   id::text AS reference_id,
+                   NULL::integer AS odometer_reading
+            FROM work_orders
+            WHERE tenant_id = :tenant_id AND vehicle_id = :vehicle_id
+        """)
+
+    if "fuel" in active_types:
+        sub_queries.append("""
+            SELECT 'fuel' AS event_type,
+                   refueled_at AS event_date,
+                   'Abastecimento' AS title,
+                   NULL AS description,
+                   id::text AS reference_id,
+                   odometer_reading
+            FROM vehicle_refuels
+            WHERE tenant_id = :tenant_id AND vehicle_id = :vehicle_id
+        """)
+
+    if "checklist" in active_types:
+        sub_queries.append("""
+            SELECT 'checklist' AS event_type,
+                   completed_at AS event_date,
+                   type AS title,
+                   NULL AS description,
+                   id::text AS reference_id,
+                   odometer_reading
+            FROM checklists
+            WHERE tenant_id = :tenant_id AND vehicle_id = :vehicle_id AND completed_at IS NOT NULL
+        """)
+
+    if "incident" in active_types:
+        sub_queries.append("""
+            SELECT 'incident' AS event_type,
+                   occurred_at AS event_date,
+                   incident_type AS title,
+                   description,
+                   id::text AS reference_id,
+                   NULL::integer AS odometer_reading
+            FROM trip_incidents
+            WHERE tenant_id = :tenant_id AND vehicle_id = :vehicle_id
+        """)
+
+    if "schedule" in active_types:
+        sub_queries.append("""
+            SELECT 'schedule' AS event_type,
+                   created_at AS event_date,
+                   status AS title,
+                   NULL AS description,
+                   id::text AS reference_id,
+                   due_km AS odometer_reading
+            FROM maintenance_schedule
+            WHERE tenant_id = :tenant_id AND vehicle_id = :vehicle_id
+        """)
+
+    if not sub_queries:
+        return {"events": [], "next_cursor": None, "total_count": 0}
+
+    union_sql = " UNION ALL ".join(f"({q})" for q in sub_queries)
+
+    # Cursor decode
+    cursor_date: _dt | None = None
+    cursor_id: str | None = None
+    if cursor:
+        try:
+            decoded = base64.b64decode(cursor.encode()).decode()
+            date_str, id_str = decoded.split("|", 1)
+            cursor_date = _dt.fromisoformat(date_str)
+            cursor_id = id_str
+        except Exception:
+            pass
+
+    conditions: list[str] = []
+    if from_date:
+        conditions.append("event_date >= :from_date")
+    if to_date:
+        conditions.append("event_date <= :to_date")
+    if cursor_date and cursor_id:
+        conditions.append("(event_date, reference_id) < (:cursor_date, :cursor_id)")
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    final_sql = text(f"""
+        SELECT event_type, event_date, title, description, reference_id, odometer_reading
+        FROM ({union_sql}) AS unified
+        {where_clause}
+        ORDER BY event_date DESC, reference_id DESC
+        LIMIT :limit_plus_one
+    """)
+
+    params: dict = {
+        "tenant_id": str(tenant_id),
+        "vehicle_id": str(vehicle_id),
+        "limit_plus_one": limit + 1,
+    }
+    if from_date:
+        params["from_date"] = from_date
+    if to_date:
+        params["to_date"] = to_date
+    if cursor_date:
+        params["cursor_date"] = cursor_date
+        params["cursor_id"] = cursor_id
+
+    result = await db.execute(final_sql, params)
+    rows = result.fetchall()
+
+    has_more = len(rows) > limit
+    event_rows = rows[:limit]
+
+    events = [
+        {
+            "event_type": row.event_type,
+            "event_date": row.event_date.isoformat() if row.event_date else None,
+            "title": row.title,
+            "description": row.description,
+            "reference_id": row.reference_id,
+            "odometer_reading": row.odometer_reading,
+        }
+        for row in event_rows
+    ]
+
+    next_cursor: str | None = None
+    if has_more and event_rows:
+        last = event_rows[-1]
+        cursor_str = f"{last.event_date.isoformat()}|{last.reference_id}"
+        next_cursor = base64.b64encode(cursor_str.encode()).decode()
+
+    count_params = {k: v for k, v in params.items() if k != "limit_plus_one"}
+    count_sql = text(f"SELECT count(*) FROM ({union_sql}) AS unified {where_clause}")
+    count_result = await db.execute(count_sql, count_params)
+    total_count = count_result.scalar() or 0
+
+    return {"events": events, "next_cursor": next_cursor, "total_count": int(total_count)}
+
+
 async def patch_vehicle(
     db: AsyncSession,
     tenant_id: UUID,

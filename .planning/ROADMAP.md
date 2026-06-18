@@ -642,9 +642,12 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 - [ ] **Phase 13: Frontend Completeness** — As 4 páginas do manager referenciadas no sidebar mas sem implementação real: `/manutencao`, `/cobranca`, `/alertas`, `/settings`
 - [ ] **Phase 14: Domain State Machines** — Fechar state machines incompletas de `BillingDocument`, `Contract`, `DeliveryProof` e `DispatchClearance` — o núcleo financeiro e documental fica coerente
 - [ ] **Phase 15: Fiscal Compliance + Segurança de Carga** — IVA Moçambique, numeração fiscal, validação de peso vs capacidade, suporte hazmat
-- [ ] **Phase 16: Hours of Service + Availability Router** — HOS tracking de motoristas, módulo `availability` exposto via API, workshop integrado no lifecycle de veículos
-- [ ] **Phase 17: Infrastructure Enterprise v2** — Rate limiting distribuído Redis, logging estruturado, métricas Prometheus, health checks profundos
-- [ ] **Phase 18: Analytics Avançado + Gestão de Seguros** — KPIs TMS completos, relatórios de combustível e compliance, registo de apólices e sinistros
+- [ ] **Phase 16: HOS + Availability** — Driver Hours of Service and vehicle/driver availability calendar
+- [ ] **Phase 17: Enterprise Infrastructure v2** — Distributed rate limiting, structured logging, Prometheus metrics, advanced worker heartbeat (completed 2026-06-18)
+- [ ] **Phase 18: Analytics + Insurance** — Client profitability, insurance management, deep BI layer
+- [ ] **Phase 19: Customs/Border Crossing** — Workflows for cross-border routes, documentation, and border dispatch
+- [ ] **Phase 20: Route Optimization** — Distance matrix, waypoint sequencing, integration with routing providers
+- [ ] **Phase 21: Frontend E2E Tests** — Playwright E2E testing suite to prevent visual and functional UI regressions
 
 ---
 
@@ -729,7 +732,15 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 - **LOAD-01 (Peso vs capacidade)**: Adicionar `max_payload_kg NUMERIC(10,2)` ao modelo `Vehicle` (migration nullable). Service `create_trip()` e `start_trip()` verificam: `if trip.cargo_weight and vehicle.max_payload_kg and trip.cargo_weight > vehicle.max_payload_kg: raise ApiError("payload_exceeded", ...)`. Override por `admin/owner` com campo `payload_override_reason` (registado em audit log). UI: campo no formulário de veículo + warning visual no Control Tower quando viagem near-limit.
 - **LOAD-02 (Hazmat)**: Adicionar `is_hazmat BOOLEAN DEFAULT FALSE`, `hazmat_class VARCHAR(10)`, `un_number VARCHAR(10)`, `hazmat_label VARCHAR(50)` a `trips` e `cargo_manifests`. Se `trip.is_hazmat = True`, `create_load_permit()` exige `hazmat_class IS NOT NULL` — senão `ApiError("hazmat_declaration_required", ..., 422)`. Alert criado automaticamente no `control_tower` quando viagem hazmat fica `in_progress`.
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+- [ ] 15-00-PLAN.md — Wave 0: Test stubs (17 functions in test_fiscal_compliance.py + 2 in test_billing_export.py)
+- [ ] 15-01-PLAN.md — Wave 1: Alembic DDL migration (all ADD COLUMN + per-tenant sequences) + ORM model updates
+- [ ] 15-02-PLAN.md — Wave 2: LOAD-01 payload guard (create_trip, start_trip) + LOAD-02 hazmat guard + hazmat alert
+- [ ] 15-03-PLAN.md — Wave 2: FISC-01 invoice sequence — _assign_invoice_number() + issue_document() integration
+- [ ] 15-04-PLAN.md — Wave 2: FISC-02 IVA calculation + exporters.py PDF/XLSX IVA section update
+- [ ] 15-05-PLAN.md — Wave 3: FISC-03 compliance report ARQ task + GET /billing/compliance-report endpoint
 
 **UI hint**: yes (campos no formulário de viagem e veículo)
 

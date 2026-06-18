@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 13.5-03-PLAN.md — workshop service functions, router endpoints, vehicle history
-last_updated: "2026-06-18T23:28:20.729Z"
-last_activity: 2026-06-19
+stopped_at: Completed 15.1-01-PLAN.md — Wave 0 test stubs for FDOC + OPDOC requirements (23 stubs)
+last_updated: "2026-06-18T23:35:41.174Z"
+last_activity: 2026-06-18
 progress:
   total_phases: 13
   completed_phases: 6
@@ -24,8 +24,8 @@ _Last updated: 2026-06-06_
 Phase: 05 (CLI — Client Registry + Migration Foundation)
 Plan: 02 complete (2/5)
 Status: 05-02 complete 2026-06-19 — 3 migrations (b/c/d): client_id FKs + due_date + backfill + payments scaffold; 181 tests pass
-Last activity: 2026-06-19
-Stopped at: Completed 13.5-03-PLAN.md — workshop service functions, router endpoints, vehicle history
+Last activity: 2026-06-18
+Stopped at: Completed 15.1-01-PLAN.md — Wave 0 test stubs for FDOC + OPDOC requirements (23 stubs)
 
 ### Completed v3.0 Phases
 

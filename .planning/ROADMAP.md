@@ -639,6 +639,7 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 
 ## Phases (v3.0)
 
+- [ ] **Phase 13.5: Workshop Operations Expansion** — Staff de oficina (atribuição + custo mão de obra), ferramentas com histórico de calibrações, peças serializadas e timeline unificada de veículo
 - [ ] **Phase 13: Frontend Completeness** — As 4 páginas do manager referenciadas no sidebar mas sem implementação real: `/manutencao`, `/cobranca`, `/alertas`, `/settings`
 - [ ] **Phase 14: Domain State Machines** — Fechar state machines incompletas de `BillingDocument`, `Contract`, `DeliveryProof` e `DispatchClearance` — o núcleo financeiro e documental fica coerente
 - [ ] **Phase 15: Fiscal Compliance + Segurança de Carga** — IVA Moçambique, numeração fiscal, validação de peso vs capacidade, suporte hazmat
@@ -653,6 +654,50 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 ---
 
 ## Phase Details (v3.0)
+
+### Phase 13.5: Workshop Operations Expansion
+
+**Goal**: Um gestor de oficina consegue atribuir tarefas a mecânicos com custo de mão de obra calculado automaticamente, registar calibrações de ferramentas com histórico completo, gerir peças serializadas (pneus, baterias) vinculadas ao veículo, e consultar um histórico cronológico unificado de todas as intervenções num veículo.
+
+**Depends on**: Phase 4 (workshop base sólida — 18 endpoints + models existentes); Phase 04.1 (design system com `DataTable`, `StatusBadge`, `MonoCell` para UI da oficina)
+
+**Requirements**: WSHOP-01, WSHOP-02, WSHOP-03, WSHOP-04, WSHOP-05
+
+**Success Criteria** (what must be TRUE):
+  1. Um gestor atribui uma tarefa a um mecânico com estimativa de 90 minutos; ao completar, o campo `labor_cost` do WorkOrder é atualizado automaticamente com base na taxa horária do mecânico — sem cálculo manual
+  2. Uma ferramenta crítica com `calibration_due_at` a menos de 30 dias gera um `Alert` automático — a ferramenta não pode ser retirada para uso sem calibração válida
+  3. Um pneu com número de série `MZ-TBB-2024-001` é registado, instalado num veículo e aparece em `GET /workshop/vehicles/{id}/installed-parts` com `status=installed` e `vehicle_id` correto
+  4. `GET /api/v1/vehicles/{id}/history?types=maintenance,fuel` retorna eventos paginados em ordem cronológica de ambos os tipos com `event_type`, `event_date`, `title`, `reference_id` e `odometer_reading` preenchidos
+  5. A página `/manutencao` exibe 4 tabs funcionais; `/viaturas/[id]/historico` renderiza a timeline com filtros por tipo de evento
+
+**Architecture constraints**:
+- Todos os novos campos em tabelas existentes adicionados por `ALTER TABLE` (nunca DROP/RECREATE)
+- Três novas tabelas: `workshop_staff_rates`, `tool_calibrations`, `spare_part_serial_items` — cada uma com RLS + GRANT na mesma migração (padrão v2.0 obrigatório)
+- `labor_cost` em `work_orders` é **acumulado** em cada task completion — nunca recalculado em batch; campo separado de `actual_cost` (que é custo de peças)
+- Role `mechanic` adicionado ao enum de roles existente — permissões: escrita em workshop (WOs, tasks, ferramentas, peças); sem acesso a billing/contratos/configurações de tenant
+- Vehicle history endpoint usa UNION ALL com query separada por entidade + ORDER BY `event_date DESC` no exterior — nunca JOINs em N entidades (performance)
+- Cursor pagination por `event_date + id` (par único) — não por offset (resultados instáveis com inserts concorrentes)
+- Peças serializadas (`spare_part_serial_items`) geram `SparePartMovement` direction=`out` quando instaladas — manter rastreabilidade de stock
+
+**Implementation Notes**:
+- **WSHOP-01 (Staff)**: `WorkOrderTask` recebe `assigned_to UUID nullable FK → users.id`, `estimated_minutes INT`, `actual_minutes INT`. `WorkOrder` recebe `labor_cost Numeric(14,2) DEFAULT 0`. Nova tabela `workshop_staff_rates`: `id`, `tenant_id`, `user_id UUID FK → users.id`, `hourly_rate Numeric(10,2)`, `effective_from DATE`, `created_at`. Service `assign_task_to_mechanic(task_id, user_id, estimated_minutes, db)` + extensão de `complete_task()` que lê rate ativa e acumula `labor_cost`. Endpoint `PATCH /workshop/work-orders/{wo_id}/tasks/{task_id}` (atribuição + estimativa). Endpoint `GET /workshop/kpis` adiciona `total_labor_hours`, `total_labor_cost`, `work_orders_by_mechanic` ao payload existente.
+- **WSHOP-02 (Ferramentas)**: `WorkshopTool` recebe: `category VARCHAR(40)`, `location VARCHAR(120)`, `serial_number VARCHAR(80)`, `purchase_date DATE`, `purchase_cost Numeric(10,2)`, `calibration_interval_days INT`. Nova tabela `tool_calibrations`: `id`, `tenant_id`, `tool_id FK`, `calibrated_by UUID`, `calibrated_at TIMESTAMPTZ`, `next_due_at TIMESTAMPTZ`, `notes TEXT`, `created_at`. Service `record_tool_calibration()` cria registo + atualiza `workshop_tools.calibration_due_at`. Alerta automático via `ensure_exception()` quando `calibration_due_at < NOW() + INTERVAL '30 days'` e `is_critical=true`. Endpoint `PATCH /workshop/tools/{id}` permite atualizar status, location, calibration_interval_days.
+- **WSHOP-03 (Peças Serializadas)**: `SparePartInventory` recebe: `category VARCHAR(40)` (enum: `filtro/pneu/bateria/correia/outro`), `shelf_location VARCHAR(80)`, `supplier_name VARCHAR(160)`, `lead_time_days INT`, `reorder_quantity INT`. Nova tabela `spare_part_serial_items`: `id`, `tenant_id`, `part_id FK → spare_parts_inventory.id`, `serial_number VARCHAR(120)`, `status VARCHAR(30)` (enum: `in_stock/installed/scrapped`), `vehicle_id UUID nullable FK`, `installed_at TIMESTAMPTZ`, `scrapped_at TIMESTAMPTZ`, `notes TEXT`, `created_at`. Instalação cria `SparePartMovement` com `direction=out`, `movement_type=serial_install`. `GET /workshop/spare-parts/low-stock`: `WHERE current_quantity <= minimum_quantity AND status='active'`.
+- **WSHOP-04 (Vehicle History)**: Endpoint em `vehicles/router.py`: `GET /api/v1/vehicles/{vehicle_id}/history?from=&to=&types=&cursor=&limit=`. Service `get_vehicle_history()` em `vehicles/service.py` executa UNION ALL com 6 sub-queries (uma por entidade), filtra por `tenant_id + vehicle_id + date range`, ordena por `event_date DESC`. Cursor: base64-encode de `{event_date}|{id}`. Resposta: `{events: [...], next_cursor: str|null, total_count: int}`.
+- **WSHOP-05 (UI)**: `apps/manager/app/manutencao/page.tsx` — adicionar `<Tabs>` do shadcn/ui com 4 painéis. `PartsInventoryTable.tsx`: colunas SKU / Nome / Stock / Mínimo / Custo Médio / Categoria / Localização + badge amber "stock baixo" (dot `::before`) quando `current_quantity <= minimum_quantity`. `ToolsTable.tsx`: colunas Código / Nome / Status / Calibração + badge vermelho quando `calibration_due_at < NOW() + 30d`. Página `/viaturas/[id]/historico/page.tsx`: timeline vertical com ícone por `event_type`, data ISO, título e link para entidade (`reference_id`).
+
+**Plans**: 5 plans
+
+Plans:
+- [ ] 13.5-01-PLAN.md — Wave 1: Alembic migration (3 new tables + ALTER TABLE additions + RLS + GRANT)
+- [ ] 13.5-02-PLAN.md — Wave 2: ORM models extension + Pydantic schemas for all new entities
+- [ ] 13.5-03-PLAN.md — Wave 3: Service layer (staff rates, calibration, serial parts, vehicle history) + 11 new endpoints
+- [ ] 13.5-04-PLAN.md — Wave 4: Frontend UI (PartsInventoryTable, ToolsTable, 4-tab /manutencao, /viaturas/[id]/historico)
+- [ ] 13.5-05-PLAN.md — Wave 5: Automated tests (23 tests across 4 new test files)
+
+**UI hint**: yes
+
+---
 
 ### Phase 13: Frontend Completeness
 

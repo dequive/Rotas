@@ -1,4 +1,5 @@
-import { Plus, QrCode, Truck } from "lucide-react";
+import { QrCode, Truck } from "lucide-react";
+import Link from "next/link";
 import { requireSession } from "../lib/auth";
 import { loadVehicles } from "../lib/vehicles-api";
 import { SidebarLayout } from "../components/SidebarLayout";
@@ -63,6 +64,7 @@ export default async function ViaturasPage() {
                 <th>Estado</th>
                 <th>Documentos</th>
                 <th>Acções</th>
+                <th>Histórico</th>
               </tr>
             </thead>
             <tbody>
@@ -119,6 +121,15 @@ export default async function ViaturasPage() {
                         >
                           <QrCode size={16} />
                         </a>
+                      </td>
+                      <td>
+                        <Link
+                          href={`/viaturas/${v.id}/historico`}
+                          className="text-xs font-semibold"
+                          style={{ color: "var(--blue)" }}
+                        >
+                          Ver Histórico
+                        </Link>
                       </td>
                     </tr>
                   );

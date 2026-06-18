@@ -215,18 +215,26 @@ export function SettingsClient({
         {activeTab === "acessos" && (
           <section className="bg-surface border border-border rounded-lg p-6">
             <SectionHeader title="Gestão de Acessos" />
-            <p className="text-[13px] text-muted mt-2">
-              As permissões e chaves de segurança da API da sua empresa podem ser configuradas aqui. Contacte o administrador principal para alterar chaves públicas de acesso.
-            </p>
+            <div className="mt-6 flex flex-col items-center justify-center h-32 gap-3 bg-surface-2 border border-dashed border-border rounded-lg">
+              <ShieldCheck size={24} className="text-muted" />
+              <p className="text-[13px] text-muted font-semibold">Em breve</p>
+              <p className="text-[12px] text-muted text-center max-w-xs">
+                A gestão de utilizadores e permissões de acesso estará disponível numa próxima versão.
+              </p>
+            </div>
           </section>
         )}
 
         {activeTab === "preferencias" && (
           <section className="bg-surface border border-border rounded-lg p-6">
             <SectionHeader title="Preferências do Sistema" />
-            <p className="text-[13px] text-muted mt-2">
-              Defina o fuso horário, a moeda de faturamento padrão (Meticais por padrão) e as preferências de envio de alertas por SMS/Email.
-            </p>
+            <div className="mt-6 flex flex-col items-center justify-center h-32 gap-3 bg-surface-2 border border-dashed border-border rounded-lg">
+              <Settings size={24} className="text-muted" />
+              <p className="text-[13px] text-muted font-semibold">Em breve</p>
+              <p className="text-[12px] text-muted text-center max-w-xs">
+                Configurações de fuso horário, moeda e alertas por SMS/Email estarão disponíveis em breve.
+              </p>
+            </div>
           </section>
         )}
       </div>

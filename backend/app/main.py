@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import UTC
 
 import arq
 import sentry_sdk
@@ -19,7 +20,8 @@ from app.core.limiter import limiter
 from app.core.logging import configure_structlog
 from app.core.middleware import StructlogRequestMiddleware
 from app.core.request_context import RequestContextMiddleware
-from app.database import engine as _engine, import_all_models
+from app.database import engine as _engine
+from app.database import import_all_models
 from app.modules.alerts.router import router as alerts_router
 from app.modules.analytics.router import router as analytics_router
 from app.modules.audit.router import router as audit_router
@@ -28,6 +30,7 @@ from app.modules.auth.router import router as auth_router
 from app.modules.billing.router import router as billing_router
 from app.modules.cargo.router import router as cargo_router
 from app.modules.checklists.router import router as checklists_router
+from app.modules.clients.router import router as clients_router
 from app.modules.contracts.router import router as contracts_router
 from app.modules.control_tower.router import router as control_tower_router
 from app.modules.drivers.router import router as drivers_router
@@ -50,19 +53,24 @@ settings = get_settings()
 import_all_models()
 
 # INFRA-01: PII fields that must never appear in Sentry payloads (D-03)
-_PII_FIELDS = frozenset([
-    "driver_name", "cargo_description", "phone", "nuit", "email",
-    "plate_number", "receiver_name", "receiver_contact",
-])
+_PII_FIELDS = frozenset(
+    [
+        "driver_name",
+        "cargo_description",
+        "phone",
+        "nuit",
+        "email",
+        "plate_number",
+        "receiver_name",
+        "receiver_contact",
+    ]
+)
 
 
 def _scrub_dict(d: object) -> object:
     if not isinstance(d, dict):
         return d
-    return {
-        k: "[Filtered]" if k in _PII_FIELDS else _scrub_dict(v)
-        for k, v in d.items()
-    }
+    return {k: "[Filtered]" if k in _PII_FIELDS else _scrub_dict(v) for k, v in d.items()}
 
 
 def _scrub_pii(event: dict, hint: dict) -> dict | None:
@@ -106,9 +114,7 @@ async def lifespan(app: FastAPI):
     # NOTE: app.state.redis is for GET/SET cache ops; app.state.arq_redis is for enqueue_job()
     # They are DIFFERENT objects — do not substitute one for the other.
     try:
-        app.state.arq_redis = await arq.create_pool(
-            ArqRedisSettings.from_dsn(settings.redis_url)
-        )
+        app.state.arq_redis = await arq.create_pool(ArqRedisSettings.from_dsn(settings.redis_url))
     except Exception:
         app.state.arq_redis = None
 
@@ -151,7 +157,7 @@ app.add_middleware(RequestContextMiddleware)
 app.add_middleware(StructlogRequestMiddleware)
 
 # SEC-02 / D-11: Always attach CORSMiddleware. In production, startup validator ensures
-# cors_origins is non-empty. In development, empty list means no cross-origin requests allowed.
+# cors_origins is explicit. Development defaults allow the local manager dev servers.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -162,15 +168,17 @@ app.add_middleware(
 
 
 @app.get("/health", tags=["operation"], include_in_schema=False)
-async def health_simple() -> dict[str, str]:
+@limiter.limit("60/minute")
+async def health_simple(request: Request) -> dict[str, str]:
     """Lightweight health check for Railway TCP probe. Always returns 200."""
     return {"status": "ok"}
 
 
 @app.get("/health/deep", tags=["operation"])
+@limiter.limit("60/minute")
 async def health_deep(request: Request) -> dict:
     import asyncio
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     checks: dict[str, str] = {}
     overall_ok = True
@@ -207,7 +215,7 @@ async def health_deep(request: Request) -> dict:
             heartbeat = await redis.get("arq:health:worker_heartbeat")
             if heartbeat:
                 last_beat = datetime.fromisoformat(heartbeat)
-                age_seconds = (datetime.now(timezone.utc) - last_beat).total_seconds()
+                age_seconds = (datetime.now(UTC) - last_beat).total_seconds()
                 if age_seconds < 90:
                     checks["arq_worker"] = f"ok (last beat {int(age_seconds)}s ago)"
                 else:
@@ -224,7 +232,7 @@ async def health_deep(request: Request) -> dict:
     result = {
         "status": "ok" if overall_ok else "degraded",
         "checks": checks,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     if overall_ok:
@@ -234,7 +242,8 @@ async def health_deep(request: Request) -> dict:
 
 
 @app.get("/version", tags=["operation"])
-async def version() -> dict[str, str]:
+@limiter.limit("60/minute")
+async def version(request: Request) -> dict[str, str]:
     return {"version": settings.version, "environment": settings.environment}
 
 
@@ -243,6 +252,7 @@ app.include_router(auth_router, prefix=api)
 app.include_router(driver_router, prefix=api)
 app.include_router(onboarding_router, prefix=api)
 app.include_router(tenants_router, prefix=api)
+app.include_router(clients_router, prefix=api)
 app.include_router(contracts_router, prefix=api)
 app.include_router(users_router, prefix=api)
 app.include_router(vehicles_router, prefix=api)

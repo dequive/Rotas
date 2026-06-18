@@ -46,15 +46,16 @@ def set_rls_tenant(tenant_id: str | None) -> None:
 def _inject_rls_tenant(session, transaction, connection):  # type: ignore[no-untyped-def]
     """SQLAlchemy after_begin event: fires once per transaction.
 
-    Executes SET LOCAL app.tenant_id so the PostgreSQL RLS policy can read it.
-    SET LOCAL (not SET) is mandatory — scoped to the current transaction only.
+    Executes a transaction-local set_config so the PostgreSQL RLS policy can read it.
+    Transaction-local scope (not connection scope) is mandatory for pool safety.
     With asyncpg connection pooling, connections are reused across requests.
-    SET LOCAL ensures the tenant_id never leaks across request boundaries (D-17).
+    The transaction-local flag ensures the tenant_id never leaks across request boundaries (D-17).
     """
     tid = _rls_tenant.get()
     if tid is not None:
         connection.execute(
-            text(f"SET LOCAL app.tenant_id = '{tid}'")  # noqa: S608 — controlled input from JWT
+            text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+            {"tenant_id": tid},
         )
 
 
@@ -65,8 +66,12 @@ async def get_session_raw() -> AsyncIterator[AsyncSession]:
     and by get_current_principal in app.core.auth which uses AsyncSessionLocal directly.
     All other tenant-aware routes should use get_session from app.core.deps instead.
     """
-    async with AsyncSessionLocal() as session:
-        yield session
+    set_rls_tenant(None)
+    try:
+        async with AsyncSessionLocal() as session:
+            yield session
+    finally:
+        set_rls_tenant(None)
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +96,7 @@ MODEL_MODULES = (
     "auth",
     "tenants",
     "contracts",
+    "clients",
     "users",
     "drivers",
     "vehicles",

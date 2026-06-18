@@ -53,8 +53,8 @@ export function useSyncStatus(isOnline: boolean, isSyncing: boolean): SyncStatus
       }
     }
 
-    void refresh();
-    interval = setInterval(() => { void refresh(); }, 5000);
+    refresh();
+    interval = setInterval(refresh, 5000);
     return () => { if (interval) clearInterval(interval); };
   }, []);
 

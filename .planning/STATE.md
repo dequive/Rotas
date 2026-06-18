@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: tms-enterprise-completo
-status: planning
-stopped_at: v3.0 roadmap created from audit report 2026-06-18 — Phase 13 is next
-last_updated: "2026-06-18T12:09:00.000Z"
+status: in_progress
+stopped_at: Phase 14 + Phase 17 (all waves) complete 2026-06-18 — Phase 15 + Phase 16 next (now unblocked)
+last_updated: "2026-06-18T18:00:00.000Z"
 last_activity: 2026-06-18
 progress:
   total_phases: 19
-  completed_phases: 5
+  completed_phases: 7
   total_plans: 54
-  completed_plans: 52
+  completed_plans: 56
 ---
 
 # ROTAS — Project State
@@ -21,11 +21,15 @@ _Last updated: 2026-06-06_
 
 ## Current Phase
 
-Phase: 13 (v3.0 — first phase)
+Phase: 15 + 16 (v3.0 — both now unblocked)
 Plan: Not started
-Status: Planning — v3.0 roadmap criado a 2026-06-18; aguarda execução de Phase 13
+Status: Phase 14 (SM-01..SM-04 all waves ✅) + Phase 17 (INFRA2-01..INFRA2-04 all waves ✅) complete 2026-06-18
 Last activity: 2026-06-18
-Stopped at: v3.0 ROADMAP.md e REQUIREMENTS.md criados — próximo passo é `/gsd-plan-phase 13`
+Stopped at: Phase 14 + 17 fully implemented — Phase 15 (Fiscal+Load) and Phase 16 (HOS+Avail) are now unblocked; can run in parallel
+
+### Completed v3.0 Phases
+- [x] **Phase 14** — Domain State Machines (SM-01 BillingDocument, SM-02 Contract, SM-03 DeliveryProof, SM-04 DispatchClearance)
+- [x] **Phase 17** — Infrastructure Enterprise v2 (INFRA2-01 distributed rate limiting, INFRA2-02 structured logging, INFRA2-03 Prometheus metrics, INFRA2-04 deep health check + worker heartbeat)
 
 ---
 
@@ -195,8 +199,8 @@ _None — v3.0 roadmap criado; nenhum bloqueio activo._
 - [ ] Run pre-migration audit query before writing Phase 5 migration code: `SELECT tenant_id, lower(trim(client_name)), count(*) FROM contracts GROUP BY 1, 2 HAVING count(*) > 1`
 - [ ] Confirm PostGIS availability on Railway PostgreSQL before any geofencing design (Phase 12+)
 - [ ] Complete Phase 04.1-08 (legacy CSS cleanup)
-- [ ] Complete Phase 02-07 (SyncStatusBanner) + 02-08 (field test)
-- [ ] Complete Phase 04-08 (RLS plan)
+- [x] Complete Phase 02-07 (SyncStatusBanner) + [ ] 02-08 (field test)
+- [x] Complete Phase 04-08 (RLS plan) — DONE: implemented during Phase 9; database.py ContextVar+after_begin, 4 Alembic migrations, 5 tests in test_rls.py all verified present
 
 **v3.0 — Antes de iniciar Phase 13:**
 - [ ] Verificar requisitos da AT Moçambique para numeração sequencial de faturas (FISC-01)

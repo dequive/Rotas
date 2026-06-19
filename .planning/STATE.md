@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
+milestone: v3.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 23-08-PLAN.md
-last_updated: "2026-06-19T15:38:51.007Z"
+status: in_progress
+stopped_at: Completed 23-08-PLAN.md (Phase 23 Third Party Registry — 11/11 PASS, 29 tests)
+last_updated: "2026-06-19T00:00:00.000Z"
 last_activity: 2026-06-19
 progress:
-  total_phases: 13
-  completed_phases: 7
-  total_plans: 60
-  completed_plans: 59
+  total_phases: 14
+  completed_phases: 8
+  total_plans: 68
+  completed_plans: 67
 ---
 
 # ROTAS — Project State
@@ -29,6 +29,7 @@ Stopped at: Completed 23-08-PLAN.md
 
 ### Completed v3.0 Phases
 
+- [x] **Phase 23** — Third Party Registry (TP-01..TP-11: third_parties, roles, profiles, mz_provinces, nullable FKs, eligibility service, assignments, operational_documents, expiry alerts, party directory UNION ALL) — 29 tests passed, 11/11 PASS
 - [x] **Phase 14** — Domain State Machines (SM-01 BillingDocument, SM-02 Contract, SM-03 DeliveryProof, SM-04 DispatchClearance)
 - [x] **Phase 15.1** — Documentos Fiscais Completos (FDOC-01..05: Nota de Débito, Nota de Crédito, Fatura-Recibo, Recibo, AR aging; OPDOC-01..05: extra_fields DDL, Guia de Remessa PDF, CPI bilingual PDF, DAV digital record, checklist por tipo de viagem) — 238 passed, 3 skipped
 - [x] **Phase 17** — Infrastructure Enterprise v2 (INFRA2-01 distributed rate limiting, INFRA2-02 structured logging, INFRA2-03 Prometheus metrics, INFRA2-04 deep health check + worker heartbeat)

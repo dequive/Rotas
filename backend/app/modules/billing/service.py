@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ApiError
 from app.modules.audit.service import record_audit_log
 from app.modules.billing.exporters import render_billing_export
-from app.modules.billing.models import BillingDocument, BillingItem
+from app.modules.billing.models import BillingDocument, BillingItem, ClientPayment, PaymentAllocation
 from app.modules.billing.schemas import BillingDocumentCreate, IssueBillingDocumentRequest
 from app.modules.cargo.models import CargoManifest, DeliveryProof, LoadPermit, TransportDocument
 from app.modules.contracts.models import Contract
@@ -1418,3 +1418,389 @@ async def list_ar_documents(
             }
         )
     return output
+
+
+# ── Phase 6: Payment Registration Service Functions ───────────────────────────
+
+
+async def _sum_confirmed_allocations(
+    db: AsyncSession, tenant_id: UUID, billing_document_id: UUID
+) -> Decimal:
+    """Sum amount_applied for confirmed payments allocated to this billing document."""
+    result = await db.execute(
+        select(func.coalesce(func.sum(PaymentAllocation.amount_applied), 0))
+        .join(ClientPayment, ClientPayment.id == PaymentAllocation.payment_id)
+        .where(
+            PaymentAllocation.billing_document_id == billing_document_id,
+            ClientPayment.tenant_id == tenant_id,
+            ClientPayment.status == "confirmed",
+        )
+    )
+    return Decimal(str(result.scalar_one())).quantize(Decimal("0.01"))
+
+
+def serialize_payment(payment: ClientPayment, allocations: list) -> dict:
+    return {
+        "id": str(payment.id),  # str — test_payment_idempotency: str(rows[0].id) == result["id"]
+        "tenant_id": payment.tenant_id,
+        "client_id": payment.client_id,
+        "billing_document_id": payment.billing_document_id,
+        "amount": payment.amount,
+        "currency": payment.currency,
+        "value_date": payment.value_date,
+        "payment_method": payment.payment_method,
+        "reference": payment.reference,
+        "notes": payment.notes,
+        "status": payment.status,
+        "voided_at": payment.voided_at,
+        "voided_by": payment.voided_by,
+        "void_reason": payment.void_reason,
+        "created_by": payment.created_by,
+        "created_at": payment.created_at,
+        "allocations": [
+            {
+                "id": a.id,
+                "billing_document_id": a.billing_document_id,
+                "amount_applied": a.amount_applied,
+                "created_at": a.created_at,
+            }
+            for a in allocations
+        ],
+    }
+
+
+async def register_payment(
+    db: AsyncSession,
+    tenant_id: UUID,
+    user_id: UUID,
+    payload,  # ClientPaymentCreate — imported inline to avoid circular import at module level
+) -> dict:
+    """PAY-01 / PAY-02: Register a client payment, optionally allocating it to an invoice.
+
+    If billing_document_id is None, creates an advance payment (no allocation row).
+    If billing_document_id is provided, verifies tenant + client match, guards over-allocation,
+    creates PaymentAllocation, and transitions the document to 'paid' when fully covered.
+    """
+    from app.modules.clients.models import Client  # avoid circular import
+
+    # 1. Verify client belongs to this tenant
+    client = await db.get(Client, payload.client_id)
+    if not client or client.tenant_id != tenant_id:
+        raise ApiError("client_not_found", "Client not found", status_code=404)
+
+    billing_doc = None
+    if payload.billing_document_id:
+        # 2a. Verify billing document belongs to tenant
+        billing_doc = await db.get(BillingDocument, payload.billing_document_id)
+        if not billing_doc or billing_doc.tenant_id != tenant_id:
+            raise ApiError("billing_document_not_found", "Invoice not found", status_code=404)
+        # 2b. Cross-client mismatch guard
+        if billing_doc.client_id != payload.client_id:
+            raise ApiError(
+                "payment_client_mismatch",
+                "Payment client does not match invoice client",
+                status_code=409,
+            )
+        # 2c. Invoice must be payable
+        if billing_doc.status not in ("issued", "overdue"):
+            raise ApiError(
+                "invoice_not_payable",
+                f"Invoice status '{billing_doc.status}' does not accept payments",
+                status_code=409,
+            )
+        # 2d. Over-allocation guard
+        existing_paid = await _sum_confirmed_allocations(db, tenant_id, billing_doc.id)
+        remaining = (billing_doc.total_amount - existing_paid).quantize(Decimal("0.01"))
+        if payload.amount > remaining:
+            raise ApiError(
+                "payment_exceeds_invoice_balance",
+                "Payment amount exceeds remaining invoice balance",
+                status_code=409,
+                details={"remaining": str(remaining), "requested": str(payload.amount)},
+            )
+
+    # 3. Create payment record
+    payment = ClientPayment(
+        tenant_id=tenant_id,
+        client_id=payload.client_id,
+        billing_document_id=payload.billing_document_id,
+        amount=payload.amount,
+        currency=getattr(payload, "currency", "MZN") or "MZN",
+        value_date=payload.value_date,
+        payment_method=payload.payment_method,
+        reference=getattr(payload, "reference", None),
+        notes=getattr(payload, "notes", None),
+        status="confirmed",
+        created_by=user_id,
+    )
+    db.add(payment)
+    await db.flush()
+
+    allocations: list[PaymentAllocation] = []
+    if billing_doc:
+        # 4. Create allocation row
+        alloc = PaymentAllocation(
+            tenant_id=tenant_id,
+            payment_id=payment.id,
+            billing_document_id=billing_doc.id,
+            amount_applied=payload.amount,
+        )
+        db.add(alloc)
+        allocations.append(alloc)
+        await db.flush()
+
+        # 5. Transition document to 'paid' if fully covered
+        new_total_paid = (existing_paid + payload.amount).quantize(Decimal("0.01"))
+        if new_total_paid >= billing_doc.total_amount:
+            await transition_billing_document(
+                db,
+                document=billing_doc,
+                new_status="paid",
+                user_id=user_id,
+                tenant_id=tenant_id,
+                paid_at=payload.value_date,
+            )
+
+    # 6. Audit log
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        action="payment.created",
+        entity_type="client_payment",
+        entity_id=payment.id,
+        new_values={
+            "client_id": str(payload.client_id),
+            "billing_document_id": (
+                str(payload.billing_document_id) if payload.billing_document_id else None
+            ),
+            "amount": str(payload.amount),
+            "payment_method": payload.payment_method,
+        },
+    )
+    await db.commit()
+    await db.refresh(payment)
+    for a in allocations:
+        await db.refresh(a)
+    return serialize_payment(payment, allocations)
+
+
+async def void_payment(
+    db: AsyncSession,
+    *,
+    payment_id: UUID,
+    tenant_id: UUID,
+    user_id: UUID,
+    void_reason: str,
+) -> dict:
+    """PAY-01 / PAY-03: Void a confirmed payment and reverse any billing document transitions.
+
+    Sets status='voided'. For each affected billing document, if the remaining confirmed
+    allocations no longer cover the total_amount and the document is 'paid', it is reverted
+    to 'issued' or 'overdue' (depending on due_date).
+    """
+    # 1. Fetch + verify
+    payment = await db.get(ClientPayment, payment_id)
+    if not payment or payment.tenant_id != tenant_id:
+        raise ApiError("payment_not_found", "Payment not found", status_code=404)
+
+    # 2. Must be confirmed to void
+    if payment.status != "confirmed":
+        raise ApiError(
+            "payment_already_voided",
+            "Payment has already been voided",
+            status_code=409,
+        )
+
+    # 3. Collect affected billing document IDs before voiding
+    alloc_result = await db.execute(
+        select(PaymentAllocation).where(PaymentAllocation.payment_id == payment_id)
+    )
+    allocations = list(alloc_result.scalars())
+    affected_doc_ids = [a.billing_document_id for a in allocations]
+
+    # 4. Void the payment
+    payment.status = "voided"
+    payment.voided_at = datetime.now(UTC)
+    payment.voided_by = user_id
+    payment.void_reason = void_reason
+    db.add(payment)
+    await db.flush()
+
+    # 5. For each affected billing document, check if it needs to revert from 'paid'
+    for doc_id in affected_doc_ids:
+        billing_doc = await db.get(BillingDocument, doc_id)
+        if not billing_doc:
+            continue
+        if billing_doc.status != "paid":
+            continue
+        # Re-compute remaining confirmed allocations (payment is now voided so excluded)
+        remaining_allocated = await _sum_confirmed_allocations(db, tenant_id, doc_id)
+        if remaining_allocated < billing_doc.total_amount:
+            # Determine correct revert status
+            now = datetime.now(UTC)
+            due = billing_doc.due_date
+            # Normalise due_date to timezone-aware if naive
+            if due is not None and due.tzinfo is None:
+                from datetime import timezone
+                due = due.replace(tzinfo=timezone.utc)
+            revert_status = "overdue" if (due is not None and due < now) else "issued"
+            # transition_billing_document only allows paid→(none), so we set manually
+            # because 'paid' is a terminal state in the SM — we bypass the guard here
+            # since voiding is an exceptional financial reversal path.
+            old_status = billing_doc.status
+            billing_doc.status = revert_status
+            billing_doc.paid_at = None
+            db.add(billing_doc)
+            await db.flush()
+            # Record audit log for the reversal
+            await record_audit_log(
+                db,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                action=f"billing.document.{revert_status}",
+                entity_type="billing_document",
+                entity_id=billing_doc.id,
+                old_values={"status": old_status},
+                new_values={"status": revert_status, "paid_at": None},
+            )
+
+    # 6. Audit log for void
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        action="payment.voided",
+        entity_type="client_payment",
+        entity_id=payment.id,
+        old_values={"status": "confirmed"},
+        new_values={"status": "voided", "void_reason": void_reason},
+    )
+    await db.commit()
+    await db.refresh(payment)
+    return serialize_payment(payment, [])
+
+
+async def apply_advance_to_invoice(
+    db: AsyncSession,
+    *,
+    payment_id: UUID,
+    tenant_id: UUID,
+    user_id: UUID,
+    billing_document_id: UUID,
+    amount_applied: Decimal,
+) -> dict:
+    """PAY-02: Apply an advance payment (billing_document_id=None) to a specific invoice.
+
+    Verifies the payment is a true advance, checks over-application guard on both
+    the payment side and the invoice side, creates a PaymentAllocation row, and
+    transitions the document to 'paid' if fully covered.
+    """
+    # 1. Fetch + verify payment
+    payment = await db.get(ClientPayment, payment_id)
+    if not payment or payment.tenant_id != tenant_id:
+        raise ApiError("payment_not_found", "Payment not found", status_code=404)
+    if payment.status != "confirmed":
+        raise ApiError(
+            "payment_not_confirmed",
+            "Only confirmed payments can be applied",
+            status_code=409,
+        )
+    if payment.billing_document_id is not None:
+        raise ApiError(
+            "payment_not_an_advance",
+            "Only advance payments (no initial billing_document_id) can be applied this way",
+            status_code=409,
+        )
+
+    # 2. Fetch + verify billing document
+    billing_doc = await db.get(BillingDocument, billing_document_id)
+    if not billing_doc or billing_doc.tenant_id != tenant_id:
+        raise ApiError("billing_document_not_found", "Invoice not found", status_code=404)
+    if billing_doc.client_id != payment.client_id:
+        raise ApiError(
+            "payment_client_mismatch",
+            "Payment client does not match invoice client",
+            status_code=409,
+        )
+    if billing_doc.status not in ("issued", "overdue"):
+        raise ApiError(
+            "invoice_not_payable",
+            f"Invoice status '{billing_doc.status}' does not accept payments",
+            status_code=409,
+        )
+
+    # 3. Guard: advance over-application (don't allocate more than payment total)
+    existing_alloc_result = await db.execute(
+        select(func.coalesce(func.sum(PaymentAllocation.amount_applied), 0)).where(
+            PaymentAllocation.payment_id == payment_id
+        )
+    )
+    already_applied = Decimal(str(existing_alloc_result.scalar_one())).quantize(Decimal("0.01"))
+    if already_applied + amount_applied > payment.amount:
+        raise ApiError(
+            "advance_over_applied",
+            "Total applied would exceed original payment amount",
+            status_code=409,
+            details={
+                "payment_amount": str(payment.amount),
+                "already_applied": str(already_applied),
+                "requested": str(amount_applied),
+            },
+        )
+
+    # 4. Guard: don't exceed invoice remaining balance
+    doc_already_paid = await _sum_confirmed_allocations(db, tenant_id, billing_document_id)
+    doc_remaining = (billing_doc.total_amount - doc_already_paid).quantize(Decimal("0.01"))
+    if amount_applied > doc_remaining:
+        raise ApiError(
+            "payment_exceeds_invoice_balance",
+            "Amount applied exceeds remaining invoice balance",
+            status_code=409,
+            details={"remaining": str(doc_remaining), "requested": str(amount_applied)},
+        )
+
+    # 5. Create allocation
+    alloc = PaymentAllocation(
+        tenant_id=tenant_id,
+        payment_id=payment_id,
+        billing_document_id=billing_document_id,
+        amount_applied=amount_applied,
+    )
+    db.add(alloc)
+    await db.flush()
+
+    # 6. Transition document to 'paid' if fully covered
+    new_doc_total_paid = (doc_already_paid + amount_applied).quantize(Decimal("0.01"))
+    if new_doc_total_paid >= billing_doc.total_amount:
+        await transition_billing_document(
+            db,
+            document=billing_doc,
+            new_status="paid",
+            user_id=user_id,
+            tenant_id=tenant_id,
+            paid_at=payment.value_date,
+        )
+
+    # 7. Audit log
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        action="payment.advance_applied",
+        entity_type="client_payment",
+        entity_id=payment_id,
+        new_values={
+            "billing_document_id": str(billing_document_id),
+            "amount_applied": str(amount_applied),
+        },
+    )
+    await db.commit()
+    await db.refresh(payment)
+
+    # Return updated payment with all allocations
+    all_alloc_result = await db.execute(
+        select(PaymentAllocation).where(PaymentAllocation.payment_id == payment_id)
+    )
+    all_allocations = list(all_alloc_result.scalars())
+    return serialize_payment(payment, all_allocations)

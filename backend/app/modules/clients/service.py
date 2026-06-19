@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -38,19 +39,36 @@ def serialize_client(client: Client, outstanding_balance: Decimal | None = None)
 async def _get_outstanding_balance(
     db: AsyncSession, client_id: UUID, tenant_id: UUID
 ) -> Decimal:
-    """Sum total_amount of issued billing documents for this client.
+    """Outstanding balance: gross issued/overdue invoice totals minus confirmed allocations.
 
-    Uses BillingDocument.client_id FK added in Plan 02 migration (b).
-    Only 'issued' status documents count as outstanding — draft/paid/voided are excluded.
+    Updated in Phase 6 to subtract PaymentAllocation.amount_applied for confirmed payments.
+    Includes both 'issued' and 'overdue' documents — both represent outstanding receivables.
     """
-    result = await db.execute(
+    from app.modules.billing.models import ClientPayment, PaymentAllocation  # avoid circular import
+
+    gross_result = await db.execute(
         select(func.coalesce(func.sum(BillingDocument.total_amount), 0)).where(
             BillingDocument.client_id == client_id,
             BillingDocument.tenant_id == tenant_id,
-            BillingDocument.status == "issued",
+            BillingDocument.status.in_(("issued", "overdue")),
         )
     )
-    return Decimal(str(result.scalar_one()))
+    gross = Decimal(str(gross_result.scalar_one()))
+
+    paid_result = await db.execute(
+        select(func.coalesce(func.sum(PaymentAllocation.amount_applied), 0))
+        .join(ClientPayment, ClientPayment.id == PaymentAllocation.payment_id)
+        .join(BillingDocument, BillingDocument.id == PaymentAllocation.billing_document_id)
+        .where(
+            ClientPayment.client_id == client_id,
+            ClientPayment.tenant_id == tenant_id,
+            ClientPayment.status == "confirmed",
+            BillingDocument.status.in_(("issued", "overdue")),
+        )
+    )
+    paid = Decimal(str(paid_result.scalar_one()))
+
+    return (gross - paid).quantize(Decimal("0.01"))
 
 
 async def list_clients(
@@ -119,3 +137,116 @@ async def patch_client(
     await db.commit()
     await db.refresh(client)
     return serialize_client(client)
+
+
+# ── Phase 6: Client Statement (PAY-03) ───────────────────────────────────────
+
+
+async def get_client_statement(
+    db: AsyncSession,
+    client_id: UUID,
+    tenant_id: UUID,
+    *,
+    period_start: datetime | None = None,
+    period_end: datetime | None = None,
+) -> dict:
+    """Synchronous client statement — balance computed from DB, not cache. (PAY-03)
+
+    Returns client + billing documents with per-document amount_paid and outstanding_balance
+    + all payments + summary totals. Data is always consistent within the same DB session.
+    """
+    from app.modules.billing.models import ClientPayment, PaymentAllocation  # avoid circular import
+
+    client = await db.get(Client, client_id)
+    if not client or client.tenant_id != tenant_id:
+        raise ApiError("client_not_found", "Client not found", status_code=404)
+
+    # Fetch billing documents for this client
+    doc_query = select(BillingDocument).where(
+        BillingDocument.client_id == client_id,
+        BillingDocument.tenant_id == tenant_id,
+    )
+    if period_start:
+        doc_query = doc_query.where(BillingDocument.billing_period_start >= period_start)
+    if period_end:
+        doc_query = doc_query.where(BillingDocument.billing_period_end <= period_end)
+    doc_result = await db.execute(doc_query.order_by(BillingDocument.created_at.desc()))
+    docs = doc_result.scalars().all()
+
+    # For each document, compute amount_paid from confirmed allocations
+    documents = []
+    total_invoiced = Decimal("0.00")
+    total_paid_on_docs = Decimal("0.00")
+    for doc in docs:
+        alloc_result = await db.execute(
+            select(func.coalesce(func.sum(PaymentAllocation.amount_applied), 0))
+            .join(ClientPayment, ClientPayment.id == PaymentAllocation.payment_id)
+            .where(
+                PaymentAllocation.billing_document_id == doc.id,
+                ClientPayment.status == "confirmed",
+            )
+        )
+        amount_paid = Decimal(str(alloc_result.scalar_one())).quantize(Decimal("0.01"))
+        outstanding = (doc.total_amount - amount_paid).quantize(Decimal("0.01"))
+        total_invoiced += doc.total_amount
+        total_paid_on_docs += amount_paid
+        documents.append({
+            "id": doc.id,
+            "invoice_number": getattr(doc, "invoice_number", None),
+            "billing_period_start": doc.billing_period_start,
+            "billing_period_end": doc.billing_period_end,
+            "total_amount": doc.total_amount,
+            "amount_paid": amount_paid,
+            "outstanding_balance": outstanding,
+            "due_date": getattr(doc, "due_date", None),
+            "status": doc.status,
+            "issued_at": getattr(doc, "issued_at", None),
+        })
+
+    # Fetch payments for this client
+    pay_result = await db.execute(
+        select(ClientPayment)
+        .where(
+            ClientPayment.client_id == client_id,
+            ClientPayment.tenant_id == tenant_id,
+        )
+        .order_by(ClientPayment.value_date.desc())
+    )
+    payments = pay_result.scalars().all()
+
+    # Compute advance_balance: sum of unallocated confirmed payments
+    advance_balance = Decimal("0.00")
+    payments_out = []
+    for p in payments:
+        alloc_sum_result = await db.execute(
+            select(func.coalesce(func.sum(PaymentAllocation.amount_applied), 0)).where(
+                PaymentAllocation.payment_id == p.id
+            )
+        )
+        allocated = Decimal(str(alloc_sum_result.scalar_one())).quantize(Decimal("0.01"))
+        unallocated = (p.amount - allocated).quantize(Decimal("0.01"))
+        if p.status == "confirmed" and p.billing_document_id is None:
+            advance_balance += unallocated
+        payments_out.append({
+            "id": p.id,
+            "amount": p.amount,
+            "value_date": p.value_date,
+            "payment_method": p.payment_method,
+            "reference": p.reference,
+            "status": p.status,
+            "allocated": allocated,
+            "unallocated": unallocated,
+        })
+
+    total_outstanding = (total_invoiced - total_paid_on_docs).quantize(Decimal("0.01"))
+    return {
+        "client": serialize_client(client),
+        "documents": documents,
+        "payments": payments_out,
+        "summary": {
+            "total_invoiced": total_invoiced,
+            "total_paid": total_paid_on_docs,
+            "total_outstanding": total_outstanding,
+            "advance_balance": advance_balance,
+        },
+    }

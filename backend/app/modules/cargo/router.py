@@ -206,8 +206,8 @@ async def resolve_delivery_proof_dispute(
 async def accept_delivery_proof_endpoint(
     trip_id: UUID,
     proof_id: UUID,
-    db: AsyncSession = Depends(get_session),
-    principal: Principal = Depends(require_roles("owner", "admin", "manager")),
+    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: Annotated[Principal, Depends(require_roles("owner", "admin", "manager"))],
 ):
     from app.modules.cargo.service import accept_delivery_proof
 
@@ -227,8 +227,8 @@ async def reject_delivery_proof_endpoint(
     trip_id: UUID,
     proof_id: UUID,
     body: DeliveryProofRejectRequest,
-    db: AsyncSession = Depends(get_session),
-    principal: Principal = Depends(require_roles("owner", "admin", "manager")),
+    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: Annotated[Principal, Depends(require_roles("owner", "admin", "manager"))],
 ):
     from app.modules.cargo.service import reject_delivery_proof
 

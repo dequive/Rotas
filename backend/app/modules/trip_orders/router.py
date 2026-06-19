@@ -150,8 +150,8 @@ async def cancel_trip_order(
 async def reject_dispatch_endpoint(
     order_id: UUID,
     body: DispatchClearanceRejectRequest,
-    db: AsyncSession = Depends(get_session),
-    principal: Principal = Depends(require_roles("owner", "admin")),
+    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: Annotated[Principal, Depends(require_roles("owner", "admin"))],
     request: Request = None,
 ):
     from app.modules.trip_orders.service import reject_dispatch_clearance

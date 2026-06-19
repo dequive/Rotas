@@ -19,10 +19,10 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 async def get_kpis(
     principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
     db: Annotated[AsyncSession, Depends(get_session)],
-    period_start: datetime = Query(..., description="Period start (ISO 8601)"),
-    period_end: datetime = Query(..., description="Period end (ISO 8601)"),
-    vehicle_id: UUID | None = Query(None),
-    driver_id: UUID | None = Query(None),
+    period_start: Annotated[datetime, Query(description="Period start (ISO 8601)")],
+    period_end: Annotated[datetime, Query(description="Period end (ISO 8601)")],
+    vehicle_id: Annotated[UUID | None, Query()] = None,
+    driver_id: Annotated[UUID | None, Query()] = None,
 ) -> dict:
     """RPT-01: Fleet KPI aggregations for the authenticated tenant."""
     return await service.get_fleet_kpis(

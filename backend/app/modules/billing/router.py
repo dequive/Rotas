@@ -466,10 +466,10 @@ async def apply_advance_to_invoice(
 async def list_ar_documents(
     principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
     db: Annotated[AsyncSession, Depends(get_session)],
-    aging_bucket: str | None = Query(None, description="current | 1_30 | 31_60 | 61_90 | over_90"),
-    contract_id: UUID | None = Query(None),
-    limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
+    aging_bucket: Annotated[str | None, Query(description="current | 1_30 | 31_60 | 61_90 | over_90")] = None,
+    contract_id: Annotated[UUID | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """FDOC-05: List issued invoices with due_date set, ordered by due_date ASC.
 

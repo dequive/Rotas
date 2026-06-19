@@ -121,11 +121,11 @@ async def get_expiring_documents(
 async def list_documents(
     principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
     db: Annotated[AsyncSession, Depends(get_session)],
-    subject_type: str | None = Query(None),
-    subject_id: UUID | None = Query(None),
-    verification_status: str | None = Query(None),
-    limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
+    subject_type: Annotated[str | None, Query()] = None,
+    subject_id: Annotated[UUID | None, Query()] = None,
+    verification_status: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
     return await service.list_documents(
         db,
@@ -240,11 +240,11 @@ async def assign_driver_to_vehicle(
 async def list_assignments(
     principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
     db: Annotated[AsyncSession, Depends(get_session)],
-    driver_id: UUID | None = Query(None),
-    vehicle_id: UUID | None = Query(None),
-    current_only: bool = Query(False),
-    limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
+    driver_id: Annotated[UUID | None, Query()] = None,
+    vehicle_id: Annotated[UUID | None, Query()] = None,
+    current_only: Annotated[bool, Query()] = False,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
     return await service.list_assignments(
         db,

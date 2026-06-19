@@ -1,6 +1,6 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
+milestone: v3.0
 milestone_name: milestone
 status: completed
 stopped_at: Completed 06-04-PLAN.md

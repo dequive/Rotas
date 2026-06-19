@@ -15,6 +15,7 @@ def serialize_contract(contract: Contract) -> dict:
     return {
         "id": contract.id,
         "tenant_id": contract.tenant_id,
+        "client_id": contract.client_id,
         "client_name": contract.client_name,
         "contract_reference": contract.contract_reference,
         "title": contract.title,
@@ -42,6 +43,7 @@ async def list_contracts(
     db: AsyncSession,
     tenant_id: UUID,
     *,
+    client_id: UUID | None = None,
     client_name: str | None = None,
     status_filter: str | None = None,
     limit: int = 50,
@@ -49,6 +51,8 @@ async def list_contracts(
 ) -> list[dict]:
     query = select(Contract).where(Contract.tenant_id == tenant_id)
 
+    if client_id:
+        query = query.where(Contract.client_id == client_id)
     if client_name:
         query = query.where(Contract.client_name.ilike(f"%{client_name}%"))
     if status_filter:
@@ -67,6 +71,14 @@ async def create_contract(
     *,
     actor_id: UUID | None = None,
 ) -> dict:
+    # Validate that at least one of client_id or client_name is provided
+    if not payload.client_id and not payload.client_name:
+        raise ApiError(
+            "client_required",
+            "Seleccione um cliente ou forneça o nome do cliente.",
+            status_code=422,
+        )
+
     existing = await db.scalar(
         select(Contract).where(
             Contract.tenant_id == tenant_id,
@@ -81,7 +93,19 @@ async def create_contract(
             details={"contract_reference": payload.contract_reference},
         )
 
-    contract = Contract(tenant_id=tenant_id, **payload.model_dump())
+    # Resolve client_name from client record when client_id is provided
+    if payload.client_id:
+        from app.modules.clients.models import Client
+
+        client = await db.get(Client, payload.client_id)
+        if not client or client.tenant_id != tenant_id:
+            raise ApiError("client_not_found", "Cliente não encontrado.", status_code=404)
+        client_name_to_use = client.trading_name
+    else:
+        client_name_to_use = payload.client_name
+
+    data = payload.model_dump(exclude={"client_name"})
+    contract = Contract(tenant_id=tenant_id, client_name=client_name_to_use, **data)
     db.add(contract)
     await db.flush()
     await db.refresh(contract)
@@ -142,10 +166,10 @@ async def patch_contract(
 # ── SM-02: Contract State Machine ────────────────────────────────────────────
 
 _CONTRACT_VALID_TRANSITIONS: dict[str, set[str]] = {
-    "draft":      {"active"},
-    "active":     {"paused", "expired", "terminated"},
-    "paused":     {"active", "expired", "terminated"},
-    "expired":    {"active", "terminated"},   # active = renew with new ends_at
+    "draft": {"active"},
+    "active": {"paused", "expired", "terminated"},
+    "paused": {"active", "expired", "terminated"},
+    "expired": {"active", "terminated"},  # active = renew with new ends_at
     "terminated": set(),  # terminal
 }
 
@@ -235,4 +259,3 @@ async def renew_contract(
         tenant_id=tenant_id,
         new_ends_at=new_ends_at,
     )
-

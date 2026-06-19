@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.core.idempotency import execute_http_idempotent
 from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
-from app.core.deps import get_session
 from app.modules.contracts import schemas, service
 from app.modules.contracts.models import Contract
 
@@ -19,6 +19,7 @@ router = APIRouter(prefix="/contracts", tags=["contracts"])
 async def list_contracts(
     principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
     db: Annotated[AsyncSession, Depends(get_session)],
+    client_id: UUID | None = None,
     client_name: str | None = None,
     status: str | None = None,
     limit: int = Query(50, ge=1, le=200),
@@ -27,6 +28,7 @@ async def list_contracts(
     return await service.list_contracts(
         db,
         principal.tenant_id,
+        client_id=client_id,
         client_name=client_name,
         status_filter=status,
         limit=limit,
@@ -85,6 +87,7 @@ async def patch_contract(
 
 # ── SM-02: Contract state machine endpoint ───────────────────────────────────
 
+
 @router.patch("/{contract_id}/status", summary="Transition contract status (SM-02)")
 async def transition_contract_status(
     contract_id: UUID,
@@ -105,12 +108,12 @@ async def transition_contract_status(
     Returns HTTP 409 for invalid transitions.
     """
     action_to_status = {
-        "activate":  "active",
-        "pause":     "paused",
-        "resume":    "active",
-        "expire":    "expired",
+        "activate": "active",
+        "pause": "paused",
+        "resume": "active",
+        "expire": "expired",
         "terminate": "terminated",
-        "renew":     "active",
+        "renew": "active",
     }
     new_status = action_to_status[payload.action]
     contract = await db.get(Contract, contract_id)
@@ -128,4 +131,3 @@ async def transition_contract_status(
     await db.commit()
     await db.refresh(updated)
     return service.serialize_contract(updated)
-

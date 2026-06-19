@@ -6,7 +6,9 @@ from pydantic import BaseModel, Field
 
 
 class ContractCreate(BaseModel):
-    client_name: str
+    client_id: UUID | None = None          # preferred path after Phase 5 migration
+    client_name: str | None = None         # kept optional for backward compat; populated from client if client_id given
+    client_nuit: str | None = None
     contract_reference: str
     title: str | None = None
     service_type: str = "cargo_transport"
@@ -24,6 +26,7 @@ class ContractCreate(BaseModel):
 
 
 class ContractPatch(BaseModel):
+    client_id: UUID | None = None
     client_name: str | None = None
     title: str | None = None
     status: str | None = None

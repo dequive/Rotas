@@ -2,20 +2,26 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
 from app.modules.audit.service import record_audit_log
+from app.modules.cargo.exporters import render_carta_porte_internacional, render_guia_remessa
 from app.modules.cargo.models import CargoManifest, DeliveryProof, LoadPermit, TransportDocument
 from app.modules.cargo.schemas import (
     CargoManifestCreate,
+    CartaPorteCreate,
+    DAVCreate,
     DeliveryProofCreate,
     DisputeDeliveryProofRequest,
+    GuiaRemessaCreate,
     LoadPermitCreate,
     ResolveDeliveryProofDisputeRequest,
     TransportDocumentCreate,
     ValidateDeliveryProofRequest,
 )
+from app.modules.files.service import save_generated_file
 from app.modules.operational_exceptions.service import ensure_exception, resolve_active_exceptions
 from app.modules.trips.models import Trip
 
@@ -748,4 +754,257 @@ async def patch_delivery_proof(
         "receiver_contact": proof.receiver_contact,
         "notes": proof.notes,
         "status": proof.status,
+    }
+
+
+# ── OPDOC-02: Guia de Remessa ─────────────────────────────────────────────────
+
+
+async def create_guia_remessa(
+    db: AsyncSession,
+    tenant_id: UUID,
+    trip_id: UUID,
+    payload: GuiaRemessaCreate,
+    actor_id: UUID,
+) -> dict:
+    await _require_trip(db, tenant_id, trip_id)
+
+    doc = TransportDocument(
+        tenant_id=tenant_id,
+        trip_id=trip_id,
+        contract_id=payload.contract_id,
+        document_type="guia_remessa",
+        document_number=payload.document_number,
+        issuer=payload.issuer,
+        client_name=payload.client_name,
+        recipient_name=payload.recipient_name,
+        recipient_nuit=payload.recipient_nuit,
+        origin=payload.origin,
+        destination=payload.destination,
+        issued_at=now_utc(),
+        valid_from=payload.valid_from,
+        valid_until=payload.valid_until,
+        notes=payload.notes,
+        extra_fields={
+            k: v
+            for k, v in {
+                "cargo_description": payload.cargo_description,
+                "package_count": payload.package_count,
+                "gross_weight": payload.gross_weight,
+            }.items()
+            if v is not None
+        },
+        status="issued",
+    )
+    db.add(doc)
+    await db.flush()
+
+    pdf_bytes = render_guia_remessa(doc, doc.extra_fields)
+    filename = f"guia_remessa_{doc.id}.pdf"
+    stored = await save_generated_file(
+        db,
+        tenant_id,
+        content=pdf_bytes,
+        filename=filename,
+        mime_type="application/pdf",
+        file_type="pdf",
+        entity_type="transport_document",
+        entity_id=doc.id,
+    )
+    doc.file_id = stored.id
+
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="cargo.transport_document_created",
+        entity_type="transport_document",
+        entity_id=doc.id,
+        new_values={"document_type": "guia_remessa", "file_id": str(stored.id)},
+    )
+    await db.commit()
+    await db.refresh(doc)
+    return {**serialize_transport_document(doc), "pdf_url": f"/files/{stored.id}/download"}
+
+
+# ── OPDOC-03: Carta de Porte Internacional ────────────────────────────────────
+
+
+async def create_carta_porte(
+    db: AsyncSession,
+    tenant_id: UUID,
+    trip_id: UUID,
+    payload: CartaPorteCreate,
+    actor_id: UUID,
+) -> dict:
+    await _require_trip(db, tenant_id, trip_id)
+
+    extra: dict = {
+        k: v
+        for k, v in {
+            "sadc_cpi_number": payload.sadc_cpi_number,
+            "border_post": payload.border_post,
+            "country_destination": payload.country_destination,
+        }.items()
+        if v is not None
+    }
+
+    doc = TransportDocument(
+        tenant_id=tenant_id,
+        trip_id=trip_id,
+        contract_id=payload.contract_id,
+        document_type="carta_porte_internacional",
+        document_number=payload.document_number,
+        issuer=payload.issuer,
+        client_name=payload.client_name,
+        recipient_name=payload.recipient_name,
+        recipient_nuit=payload.recipient_nuit,
+        origin=payload.origin,
+        destination=payload.destination,
+        issued_at=now_utc(),
+        valid_from=payload.valid_from,
+        valid_until=payload.valid_until,
+        notes=payload.notes,
+        extra_fields=extra or None,
+        status="issued",
+    )
+    db.add(doc)
+    await db.flush()
+
+    pdf_bytes = render_carta_porte_internacional(doc, extra)
+    filename = f"carta_porte_{doc.id}.pdf"
+    stored = await save_generated_file(
+        db,
+        tenant_id,
+        content=pdf_bytes,
+        filename=filename,
+        mime_type="application/pdf",
+        file_type="pdf",
+        entity_type="transport_document",
+        entity_id=doc.id,
+    )
+    doc.file_id = stored.id
+
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="cargo.transport_document_created",
+        entity_type="transport_document",
+        entity_id=doc.id,
+        new_values={"document_type": "carta_porte_internacional", "file_id": str(stored.id)},
+    )
+    await db.commit()
+    await db.refresh(doc)
+    return {**serialize_transport_document(doc), "pdf_url": f"/files/{stored.id}/download"}
+
+
+# ── OPDOC-04: DAV / Declaração de Aprovação de Viagem ────────────────────────
+
+
+async def create_dav(
+    db: AsyncSession,
+    tenant_id: UUID,
+    trip_id: UUID,
+    payload: DAVCreate,
+    actor_id: UUID,
+) -> dict:
+    await _require_trip(db, tenant_id, trip_id)
+
+    doc = TransportDocument(
+        tenant_id=tenant_id,
+        trip_id=trip_id,
+        contract_id=payload.contract_id,
+        document_type="dav",
+        document_number=payload.document_number,
+        issuer=payload.issuer,
+        origin=payload.origin,
+        destination=payload.destination,
+        issued_at=now_utc(),
+        valid_from=payload.valid_from,
+        valid_until=payload.valid_until,
+        notes=payload.notes,
+        extra_fields={"authorization_code": payload.authorization_code},
+        status="issued",
+    )
+    db.add(doc)
+    await db.flush()
+
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="cargo.transport_document_created",
+        entity_type="transport_document",
+        entity_id=doc.id,
+        new_values={"document_type": "dav", "authorization_code": payload.authorization_code},
+    )
+    await db.commit()
+    await db.refresh(doc)
+    return serialize_transport_document(doc)
+
+
+# ── OPDOC-05: Document checklist per trip type ────────────────────────────────
+
+_DOMESTIC_DOC_TYPES = frozenset({"guia_remessa", "load_permit", "cargo_manifest", "dav"})
+_INTERNATIONAL_DOC_TYPES = _DOMESTIC_DOC_TYPES | {"carta_porte_internacional"}
+_HAZMAT_EXTRA = frozenset({"declaracao_carga_perigosa"})
+
+
+async def get_document_checklist(
+    db: AsyncSession,
+    tenant_id: UUID,
+    trip_id: UUID,
+    is_international: bool = False,
+) -> dict:
+    trip = await _require_trip(db, tenant_id, trip_id)
+
+    is_hazmat = trip.is_hazmat
+
+    required: set[str] = (
+        _INTERNATIONAL_DOC_TYPES if is_international else _DOMESTIC_DOC_TYPES
+    )
+    if is_hazmat:
+        required = required | _HAZMAT_EXTRA
+
+    # Count existing transport_documents by type
+    td_result = await db.execute(
+        select(TransportDocument.document_type)
+        .where(
+            TransportDocument.tenant_id == tenant_id,
+            TransportDocument.trip_id == trip_id,
+        )
+    )
+    present_types: set[str] = set(td_result.scalars().all())
+
+    # load_permit presence
+    lp_result = await db.execute(
+        select(LoadPermit.id).where(
+            LoadPermit.tenant_id == tenant_id,
+            LoadPermit.trip_id == trip_id,
+        )
+    )
+    if lp_result.first():
+        present_types.add("load_permit")
+
+    # cargo_manifest presence
+    cm_result = await db.execute(
+        select(CargoManifest.id).where(
+            CargoManifest.tenant_id == tenant_id,
+            CargoManifest.trip_id == trip_id,
+        )
+    )
+    if cm_result.first():
+        present_types.add("cargo_manifest")
+
+    checklist = [
+        {"document_type": dt, "present": dt in present_types}
+        for dt in sorted(required)
+    ]
+    return {
+        "trip_id": trip_id,
+        "is_international": is_international,
+        "is_hazmat": is_hazmat,
+        "complete": all(item["present"] for item in checklist),
+        "checklist": checklist,
     }

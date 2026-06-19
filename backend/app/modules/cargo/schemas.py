@@ -94,3 +94,52 @@ class ResolveDeliveryProofDisputeRequest(BaseModel):
     outcome: str
     resolution_notes: str
     validation_method: str = "dispute_resolution"
+
+
+# OPDOC-02: Guia de Remessa
+class GuiaRemessaCreate(BaseModel):
+    contract_id: UUID | None = None
+    client_name: str = Field(..., min_length=1, max_length=160)
+    recipient_name: str = Field(..., min_length=1, max_length=160)
+    recipient_nuit: str | None = Field(None, max_length=20)
+    origin: str = Field(..., min_length=1, max_length=160)
+    destination: str = Field(..., min_length=1, max_length=160)
+    issuer: str | None = Field(None, max_length=160)
+    document_number: str | None = Field(None, max_length=80)
+    valid_from: datetime | None = None
+    valid_until: datetime | None = None
+    notes: str | None = None
+    cargo_description: str | None = None
+    package_count: int | None = None
+    gross_weight: float | None = None
+
+
+# OPDOC-03: Carta de Porte Internacional
+class CartaPorteCreate(BaseModel):
+    contract_id: UUID | None = None
+    client_name: str = Field(..., min_length=1, max_length=160)
+    recipient_name: str | None = Field(None, max_length=160)
+    recipient_nuit: str | None = Field(None, max_length=20)
+    origin: str = Field(..., min_length=1, max_length=160)
+    destination: str = Field(..., min_length=1, max_length=160)
+    issuer: str | None = Field(None, max_length=160)
+    document_number: str | None = Field(None, max_length=80)
+    valid_from: datetime | None = None
+    valid_until: datetime | None = None
+    notes: str | None = None
+    sadc_cpi_number: str | None = Field(None, max_length=80)
+    border_post: str | None = Field(None, max_length=80)
+    country_destination: str | None = Field(None, max_length=80)
+
+
+# OPDOC-04: DAV / Declaração de Aprovação de Viagem (digital record, no PDF)
+class DAVCreate(BaseModel):
+    contract_id: UUID | None = None
+    document_number: str | None = Field(None, max_length=80)
+    issuer: str | None = Field(None, max_length=160)
+    authorization_code: str = Field(..., min_length=1, max_length=80)
+    origin: str | None = Field(None, max_length=160)
+    destination: str | None = Field(None, max_length=160)
+    valid_from: datetime | None = None
+    valid_until: datetime | None = None
+    notes: str | None = None

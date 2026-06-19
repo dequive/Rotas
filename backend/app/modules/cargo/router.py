@@ -1,13 +1,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
-from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import WRITE_ROLES, require_roles
 from app.core.deps import get_session
+from app.core.idempotency import execute_http_idempotent
+from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
 from app.modules.cargo import schemas, service
 from app.modules.cargo.schemas import DeliveryProofRejectRequest
 
@@ -210,9 +210,12 @@ async def accept_delivery_proof_endpoint(
     principal: Principal = Depends(require_roles("owner", "admin", "manager")),
 ):
     from app.modules.cargo.service import accept_delivery_proof
+
     proof = await accept_delivery_proof(
-        db, proof_id=proof_id,
-        tenant_id=principal.tenant_id, user_id=principal.user_id,
+        db,
+        proof_id=proof_id,
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
     )
     await db.commit()
     await db.refresh(proof)
@@ -228,11 +231,93 @@ async def reject_delivery_proof_endpoint(
     principal: Principal = Depends(require_roles("owner", "admin", "manager")),
 ):
     from app.modules.cargo.service import reject_delivery_proof
+
     proof = await reject_delivery_proof(
-        db, proof_id=proof_id,
-        tenant_id=principal.tenant_id, user_id=principal.user_id,
+        db,
+        proof_id=proof_id,
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
         rejection_reason=body.rejection_reason,
     )
     await db.commit()
     await db.refresh(proof)
     return proof
+
+
+# ── OPDOC-02: Guia de Remessa ─────────────────────────────────────────────────
+
+
+@router.post("/guia-remessa", status_code=201)
+async def create_guia_remessa(
+    trip_id: UUID,
+    payload: schemas.GuiaRemessaCreate,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """OPDOC-02: Create a Guia de Remessa and generate its PDF. Returns document + pdf_url."""
+    return await service.create_guia_remessa(
+        db,
+        principal.tenant_id,
+        trip_id,
+        payload,
+        actor_id=principal.user_id,
+    )
+
+
+# ── OPDOC-03: Carta de Porte Internacional ────────────────────────────────────
+
+
+@router.post("/carta-porte-internacional", status_code=201)
+async def create_carta_porte(
+    trip_id: UUID,
+    payload: schemas.CartaPorteCreate,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """OPDOC-03: Create a Carta de Porte Internacional (bilingual PT/EN PDF). Returns document + pdf_url."""
+    return await service.create_carta_porte(
+        db,
+        principal.tenant_id,
+        trip_id,
+        payload,
+        actor_id=principal.user_id,
+    )
+
+
+# ── OPDOC-04: DAV ─────────────────────────────────────────────────────────────
+
+
+@router.post("/dav", status_code=201)
+async def create_dav(
+    trip_id: UUID,
+    payload: schemas.DAVCreate,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """OPDOC-04: Record a DAV (Declaração de Aprovação de Viagem). Digital record only — no PDF."""
+    return await service.create_dav(
+        db,
+        principal.tenant_id,
+        trip_id,
+        payload,
+        actor_id=principal.user_id,
+    )
+
+
+# ── OPDOC-05: Document checklist ──────────────────────────────────────────────
+
+
+@router.get("/document-checklist")
+async def get_document_checklist(
+    trip_id: UUID,
+    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    is_international: bool = Query(False, description="Mark trip as international to include Carta de Porte in checklist"),
+):
+    """OPDOC-05: Return required document checklist for the trip, with present/missing status."""
+    return await service.get_document_checklist(
+        db,
+        principal.tenant_id,
+        trip_id,
+        is_international=is_international,
+    )

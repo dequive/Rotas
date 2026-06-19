@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 13.5-04-PLAN.md
-last_updated: "2026-06-18T23:39:31.789Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-06-19T03:38:16.622Z"
 last_activity: 2026-06-18
 progress:
   total_phases: 13
   completed_phases: 6
   total_plans: 59
-  completed_plans: 55
+  completed_plans: 56
 ---
 
 # ROTAS — Project State
@@ -22,10 +22,10 @@ _Last updated: 2026-06-06_
 ## Current Phase
 
 Phase: 05 (CLI — Client Registry + Migration Foundation)
-Plan: 02 complete (2/5)
-Status: 05-02 complete 2026-06-19 — 3 migrations (b/c/d): client_id FKs + due_date + backfill + payments scaffold; 181 tests pass
-Last activity: 2026-06-18
-Stopped at: Completed 13.5-04-PLAN.md
+Plan: 03 complete (3/5)
+Status: 05-03 complete 2026-06-19 — /clientes list page, /clientes/[id] detail page, ClientFormModal (9 fields), Clientes in sidebar nav; next build passes with 0 errors
+Last activity: 2026-06-19
+Stopped at: Completed 05-03-PLAN.md
 
 ### Completed v3.0 Phases
 

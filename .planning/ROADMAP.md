@@ -345,7 +345,7 @@ Plans:
 Plans:
 - [x] 05-01-PLAN.md � Wave 1: clients backend (model, migration a, service, router) + Wave 0 test stubs (CLI-01, CLI-02)
 - [x] 05-02-PLAN.md � Wave 1: FK migrations (b) + pre-audit + backfill (c) + payments scaffold (d) (CLI-03)
-- [ ] 05-03-PLAN.md � Wave 2: /clientes list page + /clientes/[id] detail page + ClientFormModal + sidebar nav (CLI-01, CLI-02)
+- [x] 05-03-PLAN.md � Wave 2: /clientes list page + /clientes/[id] detail page + ClientFormModal + sidebar nav (CLI-01, CLI-02)
 - [ ] 05-04-PLAN.md � Wave 2: ContractFormModal ClientCombobox + backend contracts schema/service update (CLI-04)
 - [ ] 05-05-PLAN.md � Wave 3: CLI-05 display (MonoCell in billing table) + test_invoice_number_format stub (CLI-05)
 
@@ -608,7 +608,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 5. Client Registry + Migration Foundation | 0/5 | In progress | - |
+| 5. Client Registry + Migration Foundation | 3/5 | In Progress|  |
 | 6. Payment Registration | 0/TBD | Not started | - |
 | 7. Accounts Receivable + Aging Dashboard | 0/TBD | Not started | - |
 | 8. Infrastructure Hardening | 0/8 | Not started | - |
@@ -970,7 +970,7 @@ Plans:
 
 **Requirements**: SEC-RBAC-01 a SEC-RBAC-05
 **Depends on:** Phase 9 (RLS — os dois planos partilham infra de isolamento), Phase 13 (Frontend usa roles nos componentes de UI)
-**Plans:** 4/5 plans executed
+**Plans:** 3/5 plans executed
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 22 to break down)

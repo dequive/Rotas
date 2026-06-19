@@ -646,7 +646,7 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 
 ## Phases (v3.0)
 
-- [ ] **Phase 13.5: Workshop Operations Expansion** — Staff de oficina (atribuição + custo mão de obra), ferramentas com histórico de calibrações, peças serializadas e timeline unificada de veículo
+- [x] **Phase 13.5: Workshop Operations Expansion** — Staff de oficina (atribuição + custo mão de obra), ferramentas com histórico de calibrações, peças serializadas e timeline unificada de veículo (completed 2026-06-19)
 - [ ] **Phase 13: Frontend Completeness** — As 4 páginas do manager referenciadas no sidebar mas sem implementação real: `/manutencao`, `/cobranca`, `/alertas`, `/settings`
 - [ ] **Phase 14: Domain State Machines** — Fechar state machines incompletas de `BillingDocument`, `Contract`, `DeliveryProof` e `DispatchClearance` — o núcleo financeiro e documental fica coerente
 - [ ] **Phase 15: Fiscal Compliance + Segurança de Carga** — IVA Moçambique, numeração fiscal, validação de peso vs capacidade, suporte hazmat
@@ -701,7 +701,7 @@ Plans:
 - [x] 13.5-02-PLAN.md — Wave 2: ORM models extension + Pydantic schemas for all new entities
 - [x] 13.5-03-PLAN.md — Wave 3: Service layer (staff rates, calibration, serial parts, vehicle history) + 11 new endpoints
 - [x] 13.5-04-PLAN.md — Wave 4: Frontend UI (PartsInventoryTable, ToolsTable, 4-tab /manutencao, /viaturas/[id]/historico)
-- [ ] 13.5-05-PLAN.md — Wave 5: Automated tests (23 tests across 4 new test files)
+- [x] 13.5-05-PLAN.md — Wave 5: Automated tests (23 tests across 4 new test files)
 
 **UI hint**: yes
 
@@ -970,7 +970,7 @@ Plans:
 
 **Requirements**: SEC-RBAC-01 a SEC-RBAC-05
 **Depends on:** Phase 9 (RLS — os dois planos partilham infra de isolamento), Phase 13 (Frontend usa roles nos componentes de UI)
-**Plans:** 3/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 22 to break down)

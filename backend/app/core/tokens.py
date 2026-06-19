@@ -42,6 +42,8 @@ def create_access_token(
         "jti": str(uuid4()),
     }
     return (
-        jwt.encode(claims, settings.jwt_secret_key.get_secret_value(), algorithm=settings.jwt_algorithm),
+        jwt.encode(
+            claims, settings.jwt_secret_key.get_secret_value(), algorithm=settings.jwt_algorithm
+        ),
         settings.access_token_minutes * 60,
     )

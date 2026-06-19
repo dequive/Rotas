@@ -1,4 +1,5 @@
 """Analytics service — fleet KPI queries for RPT-01 and RPT-02."""
+
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -40,9 +41,7 @@ async def get_fleet_kpis(
             select(
                 Trip.vehicle_id,
                 func.count(Trip.id).label("trip_count"),
-                func.coalesce(
-                    func.sum(Trip.km_end - Trip.km_start), 0
-                ).label("total_km"),
+                func.coalesce(func.sum(Trip.km_end - Trip.km_start), 0).label("total_km"),
                 func.coalesce(func.sum(Trip.total_transport_cost), 0).label("total_cost"),
             )
             .where(*trip_filters)
@@ -69,9 +68,7 @@ async def get_fleet_kpis(
         await db.scalar(
             select(func.count(Trip.id)).where(
                 Trip.tenant_id == tenant_id,
-                Trip.status.in_(
-                    ("dispatched", "in_progress", "delayed", "incident")
-                ),
+                Trip.status.in_(("dispatched", "in_progress", "delayed", "incident")),
             )
         )
     ) or 0
@@ -105,21 +102,15 @@ async def get_fleet_kpis(
     # Total km from closed trips in same period
     period_km_row = (
         await db.execute(
-            select(
-                func.coalesce(
-                    func.sum(Trip.km_end - Trip.km_start), 0
-                ).label("total_km")
-            ).where(*trip_filters)
+            select(func.coalesce(func.sum(Trip.km_end - Trip.km_start), 0).label("total_km")).where(
+                *trip_filters
+            )
         )
     ).one()
 
     total_liters = float(fuel_row.total_liters or 0)
     total_km_period = float(period_km_row.total_km or 0)
-    l_per_100km = (
-        round((total_liters / total_km_period) * 100, 2)
-        if total_km_period > 0
-        else None
-    )
+    l_per_100km = round((total_liters / total_km_period) * 100, 2) if total_km_period > 0 else None
 
     # Query 4: Driver summary
     driver_rows = (
@@ -127,9 +118,7 @@ async def get_fleet_kpis(
             select(
                 Trip.driver_id,
                 func.count(Trip.id).label("trip_count"),
-                func.coalesce(
-                    func.sum(Trip.km_end - Trip.km_start), 0
-                ).label("total_km"),
+                func.coalesce(func.sum(Trip.km_end - Trip.km_start), 0).label("total_km"),
                 func.coalesce(func.sum(Trip.total_transport_cost), 0).label("total_cost"),
             )
             .where(*trip_filters)
@@ -149,9 +138,7 @@ async def get_fleet_kpis(
     ]
 
     # Query 5: Total completed trips in period
-    trips_completed = (
-        await db.scalar(select(func.count(Trip.id)).where(*trip_filters))
-    ) or 0
+    trips_completed = (await db.scalar(select(func.count(Trip.id)).where(*trip_filters))) or 0
 
     return {
         "cost_per_km": cost_per_km,
@@ -189,12 +176,16 @@ async def get_document_expiry_alerts(
 
     # Vehicles — filter by tenant_id (multitenant safety)
     vehicles = (
-        await db.execute(
-            select(Vehicle)
-            .where(Vehicle.tenant_id == tenant_id, Vehicle.status == "active")
-            .limit(200)
+        (
+            await db.execute(
+                select(Vehicle)
+                .where(Vehicle.tenant_id == tenant_id, Vehicle.status == "active")
+                .limit(200)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     for vehicle in vehicles:
         # vehicle_compliance_warnings is sync — no await
@@ -205,6 +196,7 @@ async def get_document_expiry_alerts(
             if valid_until_str is None:
                 continue
             from datetime import date
+
             if isinstance(valid_until_str, str):
                 exp_date = date.fromisoformat(valid_until_str)
             elif isinstance(valid_until_str, date):
@@ -227,12 +219,16 @@ async def get_document_expiry_alerts(
 
     # Drivers — filter by tenant_id (multitenant safety)
     drivers = (
-        await db.execute(
-            select(Driver)
-            .where(Driver.tenant_id == tenant_id, Driver.status == "active")
-            .limit(200)
+        (
+            await db.execute(
+                select(Driver)
+                .where(Driver.tenant_id == tenant_id, Driver.status == "active")
+                .limit(200)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     for driver in drivers:
         # driver_compliance_warnings is sync — no await
@@ -242,6 +238,7 @@ async def get_document_expiry_alerts(
             if valid_until_str is None:
                 continue
             from datetime import date
+
             if isinstance(valid_until_str, str):
                 exp_date = date.fromisoformat(valid_until_str)
             elif isinstance(valid_until_str, date):

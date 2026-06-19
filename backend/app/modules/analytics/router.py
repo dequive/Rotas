@@ -1,4 +1,5 @@
 """Analytics router — RPT-01 (KPIs) and RPT-02 (document expiry)."""
+
 from datetime import datetime
 from typing import Annotated
 from uuid import UUID
@@ -7,8 +8,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
-from app.core.permissions import DASHBOARD_ROLES, require_roles
 from app.core.deps import get_session
+from app.core.permissions import DASHBOARD_ROLES, require_roles
 from app.modules.analytics import service
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])

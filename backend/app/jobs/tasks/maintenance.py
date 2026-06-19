@@ -4,6 +4,7 @@ Two tasks:
 - check_maintenance_schedules: daily cron, scans all active tenants
 - check_vehicle_maintenance: per-vehicle immediate trigger from odometer update
 """
+
 import logging
 from uuid import UUID
 
@@ -40,9 +41,7 @@ async def check_vehicle_maintenance(
 
     session_factory = ctx["session_factory"]
     async with session_factory() as db:
-        result = await evaluate_maintenance_schedule(
-            db, UUID(tenant_id), actor_id=None
-        )
+        result = await evaluate_maintenance_schedule(db, UUID(tenant_id), actor_id=None)
     logger.info(
         "Vehicle %s maintenance check at km=%s: %s",
         vehicle_id,

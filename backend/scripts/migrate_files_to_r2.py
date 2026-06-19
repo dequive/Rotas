@@ -19,6 +19,7 @@ Exit codes:
   0 — all files migrated successfully (zero failures)
   1 — one or more files failed to migrate (see output for details)
 """
+
 import asyncio
 import sys
 from pathlib import Path
@@ -108,9 +109,7 @@ async def main() -> int:
         await db.commit()
 
     skipped = total - uploaded - len(failed)
-    print(
-        f"\nMigration complete: {uploaded} uploaded | {len(failed)} failed | {skipped} skipped"
-    )
+    print(f"\nMigration complete: {uploaded} uploaded | {len(failed)} failed | {skipped} skipped")
 
     if failed:
         print("\nFailed files:")

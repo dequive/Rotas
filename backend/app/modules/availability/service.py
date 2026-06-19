@@ -95,7 +95,14 @@ def vehicle_compliance_violations(
     if isinstance(vehicle_required_documents, list):
         required_documents.extend(str(item) for item in vehicle_required_documents if item)
     if not required_documents and documents.get("compliance_required"):
-        required_documents = ["insurance", "inspection", "iav", "sign_tax", "cargo_book", "international_license"]
+        required_documents = [
+            "insurance",
+            "inspection",
+            "iav",
+            "sign_tax",
+            "cargo_book",
+            "international_license",
+        ]
     if not required_documents:
         return []
 
@@ -134,7 +141,14 @@ def vehicle_compliance_warnings(
     if isinstance(vehicle_required_documents, list):
         required_documents.extend(str(item) for item in vehicle_required_documents if item)
     if not required_documents and documents.get("compliance_required"):
-        required_documents = ["insurance", "inspection", "iav", "sign_tax", "cargo_book", "international_license"]
+        required_documents = [
+            "insurance",
+            "inspection",
+            "iav",
+            "sign_tax",
+            "cargo_book",
+            "international_license",
+        ]
 
     warnings = []
     for document_type in dict.fromkeys(required_documents):
@@ -176,8 +190,8 @@ def driver_compliance_violations(
 
     candidates = {
         "driving_license": driver.license_valid_until,
-        "passport":        driver.passport_valid_until,
-        "bi":              driver.bi_valid_until,
+        "passport": driver.passport_valid_until,
+        "bi": driver.bi_valid_until,
     }
     for document_type, valid_until in candidates.items():
         if valid_until is None:
@@ -263,9 +277,7 @@ async def _has_waivers_for_violations(
 ) -> bool:
     for violation in violations:
         waiver_type = (
-            "missing_document"
-            if violation["code"] == "missing_document"
-            else "expired_warning"
+            "missing_document" if violation["code"] == "missing_document" else "expired_warning"
         )
         if not await has_active_waiver(
             db,
@@ -412,8 +424,16 @@ async def require_vehicle_available(
     *,
     exclude_trip_id: UUID | None = None,
 ) -> Vehicle:
-    vehicle = await db.get(Vehicle, vehicle_id)
-    if not vehicle or vehicle.tenant_id != tenant_id:
+    # RC-02: Lock the Vehicle row so two concurrent create_trip calls for the
+    # same vehicle cannot both pass the availability check.  The lock is held
+    # until the caller's transaction commits, closing the TOCTOU window.
+    vehicle_result = await db.execute(
+        select(Vehicle)
+        .where(Vehicle.id == vehicle_id, Vehicle.tenant_id == tenant_id)
+        .with_for_update()
+    )
+    vehicle = vehicle_result.scalar_one_or_none()
+    if not vehicle:
         raise ApiError("vehicle_not_found", "Vehicle not found.", status_code=404)
     if vehicle.status != "active":
         raise ApiError(
@@ -478,8 +498,15 @@ async def require_driver_available(
     *,
     exclude_trip_id: UUID | None = None,
 ) -> Driver:
-    driver = await db.get(Driver, driver_id)
-    if not driver or driver.tenant_id != tenant_id:
+    # RC-02 (continued): Lock Driver row after Vehicle (consistent order prevents
+    # circular deadlock when vehicle and driver are always locked vehicle-first).
+    driver_result = await db.execute(
+        select(Driver)
+        .where(Driver.id == driver_id, Driver.tenant_id == tenant_id)
+        .with_for_update()
+    )
+    driver = driver_result.scalar_one_or_none()
+    if not driver:
         raise ApiError("driver_not_found", "Driver not found.", status_code=404)
     if driver.status != "active":
         raise ApiError(

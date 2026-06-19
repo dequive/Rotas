@@ -59,7 +59,9 @@ class CargoManifest(Base):
     issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"))
     status: Mapped[str] = mapped_column(String(30), default="draft", index=True)
-    is_hazmat: Mapped[bool] = mapped_column(Boolean(), server_default="false", nullable=False, default=False)
+    is_hazmat: Mapped[bool] = mapped_column(
+        Boolean(), server_default="false", nullable=False, default=False
+    )
     hazmat_class: Mapped[str | None] = mapped_column(String(10), nullable=True)
     un_number: Mapped[str | None] = mapped_column(String(10), nullable=True)
     hazmat_label: Mapped[str | None] = mapped_column(String(50), nullable=True)

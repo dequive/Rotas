@@ -84,7 +84,9 @@ def render_guia_remessa(document: object, extra: dict | None = None) -> bytes:
     extra = extra or {}
 
     def g(attr: str) -> str:
-        val = getattr(document, attr, None) if not isinstance(document, dict) else document.get(attr)
+        val = (
+            getattr(document, attr, None) if not isinstance(document, dict) else document.get(attr)
+        )
         return str(val) if val is not None else ""
 
     pdf = _CargoDocPDF("GUIA DE REMESSA")
@@ -93,7 +95,9 @@ def render_guia_remessa(document: object, extra: dict | None = None) -> bytes:
 
     # Document number + date
     pdf.set_font("DejaVu", "B", 9)
-    pdf.cell(90, 6, f"N.º Documento: {g('document_number') or 'N/D'}", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(
+        90, 6, f"N.º Documento: {g('document_number') or 'N/D'}", new_x=XPos.RIGHT, new_y=YPos.TOP
+    )
     issued = g("issued_at")[:10] if g("issued_at") else "—"
     pdf.cell(0, 6, f"Data: {issued}", align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(2)
@@ -101,8 +105,6 @@ def render_guia_remessa(document: object, extra: dict | None = None) -> bytes:
     # Shipper / Recipient columns
     col_w = 85
     gap = 10
-    y_start = pdf.get_y()
-
     pdf.set_fill_color(*_NAV)
     pdf.set_text_color(*_WHITE)
     pdf.set_font("DejaVu", "B", 8)
@@ -112,13 +114,17 @@ def render_guia_remessa(document: object, extra: dict | None = None) -> bytes:
     pdf.set_text_color(*_INK)
 
     pdf.set_font("DejaVu", "", 8)
-    shipper_lines = [("Nome", g("client_name")), ("Origem", g("origin")), ("NUIT Emitente", g("issuer"))]
+    shipper_lines = [
+        ("Nome", g("client_name")),
+        ("Origem", g("origin")),
+        ("NUIT Emitente", g("issuer")),
+    ]
     recipient = getattr(document, "recipient_name", None) or extra.get("recipient_name", "")
     recipient_nuit = getattr(document, "recipient_nuit", None) or extra.get("recipient_nuit", "")
     recipient_lines = [("Nome", recipient), ("Destino", g("destination")), ("NUIT", recipient_nuit)]
 
     y_col = pdf.get_y()
-    for (ll, lv), (rl, rv) in zip(shipper_lines, recipient_lines):
+    for (ll, lv), (rl, rv) in zip(shipper_lines, recipient_lines, strict=False):
         pdf.set_xy(15, y_col)
         pdf.set_font("DejaVu", "B", 7)
         pdf.cell(20, 5, ll + ":", new_x=XPos.RIGHT, new_y=YPos.TOP)
@@ -155,18 +161,25 @@ def render_guia_remessa(document: object, extra: dict | None = None) -> bytes:
     pdf.section_header("PERCURSO / ROUTE")
     pdf.set_font("DejaVu", "", 8)
     pdf.two_col_kv("Origem", g("origin"), "Destino", g("destination"))
-    pdf.two_col_kv("Válido de", g("valid_from")[:10] if g("valid_from") else "", "Válido até", g("valid_until")[:10] if g("valid_until") else "")
+    pdf.two_col_kv(
+        "Válido de",
+        g("valid_from")[:10] if g("valid_from") else "",
+        "Válido até",
+        g("valid_until")[:10] if g("valid_until") else "",
+    )
     pdf.ln(8)
 
     # Signature block
     pdf.section_header("ASSINATURAS / SIGNATURES")
     pdf.ln(4)
     sig_y = pdf.get_y()
-    for i, (label, sub) in enumerate([
-        ("Remetente / Shipper", "Assinatura e Carimbo"),
-        ("Transportador / Carrier", "Assinatura e Carimbo"),
-        ("Destinatário / Consignee", "Assinatura e Carimbo"),
-    ]):
+    for i, (label, sub) in enumerate(
+        [
+            ("Remetente / Shipper", "Assinatura e Carimbo"),
+            ("Transportador / Carrier", "Assinatura e Carimbo"),
+            ("Destinatário / Consignee", "Assinatura e Carimbo"),
+        ]
+    ):
         x = 15 + i * 63
         pdf.set_xy(x, sig_y + 14)
         pdf.set_draw_color(*_LINE)
@@ -193,7 +206,9 @@ def render_carta_porte_internacional(document: object, extra: dict | None = None
     extra = extra or {}
 
     def g(attr: str) -> str:
-        val = getattr(document, attr, None) if not isinstance(document, dict) else document.get(attr)
+        val = (
+            getattr(document, attr, None) if not isinstance(document, dict) else document.get(attr)
+        )
         return str(val) if val is not None else ""
 
     pdf = _CargoDocPDF("CARTA DE PORTE INTERNACIONAL / INTERNATIONAL BILL OF LADING")
@@ -202,7 +217,13 @@ def render_carta_porte_internacional(document: object, extra: dict | None = None
 
     # Header info
     pdf.set_font("DejaVu", "B", 9)
-    pdf.cell(90, 6, f"N.º CPI / CPI No.: {extra.get('sadc_cpi_number') or g('document_number') or 'N/D'}", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(
+        90,
+        6,
+        f"N.º CPI / CPI No.: {extra.get('sadc_cpi_number') or g('document_number') or 'N/D'}",
+        new_x=XPos.RIGHT,
+        new_y=YPos.TOP,
+    )
     issued = g("issued_at")[:10] if g("issued_at") else "—"
     pdf.cell(0, 6, f"Data / Date: {issued}", align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(3)
@@ -227,7 +248,12 @@ def render_carta_porte_internacional(document: object, extra: dict | None = None
     # Route
     pdf.section_header("PERCURSO / ROUTE")
     pdf.two_col_kv("Origem / Origin", g("origin"), "Destino / Destination", g("destination"))
-    pdf.two_col_kv("Válido De / From", g("valid_from")[:10] if g("valid_from") else "", "Válido Até / To", g("valid_until")[:10] if g("valid_until") else "")
+    pdf.two_col_kv(
+        "Válido De / From",
+        g("valid_from")[:10] if g("valid_from") else "",
+        "Válido Até / To",
+        g("valid_until")[:10] if g("valid_until") else "",
+    )
     pdf.ln(4)
 
     # Cargo
@@ -239,10 +265,14 @@ def render_carta_porte_internacional(document: object, extra: dict | None = None
     pdf.section_header("DECLARAÇÃO ADUANEIRA / CUSTOMS DECLARATION")
     pdf.set_font("DejaVu", "", 7)
     pdf.set_text_color(*_MUTED)
-    pdf.multi_cell(0, 4,
+    pdf.multi_cell(
+        0,
+        4,
         "O expedidor declara que as informações fornecidas neste documento são verdadeiras e correctas. / "
         "The consignor declares that the information provided in this document is true and correct.",
-        new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        new_x=XPos.LMARGIN,
+        new_y=YPos.NEXT,
+    )
     pdf.set_text_color(*_INK)
     pdf.ln(8)
 
@@ -250,7 +280,9 @@ def render_carta_porte_internacional(document: object, extra: dict | None = None
     pdf.section_header("ASSINATURAS / SIGNATURES")
     pdf.ln(4)
     sig_y = pdf.get_y()
-    for i, label in enumerate(["Expedidor / Consignor", "Transportador / Carrier", "Autoridade Alfandegária / Customs"]):
+    for i, label in enumerate(
+        ["Expedidor / Consignor", "Transportador / Carrier", "Autoridade Alfandegária / Customs"]
+    ):
         x = 15 + i * 63
         pdf.line(x, sig_y + 13, x + 55, sig_y + 13)
         pdf.set_xy(x, sig_y + 14)

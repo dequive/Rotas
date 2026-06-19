@@ -69,9 +69,7 @@ async def list_alerts(
         query = query.where(Alert.priority == priority)
     if alert_type:
         query = query.where(Alert.alert_type == alert_type)
-    result = await db.execute(
-        query.order_by(Alert.created_at.desc()).limit(limit).offset(offset)
-    )
+    result = await db.execute(query.order_by(Alert.created_at.desc()).limit(limit).offset(offset))
     return [serialize_alert(alert) for alert in result.scalars()]
 
 

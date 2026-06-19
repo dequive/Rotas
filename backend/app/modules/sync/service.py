@@ -195,41 +195,39 @@ async def _dispatch_update(
 
     try:
         if entity_type == "checklist":
-            patch = checklist_schemas.ChecklistPatch(**{
-                k: v for k, v in payload.items()
-                if k in checklist_schemas.ChecklistPatch.model_fields
-            })
+            patch = checklist_schemas.ChecklistPatch(
+                **{
+                    k: v
+                    for k, v in payload.items()
+                    if k in checklist_schemas.ChecklistPatch.model_fields
+                }
+            )
             updated = await checklist_service.patch_checklist(db, tenant_id, entity_uuid, patch)
             return _result(operation, status="processed", server_id=updated["id"])
 
         if entity_type == "trip":
-            patch = trip_schemas.TripPatch(**{
-                k: v for k, v in payload.items()
-                if k in trip_schemas.TripPatch.model_fields
-            })
+            patch = trip_schemas.TripPatch(
+                **{k: v for k, v in payload.items() if k in trip_schemas.TripPatch.model_fields}
+            )
             updated = await trip_service.patch_trip(db, tenant_id, entity_uuid, patch)
             return _result(operation, status="processed", server_id=updated["id"])
 
         if entity_type == "fuel_log":
-            patch = fuel_schemas.FuelLogPatch(**{
-                k: v for k, v in payload.items()
-                if k in fuel_schemas.FuelLogPatch.model_fields
-            })
+            patch = fuel_schemas.FuelLogPatch(
+                **{k: v for k, v in payload.items() if k in fuel_schemas.FuelLogPatch.model_fields}
+            )
             updated = await fuel_service.patch_fuel_log(db, tenant_id, entity_uuid, patch)
             return _result(operation, status="processed", server_id=updated["id"])
 
         if entity_type == "trip_stop":
-            patch = trip_schemas.TripStopPatch(**{
-                k: v for k, v in payload.items()
-                if k in trip_schemas.TripStopPatch.model_fields
-            })
+            patch = trip_schemas.TripStopPatch(
+                **{k: v for k, v in payload.items() if k in trip_schemas.TripStopPatch.model_fields}
+            )
             updated = await trip_service.patch_stop(db, tenant_id, entity_uuid, patch)
             return _result(operation, status="processed", server_id=updated["id"])
 
         if entity_type == "delivery_proof":
-            updated = await cargo_service.patch_delivery_proof(
-                db, tenant_id, entity_uuid, payload
-            )
+            updated = await cargo_service.patch_delivery_proof(db, tenant_id, entity_uuid, payload)
             return _result(operation, status="processed", server_id=updated["id"])
 
     except Exception as exc:

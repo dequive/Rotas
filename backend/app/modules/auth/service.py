@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -119,10 +119,14 @@ async def login(
     ip_address: str | None = None,
     user_agent: str | None = None,
 ) -> dict:
-    query = select(User).join(Tenant).where(
-        User.email == payload.email.strip().lower(),
-        User.is_active.is_(True),
-        Tenant.is_active.is_(True),
+    query = (
+        select(User)
+        .join(Tenant)
+        .where(
+            User.email == payload.email.strip().lower(),
+            User.is_active.is_(True),
+            Tenant.is_active.is_(True),
+        )
     )
     if payload.tenant_slug:
         query = query.where(Tenant.slug == payload.tenant_slug)
@@ -350,10 +354,14 @@ async def request_password_reset(
     ip_address: str | None = None,
     user_agent: str | None = None,
 ) -> dict:
-    query = select(User).join(Tenant).where(
-        User.email == payload.email,
-        User.is_active.is_(True),
-        Tenant.is_active.is_(True),
+    query = (
+        select(User)
+        .join(Tenant)
+        .where(
+            User.email == payload.email,
+            User.is_active.is_(True),
+            Tenant.is_active.is_(True),
+        )
     )
     if payload.tenant_slug:
         query = query.where(Tenant.slug == payload.tenant_slug)
@@ -402,7 +410,7 @@ async def request_password_reset(
             ),
             body_html=(
                 "<p>Recebemos um pedido para recuperar o acesso ao ROTAS.</p>"
-                f"<p><a href=\"{reset_url}\">Definir nova palavra-passe</a></p>"
+                f'<p><a href="{reset_url}">Definir nova palavra-passe</a></p>'
                 "<p>Este link expira em 30 minutos. "
                 "Se nao fez este pedido, ignore esta mensagem.</p>"
             ),
@@ -458,6 +466,22 @@ async def complete_password_reset(
     )
     for refresh_token in refresh_tokens:
         refresh_token.revoked_at = now
+    driver_match_conditions = [func.lower(Driver.email) == user.email.strip().lower()]
+    if user.phone:
+        driver_match_conditions.append(Driver.phone == user.phone)
+    matching_driver_ids = select(Driver.id).where(
+        Driver.tenant_id == user.tenant_id,
+        or_(*driver_match_conditions),
+    )
+    driver_sessions = await db.scalars(
+        select(DriverSession).where(
+            DriverSession.tenant_id == user.tenant_id,
+            DriverSession.driver_id.in_(matching_driver_ids),
+            DriverSession.revoked_at.is_(None),
+        )
+    )
+    for driver_session in driver_sessions:
+        driver_session.revoked_at = now
     await record_audit_log(
         db,
         tenant_id=user.tenant_id,

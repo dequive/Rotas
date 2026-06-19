@@ -9,6 +9,7 @@ Idempotency:
   Same entity+doc_type produces the same reference within a calendar week → safe to re-run.
   409 from create_alert with alert_request_reference_reused is treated as an idempotent skip.
 """
+
 import logging
 from datetime import UTC, date, datetime
 
@@ -53,10 +54,14 @@ async def scan_expiring_documents(ctx: dict) -> dict:
     async with session_factory() as db:
         # Fetch all active tenants — BYPASSRLS role sees all rows
         tenants = (
-            await db.execute(
-                select(Tenant).where(Tenant.is_active == True).limit(500)  # noqa: E712
+            (
+                await db.execute(
+                    select(Tenant).where(Tenant.is_active == True).limit(500)  # noqa: E712
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         for tenant in tenants:
             tenants_scanned += 1
@@ -81,9 +86,7 @@ async def scan_expiring_documents(ctx: dict) -> dict:
 
                 # Stable reference within the calendar week — prevents duplicate alerts
                 # Truncated to 120 chars (AlertCreate.request_reference max length)
-                reference = (
-                    f"doc_expiry:{tenant.id}:{entity_id}:{doc_type}:{iso_week}"
-                )[:120]
+                reference = (f"doc_expiry:{tenant.id}:{entity_id}:{doc_type}:{iso_week}")[:120]
 
                 priority = _priority_from_severity(severity)
                 doc_label = doc_type.replace("_", " ").title()
@@ -113,8 +116,7 @@ async def scan_expiring_documents(ctx: dict) -> dict:
                         alerts_skipped += 1
                     else:
                         logger.warning(
-                            "scan_expiring_documents: alert creation failed "
-                            "tenant=%s ref=%s: %s",
+                            "scan_expiring_documents: alert creation failed tenant=%s ref=%s: %s",
                             tenant.id,
                             reference,
                             exc,

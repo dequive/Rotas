@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import smtplib
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from email.message import EmailMessage
 
 from sqlalchemy import select
@@ -12,6 +12,17 @@ from app.config import get_settings
 from app.modules.notifications.models import NotificationOutbox
 
 logger = logging.getLogger(__name__)
+
+# RC-03: Exponential backoff delays (seconds) indexed by attempt number (0-based).
+# Attempt 0 → 1 min, 1 → 5 min, 2 → 15 min, 3 → 1 h, 4 → 2 h.
+_RETRY_DELAYS = [60, 300, 900, 3600, 7200]
+MAX_ATTEMPTS = 5
+
+
+def _next_retry_at(attempts: int) -> datetime:
+    """Return the earliest datetime at which the next delivery attempt may run."""
+    delay = _RETRY_DELAYS[min(attempts, len(_RETRY_DELAYS) - 1)]
+    return datetime.now(UTC) + timedelta(seconds=delay)
 
 
 def _send_smtp_email(
@@ -47,15 +58,16 @@ async def deliver_queued_notifications(ctx: dict, limit: int = 25) -> dict:
     settings = get_settings()
     provider = settings.email_provider.lower()
     if provider == "none":
-        return {"provider": provider, "sent": 0, "failed": 0, "skipped": 0}
+        return {"provider": provider, "sent": 0, "failed": 0, "skipped": 0, "dead_letter": 0}
     if provider == "outbox":
-        return {"provider": provider, "sent": 0, "failed": 0, "skipped": 0}
+        return {"provider": provider, "sent": 0, "failed": 0, "skipped": 0, "dead_letter": 0}
 
     session_factory = ctx["session_factory"]
     now = datetime.now(UTC)
     sent = 0
     failed = 0
     skipped = 0
+    dead_letter = 0
 
     async with session_factory() as db:
         items = (
@@ -64,7 +76,7 @@ async def deliver_queued_notifications(ctx: dict, limit: int = 25) -> dict:
                 .where(
                     NotificationOutbox.channel == "email",
                     NotificationOutbox.status.in_(("queued", "failed")),
-                    NotificationOutbox.attempts < 5,
+                    NotificationOutbox.attempts < MAX_ATTEMPTS,
                     (NotificationOutbox.scheduled_at.is_(None))
                     | (NotificationOutbox.scheduled_at <= now),
                 )
@@ -75,11 +87,15 @@ async def deliver_queued_notifications(ctx: dict, limit: int = 25) -> dict:
 
         for item in items:
             item.attempts += 1
+            attempt_label = f"{item.attempts}/{MAX_ATTEMPTS}"
+
             if provider != "smtp":
                 item.status = "failed"
                 item.last_error = f"Unsupported EMAIL_PROVIDER: {settings.email_provider}"
+                item.scheduled_at = _next_retry_at(item.attempts)
                 failed += 1
                 continue
+
             try:
                 await asyncio.to_thread(
                     _send_smtp_email,
@@ -97,15 +113,49 @@ async def deliver_queued_notifications(ctx: dict, limit: int = 25) -> dict:
                 item.status = "sent"
                 item.sent_at = datetime.now(UTC)
                 item.last_error = None
+                item.scheduled_at = None
                 sent += 1
+                logger.info(
+                    "notification sent id=%s attempt=%s recipient=%s",
+                    item.id,
+                    attempt_label,
+                    item.recipient,
+                )
             except Exception as exc:
-                item.status = "failed"
                 item.last_error = str(exc)[:1000]
-                failed += 1
-                logger.warning("notification delivery failed id=%s: %s", item.id, exc)
+                if item.attempts >= MAX_ATTEMPTS:
+                    # RC-03: Move to dead-letter after exhausting all retries so
+                    # operators can inspect and replay without the cron endlessly
+                    # burning connections against an unavailable SMTP server.
+                    item.status = "dead_letter"
+                    item.scheduled_at = None
+                    dead_letter += 1
+                    logger.error(
+                        "notification dead-lettered id=%s after %s attempts: %s",
+                        item.id,
+                        attempt_label,
+                        exc,
+                    )
+                else:
+                    item.status = "failed"
+                    item.scheduled_at = _next_retry_at(item.attempts)
+                    failed += 1
+                    logger.warning(
+                        "notification delivery failed id=%s attempt=%s next_retry=%s error=%s",
+                        item.id,
+                        attempt_label,
+                        item.scheduled_at.isoformat(),
+                        exc,
+                    )
 
         await db.commit()
 
-    result = {"provider": provider, "sent": sent, "failed": failed, "skipped": skipped}
+    result = {
+        "provider": provider,
+        "sent": sent,
+        "failed": failed,
+        "skipped": skipped,
+        "dead_letter": dead_letter,
+    }
     logger.info("deliver_queued_notifications complete: %s", result)
     return result

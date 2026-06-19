@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Header, status
 import jwt  # PyJWT — not python-jose; rejects alg=none by default (CVE-2025-61152 fix)
+from fastapi import Depends, Header, status
 from sqlalchemy import select
 
 from app.config import get_settings
@@ -37,7 +37,12 @@ async def get_current_principal(
         )
     token = authorization.split(" ", 1)[1]
     settings = get_settings()
-    if token == "test-token" and settings.environment in {"development", "test"}:
+    dev_test_token = settings.dev_test_token.get_secret_value()
+    if (
+        dev_test_token
+        and token == dev_test_token
+        and settings.environment in {"development", "test"}
+    ):
         if x_tenant_id is None:
             raise ApiError(
                 "tenant_required",

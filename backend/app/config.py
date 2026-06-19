@@ -3,6 +3,8 @@ from functools import lru_cache
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+DEV_CORS_ORIGINS = ["http://localhost:3000", "http://localhost:5173"]
+
 
 class Settings(BaseSettings):
     app_name: str = "ROTAS"
@@ -25,12 +27,20 @@ class Settings(BaseSettings):
 
     access_token_minutes: int = 15
     refresh_token_days: int = 30
+    audit_log_retention_days: int = Field(
+        default=365,
+        validation_alias="AUDIT_LOG_RETENTION_DAYS",
+    )
 
     # SEC-01 / D-03: SecretStr with no default — app raises ValidationError at startup if absent
     jwt_secret_key: SecretStr = Field(validation_alias="JWT_SECRET_KEY")
     jwt_algorithm: str = "HS256"
 
-    cors_origins: list[str] = Field(default_factory=list, validation_alias="CORS_ORIGINS")
+    cors_origins: list[str] = Field(
+        default_factory=lambda: DEV_CORS_ORIGINS.copy(),
+        validation_alias="CORS_ORIGINS",
+    )
+    dev_test_token: SecretStr = Field(default=SecretStr(""), validation_alias="DEV_TEST_TOKEN")
     local_upload_dir: str = Field(default=".rotas_uploads", validation_alias="LOCAL_UPLOAD_DIR")
     redis_url: str = Field(
         default="redis://localhost:6381",
@@ -87,7 +97,11 @@ class Settings(BaseSettings):
     def validate_production_config(self) -> "Settings":
         """D-05 / SEC-02: In production, CORS_ORIGINS must be explicit — no wildcard, no empty."""
         if self.environment == "production":
-            if not self.cors_origins or "*" in self.cors_origins:
+            if (
+                not self.cors_origins
+                or "*" in self.cors_origins
+                or self.cors_origins == DEV_CORS_ORIGINS
+            ):
                 raise ValueError(
                     "CORS_ORIGINS must be set to one or more explicit origins (not '*') "
                     "when ENVIRONMENT=production."
@@ -116,9 +130,7 @@ class Settings(BaseSettings):
                     + ", ".join(missing_r2)
                 )
             if self.email_provider.lower() == "none":
-                raise ValueError(
-                    "EMAIL_PROVIDER must be configured when ENVIRONMENT=production."
-                )
+                raise ValueError("EMAIL_PROVIDER must be configured when ENVIRONMENT=production.")
             if not self.email_from_address:
                 raise ValueError(
                     "EMAIL_FROM_ADDRESS must be configured when ENVIRONMENT=production."

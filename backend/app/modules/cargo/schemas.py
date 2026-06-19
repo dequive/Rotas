@@ -150,7 +150,9 @@ class DeclaracaoCargaPerisgosaCreate(BaseModel):
     contract_id: UUID | None = None
     document_number: str | None = Field(None, max_length=80)
     issuer: str | None = Field(None, max_length=160)
-    hazmat_class: str = Field(..., min_length=1, max_length=10, description="ADR class e.g. '3', '8'")
+    hazmat_class: str = Field(
+        ..., min_length=1, max_length=10, description="ADR class e.g. '3', '8'"
+    )
     un_number: str | None = Field(None, max_length=10, description="UN number e.g. 'UN1203'")
     hazmat_description: str = Field(..., min_length=1, max_length=300)
     authorization_code: str | None = Field(None, max_length=80)

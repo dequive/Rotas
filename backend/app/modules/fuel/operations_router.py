@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.permissions import ADMIN_ROLES, DASHBOARD_ROLES, WRITE_ROLES, require_roles
-from app.core.deps import get_session
 from app.modules.fuel import operations
 from app.modules.fuel.operations_schemas import (
     FuelPurchaseCreate,

@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
-from app.core.permissions import DASHBOARD_ROLES, require_roles
 from app.core.deps import get_session
+from app.core.permissions import DASHBOARD_ROLES, require_roles
 from app.modules.control_tower import service
 
 router = APIRouter(prefix="/control-tower", tags=["control-tower"])

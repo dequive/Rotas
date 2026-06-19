@@ -2,6 +2,7 @@
 
 Task: task_export_compliance_report — generates monthly AT compliance XLSX.
 """
+
 from __future__ import annotations
 
 import logging

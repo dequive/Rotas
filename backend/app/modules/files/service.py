@@ -70,7 +70,7 @@ async def presign_upload(
     user_id: UUID | None = None,
     driver_id: UUID | None = None,
 ) -> dict:
-    _validate_upload_metadata(
+    validate_upload_metadata(
         size_bytes=payload.size_bytes,
         mime_type=payload.mime_type,
         sha256_hash=payload.sha256_hash,
@@ -116,7 +116,7 @@ async def presign_upload(
     }
 
 
-def _validate_upload_metadata(
+def validate_upload_metadata(
     *,
     size_bytes: int,
     mime_type: str,
@@ -126,14 +126,18 @@ def _validate_upload_metadata(
         raise ApiError(
             "invalid_file_size",
             "File size is outside the allowed range.",
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=(
+                status.HTTP_413_CONTENT_TOO_LARGE
+                if size_bytes > MAX_UPLOAD_BYTES
+                else status.HTTP_422_UNPROCESSABLE_ENTITY
+            ),
             details={"max_upload_bytes": MAX_UPLOAD_BYTES},
         )
     if mime_type not in ALLOWED_UPLOAD_MIME_TYPES:
         raise ApiError(
             "unsupported_mime_type",
             "File MIME type is not supported.",
-            status_code=422,
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             details={"allowed_mime_types": sorted(ALLOWED_UPLOAD_MIME_TYPES)},
         )
     if sha256_hash is not None and (
@@ -165,7 +169,7 @@ async def upload_file(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
     mime_type = upload.content_type or "application/octet-stream"
-    _validate_upload_metadata(size_bytes=len(content), mime_type=mime_type)
+    validate_upload_metadata(size_bytes=len(content), mime_type=mime_type)
 
     file_id = uuid4()
     original_name = upload.filename or "upload.bin"
@@ -265,9 +269,11 @@ async def confirm_upload(
     driver_id: UUID | None = None,
 ) -> dict:
     file = await _require_file(db, tenant_id, payload.file_id)
-    if file.confirmed_at is not None and (
-        payload.entity_type is None or payload.entity_type == file.entity_type
-    ) and (payload.entity_id is None or payload.entity_id == file.entity_id):
+    if (
+        file.confirmed_at is not None
+        and (payload.entity_type is None or payload.entity_type == file.entity_type)
+        and (payload.entity_id is None or payload.entity_id == file.entity_id)
+    ):
         return serialize_file(file)
     old_values = serialize_file(file)
     if payload.entity_type is not None:
@@ -307,8 +313,27 @@ async def get_file_path(db: AsyncSession, tenant_id: UUID, file_id: UUID) -> tup
             "File is stored in R2. Use the presigned URL endpoint to download.",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
-    relative_key = file.storage_key.split("/", maxsplit=1)[1]
-    path = Path(get_settings().local_upload_dir) / relative_key
+    if "/" not in file.storage_key:
+        raise ApiError(
+            "invalid_storage_key",
+            "Stored file path is invalid.",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    key_tenant, relative_key = file.storage_key.split("/", maxsplit=1)
+    if key_tenant != str(tenant_id):
+        raise ApiError(
+            "invalid_storage_key",
+            "Stored file path does not match tenant context.",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    root = Path(get_settings().local_upload_dir).resolve()
+    path = (root / relative_key).resolve()
+    if not path.is_relative_to(root):
+        raise ApiError(
+            "invalid_storage_key",
+            "Stored file path is outside the upload directory.",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
     if not path.exists():
         raise ApiError(
             "file_content_not_found",

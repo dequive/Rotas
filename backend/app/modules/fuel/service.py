@@ -144,12 +144,17 @@ async def create_fuel_log(
     actor_id: UUID | None = None,
     driver_actor_id: UUID | None = None,
 ) -> dict:
-    vehicle = await db.get(Vehicle, payload.vehicle_id)
-    if (
-        not vehicle
-        or vehicle.tenant_id != tenant_id
-        or vehicle.status not in {"active", "maintenance"}
-    ):
+    # RC-01: Lock the Vehicle row before reading current_km so concurrent
+    # refuel requests are serialised at the DB level.  Without FOR UPDATE,
+    # two simultaneous requests could read the same current_km, compute an
+    # identical km_since_last baseline and produce incorrect consumption data.
+    vehicle_result = await db.execute(
+        select(Vehicle)
+        .where(Vehicle.id == payload.vehicle_id, Vehicle.tenant_id == tenant_id)
+        .with_for_update()
+    )
+    vehicle = vehicle_result.scalar_one_or_none()
+    if not vehicle or vehicle.status not in {"active", "maintenance"}:
         raise ApiError("vehicle_not_found", "Vehicle not found or inactive.", status_code=404)
 
     driver = await db.get(Driver, payload.driver_id)

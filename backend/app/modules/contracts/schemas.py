@@ -6,8 +6,10 @@ from pydantic import BaseModel, Field
 
 
 class ContractCreate(BaseModel):
-    client_id: UUID | None = None          # preferred path after Phase 5 migration
-    client_name: str | None = None         # kept optional for backward compat; populated from client if client_id given
+    client_id: UUID | None = None  # preferred path after Phase 5 migration
+    client_name: str | None = (
+        None  # kept optional for backward compat; populated from client if client_id given
+    )
     client_nuit: str | None = None
     contract_reference: str
     title: str | None = None

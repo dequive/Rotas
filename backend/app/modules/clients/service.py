@@ -36,9 +36,7 @@ def serialize_client(client: Client, outstanding_balance: Decimal | None = None)
     }
 
 
-async def _get_outstanding_balance(
-    db: AsyncSession, client_id: UUID, tenant_id: UUID
-) -> Decimal:
+async def _get_outstanding_balance(db: AsyncSession, client_id: UUID, tenant_id: UUID) -> Decimal:
     """Outstanding balance: gross issued/overdue invoice totals minus confirmed allocations.
 
     Updated in Phase 6 to subtract PaymentAllocation.amount_applied for confirmed payments.
@@ -90,9 +88,7 @@ async def list_clients(
     return [serialize_client(c) for c in clients]
 
 
-async def get_client_with_balance(
-    db: AsyncSession, client_id: UUID, tenant_id: UUID
-) -> dict:
+async def get_client_with_balance(db: AsyncSession, client_id: UUID, tenant_id: UUID) -> dict:
     client = await db.get(Client, client_id)
     if not client or client.tenant_id != tenant_id:
         raise ApiError(
@@ -104,19 +100,17 @@ async def get_client_with_balance(
     return serialize_client(client, outstanding_balance=balance)
 
 
-async def create_client(
-    db: AsyncSession, tenant_id: UUID, payload: ClientCreate
-) -> dict:
+async def create_client(db: AsyncSession, tenant_id: UUID, payload: ClientCreate) -> dict:
     client = Client(tenant_id=tenant_id, **payload.model_dump())
     db.add(client)
     try:
         await db.flush()
-    except IntegrityError:
+    except IntegrityError as exc:
         raise ApiError(
             "nuit_already_exists",
             "NUIT já existe neste tenant.",
             status_code=status.HTTP_409_CONFLICT,
-        )
+        ) from exc
     await db.commit()
     await db.refresh(client)
     return serialize_client(client)
@@ -190,18 +184,20 @@ async def get_client_statement(
         outstanding = (doc.total_amount - amount_paid).quantize(Decimal("0.01"))
         total_invoiced += doc.total_amount
         total_paid_on_docs += amount_paid
-        documents.append({
-            "id": doc.id,
-            "invoice_number": getattr(doc, "invoice_number", None),
-            "billing_period_start": doc.billing_period_start,
-            "billing_period_end": doc.billing_period_end,
-            "total_amount": doc.total_amount,
-            "amount_paid": amount_paid,
-            "outstanding_balance": outstanding,
-            "due_date": getattr(doc, "due_date", None),
-            "status": doc.status,
-            "issued_at": getattr(doc, "issued_at", None),
-        })
+        documents.append(
+            {
+                "id": doc.id,
+                "invoice_number": getattr(doc, "invoice_number", None),
+                "billing_period_start": doc.billing_period_start,
+                "billing_period_end": doc.billing_period_end,
+                "total_amount": doc.total_amount,
+                "amount_paid": amount_paid,
+                "outstanding_balance": outstanding,
+                "due_date": getattr(doc, "due_date", None),
+                "status": doc.status,
+                "issued_at": getattr(doc, "issued_at", None),
+            }
+        )
 
     # Fetch payments for this client
     pay_result = await db.execute(
@@ -227,16 +223,18 @@ async def get_client_statement(
         unallocated = (p.amount - allocated).quantize(Decimal("0.01"))
         if p.status == "confirmed" and p.billing_document_id is None:
             advance_balance += unallocated
-        payments_out.append({
-            "id": p.id,
-            "amount": p.amount,
-            "value_date": p.value_date,
-            "payment_method": p.payment_method,
-            "reference": p.reference,
-            "status": p.status,
-            "allocated": allocated,
-            "unallocated": unallocated,
-        })
+        payments_out.append(
+            {
+                "id": p.id,
+                "amount": p.amount,
+                "value_date": p.value_date,
+                "payment_method": p.payment_method,
+                "reference": p.reference,
+                "status": p.status,
+                "allocated": allocated,
+                "unallocated": unallocated,
+            }
+        )
 
     total_outstanding = (total_invoiced - total_paid_on_docs).quantize(Decimal("0.01"))
     return {

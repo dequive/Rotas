@@ -30,7 +30,7 @@ from app.modules.workshop.models import (
 ACTIVE_WORK_ORDER_STATUSES = ("approved", "in_progress", "quality_check")
 DEFAULT_DRIVER_DESPACHO_MIN_KM = 100
 
-CT_KPI_TTL = 60   # seconds — CT-02
+CT_KPI_TTL = 60  # seconds — CT-02
 CT_ALERT_TTL = 30  # seconds — CT-02 (reserved for alert-specific caching)
 
 
@@ -103,9 +103,7 @@ async def get_control_tower(
         await db.execute(
             select(
                 func.count(Trip.id)
-                .filter(
-                    Trip.status.in_(("dispatched", "in_progress", "delayed", "incident"))
-                )
+                .filter(Trip.status.in_(("dispatched", "in_progress", "delayed", "incident")))
                 .label("trips_in_execution"),
                 func.count(Trip.id)
                 .filter(Trip.billing_status == "billable")
@@ -167,9 +165,7 @@ async def get_control_tower(
         await db.execute(
             select(
                 func.count(TripOrder.id)
-                .filter(
-                    TripOrder.status.in_(("draft", "confirmed", "planning", "assigned"))
-                )
+                .filter(TripOrder.status.in_(("draft", "confirmed", "planning", "assigned")))
                 .label("trip_orders_open"),
             ).where(TripOrder.tenant_id == tenant_id)
         )
@@ -242,12 +238,8 @@ async def get_control_tower(
     fleet_row = (
         await db.execute(
             select(
-                func.count(Vehicle.id)
-                .filter(Vehicle.status == "active")
-                .label("vehicles_active"),
-                func.count(Driver.id)
-                .filter(Driver.status == "active")
-                .label("drivers_active"),
+                func.count(Vehicle.id).filter(Vehicle.status == "active").label("vehicles_active"),
+                func.count(Driver.id).filter(Driver.status == "active").label("drivers_active"),
             )
             .select_from(Vehicle)
             .join(Driver, Driver.tenant_id == tenant_id, isouter=True)
@@ -854,15 +846,19 @@ async def _operational_close_queue(
     # Batch load delivery proofs — single IN query instead of N per-row queries
     proofs_by_trip: dict = {}
     proof_rows = (
-        await db.execute(
-            select(DeliveryProof)
-            .where(
-                DeliveryProof.tenant_id == tenant_id,
-                DeliveryProof.trip_id.in_(trip_ids),
+        (
+            await db.execute(
+                select(DeliveryProof)
+                .where(
+                    DeliveryProof.tenant_id == tenant_id,
+                    DeliveryProof.trip_id.in_(trip_ids),
+                )
+                .order_by(DeliveryProof.delivered_at.desc(), DeliveryProof.created_at.desc())
             )
-            .order_by(DeliveryProof.delivered_at.desc(), DeliveryProof.created_at.desc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for proof in proof_rows:
         if proof.trip_id not in proofs_by_trip:
             proofs_by_trip[proof.trip_id] = proof
@@ -871,8 +867,7 @@ async def _operational_close_queue(
     incidents_by_trip: dict = {}
     incident_rows = (
         await db.execute(
-            select(TripIncident.id, TripIncident.trip_id)
-            .where(
+            select(TripIncident.id, TripIncident.trip_id).where(
                 TripIncident.tenant_id == tenant_id,
                 TripIncident.trip_id.in_(trip_ids),
                 TripIncident.status.in_(("open", "investigating")),

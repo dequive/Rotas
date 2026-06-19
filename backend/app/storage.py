@@ -3,7 +3,8 @@
 Dispatch logic: reads settings.storage_provider at call time.
 Usage: from app.storage import upload_file, generate_presigned_url, StorageProvider
 """
-from enum import Enum
+
+from enum import StrEnum
 from pathlib import Path
 
 import aiobotocore.session
@@ -11,7 +12,7 @@ import aiobotocore.session
 from app.config import get_settings
 
 
-class StorageProvider(str, Enum):
+class StorageProvider(StrEnum):
     LOCAL = "local"
     R2 = "r2"
 
@@ -19,11 +20,14 @@ class StorageProvider(str, Enum):
 def _local_path(storage_key: str) -> Path:
     """Return absolute disk path for a storage_key under local_upload_dir."""
     settings = get_settings()
-    root = Path(settings.local_upload_dir)
+    root = Path(settings.local_upload_dir).resolve()
     # storage_key format: "{tenant_id}/{entity_type}/{file_id}_{filename}"
     # Strip leading tenant segment when building path (matches _tenant_upload_dir pattern)
     relative = storage_key.split("/", maxsplit=1)[1] if "/" in storage_key else storage_key
-    return root / relative
+    target = (root / relative).resolve()
+    if not target.is_relative_to(root):
+        raise ValueError("storage_key resolves outside local_upload_dir")
+    return target
 
 
 async def upload_file(storage_key: str, content: bytes, *, mime_type: str) -> StorageProvider:

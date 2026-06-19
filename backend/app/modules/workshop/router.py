@@ -7,7 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import DASHBOARD_ROLES, WORKSHOP_READ_ROLES, WORKSHOP_WRITE_ROLES, require_roles
+from app.core.permissions import (
+    DASHBOARD_ROLES,
+    WORKSHOP_READ_ROLES,
+    WORKSHOP_WRITE_ROLES,
+    require_roles,
+)
 from app.modules.workshop import schemas, service
 
 router = APIRouter(prefix="/workshop", tags=["workshop"])
@@ -387,6 +392,7 @@ async def get_imminent_maintenance_alerts(
 # Reads use WORKSHOP_READ_ROLES (includes viewer + mechanic).
 # Existing 18 endpoints above are unchanged.
 # ---------------------------------------------------------------------------
+
 
 @router.get("/kpis")
 async def get_workshop_kpis(

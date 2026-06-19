@@ -117,7 +117,7 @@ async def _enqueue_email_verification(
             ),
             body_html=(
                 "<p>Bem-vindo ao ROTAS.</p>"
-                f"<p><a href=\"{verify_url}\">Confirmar email</a></p>"
+                f'<p><a href="{verify_url}">Confirmar email</a></p>'
                 "<p>Este link expira em 24 horas. "
                 "Se nao criou esta conta, ignore esta mensagem.</p>"
             ),

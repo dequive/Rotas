@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
-from app.core.deps import get_session
 from app.modules.availability import service as availability_service
 from app.modules.vehicles import schemas, service
 
@@ -76,7 +76,36 @@ async def list_vehicle_history(
     db: Annotated[AsyncSession, Depends(get_session)],
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    # Cursor-based pagination params (new — Plan 13.5-03)
+    cursor: str | None = Query(None),
+    types: str | None = Query(None),
+    from_date: str | None = Query(None, alias="from"),
+    to_date: str | None = Query(None, alias="to"),
 ):
+    """Vehicle history endpoint supporting both offset pagination (legacy) and cursor pagination.
+
+    When `cursor`, `types`, `from`, or `to` query params are provided, the response uses the
+    cursor-paginated format: {"events": [...], "next_cursor": str|null, "total_count": int}.
+
+    Without those params, the legacy offset format is used:
+    {"vehicle": {...}, "items": [...], "limit": ..., "offset": ..., "returned": ...}.
+    """
+    if cursor is not None or types is not None or from_date is not None or to_date is not None:
+        parsed_types = [t.strip() for t in types.split(",")] if types else None
+        from datetime import datetime as _dt
+
+        from_dt = _dt.fromisoformat(from_date) if from_date else None
+        to_dt = _dt.fromisoformat(to_date) if to_date else None
+        return await service.get_vehicle_history(
+            vehicle_id=vehicle_id,
+            tenant_id=principal.tenant_id,
+            from_date=from_dt,
+            to_date=to_dt,
+            types=parsed_types,
+            cursor=cursor,
+            limit=limit,
+            db=db,
+        )
     return await service.list_vehicle_history(
         db,
         principal.tenant_id,

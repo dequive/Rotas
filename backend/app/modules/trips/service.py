@@ -16,7 +16,6 @@ from app.modules.operations.service import has_active_waiver
 from app.modules.tenants.models import Tenant
 from app.modules.trip_orders.models import TripOrder
 from app.modules.trips.costs import reconcile_trip_costs, record_trip_cost, serialize_trip_cost
-from app.modules.vehicles.models import Vehicle
 from app.modules.trips.models import (
     DispatchClearance,
     Trip,
@@ -42,6 +41,7 @@ from app.modules.trips.schemas import (
     TripStopCreate,
     TripStopPatch,
 )
+from app.modules.vehicles.models import Vehicle
 from app.modules.workshop.service import create_breakdown_maintenance_request
 
 TRIP_EVENT_TYPES = {

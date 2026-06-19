@@ -999,7 +999,10 @@ async def create_declaracao_carga_perigosa(
         action="cargo.transport_document_created",
         entity_type="transport_document",
         entity_id=doc.id,
-        new_values={"document_type": "declaracao_carga_perigosa", "hazmat_class": payload.hazmat_class},
+        new_values={
+            "document_type": "declaracao_carga_perigosa",
+            "hazmat_class": payload.hazmat_class,
+        },
     )
     await db.commit()
     await db.refresh(doc)
@@ -1023,16 +1026,13 @@ async def get_document_checklist(
     is_international = trip.is_international
     is_hazmat = trip.is_hazmat
 
-    required: set[str] = (
-        _INTERNATIONAL_DOC_TYPES if is_international else _DOMESTIC_DOC_TYPES
-    )
+    required: set[str] = _INTERNATIONAL_DOC_TYPES if is_international else _DOMESTIC_DOC_TYPES
     if is_hazmat:
         required = required | _HAZMAT_EXTRA
 
     # Count existing transport_documents by type
     td_result = await db.execute(
-        select(TransportDocument.document_type)
-        .where(
+        select(TransportDocument.document_type).where(
             TransportDocument.tenant_id == tenant_id,
             TransportDocument.trip_id == trip_id,
         )
@@ -1059,10 +1059,7 @@ async def get_document_checklist(
     if cm_result.first():
         present_types.add("cargo_manifest")
 
-    checklist = [
-        {"document_type": dt, "present": dt in present_types}
-        for dt in sorted(required)
-    ]
+    checklist = [{"document_type": dt, "present": dt in present_types} for dt in sorted(required)]
     return {
         "trip_id": trip_id,
         "is_international": is_international,

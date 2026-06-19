@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
-from app.core.permissions import ADMIN_ROLES, require_roles
 from app.core.deps import get_session
+from app.core.permissions import ADMIN_ROLES, require_roles
 from app.modules.audit import service
 
 router = APIRouter(prefix="/audit-logs", tags=["audit"])

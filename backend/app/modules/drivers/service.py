@@ -1,11 +1,10 @@
 import secrets
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
 from uuid import UUID
 
 from fastapi import status
 from redis.asyncio import Redis as AsyncRedis
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, literal, or_, select, text, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -64,7 +63,9 @@ async def _get_cached_driver_count(
         if cached is not None:
             return int(cached)
     result = await db.execute(
-        select(func.count()).select_from(Driver).where(
+        select(func.count())
+        .select_from(Driver)
+        .where(
             Driver.tenant_id == tenant_id,
             Driver.status != "inactive",
         )
@@ -76,9 +77,7 @@ async def _get_cached_driver_count(
     return count
 
 
-async def _check_driver_limit(
-    db: AsyncSession, tenant: Tenant, redis: AsyncRedis | None
-) -> None:
+async def _check_driver_limit(db: AsyncSession, tenant: Tenant, redis: AsyncRedis | None) -> None:
     """Raise plan_limit_reached if tenant is at or over max_drivers (D-13, D-14).
 
     Skip entirely when max_drivers is None (unlimited enterprise plan).
@@ -196,35 +195,6 @@ async def get_driver(db: AsyncSession, tenant_id: UUID, driver_id: UUID) -> dict
     return serialize_driver(await _require_driver(db, tenant_id, driver_id))
 
 
-def _number(value) -> float | None:
-    if value is None:
-        return None
-    if isinstance(value, Decimal):
-        return float(value)
-    return value
-
-
-def _history_event(
-    *,
-    occurred_at: datetime | None,
-    source: str,
-    event_type: str,
-    summary: str,
-    reference_type: str,
-    reference_id: UUID,
-    details: dict | None = None,
-) -> dict:
-    return {
-        "occurred_at": occurred_at,
-        "source": source,
-        "event_type": event_type,
-        "summary": summary,
-        "reference_type": reference_type,
-        "reference_id": reference_id,
-        "details": details or {},
-    }
-
-
 async def list_driver_history(
     db: AsyncSession,
     tenant_id: UUID,
@@ -233,194 +203,205 @@ async def list_driver_history(
     limit: int = 100,
     offset: int = 0,
 ) -> dict:
+    """NQ-01: Single UNION ALL query replaces 9 serial queries.
+
+    All 7 history sources are merged server-side. Pagination is applied by
+    PostgreSQL (LIMIT/OFFSET on the outer SELECT), so there is no Python-side
+    over-fetch regardless of the requested page depth.
+    """
     driver = await _require_driver(db, tenant_id, driver_id)
-    window = min(limit + offset, 500)
-    events: list[dict] = []
 
-    audit_rows = await db.execute(
-        select(AuditLog)
-        .where(
-            AuditLog.tenant_id == tenant_id,
-            AuditLog.entity_type == "driver",
-            AuditLog.entity_id == driver_id,
-        )
-        .order_by(AuditLog.created_at.desc())
-        .limit(window)
+    tid = tenant_id
+    did = driver_id
+
+    _audit = select(
+        AuditLog.created_at.label("occurred_at"),
+        literal("audit").label("source"),
+        AuditLog.action.label("event_type"),
+        AuditLog.action.label("summary"),
+        literal("audit_log").label("reference_type"),
+        AuditLog.id.label("reference_id"),
+        func.jsonb_build_object(
+            "old_values",
+            AuditLog.old_values,
+            "new_values",
+            AuditLog.new_values,
+        ).label("details"),
+    ).where(
+        AuditLog.tenant_id == tid,
+        AuditLog.entity_type == "driver",
+        AuditLog.entity_id == did,
     )
-    for log in audit_rows.scalars():
-        events.append(
-            _history_event(
-                occurred_at=log.created_at,
-                source="audit",
-                event_type=log.action,
-                summary=log.action.replace("_", " "),
-                reference_type="audit_log",
-                reference_id=log.id,
-                details={"old_values": log.old_values, "new_values": log.new_values},
-            )
-        )
 
-    trip_rows = await db.execute(
-        select(Trip)
-        .where(Trip.tenant_id == tenant_id, Trip.driver_id == driver_id)
-        .order_by(Trip.created_at.desc())
-        .limit(window)
+    _trips = select(
+        func.coalesce(Trip.actual_departure, Trip.planned_departure, Trip.created_at).label(
+            "occurred_at"
+        ),
+        literal("trips").label("source"),
+        func.concat("trip.", Trip.status).label("event_type"),
+        func.concat("Trip ", Trip.origin, " -> ", Trip.destination, " is ", Trip.status, ".").label(
+            "summary"
+        ),
+        literal("trip").label("reference_type"),
+        Trip.id.label("reference_id"),
+        func.jsonb_build_object(
+            "vehicle_id",
+            Trip.vehicle_id,
+            "origin",
+            Trip.origin,
+            "destination",
+            Trip.destination,
+            "km_start",
+            Trip.km_start,
+            "km_end",
+            Trip.km_end,
+            "billing_status",
+            Trip.billing_status,
+            "total_transport_cost",
+            Trip.total_transport_cost,
+            "actual_margin",
+            Trip.actual_margin,
+        ).label("details"),
+    ).where(Trip.tenant_id == tid, Trip.driver_id == did)
+
+    _checklists = select(
+        func.coalesce(
+            Checklist.completed_at, Checklist.client_captured_at, Checklist.created_at
+        ).label("occurred_at"),
+        literal("checklists").label("source"),
+        func.concat("checklist.", Checklist.status).label("event_type"),
+        func.concat(Checklist.type, " checklist ", Checklist.status, ".").label("summary"),
+        literal("checklist").label("reference_type"),
+        Checklist.id.label("reference_id"),
+        func.jsonb_build_object(
+            "vehicle_id",
+            Checklist.vehicle_id,
+            "type",
+            Checklist.type,
+            "duration_seconds",
+            Checklist.duration_seconds,
+        ).label("details"),
+    ).where(Checklist.tenant_id == tid, Checklist.driver_id == did)
+
+    _fuel_logs = select(
+        FuelLog.fuel_date.label("occurred_at"),
+        literal("fuel").label("source"),
+        literal("fuel.external_refuel").label("event_type"),
+        func.concat("External refuel of ", FuelLog.liters, " L.").label("summary"),
+        literal("fuel_log").label("reference_type"),
+        FuelLog.id.label("reference_id"),
+        func.jsonb_build_object(
+            "vehicle_id",
+            FuelLog.vehicle_id,
+            "station_name",
+            FuelLog.station_name,
+            "liters",
+            FuelLog.liters,
+            "total_cost",
+            FuelLog.total_cost,
+            "km_at_refuel",
+            FuelLog.km_at_refuel,
+            "flagged",
+            FuelLog.flagged,
+            "is_verified",
+            FuelLog.is_verified,
+        ).label("details"),
+    ).where(FuelLog.tenant_id == tid, FuelLog.driver_id == did)
+
+    _refuels = select(
+        VehicleRefuel.refueled_at.label("occurred_at"),
+        literal("fuel_operations").label("source"),
+        literal("fuel.internal_refuel").label("event_type"),
+        func.concat("Internal refuel of ", VehicleRefuel.liters, " L.").label("summary"),
+        literal("vehicle_refuel").label("reference_type"),
+        VehicleRefuel.id.label("reference_id"),
+        func.jsonb_build_object(
+            "vehicle_id",
+            VehicleRefuel.vehicle_id,
+            "trip_id",
+            VehicleRefuel.trip_id,
+            "tank_id",
+            VehicleRefuel.tank_id,
+            "liters",
+            VehicleRefuel.liters,
+            "total_cost",
+            VehicleRefuel.total_cost,
+            "odometer_reading",
+            VehicleRefuel.odometer_reading,
+        ).label("details"),
+    ).where(VehicleRefuel.tenant_id == tid, VehicleRefuel.driver_id == did)
+
+    _incidents = select(
+        TripIncident.occurred_at.label("occurred_at"),
+        literal("incidents").label("source"),
+        func.concat("incident.", TripIncident.status).label("event_type"),
+        func.concat(TripIncident.severity, " ", TripIncident.incident_type, " incident.").label(
+            "summary"
+        ),
+        literal("trip_incident").label("reference_type"),
+        TripIncident.id.label("reference_id"),
+        func.jsonb_build_object(
+            "trip_id",
+            TripIncident.trip_id,
+            "vehicle_id",
+            TripIncident.vehicle_id,
+            "severity",
+            TripIncident.severity,
+            "description",
+            TripIncident.description,
+            "delay_minutes",
+            TripIncident.delay_minutes,
+        ).label("details"),
+    ).where(TripIncident.tenant_id == tid, TripIncident.driver_id == did)
+
+    _waivers = select(
+        func.coalesce(OperationalWaiver.approved_at, OperationalWaiver.created_at).label(
+            "occurred_at"
+        ),
+        literal("operations").label("source"),
+        func.concat("waiver.", OperationalWaiver.status).label("event_type"),
+        func.concat(
+            OperationalWaiver.risk_level, " ", OperationalWaiver.waiver_type, " waiver."
+        ).label("summary"),
+        literal("operational_waiver").label("reference_type"),
+        OperationalWaiver.id.label("reference_id"),
+        func.jsonb_build_object(
+            "reason",
+            OperationalWaiver.reason,
+            "expires_at",
+            OperationalWaiver.expires_at,
+            "approved_by",
+            OperationalWaiver.approved_by,
+        ).label("details"),
+    ).where(
+        OperationalWaiver.tenant_id == tid,
+        OperationalWaiver.entity_type == "driver",
+        OperationalWaiver.entity_id == did,
     )
-    for trip in trip_rows.scalars():
-        events.append(
-            _history_event(
-                occurred_at=trip.actual_departure
-                or trip.planned_departure
-                or trip.created_at,
-                source="trips",
-                event_type=f"trip.{trip.status}",
-                summary=f"Trip {trip.origin} -> {trip.destination} is {trip.status}.",
-                reference_type="trip",
-                reference_id=trip.id,
-                details={
-                    "vehicle_id": trip.vehicle_id,
-                    "origin": trip.origin,
-                    "destination": trip.destination,
-                    "km_start": trip.km_start,
-                    "km_end": trip.km_end,
-                    "billing_status": trip.billing_status,
-                    "total_transport_cost": _number(trip.total_transport_cost),
-                    "actual_margin": _number(trip.actual_margin),
-                },
-            )
-        )
 
-    checklist_rows = await db.execute(
-        select(Checklist)
-        .where(Checklist.tenant_id == tenant_id, Checklist.driver_id == driver_id)
-        .order_by(Checklist.created_at.desc())
-        .limit(window)
+    # NQ-01: Single round-trip — ORDER BY + LIMIT + OFFSET applied at the outer
+    # level by PostgreSQL. No Python sort, no over-fetch.
+    stmt = (
+        union_all(_audit, _trips, _checklists, _fuel_logs, _refuels, _incidents, _waivers)
+        .order_by(text("occurred_at DESC NULLS LAST"))
+        .limit(limit)
+        .offset(offset)
     )
-    for checklist in checklist_rows.scalars():
-        events.append(
-            _history_event(
-                occurred_at=checklist.completed_at
-                or checklist.client_captured_at
-                or checklist.created_at,
-                source="checklists",
-                event_type=f"checklist.{checklist.status}",
-                summary=f"{checklist.type} checklist {checklist.status}.",
-                reference_type="checklist",
-                reference_id=checklist.id,
-                details={
-                    "vehicle_id": checklist.vehicle_id,
-                    "type": checklist.type,
-                    "duration_seconds": checklist.duration_seconds,
-                },
-            )
-        )
 
-    fuel_log_rows = await db.execute(
-        select(FuelLog)
-        .where(FuelLog.tenant_id == tenant_id, FuelLog.driver_id == driver_id)
-        .order_by(FuelLog.fuel_date.desc())
-        .limit(window)
-    )
-    for fuel_log in fuel_log_rows.scalars():
-        events.append(
-            _history_event(
-                occurred_at=fuel_log.fuel_date,
-                source="fuel",
-                event_type="fuel.external_refuel",
-                summary=f"External refuel of {_number(fuel_log.liters)} L.",
-                reference_type="fuel_log",
-                reference_id=fuel_log.id,
-                details={
-                    "vehicle_id": fuel_log.vehicle_id,
-                    "station_name": fuel_log.station_name,
-                    "liters": _number(fuel_log.liters),
-                    "total_cost": _number(fuel_log.total_cost),
-                    "km_at_refuel": fuel_log.km_at_refuel,
-                    "flagged": fuel_log.flagged,
-                    "is_verified": fuel_log.is_verified,
-                },
-            )
-        )
+    result = await db.execute(stmt)
+    items = [
+        {
+            "occurred_at": row.occurred_at,
+            "source": row.source,
+            "event_type": row.event_type,
+            "summary": row.summary,
+            "reference_type": row.reference_type,
+            "reference_id": row.reference_id,
+            "details": row.details or {},
+        }
+        for row in result
+    ]
 
-    refuel_rows = await db.execute(
-        select(VehicleRefuel)
-        .where(VehicleRefuel.tenant_id == tenant_id, VehicleRefuel.driver_id == driver_id)
-        .order_by(VehicleRefuel.refueled_at.desc())
-        .limit(window)
-    )
-    for refuel in refuel_rows.scalars():
-        events.append(
-            _history_event(
-                occurred_at=refuel.refueled_at,
-                source="fuel_operations",
-                event_type="fuel.internal_refuel",
-                summary=f"Internal refuel of {_number(refuel.liters)} L.",
-                reference_type="vehicle_refuel",
-                reference_id=refuel.id,
-                details={
-                    "vehicle_id": refuel.vehicle_id,
-                    "trip_id": refuel.trip_id,
-                    "tank_id": refuel.tank_id,
-                    "liters": _number(refuel.liters),
-                    "total_cost": _number(refuel.total_cost),
-                    "odometer_reading": refuel.odometer_reading,
-                },
-            )
-        )
-
-    incident_rows = await db.execute(
-        select(TripIncident)
-        .where(TripIncident.tenant_id == tenant_id, TripIncident.driver_id == driver_id)
-        .order_by(TripIncident.occurred_at.desc())
-        .limit(window)
-    )
-    for incident in incident_rows.scalars():
-        events.append(
-            _history_event(
-                occurred_at=incident.occurred_at,
-                source="incidents",
-                event_type=f"incident.{incident.status}",
-                summary=f"{incident.severity} {incident.incident_type} incident.",
-                reference_type="trip_incident",
-                reference_id=incident.id,
-                details={
-                    "trip_id": incident.trip_id,
-                    "vehicle_id": incident.vehicle_id,
-                    "severity": incident.severity,
-                    "description": incident.description,
-                    "delay_minutes": incident.delay_minutes,
-                },
-            )
-        )
-
-    waiver_rows = await db.execute(
-        select(OperationalWaiver)
-        .where(
-            OperationalWaiver.tenant_id == tenant_id,
-            OperationalWaiver.entity_type == "driver",
-            OperationalWaiver.entity_id == driver_id,
-        )
-        .order_by(OperationalWaiver.created_at.desc())
-        .limit(window)
-    )
-    for waiver in waiver_rows.scalars():
-        events.append(
-            _history_event(
-                occurred_at=waiver.approved_at or waiver.created_at,
-                source="operations",
-                event_type=f"waiver.{waiver.status}",
-                summary=f"{waiver.risk_level} {waiver.waiver_type} waiver.",
-                reference_type="operational_waiver",
-                reference_id=waiver.id,
-                details={
-                    "reason": waiver.reason,
-                    "expires_at": waiver.expires_at,
-                    "approved_by": waiver.approved_by,
-                },
-            )
-        )
-
-    events.sort(key=lambda item: item["occurred_at"] or datetime.min, reverse=True)
     return {
         "driver": {
             "id": driver.id,
@@ -428,10 +409,10 @@ async def list_driver_history(
             "status": driver.status,
             "score": driver.score,
         },
-        "items": events[offset : offset + limit],
+        "items": items,
         "limit": limit,
         "offset": offset,
-        "returned": len(events[offset : offset + limit]),
+        "returned": len(items),
     }
 
 
@@ -606,9 +587,9 @@ async def get_driver_scorecard(
     # --- Metric 4: Stop efficiency (15%) ---
     stop_data = await db.execute(
         select(
-            func.avg(
-                func.extract("epoch", TripStop.resumed_at - TripStop.stopped_at) / 60.0
-            ).label("avg_stop_minutes")
+            func.avg(func.extract("epoch", TripStop.resumed_at - TripStop.stopped_at) / 60.0).label(
+                "avg_stop_minutes"
+            )
         )
         .join(Trip, Trip.id == TripStop.trip_id)
         .where(
@@ -625,12 +606,7 @@ async def get_driver_scorecard(
     stop_score = max(0.0, (1.0 - (avg_stop_minutes / 60.0)) * 100)
 
     # --- Composite score ---
-    composite = (
-        0.40 * delivery_rate
-        + 0.25 * sync_score
-        + 0.20 * distance_score
-        + 0.15 * stop_score
-    )
+    composite = 0.40 * delivery_rate + 0.25 * sync_score + 0.20 * distance_score + 0.15 * stop_score
     score = round(composite, 1)
 
     # Tier assignment (D-09)

@@ -340,3 +340,39 @@ async def cancel_trip_order(
     await db.commit()
     await db.refresh(order)
     return serialize_trip_order(order)
+
+
+# ── SM-04: DispatchClearance reject ──────────────────────────────────────────
+
+
+async def reject_dispatch_clearance(
+    db: AsyncSession,
+    *,
+    order_id: UUID,
+    tenant_id: UUID,
+    user_id: UUID,
+    rejection_reason: str,
+) -> TripOrder:
+    """SM-04: Reject dispatch clearance — sets status to 'rejected' with reason and timestamp."""
+    order = await db.get(TripOrder, order_id)
+    if not order or order.tenant_id != tenant_id:
+        raise ApiError("trip_order_not_found", "Trip order not found.", status_code=404)
+
+    old_status = order.status
+    order.status = "rejected"
+    order.rejection_reason = rejection_reason
+    order.rejected_at = now_utc()
+    order.rejected_by = user_id
+    db.add(order)
+
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        action="trip_order.clearance_rejected",
+        entity_type="trip_order",
+        entity_id=order.id,
+        old_values={"status": old_status},
+        new_values={"status": "rejected", "rejection_reason": rejection_reason},
+    )
+    return order

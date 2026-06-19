@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
-from app.core.deps import get_session
 from app.modules.trip_orders import schemas, service
 from app.modules.trip_orders.schemas import DispatchClearanceRejectRequest
 
@@ -155,9 +155,13 @@ async def reject_dispatch_endpoint(
     request: Request = None,
 ):
     from app.modules.trip_orders.service import reject_dispatch_clearance
+
     order = await reject_dispatch_clearance(
-        db, order_id=order_id, tenant_id=principal.tenant_id,
-        user_id=principal.user_id, rejection_reason=body.rejection_reason,
+        db,
+        order_id=order_id,
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        rejection_reason=body.rejection_reason,
     )
     await db.commit()
     await db.refresh(order)

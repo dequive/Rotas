@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.auth import Principal
-from app.core.permissions import ADMIN_ROLES, DASHBOARD_ROLES, require_roles
 from app.core.deps import get_session
+from app.core.permissions import ADMIN_ROLES, DASHBOARD_ROLES, require_roles
 from app.modules.tenants import schemas, service
 from app.modules.tenants.models import Tenant
 
@@ -70,9 +70,9 @@ async def get_tenant_limits(
     max=null means unlimited (enterprise plan, D-13).
     pct is null when max is null.
     """
-    from app.modules.vehicles.service import _get_cached_vehicle_count
     from app.modules.drivers.service import _get_cached_driver_count
     from app.modules.users.service import _get_cached_user_count
+    from app.modules.vehicles.service import _get_cached_vehicle_count
 
     redis = getattr(request.app.state, "redis", None)
     tenant_id = principal.tenant_id

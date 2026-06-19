@@ -183,8 +183,10 @@ def _validate_compliance_policy(policy: dict) -> None:
                 details={"field": key},
             )
         for cargo_type, items in by_cargo_type.items():
-            if not isinstance(cargo_type, str) or not isinstance(items, list) or any(
-                not isinstance(item, str) for item in items
+            if (
+                not isinstance(cargo_type, str)
+                or not isinstance(items, list)
+                or any(not isinstance(item, str) for item in items)
             ):
                 raise ApiError(
                     "invalid_compliance_policy",

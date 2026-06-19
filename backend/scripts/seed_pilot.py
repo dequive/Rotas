@@ -8,8 +8,8 @@ from typing import Any
 
 from sqlalchemy import select
 
-from app.database import AsyncSessionLocal, import_all_models
 from app.core.passwords import hash_password
+from app.database import AsyncSessionLocal, import_all_models
 from app.modules.checklists.models import ChecklistTemplate
 from app.modules.contracts.models import Contract
 from app.modules.drivers.models import Driver

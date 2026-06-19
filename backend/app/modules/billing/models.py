@@ -155,9 +155,7 @@ class ClientPayment(Base):
     """
 
     __tablename__ = "client_payments"
-    __table_args__ = (
-        Index("ix_client_payments_tenant_client", "tenant_id", "client_id"),
-    )
+    __table_args__ = (Index("ix_client_payments_tenant_client", "tenant_id", "client_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
@@ -199,6 +197,4 @@ class PaymentAllocation(Base):
         ForeignKey("billing_documents.id"), index=True
     )
     amount_applied: Mapped[Decimal] = mapped_column(Numeric(14, 2))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

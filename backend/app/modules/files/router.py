@@ -2,17 +2,37 @@ from hashlib import sha256
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Header, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.deps import get_session
+from app.core.errors import ApiError
 from app.core.idempotency import execute_http_idempotent
 from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
-from app.core.deps import get_session
 from app.modules.files import schemas, service
 
 router = APIRouter(prefix="/files", tags=["files"])
+UPLOAD_CHUNK_BYTES = 1024 * 1024
+
+
+async def _read_limited_upload(upload: UploadFile) -> bytes:
+    mime_type = upload.content_type or "application/octet-stream"
+    service.validate_upload_metadata(size_bytes=1, mime_type=mime_type)
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await upload.read(UPLOAD_CHUNK_BYTES):
+        total += len(chunk)
+        if total > service.MAX_UPLOAD_BYTES:
+            raise ApiError(
+                "invalid_file_size",
+                "File size is outside the allowed range.",
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                details={"max_upload_bytes": service.MAX_UPLOAD_BYTES},
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 @router.post("/presign")
@@ -52,7 +72,7 @@ async def upload_file(
     entity_id: Annotated[UUID | None, Form()] = None,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    content = await upload.read()
+    content = await _read_limited_upload(upload)
     return await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,

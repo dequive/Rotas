@@ -324,7 +324,9 @@ class ToolCalibration(Base):
 class SparePartSerialItem(Base):
     __tablename__ = "spare_part_serial_items"
     __table_args__ = (
-        UniqueConstraint("tenant_id", "serial_number", name="uq_spare_part_serial_items_tenant_serial"),
+        UniqueConstraint(
+            "tenant_id", "serial_number", name="uq_spare_part_serial_items_tenant_serial"
+        ),
         Index("ix_spare_part_serial_items_tenant_part", "tenant_id", "part_id"),
         Index(
             "ix_spare_part_serial_items_tenant_vehicle",

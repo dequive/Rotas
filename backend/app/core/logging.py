@@ -17,6 +17,7 @@ Usage in ARQ worker tasks:
     logger = structlog.get_logger("worker")
     logger.info("task_started", task="task_mark_overdue_billing_documents")
 """
+
 import logging
 import sys
 

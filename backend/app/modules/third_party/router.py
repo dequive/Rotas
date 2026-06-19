@@ -33,6 +33,7 @@ async def _get_anon_session() -> AsyncIterator[AsyncSession]:
 
 # ── Province reference (no auth needed — platform reference data) ─────────────
 
+
 @router.get("/provinces")
 async def list_provinces(
     db: Annotated[AsyncSession, Depends(_get_anon_session)],
@@ -127,7 +128,8 @@ async def list_documents(
     offset: int = Query(0, ge=0),
 ):
     return await service.list_documents(
-        db, principal.tenant_id,
+        db,
+        principal.tenant_id,
         subject_type=subject_type,
         subject_id=subject_id,
         verification_status=verification_status,
@@ -245,7 +247,8 @@ async def list_assignments(
     offset: int = Query(0, ge=0),
 ):
     return await service.list_assignments(
-        db, principal.tenant_id,
+        db,
+        principal.tenant_id,
         driver_id=driver_id,
         vehicle_id=vehicle_id,
         current_only=current_only,

@@ -40,7 +40,9 @@ def serialize_vehicle(vehicle: Vehicle) -> dict:
         "photo_file_id": vehicle.photo_file_id,
         "avg_consumption_target": vehicle.avg_consumption_target,
         "fuel_limit_daily": vehicle.fuel_limit_daily,
-        "max_payload_kg": float(vehicle.max_payload_kg) if vehicle.max_payload_kg is not None else None,
+        "max_payload_kg": float(vehicle.max_payload_kg)
+        if vehicle.max_payload_kg is not None
+        else None,
         "created_at": vehicle.created_at,
         "updated_at": vehicle.updated_at,
     }
@@ -215,8 +217,10 @@ async def list_vehicle_history(
         literal("audit_log").label("reference_type"),
         AuditLog.id.label("reference_id"),
         func.jsonb_build_object(
-            "old_values", AuditLog.old_values,
-            "new_values", AuditLog.new_values,
+            "old_values",
+            AuditLog.old_values,
+            "new_values",
+            AuditLog.new_values,
         ).label("details"),
     ).where(
         AuditLog.tenant_id == tid,
@@ -225,21 +229,33 @@ async def list_vehicle_history(
     )
 
     _trips = select(
-        func.coalesce(Trip.actual_departure, Trip.planned_departure, Trip.created_at).label("occurred_at"),
+        func.coalesce(Trip.actual_departure, Trip.planned_departure, Trip.created_at).label(
+            "occurred_at"
+        ),
         literal("trips").label("source"),
         func.concat("trip.", Trip.status).label("event_type"),
-        func.concat("Trip ", Trip.origin, " -> ", Trip.destination, " is ", Trip.status, ".").label("summary"),
+        func.concat("Trip ", Trip.origin, " -> ", Trip.destination, " is ", Trip.status, ".").label(
+            "summary"
+        ),
         literal("trip").label("reference_type"),
         Trip.id.label("reference_id"),
         func.jsonb_build_object(
-            "driver_id", Trip.driver_id,
-            "origin", Trip.origin,
-            "destination", Trip.destination,
-            "km_start", Trip.km_start,
-            "km_end", Trip.km_end,
-            "billing_status", Trip.billing_status,
-            "total_transport_cost", Trip.total_transport_cost,
-            "actual_margin", Trip.actual_margin,
+            "driver_id",
+            Trip.driver_id,
+            "origin",
+            Trip.origin,
+            "destination",
+            Trip.destination,
+            "km_start",
+            Trip.km_start,
+            "km_end",
+            Trip.km_end,
+            "billing_status",
+            Trip.billing_status,
+            "total_transport_cost",
+            Trip.total_transport_cost,
+            "actual_margin",
+            Trip.actual_margin,
         ).label("details"),
     ).where(Trip.tenant_id == tid, Trip.vehicle_id == vid)
 
@@ -253,9 +269,12 @@ async def list_vehicle_history(
         literal("checklist").label("reference_type"),
         Checklist.id.label("reference_id"),
         func.jsonb_build_object(
-            "driver_id", Checklist.driver_id,
-            "type", Checklist.type,
-            "duration_seconds", Checklist.duration_seconds,
+            "driver_id",
+            Checklist.driver_id,
+            "type",
+            Checklist.type,
+            "duration_seconds",
+            Checklist.duration_seconds,
         ).label("details"),
     ).where(Checklist.tenant_id == tid, Checklist.vehicle_id == vid)
 
@@ -267,13 +286,20 @@ async def list_vehicle_history(
         literal("fuel_log").label("reference_type"),
         FuelLog.id.label("reference_id"),
         func.jsonb_build_object(
-            "driver_id", FuelLog.driver_id,
-            "station_name", FuelLog.station_name,
-            "liters", FuelLog.liters,
-            "total_cost", FuelLog.total_cost,
-            "km_at_refuel", FuelLog.km_at_refuel,
-            "flagged", FuelLog.flagged,
-            "is_verified", FuelLog.is_verified,
+            "driver_id",
+            FuelLog.driver_id,
+            "station_name",
+            FuelLog.station_name,
+            "liters",
+            FuelLog.liters,
+            "total_cost",
+            FuelLog.total_cost,
+            "km_at_refuel",
+            FuelLog.km_at_refuel,
+            "flagged",
+            FuelLog.flagged,
+            "is_verified",
+            FuelLog.is_verified,
         ).label("details"),
     ).where(FuelLog.tenant_id == tid, FuelLog.vehicle_id == vid)
 
@@ -285,12 +311,18 @@ async def list_vehicle_history(
         literal("vehicle_refuel").label("reference_type"),
         VehicleRefuel.id.label("reference_id"),
         func.jsonb_build_object(
-            "driver_id", VehicleRefuel.driver_id,
-            "trip_id", VehicleRefuel.trip_id,
-            "tank_id", VehicleRefuel.tank_id,
-            "liters", VehicleRefuel.liters,
-            "total_cost", VehicleRefuel.total_cost,
-            "odometer_reading", VehicleRefuel.odometer_reading,
+            "driver_id",
+            VehicleRefuel.driver_id,
+            "trip_id",
+            VehicleRefuel.trip_id,
+            "tank_id",
+            VehicleRefuel.tank_id,
+            "liters",
+            VehicleRefuel.liters,
+            "total_cost",
+            VehicleRefuel.total_cost,
+            "odometer_reading",
+            VehicleRefuel.odometer_reading,
         ).label("details"),
     ).where(VehicleRefuel.tenant_id == tid, VehicleRefuel.vehicle_id == vid)
 
@@ -298,15 +330,22 @@ async def list_vehicle_history(
         TripIncident.occurred_at.label("occurred_at"),
         literal("incidents").label("source"),
         func.concat("incident.", TripIncident.status).label("event_type"),
-        func.concat(TripIncident.severity, " ", TripIncident.incident_type, " incident.").label("summary"),
+        func.concat(TripIncident.severity, " ", TripIncident.incident_type, " incident.").label(
+            "summary"
+        ),
         literal("trip_incident").label("reference_type"),
         TripIncident.id.label("reference_id"),
         func.jsonb_build_object(
-            "trip_id", TripIncident.trip_id,
-            "driver_id", TripIncident.driver_id,
-            "severity", TripIncident.severity,
-            "description", TripIncident.description,
-            "delay_minutes", TripIncident.delay_minutes,
+            "trip_id",
+            TripIncident.trip_id,
+            "driver_id",
+            TripIncident.driver_id,
+            "severity",
+            TripIncident.severity,
+            "description",
+            TripIncident.description,
+            "delay_minutes",
+            TripIncident.delay_minutes,
         ).label("details"),
     ).where(TripIncident.tenant_id == tid, TripIncident.vehicle_id == vid)
 
@@ -315,15 +354,22 @@ async def list_vehicle_history(
         literal("workshop").label("source"),
         func.concat("maintenance_request.", MaintenanceRequest.status).label("event_type"),
         func.concat(
-            MaintenanceRequest.priority, " ", MaintenanceRequest.request_type, " maintenance request.",
+            MaintenanceRequest.priority,
+            " ",
+            MaintenanceRequest.request_type,
+            " maintenance request.",
         ).label("summary"),
         literal("maintenance_request").label("reference_type"),
         MaintenanceRequest.id.label("reference_id"),
         func.jsonb_build_object(
-            "trip_id", MaintenanceRequest.trip_id,
-            "incident_id", MaintenanceRequest.incident_id,
-            "description", MaintenanceRequest.description,
-            "odometer_reading", MaintenanceRequest.odometer_reading,
+            "trip_id",
+            MaintenanceRequest.trip_id,
+            "incident_id",
+            MaintenanceRequest.incident_id,
+            "description",
+            MaintenanceRequest.description,
+            "odometer_reading",
+            MaintenanceRequest.odometer_reading,
         ).label("details"),
     ).where(
         MaintenanceRequest.tenant_id == tid,
@@ -334,41 +380,60 @@ async def list_vehicle_history(
         func.coalesce(WorkOrder.closed_at, WorkOrder.created_at).label("occurred_at"),
         literal("workshop").label("source"),
         func.concat("work_order.", WorkOrder.status).label("event_type"),
-        func.concat("Work order ", WorkOrder.work_order_number, " is ", WorkOrder.status, ".").label("summary"),
+        func.concat(
+            "Work order ", WorkOrder.work_order_number, " is ", WorkOrder.status, "."
+        ).label("summary"),
         literal("work_order").label("reference_type"),
         WorkOrder.id.label("reference_id"),
         func.jsonb_build_object(
-            "maintenance_request_id", WorkOrder.maintenance_request_id,
-            "estimated_cost", WorkOrder.estimated_cost,
-            "actual_cost", WorkOrder.actual_cost,
-            "planned_work", WorkOrder.planned_work,
+            "maintenance_request_id",
+            WorkOrder.maintenance_request_id,
+            "estimated_cost",
+            WorkOrder.estimated_cost,
+            "actual_cost",
+            WorkOrder.actual_cost,
+            "planned_work",
+            WorkOrder.planned_work,
         ).label("details"),
     ).where(WorkOrder.tenant_id == tid, WorkOrder.vehicle_id == vid)
 
     _schedules = select(
-        func.coalesce(MaintenanceSchedule.due_at, MaintenanceSchedule.created_at).label("occurred_at"),
+        func.coalesce(MaintenanceSchedule.due_at, MaintenanceSchedule.created_at).label(
+            "occurred_at"
+        ),
         literal("workshop").label("source"),
         func.concat("maintenance_schedule.", MaintenanceSchedule.status).label("event_type"),
-        func.concat("Preventive maintenance schedule is ", MaintenanceSchedule.status, ".").label("summary"),
+        func.concat("Preventive maintenance schedule is ", MaintenanceSchedule.status, ".").label(
+            "summary"
+        ),
         literal("maintenance_schedule").label("reference_type"),
         MaintenanceSchedule.id.label("reference_id"),
         func.jsonb_build_object(
-            "plan_id", MaintenanceSchedule.plan_id,
-            "due_km", MaintenanceSchedule.due_km,
+            "plan_id",
+            MaintenanceSchedule.plan_id,
+            "due_km",
+            MaintenanceSchedule.due_km,
         ).label("details"),
     ).where(MaintenanceSchedule.tenant_id == tid, MaintenanceSchedule.vehicle_id == vid)
 
     _waivers = select(
-        func.coalesce(OperationalWaiver.approved_at, OperationalWaiver.created_at).label("occurred_at"),
+        func.coalesce(OperationalWaiver.approved_at, OperationalWaiver.created_at).label(
+            "occurred_at"
+        ),
         literal("operations").label("source"),
         func.concat("waiver.", OperationalWaiver.status).label("event_type"),
-        func.concat(OperationalWaiver.risk_level, " ", OperationalWaiver.waiver_type, " waiver.").label("summary"),
+        func.concat(
+            OperationalWaiver.risk_level, " ", OperationalWaiver.waiver_type, " waiver."
+        ).label("summary"),
         literal("operational_waiver").label("reference_type"),
         OperationalWaiver.id.label("reference_id"),
         func.jsonb_build_object(
-            "reason", OperationalWaiver.reason,
-            "expires_at", OperationalWaiver.expires_at,
-            "approved_by", OperationalWaiver.approved_by,
+            "reason",
+            OperationalWaiver.reason,
+            "expires_at",
+            OperationalWaiver.expires_at,
+            "approved_by",
+            OperationalWaiver.approved_by,
         ).label("details"),
     ).where(
         OperationalWaiver.tenant_id == tid,
@@ -380,8 +445,16 @@ async def list_vehicle_history(
     # level by PostgreSQL. No Python sort, no over-fetch.
     stmt = (
         union_all(
-            _audit, _trips, _checklists, _fuel_logs, _refuels,
-            _incidents, _maint_requests, _work_orders, _schedules, _waivers,
+            _audit,
+            _trips,
+            _checklists,
+            _fuel_logs,
+            _refuels,
+            _incidents,
+            _maint_requests,
+            _work_orders,
+            _schedules,
+            _waivers,
         )
         .order_by(text("occurred_at DESC NULLS LAST"))
         .limit(limit)
@@ -414,7 +487,6 @@ async def list_vehicle_history(
         "offset": offset,
         "returned": len(items),
     }
-
 
 
 async def get_vehicle_history(

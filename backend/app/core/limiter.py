@@ -10,6 +10,7 @@ Rate limits enforced per-endpoint in routers:
   - /api/v1/sync/batch: 60/minute per IP
   - /api/v1/gps/webhook/*: 60/minute per IP  (Phase 12)
 """
+
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -35,4 +36,3 @@ else:
         stacklevel=1,
     )
     limiter = Limiter(key_func=get_remote_address)
-

@@ -212,7 +212,7 @@ async def task_expire_contracts(ctx: dict) -> str:
             .where(
                 and_(
                     Contract.status.in_(["active", "paused"]),
-                    Contract.ends_at != None,
+                    Contract.ends_at.is_not(None),
                     Contract.ends_at < now,
                 )
             )
@@ -282,7 +282,7 @@ async def task_update_active_tenants_metric(ctx: dict) -> str:
     logger = structlog.get_logger("worker")
 
     async with ctx["db_factory"]() as db:
-        result = await db.execute(select(func.count()).where(Tenant.is_active == True))
+        result = await db.execute(select(func.count()).where(Tenant.is_active.is_(True)))
         count = result.scalar_one_or_none() or 0
 
     try:
@@ -333,7 +333,6 @@ async def task_check_document_expiry(ctx: dict) -> str:
     Runs daily at 06:00 Africa/Maputo = 04:00 UTC.
     """
     from datetime import date, timedelta
-    from uuid import UUID
 
     import structlog
     from sqlalchemy import and_, select

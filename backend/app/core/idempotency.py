@@ -77,7 +77,7 @@ async def execute_http_idempotent(
             raise ApiError(
                 "idempotency_request_in_progress",
                 "A request with this idempotency key is already in progress.",
-                status_code=409,
+                status_code=423,
             ) from exc
         return existing.response_body
 

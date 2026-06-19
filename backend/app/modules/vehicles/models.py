@@ -1,9 +1,18 @@
 import uuid
 from datetime import datetime
-
 from decimal import Decimal
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint, func
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,7 +21,14 @@ from app.database import Base
 
 class Vehicle(Base):
     __tablename__ = "vehicles"
-    __table_args__ = (UniqueConstraint("tenant_id", "plate", name="uq_vehicles_tenant_plate"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "plate", name="uq_vehicles_tenant_plate"),
+        CheckConstraint("current_km >= 0", name="chk_vehicles_current_km_non_negative"),
+        CheckConstraint(
+            "max_payload_kg IS NULL OR max_payload_kg >= 0",
+            name="chk_vehicles_max_payload_non_negative",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)

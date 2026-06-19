@@ -224,7 +224,7 @@ def _render_pdf(
     pdf.set_text_color(*_WHITE)
     pdf.set_font("DejaVu", "B", 7.5)
     ALIGN = ["C", "L", "L", "L", "C", "C", "R", "R"]
-    for w, label, align in zip(COL_W, HEADERS, ALIGN):
+    for w, label, align in zip(COL_W, HEADERS, ALIGN, strict=False):
         pdf.cell(w, 7, label, border=0, fill=True, align=align, new_x=XPos.RIGHT, new_y=YPos.TOP)
     pdf.ln()
 
@@ -251,7 +251,7 @@ def _render_pdf(
             (_money(amount, ""), "R"),
         ]
         row_h = 6
-        for w, (text, align) in zip(COL_W, values):
+        for w, (text, align) in zip(COL_W, values, strict=False):
             pdf.cell(
                 w, row_h, text, border=0, fill=fill, align=align, new_x=XPos.RIGHT, new_y=YPos.TOP
             )
@@ -270,7 +270,9 @@ def _render_pdf(
 
     subtotal = _money_val(document.subtotal) if document.subtotal else grand_total
     tax_amount = _money_val(document.tax_amount) if document.tax_amount else Decimal(0)
-    total_amount = _money_val(document.total_amount) if document.total_amount else subtotal + tax_amount
+    total_amount = (
+        _money_val(document.total_amount) if document.total_amount else subtotal + tax_amount
+    )
 
     iva_pct = int(float(document.iva_rate) * 100) if document.iva_rate else 17
     iva_label = f"IVA ({iva_pct}%)"
@@ -281,8 +283,13 @@ def _render_pdf(
         pdf.set_font("DejaVu", "B" if bold else "", 9)
         pdf.cell(label_w, 7, label, fill=True, align="R", new_x=XPos.RIGHT, new_y=YPos.TOP)
         pdf.cell(
-            val_w, 7, f"{value:,.2f} {currency}", fill=True, align="R",
-            new_x=XPos.LMARGIN, new_y=YPos.NEXT
+            val_w,
+            7,
+            f"{value:,.2f} {currency}",
+            fill=True,
+            align="R",
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
         )
 
     _totals_row("SUBTOTAL", subtotal)
@@ -301,8 +308,13 @@ def _render_pdf(
     pdf.set_font("DejaVu", "B", 9)
     pdf.cell(label_w, 7, "TOTAL COM IVA", fill=True, align="R", new_x=XPos.RIGHT, new_y=YPos.TOP)
     pdf.cell(
-        val_w, 7, f"{total_amount:,.2f} {currency}", fill=True, align="R",
-        new_x=XPos.LMARGIN, new_y=YPos.NEXT
+        val_w,
+        7,
+        f"{total_amount:,.2f} {currency}",
+        fill=True,
+        align="R",
+        new_x=XPos.LMARGIN,
+        new_y=YPos.NEXT,
     )
 
     # ── Payment conditions note ───────────────────────────────────────────────
@@ -391,7 +403,7 @@ def _render_xlsx(
     header_font = Font(bold=True, size=9, color="FFFFFF")
     header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-    for col_idx, (header, width) in enumerate(zip(HEADERS, COL_WIDTHS), start=1):
+    for col_idx, (header, width) in enumerate(zip(HEADERS, COL_WIDTHS, strict=False), start=1):
         cell = ws.cell(row=HEADER_ROW, column=col_idx, value=header)
         cell.font = header_font
         cell.fill = header_fill
@@ -426,7 +438,7 @@ def _render_xlsx(
         ]
         ALIGNS = ["center", "left", "left", "left", "center", "center", "right", "right"]
 
-        for col_idx, ((val, num_fmt), h_align) in enumerate(zip(values, ALIGNS), start=1):
+        for col_idx, ((val, num_fmt), h_align) in enumerate(zip(values, ALIGNS, strict=False), start=1):
             cell = ws.cell(row=row, column=col_idx, value=val)
             cell.font = Font(size=9)
             cell.fill = fill
@@ -440,10 +452,16 @@ def _render_xlsx(
     # ── FISC-02: Three totals rows — SUBTOTAL / IVA / TOTAL COM IVA ──────────
     subtotal_val = float(_money_val(document.subtotal)) if document.subtotal else float(grand_total)
     tax_val = float(_money_val(document.tax_amount)) if document.tax_amount else 0.0
-    total_val = float(_money_val(document.total_amount)) if document.total_amount else subtotal_val + tax_val
+    total_val = (
+        float(_money_val(document.total_amount))
+        if document.total_amount
+        else subtotal_val + tax_val
+    )
     iva_pct = int(float(document.iva_rate) * 100) if document.iva_rate else 17
 
-    def _totals_xlsx_row(row: int, label: str, value: float, bold: bool = False, dark: bool = False):
+    def _totals_xlsx_row(
+        row: int, label: str, value: float, bold: bool = False, dark: bool = False
+    ):
         ws.merge_cells(f"A{row}:G{row}")
         lc = ws.cell(row=row, column=1, value=label)
         lc.font = Font(bold=bold, size=9, color="FFFFFF" if dark else "172033")

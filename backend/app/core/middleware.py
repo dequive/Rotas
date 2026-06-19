@@ -11,6 +11,7 @@ Placement: Add AFTER RequestContextMiddleware in main.py so request_id is in sco
 Starlette applies middlewares in reverse registration order — add this BEFORE
 RequestContextMiddleware in app.add_middleware() calls.
 """
+
 import time
 
 import structlog

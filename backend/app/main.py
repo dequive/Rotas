@@ -33,6 +33,7 @@ from app.modules.checklists.router import router as checklists_router
 from app.modules.clients.router import router as clients_router
 from app.modules.contracts.router import router as contracts_router
 from app.modules.control_tower.router import router as control_tower_router
+from app.modules.driver_app.router import router as driver_app_router
 from app.modules.drivers.router import router as drivers_router
 from app.modules.files.router import router as files_router
 from app.modules.fuel.operations_router import router as fuel_operations_router
@@ -122,18 +123,6 @@ async def lifespan(app: FastAPI):
     # App state database engine
     app.state.engine = _engine
 
-    # INFRA2-03: Prometheus metrics
-    _instrumentator = Instrumentator(
-        should_group_status_codes=True,
-        should_ignore_untemplated=True,
-        should_respect_env_var=False,
-        should_instrument_requests_inprogress=True,
-        excluded_handlers=["/metrics", "/health", "/health/deep"],
-        inprogress_labels=True,
-    )
-    _instrumentator.instrument(app)
-    _instrumentator.expose(app, endpoint="/metrics", include_in_schema=False)
-
     _active_tenants_gauge = Gauge(
         "rotas_active_tenants_total",
         "Number of active tenants in the platform",
@@ -156,6 +145,17 @@ install_error_handlers(app)
 app.add_middleware(RequestContextMiddleware)
 # INFRA2-02: HTTP request logging — placed after RequestContextMiddleware so request_id is in scope
 app.add_middleware(StructlogRequestMiddleware)
+
+# INFRA2-03: Prometheus metrics — must be instrumented at module level, not inside lifespan
+_instrumentator = Instrumentator(
+    should_group_status_codes=True,
+    should_ignore_untemplated=True,
+    should_respect_env_var=False,
+    should_instrument_requests_inprogress=True,
+    excluded_handlers=["/metrics", "/health", "/health/deep"],
+    inprogress_labels=True,
+)
+_instrumentator.instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 # SEC-02 / D-11: Always attach CORSMiddleware. In production, startup validator ensures
 # cors_origins is explicit. Development defaults allow the local manager dev servers.
@@ -251,6 +251,7 @@ async def version(request: Request) -> dict[str, str]:
 api = settings.api_v1_prefix
 app.include_router(auth_router, prefix=api)
 app.include_router(driver_router, prefix=api)
+app.include_router(driver_app_router, prefix=api)
 app.include_router(onboarding_router, prefix=api)
 app.include_router(tenants_router, prefix=api)
 app.include_router(clients_router, prefix=api)

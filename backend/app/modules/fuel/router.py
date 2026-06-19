@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
-from app.core.deps import get_session
 from app.modules.fuel import schemas, service
 
 router = APIRouter(prefix="/fuel", tags=["fuel"])

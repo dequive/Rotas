@@ -17,9 +17,13 @@ def _serialize(route: KnownRoute) -> dict:
         "origin": route.origin,
         "destination": route.destination,
         "distance_km": float(route.distance_km),
-        "avg_fuel_liters": float(route.avg_fuel_liters) if route.avg_fuel_liters is not None else None,
+        "avg_fuel_liters": float(route.avg_fuel_liters)
+        if route.avg_fuel_liters is not None
+        else None,
         "despacho_vazio": float(route.despacho_vazio) if route.despacho_vazio is not None else None,
-        "despacho_carregado": float(route.despacho_carregado) if route.despacho_carregado is not None else None,
+        "despacho_carregado": float(route.despacho_carregado)
+        if route.despacho_carregado is not None
+        else None,
         "notes": route.notes,
         "is_active": route.is_active,
         "created_at": route.created_at.isoformat(),
@@ -27,7 +31,9 @@ def _serialize(route: KnownRoute) -> dict:
     }
 
 
-async def list_known_routes(db: AsyncSession, tenant_id: UUID, *, active_only: bool = True) -> list[dict]:
+async def list_known_routes(
+    db: AsyncSession, tenant_id: UUID, *, active_only: bool = True
+) -> list[dict]:
     q = select(KnownRoute).where(KnownRoute.tenant_id == tenant_id)
     if active_only:
         q = q.where(KnownRoute.is_active.is_(True))
@@ -55,9 +61,15 @@ async def create_known_route(db: AsyncSession, tenant_id: UUID, payload: dict) -
         origin=payload["origin"].strip(),
         destination=payload["destination"].strip(),
         distance_km=Decimal(str(payload["distance_km"])),
-        avg_fuel_liters=Decimal(str(payload["avg_fuel_liters"])) if payload.get("avg_fuel_liters") else None,
-        despacho_vazio=Decimal(str(payload["despacho_vazio"])) if payload.get("despacho_vazio") else None,
-        despacho_carregado=Decimal(str(payload["despacho_carregado"])) if payload.get("despacho_carregado") else None,
+        avg_fuel_liters=Decimal(str(payload["avg_fuel_liters"]))
+        if payload.get("avg_fuel_liters")
+        else None,
+        despacho_vazio=Decimal(str(payload["despacho_vazio"]))
+        if payload.get("despacho_vazio")
+        else None,
+        despacho_carregado=Decimal(str(payload["despacho_carregado"]))
+        if payload.get("despacho_carregado")
+        else None,
         notes=payload.get("notes"),
         is_active=payload.get("is_active", True),
     )
@@ -68,7 +80,9 @@ async def create_known_route(db: AsyncSession, tenant_id: UUID, payload: dict) -
     return _serialize(route)
 
 
-async def update_known_route(db: AsyncSession, tenant_id: UUID, route_id: UUID, payload: dict) -> dict:
+async def update_known_route(
+    db: AsyncSession, tenant_id: UUID, route_id: UUID, payload: dict
+) -> dict:
     route = await db.scalar(
         select(KnownRoute).where(KnownRoute.id == route_id, KnownRoute.tenant_id == tenant_id)
     )

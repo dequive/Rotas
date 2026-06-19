@@ -11,7 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ApiError
 from app.modules.audit.service import record_audit_log
 from app.modules.billing.exporters import render_billing_export
-from app.modules.billing.models import BillingDocument, BillingItem, ClientPayment, PaymentAllocation
+from app.modules.billing.models import (
+    BillingDocument,
+    BillingItem,
+    ClientPayment,
+    PaymentAllocation,
+)
 from app.modules.billing.schemas import BillingDocumentCreate, IssueBillingDocumentRequest
 from app.modules.cargo.models import CargoManifest, DeliveryProof, LoadPermit, TransportDocument
 from app.modules.contracts.models import Contract
@@ -636,9 +641,9 @@ async def issue_document(
 
     # FISC-02: Recompute IVA totals from per-item iva_amount values
     document.subtotal = sum(item.amount for item in items).quantize(Decimal("0.01"))
-    document.tax_amount = sum(
-        (item.iva_amount or Decimal("0")) for item in items
-    ).quantize(Decimal("0.01"))
+    document.tax_amount = sum((item.iva_amount or Decimal("0")) for item in items).quantize(
+        Decimal("0.01")
+    )
     document.total_amount = (document.subtotal + document.tax_amount).quantize(Decimal("0.01"))
     rates = {item.iva_rate for item in items if item.iva_rate is not None}
     document.iva_rate = rates.pop() if len(rates) == 1 else None
@@ -866,12 +871,12 @@ async def create_compliance_report_job(
 
     try:
         datetime.strptime(month, "%Y-%m")
-    except ValueError:
+    except ValueError as exc:
         raise ApiError(
             "invalid_month_format",
             "month must be in YYYY-MM format (e.g. 2026-01)",
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        )
+        ) from exc
 
     existing = await db.scalar(
         select(ExportJob).where(
@@ -1642,8 +1647,7 @@ async def void_payment(
             due = billing_doc.due_date
             # Normalise due_date to timezone-aware if naive
             if due is not None and due.tzinfo is None:
-                from datetime import timezone
-                due = due.replace(tzinfo=timezone.utc)
+                due = due.replace(tzinfo=UTC)
             revert_status = "overdue" if (due is not None and due < now) else "issued"
             # transition_billing_document only allows paid→(none), so we set manually
             # because 'paid' is a terminal state in the SM — we bypass the guard here

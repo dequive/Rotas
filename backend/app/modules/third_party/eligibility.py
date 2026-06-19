@@ -5,6 +5,7 @@ Pure domain check — no DB calls, no async. Reads existing Driver fields
 (license_valid_until, passport_valid_until, bi_valid_until, status) and
 returns an EligibilityResult with blocking reasons and expiring-soon warnings.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -35,7 +36,7 @@ class EligibilityResult:
 
 
 def check_driver_eligibility(
-    driver: "Driver",
+    driver: Driver,
     reference_date: date | None = None,
 ) -> EligibilityResult:
     """Pure domain check — no DB calls.

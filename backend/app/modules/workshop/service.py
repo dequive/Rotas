@@ -3,7 +3,8 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 from fastapi import status
-from sqlalchemy import func, select, text as sa_text
+from sqlalchemy import func, select
+from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
@@ -1545,6 +1546,7 @@ async def get_imminent_maintenance_alerts(
 # Task 1A: Staff pillar service functions
 # ---------------------------------------------------------------------------
 
+
 def serialize_staff_rate(rate: WorkshopStaffRate) -> dict:
     return {
         "id": str(rate.id),
@@ -1607,7 +1609,9 @@ async def create_staff_rate(
 async def get_workshop_kpis(tenant_id: UUID, db: AsyncSession) -> dict:
     # Open work orders count
     open_wo_result = await db.execute(
-        select(func.count()).select_from(WorkOrder).where(
+        select(func.count())
+        .select_from(WorkOrder)
+        .where(
             WorkOrder.tenant_id == tenant_id,
             WorkOrder.status.not_in(["closed", "cancelled"]),
         )
@@ -1616,7 +1620,9 @@ async def get_workshop_kpis(tenant_id: UUID, db: AsyncSession) -> dict:
 
     # Pending tasks count
     pending_tasks_result = await db.execute(
-        select(func.count()).select_from(WorkOrderTask).where(
+        select(func.count())
+        .select_from(WorkOrderTask)
+        .where(
             WorkOrderTask.tenant_id == tenant_id,
             WorkOrderTask.status == "pending",
         )
@@ -1679,6 +1685,7 @@ async def get_workshop_kpis(tenant_id: UUID, db: AsyncSession) -> dict:
 # Task 1B: Tools pillar service functions
 # ---------------------------------------------------------------------------
 
+
 def serialize_tool_calibration(cal: ToolCalibration) -> dict:
     return {
         "id": str(cal.id),
@@ -1736,10 +1743,8 @@ async def record_tool_calibration(
             entity_id=tool_id,
             exception_type="tool_calibration_due",
             severity="high",
-            title=f"Calibracao da ferramenta critica vence em menos de 30 dias",
-            message=(
-                f"Calibracao vence em: {data.next_due_at.date().isoformat()}"
-            ),
+            title="Calibracao da ferramenta critica vence em menos de 30 dias",
+            message=(f"Calibracao vence em: {data.next_due_at.date().isoformat()}"),
             source_type="tool_calibration",
         )
 
@@ -1796,6 +1801,7 @@ async def update_tool(
 # Task 1C: Serial parts service functions
 # ---------------------------------------------------------------------------
 
+
 def serialize_serial_item(item: SparePartSerialItem) -> dict:
     return {
         "id": str(item.id),
@@ -1836,13 +1842,13 @@ async def register_serial_item(
         db.add(item)
         await db.commit()
         await db.refresh(item)
-    except Exception:
+    except Exception as exc:
         await db.rollback()
         raise ApiError(
             "serial_number_exists",
             "Serial number already registered for this tenant",
             status_code=status.HTTP_409_CONFLICT,
-        )
+        ) from exc
     return serialize_serial_item(item)
 
 
@@ -1860,9 +1866,7 @@ async def install_serial_item(
     )
     item = result.scalar_one_or_none()
     if item is None:
-        raise ApiError(
-            "serial_item_not_found", "Serial item not found", status.HTTP_404_NOT_FOUND
-        )
+        raise ApiError("serial_item_not_found", "Serial item not found", status.HTTP_404_NOT_FOUND)
     if item.status != "in_stock":
         raise ApiError(
             "serial_item_not_in_stock",

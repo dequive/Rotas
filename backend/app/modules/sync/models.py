@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,6 +12,7 @@ class IdempotencyKey(Base):
     __tablename__ = "idempotency_keys"
     __table_args__ = (
         UniqueConstraint("tenant_id", "idempotency_key", name="uq_idempotency_tenant_key"),
+        Index("ix_idempotency_keys_expires_at", "expires_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -25,10 +26,8 @@ class IdempotencyKey(Base):
     request_hash: Mapped[str] = mapped_column(String(64))
     response_body: Mapped[dict | None] = mapped_column(JSON)
     status_code: Mapped[int | None] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class SyncEvent(Base):
@@ -47,7 +46,5 @@ class SyncEvent(Base):
     status: Mapped[str] = mapped_column(String(30), default="received", index=True)
     error_code: Mapped[str | None] = mapped_column(String(80))
     error_message: Mapped[str | None] = mapped_column(String(255))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

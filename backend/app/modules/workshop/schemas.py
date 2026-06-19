@@ -103,6 +103,7 @@ class WorkOrderCloseRequest(BaseModel):
 
 # --- Workshop Staff Rates ---
 
+
 class WorkshopStaffRateCreate(BaseModel):
     user_id: UUID
     hourly_rate: Decimal = Field(gt=0)
@@ -122,12 +123,14 @@ class WorkshopStaffRateOut(BaseModel):
 
 # --- Task Assignment ---
 
+
 class TaskAssignRequest(BaseModel):
     assigned_to: UUID
     estimated_minutes: int | None = Field(default=None, ge=1)
 
 
 # --- Tool Calibration ---
+
 
 class ToolCalibrationCreate(BaseModel):
     calibrated_by: UUID | None = None
@@ -157,6 +160,7 @@ class ToolUpdateRequest(BaseModel):
 
 # --- Serialized Spare Parts ---
 
+
 class SerialItemCreate(BaseModel):
     serial_number: str = Field(min_length=1, max_length=120)
     notes: str | None = None
@@ -181,6 +185,7 @@ class SerialItemOut(BaseModel):
 
 
 # --- Vehicle History ---
+
 
 class VehicleHistoryEvent(BaseModel):
     event_type: str

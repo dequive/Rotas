@@ -1,5 +1,4 @@
 from datetime import UTC, date, datetime, timedelta
-from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import select
@@ -17,6 +16,8 @@ from app.modules.third_party.models import (
     ThirdPartyRole,
 )
 from app.modules.third_party.schemas import (
+    VALID_ROLE_TYPES,
+    VALID_SUBJECT_TYPES,
     AssignmentCreate,
     DocumentCreate,
     DocumentVerify,
@@ -25,10 +26,7 @@ from app.modules.third_party.schemas import (
     SupplierProfileCreate,
     ThirdPartyCreate,
     ThirdPartyUpdate,
-    VALID_ROLE_TYPES,
-    VALID_SUBJECT_TYPES,
 )
-
 
 # ── Serializers ───────────────────────────────────────────────────────────────
 
@@ -99,9 +97,7 @@ def serialize_service_provider_profile(spp: ServiceProviderProfile) -> dict:
 # ── Guard helpers ─────────────────────────────────────────────────────────────
 
 
-async def _require_third_party(
-    db: AsyncSession, tenant_id: UUID, tp_id: UUID
-) -> ThirdParty:
+async def _require_third_party(db: AsyncSession, tenant_id: UUID, tp_id: UUID) -> ThirdParty:
     tp = await db.get(ThirdParty, tp_id)
     if not tp or tp.tenant_id != tenant_id:
         raise ApiError("third_party_not_found", "Third party not found.", status_code=404)
@@ -281,9 +277,7 @@ async def create_role(
     return serialize_role(role)
 
 
-async def list_roles(
-    db: AsyncSession, tenant_id: UUID, tp_id: UUID
-) -> list[dict]:
+async def list_roles(db: AsyncSession, tenant_id: UUID, tp_id: UUID) -> list[dict]:
     # Validate access
     await _require_third_party(db, tenant_id, tp_id)
     result = await db.execute(
@@ -352,9 +346,7 @@ async def upsert_service_provider_profile(
     await _require_third_party(db, tenant_id, tp_id)
 
     existing = await db.scalar(
-        select(ServiceProviderProfile).where(
-            ServiceProviderProfile.third_party_id == tp_id
-        )
+        select(ServiceProviderProfile).where(ServiceProviderProfile.third_party_id == tp_id)
     )
     if existing is not None:
         values = payload.model_dump(exclude_unset=True)
@@ -391,9 +383,7 @@ async def upsert_service_provider_profile(
 
 
 async def list_provinces(db: AsyncSession) -> list[dict]:
-    result = await db.execute(
-        select(MzProvince).order_by(MzProvince.name.asc())
-    )
+    result = await db.execute(select(MzProvince).order_by(MzProvince.name.asc()))
     return [
         {
             "code": p.code,
@@ -512,20 +502,14 @@ async def list_assignments(
     offset: int = 0,
 ) -> list[dict]:
     """List assignments, optionally filtered to active rows (unassigned_at IS NULL)."""
-    query = select(DriverVehicleAssignment).where(
-        DriverVehicleAssignment.tenant_id == tenant_id
-    )
+    query = select(DriverVehicleAssignment).where(DriverVehicleAssignment.tenant_id == tenant_id)
     if driver_id:
         query = query.where(DriverVehicleAssignment.driver_id == driver_id)
     if vehicle_id:
         query = query.where(DriverVehicleAssignment.vehicle_id == vehicle_id)
     if current_only:
         query = query.where(DriverVehicleAssignment.unassigned_at.is_(None))
-    query = (
-        query.order_by(DriverVehicleAssignment.assigned_at.desc())
-        .limit(limit)
-        .offset(offset)
-    )
+    query = query.order_by(DriverVehicleAssignment.assigned_at.desc()).limit(limit).offset(offset)
     result = await db.execute(query)
     return [serialize_assignment(a) for a in result.scalars()]
 
@@ -667,12 +651,14 @@ async def get_expiring_documents(
     today = date.today()
     cutoff = today + timedelta(days=days_ahead)
     result = await db.execute(
-        select(OperationalDocument).where(
+        select(OperationalDocument)
+        .where(
             OperationalDocument.tenant_id == tenant_id,
             OperationalDocument.expiry_date.isnot(None),
             OperationalDocument.expiry_date >= today,
             OperationalDocument.expiry_date <= cutoff,
-        ).order_by(OperationalDocument.expiry_date.asc())
+        )
+        .order_by(OperationalDocument.expiry_date.asc())
     )
     return [serialize_document(d) for d in result.scalars()]
 

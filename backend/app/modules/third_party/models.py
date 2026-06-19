@@ -31,9 +31,7 @@ class MzProvince(Base):
 
 class ThirdParty(Base):
     __tablename__ = "third_parties"
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "nuit", name="uq_third_parties_tenant_nuit"),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", "nuit", name="uq_third_parties_tenant_nuit"),)
 
     id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -55,15 +53,9 @@ class ThirdParty(Base):
         String(10), ForeignKey("mz_provinces.code"), nullable=True
     )
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(
-        String(30), nullable=False, server_default="active"
-    )
-    is_verified: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default="false"
-    )
-    verified_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    status: Mapped[str] = mapped_column(String(30), nullable=False, server_default="active")
+    is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verified_by: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
@@ -82,9 +74,7 @@ class ThirdParty(Base):
 class ThirdPartyRole(Base):
     __tablename__ = "third_party_roles"
     __table_args__ = (
-        UniqueConstraint(
-            "third_party_id", "role_type", name="uq_third_party_roles_tp_role"
-        ),
+        UniqueConstraint("third_party_id", "role_type", name="uq_third_party_roles_tp_role"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -103,9 +93,7 @@ class ThirdPartyRole(Base):
     )
     role_type: Mapped[str] = mapped_column(String(40), nullable=False)
     # Valid role_type values: fuel_supplier | spare_parts_supplier | service_provider | transport_subcontractor
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default="true"
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     certified_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     certification_ref: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -206,9 +194,7 @@ class DriverVehicleAssignment(Base):
     assigned_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    unassigned_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    unassigned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     assigned_by: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
@@ -257,9 +243,7 @@ class OperationalDocument(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    verified_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

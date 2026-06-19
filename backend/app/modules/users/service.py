@@ -64,7 +64,9 @@ async def _get_cached_user_count(
         if cached is not None:
             return int(cached)
     result = await db.execute(
-        select(func.count()).select_from(User).where(
+        select(func.count())
+        .select_from(User)
+        .where(
             User.tenant_id == tenant_id,
             User.is_active.is_(True),
         )
@@ -76,9 +78,7 @@ async def _get_cached_user_count(
     return count
 
 
-async def _check_user_limit(
-    db: AsyncSession, tenant: Tenant, redis: AsyncRedis | None
-) -> None:
+async def _check_user_limit(db: AsyncSession, tenant: Tenant, redis: AsyncRedis | None) -> None:
     """Raise plan_limit_reached if tenant is at or over max_users (D-13, D-14).
 
     Skip entirely when max_users is None (unlimited enterprise plan).

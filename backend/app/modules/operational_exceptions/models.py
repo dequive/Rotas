@@ -28,9 +28,7 @@ class OperationalException(Base):
     resolved_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     resolution_notes: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

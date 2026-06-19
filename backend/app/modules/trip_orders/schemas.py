@@ -16,9 +16,6 @@ class TripOrderCreate(BaseModel):
     estimated_volume: float | None = None
     cargo_value: float | None = None
     cargo_risk_level: str = "normal"
-    status: str
-    created_at: datetime
-    updated_at: datetime
     requested_pickup_date: date
     requested_delivery_date: date | None = None
     sla_pickup_deadline: datetime | None = None

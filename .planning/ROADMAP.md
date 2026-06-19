@@ -658,6 +658,7 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 - [ ] **Phase 20: Route Optimization** — Distance matrix, waypoint sequencing, integration with routing providers
 - [ ] **Phase 21: Frontend E2E Tests** — Playwright E2E testing suite to prevent visual and functional UI regressions
 - [ ] **Phase 22: RBAC Permission-Based** — Refactor do sistema de roles e permissões: dois planos (platform vs tenant), roles em português com agregados de gestão e operacional, `require_permission()` granular por domínio, `tenant_roles` custom para owner/director, migração dos 174 call sites de `require_roles`
+- [ ] **Phase 23: Third Party Registry** — Fornecedores e prestadores externos como entidades estruturadas; elegibilidade operacional de motoristas calculada em tempo real; atribuição motorista-viatura com histórico temporal; documentos com validade rastreada
 
 ---
 
@@ -977,6 +978,45 @@ Plans:
 
 ---
 
+### Phase 23: Third Party Registry
+
+**Goal**: Suppliers and service providers are first-class tenant-managed entities in ROTAS; fuel purchases and workshop work orders can reference structured third parties via nullable FK; driver operational eligibility is computed in real time from existing Driver model fields; driver-vehicle assignments have a formal temporal history; documents have a structured model with expiry tracking.
+
+**Depends on**: Phase 5 (clients module must exist — supplier/service_provider entities are distinct from clients and drivers which remain canonical), Phase 9 (RLS — new tables must follow RLS + GRANT pattern)
+
+**Requirements**: TP-01, TP-02, TP-03, TP-04, TP-05, TP-06, TP-07, TP-08, TP-09, TP-10, TP-11
+
+**Success Criteria** (what must be TRUE):
+  1. A manager can register a fuel supplier as a third party with `role_type=supplier`, and that supplier can be selected when creating a `fuel_purchase` — `fuel_purchases.supplier_third_party_id` is populated; `supplier_name` still accepted as legacy fallback
+  2. A manager can register an external workshop (oficina) as a third party with `role_type=service_provider`, and that provider can be referenced on a `work_order`
+  3. `POST /api/v1/third-party-roles/{role_id}/eligibility/check` with a `driver` role returns `{"eligible": false, "reasons": [{"code": "driver_license_expired", "blocking": true}]}` when `Driver.license_valid_until` is in the past
+  4. `POST /api/v1/trips` rejects with HTTP 409 when the assigned driver has a blocking eligibility reason — override requires `admin` role and `eligibility_override_reason` field
+  5. `POST /api/v1/driver-vehicle-assignments` creates a temporal assignment record; a driver cannot have two active assignments simultaneously (unique partial index on `status=active`)
+  6. A document with `expiry_date` uploaded to `operational_documents` for a driver or vehicle generates an alert 30 days before expiry — `alerts` table receives the entry
+  7. `GET /api/v1/party-directory` returns a unified list of drivers, clients, and third_parties with `subject_type` discrimination, filterable by role and status, scoped to tenant
+  8. All new tables (`third_parties`, `third_party_roles`, `supplier_profiles`, `service_provider_profiles`, `provinces`, `driver_vehicle_assignments`, `operational_documents`) have RLS policy and `GRANT SELECT, INSERT, UPDATE, DELETE ON {table} TO rotas_app` in the same CREATE TABLE migration
+  9. `clients` and `Driver` models are not modified — no third_party_id added to either; they remain canonical entities
+
+**Architecture constraints**:
+- `third_parties` stores identity (display_name, legal_name, primary_phone, tax_id optional, province_code, tags, record_status, tenant_id). `primary_phone` is unique per tenant for non-archived records.
+- `third_party_roles` stores operational role per third party (role_type: supplier | service_provider, role_status: pending | active | suspended | blacklisted | archived, metadata JSONB with schema version).
+- `supplier_profiles` and `service_provider_profiles` are separate profile tables linked to `third_party_roles.id` — not embedded in `third_party_roles`.
+- `fuel_purchases.supplier_third_party_id` and `spare_parts_inventory.supplier_third_party_id` are nullable FKs — `supplier_name` (existing free-text) is retained as snapshot/fallback.
+- `work_orders.service_provider_third_party_id` is a nullable FK — no existing column is removed.
+- `OperationalEligibilityService` reads `Driver.license_valid_until`, `Driver.passport_valid_until`, `Driver.bi_valid_until`, `Driver.status` — no new Driver columns required.
+- `operational_documents.file_id` → `files.id` — storage delegated to existing files module; no duplicate storage columns.
+- `operational_documents.subject_type` enum: `driver | vehicle | third_party | client | contract`.
+- `driver_vehicle_assignments` references `drivers.id` and `vehicles.id` — `trips.driver_id` is NOT changed.
+- `PartyDirectoryService` uses UNION ALL query across `drivers`, `clients`, `third_parties` — not sequential API calls.
+- All migrations are additive and backward-compatible — no existing FK is removed or renamed.
+- Phase 22 (RBAC) not required as a hard dependency — this phase uses existing `require_roles(*DASHBOARD_ROLES)` pattern; RBAC masking of sensitive fields deferred.
+
+**Plans**: TBD
+
+**UI hint**: yes (party directory list, third party detail, eligibility badge on driver pages, assignment history)
+
+---
+
 ## Progress Table (v3.0)
 
 | Phase | Plans Complete | Status | Completed |
@@ -988,3 +1028,4 @@ Plans:
 | 17. Infrastructure Enterprise v2 | 0/TBD | Not started | - |
 | 18. Analytics Avançado + Gestão de Seguros | 0/TBD | Not started | - |
 | 22. RBAC Permission-Based | 0/TBD | Not started | - |
+| 23. Third Party Registry | 5/8 | In Progress|  |

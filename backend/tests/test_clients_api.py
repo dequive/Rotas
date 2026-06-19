@@ -3,6 +3,7 @@
 import uuid
 
 import pytest
+from sqlalchemy import text
 
 
 # ---------------------------------------------------------------------------
@@ -145,8 +146,79 @@ async def test_credit_limit_warning_thresholds(async_client, auth_headers, clien
     assert data["outstanding_balance"] is not None or data["outstanding_balance"] == 0
 
 
-# CLI-03 stub — post-migration assertion (Plan 02)
-@pytest.mark.skip(reason="Post-migration assertion — implement after Plan 02 backfill completes")
-async def test_backfill_zero_null_client_ids(async_client, auth_headers):
-    """After migration (c): contracts WHERE client_id IS NULL = 0."""
-    ...
+# CLI-03: backfill migration gate
+@pytest.mark.asyncio
+async def test_backfill_zero_null_client_ids(db, tenant_id):
+    """After running backfill SQL, zero contracts remain with client_id IS NULL where client_name is set."""
+    # Seed 3 contracts with client_name populated, distinct NUITs, and client_id = NULL.
+    # Distinct NUITs are required so each inserts a separate client record in Step 1+2
+    # (all-NULL nuids collapse to the same placeholder '000000000' and ON CONFLICT DO NOTHING
+    # would skip rows 2 and 3, leaving them un-matched in Step 3).
+    await db.execute(text("""
+        INSERT INTO contracts (
+            id, tenant_id, client_name, client_nuit, contract_reference, status,
+            service_type, billing_cycle, billing_basis, currency,
+            requires_load_permit, requires_delivery_proof,
+            requires_cargo_manifest_for_manufactured_goods
+        ) VALUES
+            (:id1, :tenant_id, 'Cimentos de Moçambique Lda', '400000001', :ref1, 'active',
+             'cargo_transport', 'monthly', 'trip', 'MZN', true, true, false),
+            (:id2, :tenant_id, 'Transportes Beira SA', '400000002', :ref2, 'active',
+             'cargo_transport', 'monthly', 'trip', 'MZN', true, true, false),
+            (:id3, :tenant_id, 'Logistica Nacala Lda', '400000003', :ref3, 'active',
+             'cargo_transport', 'monthly', 'trip', 'MZN', true, true, false)
+    """), {
+        "id1": str(uuid.uuid4()),
+        "id2": str(uuid.uuid4()),
+        "id3": str(uuid.uuid4()),
+        "tenant_id": str(tenant_id),
+        "ref1": uuid.uuid4().hex[:8],
+        "ref2": uuid.uuid4().hex[:8],
+        "ref3": uuid.uuid4().hex[:8],
+    })
+    await db.flush()
+
+    # Step 1+2 from migration f6a7b8c9d0e1: INSERT one client per normalized name
+    await db.execute(text("""
+        INSERT INTO clients (id, tenant_id, trading_name, nuit, payment_terms_days, is_active, created_at, updated_at)
+        SELECT DISTINCT ON (tenant_id, lower(trim(client_name)))
+            gen_random_uuid(),
+            tenant_id,
+            first_value(client_name) OVER (
+                PARTITION BY tenant_id, lower(trim(client_name))
+                ORDER BY length(client_name) DESC
+                ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+            ),
+            COALESCE(NULLIF(trim(client_nuit), ''), '000000000'),
+            30,
+            true,
+            NOW(),
+            NOW()
+        FROM contracts
+        WHERE tenant_id = :tenant_id
+          AND client_name IS NOT NULL AND client_name != ''
+        ON CONFLICT (tenant_id, nuit) DO NOTHING
+    """), {"tenant_id": str(tenant_id)})
+
+    # Step 3 from migration f6a7b8c9d0e1: UPDATE contracts.client_id by normalized name match
+    await db.execute(text("""
+        UPDATE contracts c
+        SET client_id = cl.id
+        FROM clients cl
+        WHERE c.tenant_id = cl.tenant_id
+          AND lower(trim(c.client_name)) = lower(trim(cl.trading_name))
+          AND c.client_id IS NULL
+          AND c.tenant_id = :tenant_id
+    """), {"tenant_id": str(tenant_id)})
+
+    result = await db.execute(text("""
+        SELECT count(*) FROM contracts
+        WHERE tenant_id = :tenant_id
+          AND client_id IS NULL
+          AND client_name IS NOT NULL
+          AND client_name != ''
+    """), {"tenant_id": str(tenant_id)})
+    null_count = result.scalar()
+    assert null_count == 0, (
+        f"Expected 0 contracts with NULL client_id after backfill, got {null_count}"
+    )

@@ -56,6 +56,7 @@ def serialize_purchase(purchase: FuelPurchase) -> dict:
         "id": purchase.id,
         "tenant_id": purchase.tenant_id,
         "supplier_name": purchase.supplier_name,
+        "supplier_third_party_id": purchase.supplier_third_party_id,
         "purchase_reference": purchase.purchase_reference,
         "fuel_type": purchase.fuel_type,
         "ordered_liters": purchase.ordered_liters,
@@ -161,7 +162,9 @@ class FuelMovementService:
         movement_unit_cost = (
             _decimal(unit_cost)
             if unit_cost is not None
-            else previous_average_cost if direction == "out" else None
+            else previous_average_cost
+            if direction == "out"
+            else None
         )
         movement = FuelMovement(
             tenant_id=tenant_id,
@@ -698,11 +701,13 @@ async def list_movements(
 async def get_fuel_control_board(db: AsyncSession, tenant_id: UUID) -> dict:
     tanks = await list_tanks(db, tenant_id)
     purchases_pending = int(
-        (await db.scalar(
-            select(func.count(FuelPurchase.id)).where(
-                FuelPurchase.tenant_id == tenant_id, FuelPurchase.status == "pending"
+        (
+            await db.scalar(
+                select(func.count(FuelPurchase.id)).where(
+                    FuelPurchase.tenant_id == tenant_id, FuelPurchase.status == "pending"
+                )
             )
-        ))
+        )
         or 0
     )
     low_stock_tanks = [

@@ -100,6 +100,7 @@ def serialize_work_order(item: WorkOrder) -> dict:
         "closed_by": item.closed_by,
         "closed_at": item.closed_at,
         "close_notes": item.close_notes,
+        "service_provider_third_party_id": item.service_provider_third_party_id,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
     }
@@ -134,6 +135,8 @@ def serialize_spare_part(item: SparePartInventory) -> dict:
         "minimum_quantity": item.minimum_quantity,
         "average_unit_cost": item.average_unit_cost,
         "status": item.status,
+        "supplier_name": item.supplier_name,
+        "supplier_third_party_id": item.supplier_third_party_id,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
     }

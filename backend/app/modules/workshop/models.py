@@ -73,6 +73,9 @@ class WorkOrder(Base):
     closed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     close_notes: Mapped[str | None] = mapped_column(Text)
+    service_provider_third_party_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("third_parties.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     labor_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), server_default="0", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -125,6 +128,9 @@ class SparePartInventory(Base):
     category: Mapped[str | None] = mapped_column(String(40), nullable=True)
     shelf_location: Mapped[str | None] = mapped_column(String(80), nullable=True)
     supplier_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    supplier_third_party_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("third_parties.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     lead_time_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     reorder_quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

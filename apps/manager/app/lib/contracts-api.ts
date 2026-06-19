@@ -2,6 +2,7 @@ import { apiFetch } from "./api";
 
 export interface Contract {
   id: string;
+  client_id: string | null;
   client_name: string;
   contract_reference: string;
   title: string;

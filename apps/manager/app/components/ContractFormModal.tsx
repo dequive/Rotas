@@ -4,22 +4,41 @@ import { Edit2, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Contract } from "../lib/contracts-api";
+import { ClientCombobox } from "./ClientCombobox";
 
 export function ContractFormModal({ contract }: { contract?: Contract }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [clientId, setClientId] = useState<string>(contract?.client_id ?? "");
+  const [clientName, setClientName] = useState<string>(contract?.client_name ?? "");
+  const [clientError, setClientError] = useState<string | null>(null);
 
   const isEdit = !!contract;
+
+  function handleClientChange(id: string, name: string) {
+    setClientId(id);
+    setClientName(name);
+    setClientError(null);
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setClientError(null);
+
+    // Validate client selection
+    if (!clientId && !clientName) {
+      setClientError("Seleccione um cliente.");
+      return;
+    }
+
     setLoading(true);
     const fd = new FormData(e.currentTarget);
     const payload: Record<string, unknown> = {
-      client_name: fd.get("client_name"),
+      client_id: clientId || undefined,
+      client_name: clientId ? clientName : (clientName || undefined),
       contract_reference: fd.get("contract_reference"),
       title: fd.get("title"),
       service_type: fd.get("service_type"),
@@ -50,9 +69,18 @@ export function ContractFormModal({ contract }: { contract?: Contract }) {
     }
   }
 
+  function handleOpen() {
+    // Reset client state to contract's current values when (re-)opening
+    setClientId(contract?.client_id ?? "");
+    setClientName(contract?.client_name ?? "");
+    setClientError(null);
+    setError(null);
+    setOpen(true);
+  }
+
   return (
     <>
-      <button className={isEdit ? "icon-btn" : "primary-btn"} onClick={() => setOpen(true)}>
+      <button className={isEdit ? "icon-btn" : "primary-btn"} onClick={handleOpen}>
         {isEdit ? <Edit2 size={15} /> : <><Plus size={16} /> Novo contrato</>}
       </button>
 
@@ -66,8 +94,33 @@ export function ContractFormModal({ contract }: { contract?: Contract }) {
             <form onSubmit={handleSubmit} className="modal-form">
               <div className="form-row">
                 <label>Referência<input name="contract_reference" defaultValue={contract?.contract_reference} required placeholder="CTR-2026-001" /></label>
-                <label>Cliente<input name="client_name" defaultValue={contract?.client_name} required /></label>
               </div>
+
+              {/* Cliente — ClientCombobox replaces the free-text client_name input */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "var(--ink-2)",
+                    marginBottom: 4,
+                  }}
+                >
+                  Cliente <span aria-hidden="true" style={{ color: "var(--error)" }}>*</span>
+                </label>
+                <ClientCombobox
+                  value={clientId || undefined}
+                  onChange={handleClientChange}
+                  disabled={loading}
+                />
+                {clientError && (
+                  <p style={{ fontSize: "12px", color: "var(--error)", marginTop: 4, marginBottom: 0 }}>
+                    {clientError}
+                  </p>
+                )}
+              </div>
+
               <label>Título<input name="title" defaultValue={contract?.title} required /></label>
               <div className="form-row">
                 <label>Tipo de serviço

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -87,6 +87,11 @@ class TransportDocument(Base):
     destination: Mapped[str | None] = mapped_column(String(160))
     district: Mapped[str | None] = mapped_column(String(120))
     location_name: Mapped[str | None] = mapped_column(String(160))
+    # OPDOC-01: recipient fields for Guia de Remessa
+    recipient_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    recipient_nuit: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # OPDOC-01: flexible metadata per document type (border_post, sadc_cpi_number, etc.)
+    extra_fields: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"))
     status: Mapped[str] = mapped_column(String(30), default="pending", index=True)
     notes: Mapped[str | None] = mapped_column(Text)

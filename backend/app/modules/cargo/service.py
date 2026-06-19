@@ -84,6 +84,34 @@ def _audit_cargo_manifest(manifest: CargoManifest) -> dict:
     }
 
 
+def serialize_transport_document(document: TransportDocument) -> dict:
+    return {
+        "id": document.id,
+        "tenant_id": document.tenant_id,
+        "trip_id": document.trip_id,
+        "contract_id": document.contract_id,
+        "document_type": document.document_type,
+        "document_number": document.document_number,
+        "issuer": document.issuer,
+        "client_name": document.client_name,
+        "recipient_name": document.recipient_name,
+        "recipient_nuit": document.recipient_nuit,
+        "issued_at": document.issued_at,
+        "valid_from": document.valid_from,
+        "valid_until": document.valid_until,
+        "origin": document.origin,
+        "destination": document.destination,
+        "district": document.district,
+        "location_name": document.location_name,
+        "extra_fields": document.extra_fields,
+        "file_id": document.file_id,
+        "status": document.status,
+        "notes": document.notes,
+        "created_at": document.created_at,
+        "updated_at": document.updated_at,
+    }
+
+
 def _audit_transport_document(document: TransportDocument) -> dict:
     return {
         "trip_id": document.trip_id,

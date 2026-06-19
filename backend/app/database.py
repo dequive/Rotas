@@ -95,6 +95,7 @@ async def get_session_raw() -> AsyncIterator[AsyncSession]:
 MODEL_MODULES = (
     "auth",
     "tenants",
+    "third_party",
     "contracts",
     "clients",
     "users",

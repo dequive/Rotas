@@ -1838,7 +1838,7 @@ async def register_serial_item(
         raise ApiError(
             "serial_number_exists",
             "Serial number already registered for this tenant",
-            status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_409_CONFLICT,
         )
     return serialize_serial_item(item)
 

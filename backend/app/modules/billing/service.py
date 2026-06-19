@@ -248,9 +248,13 @@ def serialize_billing_document(document: BillingDocument, items: list[BillingIte
         "status": document.status,
         "issued_at": document.issued_at,
         "paid_at": document.paid_at,
+        "due_date": document.due_date,
         "file_id": document.file_id,
         "invoice_number": document.invoice_number,
         "iva_rate": document.iva_rate,
+        "document_type": document.document_type,
+        "parent_document_id": document.parent_document_id,
+        "client_nuit": document.client_nuit,
         "items": [serialize_billing_item(item) for item in items],
     }
 
@@ -274,8 +278,10 @@ def serialize_billing_document_summary(
         "status": document.status,
         "issued_at": document.issued_at,
         "paid_at": document.paid_at,
+        "due_date": document.due_date,
         "file_id": document.file_id,
         "invoice_number": document.invoice_number,
+        "document_type": document.document_type,
         "item_count": item_count,
         "created_at": document.created_at,
     }

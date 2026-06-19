@@ -49,6 +49,12 @@ class BillingDocument(Base):
     file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"))
     invoice_number: Mapped[str | None] = mapped_column(String(12), nullable=True)
     iva_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    # FDOC-01: fiscal document type discrimination
+    document_type: Mapped[str] = mapped_column(String(30), default="invoice", index=True)
+    parent_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("billing_documents.id"), nullable=True, index=True
+    )
+    client_nuit: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

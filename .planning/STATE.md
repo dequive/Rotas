@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 15.1-09-PLAN.md
-last_updated: "2026-06-19T07:00:00.000Z"
+stopped_at: Completed 23-03-PLAN.md
+last_updated: "2026-06-19T15:05:23.464Z"
 last_activity: 2026-06-19
 progress:
-  total_phases: 23
-  completed_phases: 10
-  total_plans: 84
-  completed_plans: 80
+  total_phases: 13
+  completed_phases: 7
+  total_plans: 60
+  completed_plans: 59
 ---
 
 # ROTAS — Project State
@@ -25,7 +25,7 @@ Phase: 09
 Plan: Not started
 Status: 05-05 complete 2026-06-19 — test_invoice_number_format in test_billing_api.py (2 tests, CLI-05); "Número" column with MonoCell in cobranca/page.tsx; invoice_number field wired in billing-api.ts; BillingDocument interface fixed in clientes/[id]/page.tsx; next build passes
 Last activity: 2026-06-19
-Stopped at: Completed 05-05-PLAN.md
+Stopped at: Completed 23-03-PLAN.md
 
 ### Completed v3.0 Phases
 

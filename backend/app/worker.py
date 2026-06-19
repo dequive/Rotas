@@ -319,6 +319,84 @@ async def task_worker_heartbeat(ctx: dict) -> str:
         return "No Redis — heartbeat skipped"
 
 
+# ── TP-10: Document expiry alert cron ────────────────────────────────────────
+
+
+async def task_check_document_expiry(ctx: dict) -> str:
+    """TP-10: Daily cron — generate alerts for operational_documents expiring within 30 days.
+
+    Uses BYPASSRLS admin session (cross-tenant scan).
+    Alert deduplication: create_alert() is idempotent on request_reference.
+    request_reference format: 'doc_expiry:{doc_id}:{expiry_date.isoformat()}'
+    — includes doc.id to prevent collisions between documents with same expiry date.
+
+    Runs daily at 06:00 Africa/Maputo = 04:00 UTC.
+    """
+    from datetime import date, timedelta
+    from uuid import UUID
+
+    import structlog
+    from sqlalchemy import and_, select
+
+    from app.modules.alerts.schemas import AlertCreate
+    from app.modules.alerts.service import create_alert
+    from app.modules.third_party.models import OperationalDocument
+
+    logger = structlog.get_logger("worker")
+    today = date.today()
+    cutoff = today + timedelta(days=30)
+    alert_count = 0
+
+    async with ctx["db_factory"]() as db:
+        # Admin session bypasses RLS — query all tenants' expiring documents in one pass
+        result = await db.execute(
+            select(OperationalDocument).where(
+                and_(
+                    OperationalDocument.expiry_date.isnot(None),
+                    OperationalDocument.expiry_date >= today,
+                    OperationalDocument.expiry_date <= cutoff,
+                )
+            )
+        )
+        docs = result.scalars().all()
+
+        for doc in docs:
+            days_remaining = (doc.expiry_date - today).days
+            priority = "critical" if days_remaining <= 7 else "high"
+            # Deterministic request_reference: includes doc.id to prevent cross-document collisions
+            request_reference = f"doc_expiry:{doc.id}:{doc.expiry_date.isoformat()}"
+
+            payload = AlertCreate(
+                request_reference=request_reference,
+                alert_type="document_expiring_soon",
+                priority=priority,
+                entity_type=doc.subject_type,
+                entity_id=doc.subject_id,
+                title=f"Document expiring: {doc.document_type}",
+                message=(
+                    f"Document '{doc.document_type}' "
+                    f"(subject: {doc.subject_type} {doc.subject_id}) "
+                    f"expires in {days_remaining} day(s) on {doc.expiry_date.isoformat()}."
+                ),
+                channel="dashboard",
+            )
+            try:
+                await create_alert(db, doc.tenant_id, payload)
+                alert_count += 1
+            except Exception as exc:
+                # Log and continue — do not abort the whole batch for one document
+                # create_alert raises ApiError(409) on duplicate request_reference with
+                # different values; same-values duplicates are returned silently (idempotent).
+                logger.warning(
+                    "task_check_document_expiry_alert_error",
+                    doc_id=str(doc.id),
+                    error=str(exc),
+                )
+
+    logger.info("task_check_document_expiry", alerts_generated=alert_count)
+    return f"Generated {alert_count} document expiry alerts"
+
+
 class WorkerSettings:
     functions = [
         generate_billing_export,
@@ -327,6 +405,7 @@ class WorkerSettings:
         task_escalate_pending_clearances,
         task_update_active_tenants_metric,
         task_worker_heartbeat,
+        task_check_document_expiry,
     ]
     cron_jobs = [
         # SM-01: Mark overdue billing documents — 01:00 Africa/Maputo = 23:00 UTC
@@ -341,6 +420,8 @@ class WorkerSettings:
         ),
         # INFRA2-04: Worker heartbeat (every minute in ARQ cron if second not supported)
         cron(task_worker_heartbeat, minute=set(range(60))),
+        # TP-10: Document expiry alerts — 06:00 Africa/Maputo = 04:00 UTC
+        cron(task_check_document_expiry, hour=4, minute=0),
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     max_jobs = 10

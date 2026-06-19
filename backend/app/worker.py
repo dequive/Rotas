@@ -1,6 +1,9 @@
 """ARQ background worker for ROTAS. Handles billing export jobs and KPI cache refresh."""
-from arq.connections import RedisSettings
+
+from datetime import UTC
+
 from arq import cron
+from arq.connections import RedisSettings
 
 from app.config import get_settings
 
@@ -37,14 +40,16 @@ async def startup(ctx: dict) -> None:
     ctx["admin_engine"] = admin_engine  # store for cleanup in shutdown
 
     import structlog
+
     _logger = structlog.get_logger("worker")
     _logger.info("arq_worker_started")
 
     # INFRA2-04: Enqueue first heartbeat immediately
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     redis = ctx.get("redis")
     if redis:
-        await redis.setex("arq:health:worker_heartbeat", 90, datetime.now(timezone.utc).isoformat())
+        await redis.setex("arq:health:worker_heartbeat", 90, datetime.now(UTC).isoformat())
 
 
 async def shutdown(ctx: dict) -> None:
@@ -95,13 +100,17 @@ async def generate_billing_export(
                 return {"error": "document_not_found"}
 
             items = (
-                await db.execute(
-                    select(BillingItem).where(
-                        BillingItem.billing_document_id == doc.id,
-                        BillingItem.tenant_id == UUID(tenant_id),
+                (
+                    await db.execute(
+                        select(BillingItem).where(
+                            BillingItem.billing_document_id == doc.id,
+                            BillingItem.tenant_id == UUID(tenant_id),
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
             tenant = await db.get(Tenant, UUID(tenant_id))
             issuer_name = tenant.name if tenant else "ROTAS"
@@ -141,15 +150,16 @@ async def generate_billing_export(
 
 # ── SM-01: BillingDocument overdue cron ──────────────────────────────────────
 
+
 async def task_mark_overdue_billing_documents(ctx: dict) -> str:
     """SM-01: Daily cron — mark issued BillingDocuments past due_date as overdue.
 
     Runs daily at 01:00 Africa/Maputo (23:00 UTC).
     Uses BYPASSRLS admin session — operates across all tenants.
     """
-    import structlog
-    from datetime import datetime, timezone
+    from datetime import datetime
 
+    import structlog
     from sqlalchemy import and_, update
 
     from app.modules.billing.models import BillingDocument
@@ -157,7 +167,7 @@ async def task_mark_overdue_billing_documents(ctx: dict) -> str:
     logger = structlog.get_logger("worker")
 
     async with ctx["db_factory"]() as db:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = await db.execute(
             update(BillingDocument)
             .where(
@@ -179,15 +189,16 @@ async def task_mark_overdue_billing_documents(ctx: dict) -> str:
 
 # ── SM-02: Contract expiration cron ──────────────────────────────────────────
 
+
 async def task_expire_contracts(ctx: dict) -> str:
     """SM-02: Daily cron — mark active/paused Contracts past ends_at as expired.
 
     Runs daily at 00:30 Africa/Maputo (22:30 UTC).
     Uses BYPASSRLS admin session — operates across all tenants.
     """
-    import structlog
-    from datetime import datetime, timezone
+    from datetime import datetime
 
+    import structlog
     from sqlalchemy import and_, update
 
     from app.modules.contracts.models import Contract
@@ -195,7 +206,7 @@ async def task_expire_contracts(ctx: dict) -> str:
     logger = structlog.get_logger("worker")
 
     async with ctx["db_factory"]() as db:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = await db.execute(
             update(Contract)
             .where(
@@ -218,21 +229,25 @@ async def task_expire_contracts(ctx: dict) -> str:
 
 # ── SM-04: DispatchClearance escalation cron ───────────────────────────────
 
+
 async def task_escalate_pending_clearances(ctx: dict) -> str:
     """SM-04: Hourly cron — escalate pending dispatch clearances past SLA."""
+    from datetime import datetime, timedelta
+
     import structlog
-    from sqlalchemy import select, update, and_
-    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import and_, select
+
     from app.modules.trip_orders.models import TripOrder
 
     logger = structlog.get_logger("worker")
 
     async with ctx["db_factory"]() as db:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = await db.execute(
             select(TripOrder).where(
                 and_(
-                    TripOrder.status == "pending",
+                    TripOrder.status == "dispatch_pending",
+                    TripOrder.escalated_at.is_(None),
                     TripOrder.created_at < now - timedelta(hours=1),
                 )
             )
@@ -242,8 +257,7 @@ async def task_escalate_pending_clearances(ctx: dict) -> str:
         escalated = []
         for order in pending_orders:
             sla = order.clearance_sla_hours or 24
-            if (now - order.created_at.replace(tzinfo=timezone.utc)) > timedelta(hours=sla):
-                order.status = "escalated"
+            if (now - order.created_at.replace(tzinfo=UTC)) > timedelta(hours=sla):
                 order.escalated_at = now
                 db.add(order)
                 escalated.append(order.id)
@@ -257,22 +271,23 @@ async def task_escalate_pending_clearances(ctx: dict) -> str:
 
 # ── INFRA2-03: Prometheus metrics update cron ──────────────────────────────
 
+
 async def task_update_active_tenants_metric(ctx: dict) -> str:
     """INFRA2-03: Update Prometheus active_tenants gauge every 5 minutes."""
     import structlog
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
+
     from app.modules.tenants.models import Tenant
 
     logger = structlog.get_logger("worker")
 
     async with ctx["db_factory"]() as db:
-        result = await db.execute(
-            select(func.count()).where(Tenant.is_active == True)
-        )
+        result = await db.execute(select(func.count()).where(Tenant.is_active == True))
         count = result.scalar_one_or_none() or 0
 
     try:
         from prometheus_client import Gauge
+
         g = Gauge("rotas_active_tenants_total", "Number of active tenants in the platform")
         g.set(count)
     except Exception:
@@ -284,13 +299,15 @@ async def task_update_active_tenants_metric(ctx: dict) -> str:
 
 # ── INFRA2-04: Worker heartbeat ───────────────────────────────────────────
 
+
 async def task_worker_heartbeat(ctx: dict) -> str:
     """INFRA2-04: Worker heartbeat — update Redis key every 30 seconds."""
+    from datetime import datetime
+
     import structlog
-    from datetime import datetime, timezone
 
     logger = structlog.get_logger("worker")
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     redis = ctx.get("redis")
     if redis:
@@ -319,7 +336,9 @@ class WorkerSettings:
         # SM-04: Hourly escalation check
         cron(task_escalate_pending_clearances, minute=15),
         # INFRA2-03: Every 5 minutes
-        cron(task_update_active_tenants_metric, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),
+        cron(
+            task_update_active_tenants_metric, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}
+        ),
         # INFRA2-04: Worker heartbeat (every minute in ARQ cron if second not supported)
         cron(task_worker_heartbeat, minute=set(range(60))),
     ]
@@ -329,4 +348,3 @@ class WorkerSettings:
     keep_result = 86400  # 24 hours
     on_startup = startup
     on_shutdown = shutdown
-

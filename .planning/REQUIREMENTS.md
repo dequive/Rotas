@@ -168,8 +168,8 @@ _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de
 
 ### Infraestrutura Enterprise (INFRA2)
 
-- [ ] **INFRA2-01**: Rate limiting distribuído via Redis — substituição do rate limiter in-memory por `slowapi` + Redis backend; funciona correctamente em deployment multi-worker Railway; limites configuráveis por rota e por tenant
-- [ ] **INFRA2-02**: Logging estruturado — integração Python `structlog` no FastAPI backend e ARQ worker; logs em formato JSON com `request_id`, `tenant_id`, `user_id`, `duration_ms`, `status_code`; configurado para agregação (Railway Logs / Datadog / CloudWatch)
+- [x] **INFRA2-01**: Rate limiting distribuído via Redis — substituição do rate limiter in-memory por `slowapi` + Redis backend; funciona correctamente em deployment multi-worker Railway; limites configuráveis por rota e por tenant
+- [x] **INFRA2-02**: Logging estruturado — integração Python `structlog` no FastAPI backend e ARQ worker; logs em formato JSON com `request_id`, `tenant_id`, `user_id`, `duration_ms`, `status_code`; configurado para agregação (Railway Logs / Datadog / CloudWatch)
 - [ ] **INFRA2-03**: Métricas e monitoring — endpoint `GET /api/v1/health/deep` verifica DB, Redis e worker activo; exposição de métricas Prometheus em `/metrics` (requests, latência p50/p95/p99, erros por módulo); alerta quando p95 > 2s
 - [ ] **INFRA2-04**: Health check profundo — `/health` actual substituído por response que inclui status DB (ping query), Redis (ping), ARQ worker (last heartbeat < 60s); retorna HTTP 503 se qualquer dependência crítica falhar
 
@@ -290,8 +290,8 @@ _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de
 | HOS-02 | Phase 16 | Pending |
 | AVAIL-01 | Phase 16 | Pending |
 | AVAIL-02 | Phase 16 | Pending |
-| INFRA2-01 | Phase 17 | Pending |
-| INFRA2-02 | Phase 17 | Pending |
+| INFRA2-01 | Phase 17 | Complete |
+| INFRA2-02 | Phase 17 | Complete |
 | INFRA2-03 | Phase 17 | Pending |
 | INFRA2-04 | Phase 17 | Pending |
 | ANA-01 | Phase 18 | Pending |

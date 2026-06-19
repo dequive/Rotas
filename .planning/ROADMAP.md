@@ -379,10 +379,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Wave 1: Test stubs (10 failing tests for PAY-01, PAY-02, PAY-03)
-- [ ] 06-02-PLAN.md — Wave 2: Backend service layer (register_payment, void_payment, apply_advance, _get_outstanding_balance, get_client_statement)
-- [ ] 06-03-PLAN.md — Wave 3: Router endpoints (POST /billing/payments, void, apply; GET /clients/{id}/statement)
-- [ ] 06-04-PLAN.md — Wave 4: Frontend PaymentModal + route handlers + /cobranca and /clientes/[id] integration
+- [ ] 06-01-PLAN.md ï¿½ Wave 1: Test stubs (10 failing tests for PAY-01, PAY-02, PAY-03)
+- [ ] 06-02-PLAN.md ï¿½ Wave 2: Backend service layer (register_payment, void_payment, apply_advance, _get_outstanding_balance, get_client_statement)
+- [ ] 06-03-PLAN.md ï¿½ Wave 3: Router endpoints (POST /billing/payments, void, apply; GET /clients/{id}/statement)
+- [ ] 06-04-PLAN.md ï¿½ Wave 4: Frontend PaymentModal + route handlers + /cobranca and /clientes/[id] integration
 
 **UI hint**: yes
 
@@ -978,7 +978,7 @@ Plans:
 
 **Requirements**: SEC-RBAC-01 a SEC-RBAC-05
 **Depends on:** Phase 9 (RLS â€” os dois planos partilham infra de isolamento), Phase 13 (Frontend usa roles nos componentes de UI)
-**Plans:** 5/5 plans complete
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 22 to break down)
@@ -1032,7 +1032,7 @@ Plans:
 | 14. Domain State Machines | 0/TBD | Not started | - |
 | 15. Fiscal Compliance + SeguranÃ§a de Carga | 0/TBD | Not started | - |
 | 16. Hours of Service + Availability Router | 0/TBD | Not started | - |
-| 17. Infrastructure Enterprise v2 | 0/TBD | Not started | - |
+| 17. Infrastructure Enterprise v2 | 1/2 | In Progress|  |
 | 18. Analytics AvanÃ§ado + GestÃ£o de Seguros | 0/TBD | Not started | - |
 | 22. RBAC Permission-Based | 0/TBD | Not started | - |
 | 23. Third Party Registry | 7/8 | In Progress|  |

@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.0
+milestone: v2.0
 milestone_name: milestone
-status: in_progress
-stopped_at: Completed 06-01-PLAN.md (Phase 06 Payment Registration — RED phase, 10 test stubs)
-last_updated: "2026-06-19T00:00:00.000Z"
+status: completed
+stopped_at: Completed 17-01-PLAN.md
+last_updated: "2026-06-19T16:17:11.781Z"
 last_activity: 2026-06-19
 progress:
-  total_phases: 14
-  completed_phases: 8
-  total_plans: 68
-  completed_plans: 67
+  total_phases: 13
+  completed_phases: 7
+  total_plans: 64
+  completed_plans: 60
 ---
 
 # ROTAS — Project State
@@ -21,11 +21,11 @@ _Last updated: 2026-06-06_
 
 ## Current Phase
 
-Phase: 06
+Phase: 17
 Plan: 01 complete — 02 next
-Status: 06-01 complete 2026-06-19 — RED phase: 10 test stubs for PAY-01, PAY-02, PAY-03; all skip cleanly (10 skipped, 0 failed)
+Status: 17-01 complete 2026-06-19 — Redis rate limiter (INFRA2-01) + structlog JSON logging (INFRA2-02); 3 rate-limit tests pass; structlog>=24.0 declared in pyproject.toml
 Last activity: 2026-06-19
-Stopped at: Completed 06-01-PLAN.md
+Stopped at: Completed 17-01-PLAN.md
 
 ### Completed v3.0 Phases
 

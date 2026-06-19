@@ -11,6 +11,7 @@ from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
 from app.database import AsyncSessionLocal
 from app.modules.third_party import service
 from app.modules.third_party.schemas import (
+    AssignmentCreate,
     RoleCreate,
     ServiceProviderProfileCreate,
     SupplierProfileCreate,
@@ -132,4 +133,49 @@ async def update_third_party(
 ):
     return await service.update_third_party(
         db, principal.tenant_id, tp_id, payload, actor_id=principal.user_id
+    )
+
+
+# ── Driver-Vehicle Assignments ────────────────────────────────────────────────
+
+
+@router.post("/driver-vehicle-assignments", status_code=201)
+async def assign_driver_to_vehicle(
+    payload: AssignmentCreate,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.assign_driver_to_vehicle(
+        db, principal.tenant_id, payload, actor_id=principal.user_id
+    )
+
+
+@router.get("/driver-vehicle-assignments")
+async def list_assignments(
+    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    driver_id: UUID | None = Query(None),
+    vehicle_id: UUID | None = Query(None),
+    current_only: bool = Query(False),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    return await service.list_assignments(
+        db, principal.tenant_id,
+        driver_id=driver_id,
+        vehicle_id=vehicle_id,
+        current_only=current_only,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.delete("/driver-vehicle-assignments/{assignment_id}", status_code=200)
+async def unassign_driver_from_vehicle(
+    assignment_id: UUID,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.unassign_driver_from_vehicle(
+        db, principal.tenant_id, assignment_id, actor_id=principal.user_id
     )

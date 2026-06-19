@@ -178,3 +178,95 @@ class ServiceProviderProfile(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class DriverVehicleAssignment(Base):
+    __tablename__ = "driver_vehicle_assignments"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid(),
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("tenants.id"), index=True, nullable=False
+    )
+    driver_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("drivers.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("vehicles.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    assignment_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # assignment_type values: primary | temporary | maintenance_only
+    assigned_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    unassigned_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    assigned_by: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class OperationalDocument(Base):
+    """Polymorphic document record using the PartyRef pattern.
+
+    subject_type: 'driver' | 'vehicle' | 'third_party' | 'client' | 'contract'
+    subject_id:   UUID pointing to the relevant entity table (no DB-level FK)
+    """
+
+    __tablename__ = "operational_documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid(),
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("tenants.id"), index=True, nullable=False
+    )
+    subject_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    subject_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
+    document_type: Mapped[str] = mapped_column(String(60), nullable=False)
+    file_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("files.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    document_number: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    issued_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    issuing_authority: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    verification_status: Mapped[str] = mapped_column(
+        String(30), nullable=False, server_default="pending"
+    )
+    verified_by: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )

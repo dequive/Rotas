@@ -4,13 +4,13 @@ milestone: v2.0
 milestone_name: milestone
 status: completed
 stopped_at: Completed 05-05-PLAN.md
-last_updated: "2026-06-19T04:19:40.432Z"
+last_updated: "2026-06-19T05:04:04.031Z"
 last_activity: 2026-06-19
 progress:
   total_phases: 13
   completed_phases: 7
-  total_plans: 59
-  completed_plans: 58
+  total_plans: 60
+  completed_plans: 59
 ---
 
 # ROTAS — Project State
@@ -21,8 +21,8 @@ _Last updated: 2026-06-06_
 
 ## Current Phase
 
-Phase: 05 (CLI — Client Registry + Migration Foundation) — COMPLETE
-Plan: 05 complete (5/5)
+Phase: 08
+Plan: Not started
 Status: 05-05 complete 2026-06-19 — test_invoice_number_format in test_billing_api.py (2 tests, CLI-05); "Número" column with MonoCell in cobranca/page.tsx; invoice_number field wired in billing-api.ts; BillingDocument interface fixed in clientes/[id]/page.tsx; next build passes
 Last activity: 2026-06-19
 Stopped at: Completed 05-05-PLAN.md

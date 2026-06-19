@@ -379,10 +379,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 06-01-PLAN.md � Wave 1: Test stubs (10 failing tests for PAY-01, PAY-02, PAY-03)
-- [ ] 06-02-PLAN.md � Wave 2: Backend service layer (register_payment, void_payment, apply_advance, _get_outstanding_balance, get_client_statement)
-- [ ] 06-03-PLAN.md � Wave 3: Router endpoints (POST /billing/payments, void, apply; GET /clients/{id}/statement)
-- [ ] 06-04-PLAN.md � Wave 4: Frontend PaymentModal + route handlers + /cobranca and /clientes/[id] integration
+- [x] 06-01-PLAN.md � Wave 1: Test stubs (10 failing tests for PAY-01, PAY-02, PAY-03)
+- [x] 06-02-PLAN.md � Wave 2: Backend service layer (register_payment, void_payment, apply_advance, _get_outstanding_balance, get_client_statement)
+- [x] 06-03-PLAN.md � Wave 3: Router endpoints (POST /billing/payments, void, apply; GET /clients/{id}/statement)
+- [x] 06-04-PLAN.md � Wave 4: Frontend PaymentModal + route handlers + /cobranca and /clientes/[id] integration
 
 **UI hint**: yes
 

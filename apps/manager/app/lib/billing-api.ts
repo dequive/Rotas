@@ -58,6 +58,7 @@ export interface ContractOption {
 export interface BillingDocumentSummary {
   id: string;
   reference: string;
+  invoiceNumber: string | null;
   client: string;
   period: string;
   trips: number;
@@ -82,6 +83,7 @@ interface ApiBillingDocument {
   total_amount: number | string | null;
   status: string;
   item_count: number;
+  invoice_number: string | null;
 }
 
 export interface BillingTripLoadResult {
@@ -157,6 +159,7 @@ const fallbackDocuments: BillingDocumentSummary[] = [
   {
     id: "fallback-doc-001",
     reference: "BIL-2026-06-001",
+    invoiceNumber: null,
     client: "Cliente Industrial Piloto",
     period: "Junho 2026",
     trips: 4,
@@ -166,6 +169,7 @@ const fallbackDocuments: BillingDocumentSummary[] = [
   {
     id: "fallback-doc-002",
     reference: "BIL-2026-06-002",
+    invoiceNumber: "2026/0001",
     client: "Distribuidora Norte",
     period: "Junho 2026",
     trips: 2,
@@ -287,6 +291,7 @@ export async function loadBillingDocuments(): Promise<BillingDocumentSummary[]> 
       reference: document.contract_reference
         ? `BIL-${document.contract_reference}-${document.id.slice(0, 8)}`
         : `BIL-${document.id.slice(0, 8)}`,
+      invoiceNumber: document.invoice_number ?? null,
       client: document.client_name,
       period: formatPeriod(document.billing_period_start),
       trips: document.item_count,

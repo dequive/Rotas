@@ -34,9 +34,9 @@ interface Contract {
 
 interface BillingDocument {
   id: string;
-  document_number: string | null;
-  period_start: string;
-  period_end: string;
+  invoice_number: string | null;
+  billing_period_start: string;
+  billing_period_end: string;
   total_amount: string | number;
   outstanding_balance?: string | number | null;
   due_date: string | null;
@@ -276,10 +276,12 @@ export default async function ClienteDetailPage({
               {invoices.map((inv) => (
                 <RotasTableRow key={inv.id}>
                   <RotasTableCell>
-                    <MonoCell>{inv.document_number ?? "—"}</MonoCell>
+                    <MonoCell className={inv.invoice_number ? "text-ink" : "text-muted"}>
+                      {inv.invoice_number ?? "—"}
+                    </MonoCell>
                   </RotasTableCell>
                   <RotasTableCell>
-                    {formatDate(inv.period_start)} — {formatDate(inv.period_end)}
+                    {formatDate(inv.billing_period_start)} — {formatDate(inv.billing_period_end)}
                   </RotasTableCell>
                   <RotasTableCell>
                     <MonoCell>{formatMzn(inv.total_amount)}</MonoCell>

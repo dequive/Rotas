@@ -376,7 +376,13 @@ Plans:
 - Payments are never hard-deleted — use `status = "voided"` with `voided_by` and `voided_reason` fields; audit log entry required for every void
 - `billing_documents.paid_at` (existing column) is updated as a denormalized cache when `SUM(allocations) >= total_amount` — it is no longer the source of truth, but is kept for backward compatibility with PDF generation
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 06-01-PLAN.md � Wave 1: Test stubs (10 failing tests for PAY-01, PAY-02, PAY-03)
+- [ ] 06-02-PLAN.md � Wave 2: Backend service layer (register_payment, void_payment, apply_advance, _get_outstanding_balance, get_client_statement)
+- [ ] 06-03-PLAN.md � Wave 3: Router endpoints (POST /billing/payments, void, apply; GET /clients/{id}/statement)
+- [ ] 06-04-PLAN.md � Wave 4: Frontend PaymentModal + route handlers + /cobranca and /clientes/[id] integration
 
 **UI hint**: yes
 
@@ -646,7 +652,8 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 
 ## Phases (v3.0)
 
-- [x] **Phase 13.5: Workshop Operations Expansion** — Staff de oficina (atribuição + custo mão de obra), ferramentas com histórico de calibrações, peças serializadas e timeline unificada de veículo (completed 2026-06-19)
+- [x] **Phase 13.5: Workshop Operations Expansion** — Staff de oficina (atribuição + custo mão de obra), ferramentas com histórico de calibrações, peças serializadas e timeline unificada de veículo
+ (completed 2026-06-19)
 - [ ] **Phase 13: Frontend Completeness** — As 4 páginas do manager referenciadas no sidebar mas sem implementação real: `/manutencao`, `/cobranca`, `/alertas`, `/settings`
 - [ ] **Phase 14: Domain State Machines** — Fechar state machines incompletas de `BillingDocument`, `Contract`, `DeliveryProof` e `DispatchClearance` — o núcleo financeiro e documental fica coerente
 - [ ] **Phase 15: Fiscal Compliance + Segurança de Carga** — IVA Moçambique, numeração fiscal, validação de peso vs capacidade, suporte hazmat

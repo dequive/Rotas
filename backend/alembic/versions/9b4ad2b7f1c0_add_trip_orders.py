@@ -7,9 +7,9 @@ Create Date: 2026-05-31 00:00:00.000000+02:00
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "9b4ad2b7f1c0"
 down_revision: str | None = "6278288d5cd8"
@@ -59,8 +59,18 @@ def upgrade() -> None:
         sa.Column("requires_customs_clearance", sa.Boolean(), nullable=False),
         sa.Column("operational_notes", sa.Text(), nullable=True),
         sa.Column("commercial_notes", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "status IN ('draft', 'confirmed', 'planning', 'assigned', 'dispatch_pending', "
             "'dispatched', 'in_execution', 'delivered', 'closed', 'cancelled', 'expired', 'rejected')",
@@ -88,7 +98,9 @@ def upgrade() -> None:
     op.create_index("ix_trip_orders_tenant_id", "trip_orders", ["tenant_id"])
     op.create_index("ix_trip_orders_status", "trip_orders", ["status"])
     op.create_index("ix_trip_orders_priority", "trip_orders", ["priority"])
-    op.create_index("ix_trip_orders_requested_pickup_date", "trip_orders", ["requested_pickup_date"])
+    op.create_index(
+        "ix_trip_orders_requested_pickup_date", "trip_orders", ["requested_pickup_date"]
+    )
     op.create_index("ix_trip_orders_contract_id", "trip_orders", ["contract_id"])
     op.create_index("ix_trip_orders_client_id", "trip_orders", ["client_id"])
     op.create_index("ix_trip_orders_customer_reference", "trip_orders", ["customer_reference"])

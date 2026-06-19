@@ -79,8 +79,7 @@ def upgrade() -> None:
     # rotas_app: subject to RLS enforcement (used by FastAPI application connection).
     # rotas_admin: BYPASSRLS (used by Alembic and ARQ worker for cross-tenant queries).
     op.execute(
-        "DO $$ BEGIN CREATE ROLE rotas_app; "
-        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+        "DO $$ BEGIN CREATE ROLE rotas_app; EXCEPTION WHEN duplicate_object THEN NULL; END $$"
     )
     op.execute(
         "DO $$ BEGIN CREATE ROLE rotas_admin BYPASSRLS; "

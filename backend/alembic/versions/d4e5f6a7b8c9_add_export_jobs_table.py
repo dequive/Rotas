@@ -8,8 +8,9 @@ Create Date: 2026-06-05 22:00:00.000000+00:00
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "d4e5f6a7b8c9"
 down_revision: str | None = "cb7d41a8a0f7"
@@ -34,9 +35,7 @@ def upgrade() -> None:
         ),
         sa.Column("job_type", sa.String(30), nullable=False),
         sa.Column("entity_id", postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column(
-            "status", sa.String(20), nullable=False, server_default=sa.text("'queued'")
-        ),
+        sa.Column("status", sa.String(20), nullable=False, server_default=sa.text("'queued'")),
         sa.Column("file_path", sa.Text, nullable=True),
         sa.Column("error_message", sa.Text, nullable=True),
         sa.Column(

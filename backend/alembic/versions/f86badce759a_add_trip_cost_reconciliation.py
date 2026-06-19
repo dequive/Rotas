@@ -7,9 +7,9 @@ Create Date: 2026-06-02 14:00:00.000000+02:00
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "f86badce759a"
 down_revision: str | None = "e75a9cbd648f"
@@ -20,18 +20,24 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.add_column(
         "trips",
-        sa.Column("actual_revenue", sa.Numeric(precision=12, scale=2), server_default="0", nullable=False),
+        sa.Column(
+            "actual_revenue", sa.Numeric(precision=12, scale=2), server_default="0", nullable=False
+        ),
     )
     op.add_column(
         "trips",
-        sa.Column("actual_margin", sa.Numeric(precision=12, scale=2), server_default="0", nullable=False),
+        sa.Column(
+            "actual_margin", sa.Numeric(precision=12, scale=2), server_default="0", nullable=False
+        ),
     )
     op.add_column(
         "trips",
         sa.Column("costs_reconciled_at", sa.DateTime(timezone=True), nullable=True),
     )
 
-    op.add_column("trip_costs", sa.Column("request_reference", sa.String(length=120), nullable=True))
+    op.add_column(
+        "trip_costs", sa.Column("request_reference", sa.String(length=120), nullable=True)
+    )
     op.add_column(
         "trip_costs",
         sa.Column("source_type", sa.String(length=40), server_default="manual", nullable=False),

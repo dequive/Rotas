@@ -8,8 +8,10 @@ SM-01: BillingDocument — add overdue_since_at, cancellation_reason
        (paid_at already exists — no action needed)
 SM-02: Contract — add paused_at, terminated_at, termination_reason, renewed_at
 """
-from alembic import op
+
 import sqlalchemy as sa
+
+from alembic import op
 
 revision: str = "e9f8d7c6b5a4"
 down_revision: str = "f7a8b9c0d1e2"

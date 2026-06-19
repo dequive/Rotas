@@ -7,9 +7,9 @@ Create Date: 2026-05-31 20:00:00.000000+02:00
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "d42f7c8e109a"
 down_revision: str | None = "f18a4b6d2e90"
@@ -31,8 +31,18 @@ def upgrade() -> None:
         sa.Column("average_unit_cost", sa.Numeric(precision=14, scale=2), nullable=False),
         sa.Column("location", sa.String(length=200), nullable=True),
         sa.Column("status", sa.String(length=30), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint("capacity_liters > 0", name="chk_fuel_tanks_positive_capacity"),
         sa.CheckConstraint(
             "minimum_stock_liters >= 0 AND minimum_stock_liters <= capacity_liters",
@@ -67,7 +77,12 @@ def upgrade() -> None:
         sa.Column("approved_by", sa.UUID(), nullable=True),
         sa.Column("approved_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint("ordered_liters > 0", name="chk_fuel_purchases_positive_liters"),
         sa.CheckConstraint("unit_price >= 0", name="chk_fuel_purchases_unit_price"),
         sa.CheckConstraint(
@@ -83,7 +98,9 @@ def upgrade() -> None:
         ),
     )
     op.create_index("ix_fuel_purchases_tenant_id", "fuel_purchases", ["tenant_id"])
-    op.create_index("ix_fuel_purchases_purchase_reference", "fuel_purchases", ["purchase_reference"])
+    op.create_index(
+        "ix_fuel_purchases_purchase_reference", "fuel_purchases", ["purchase_reference"]
+    )
     op.create_index("ix_fuel_purchases_fuel_type", "fuel_purchases", ["fuel_type"])
     op.create_index("ix_fuel_purchases_status", "fuel_purchases", ["status"])
 
@@ -103,7 +120,12 @@ def upgrade() -> None:
         sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("recorded_by", sa.UUID(), nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint("direction IN ('in', 'out')", name="chk_fuel_movements_direction"),
         sa.CheckConstraint("liters > 0", name="chk_fuel_movements_positive_liters"),
         sa.CheckConstraint("balance_after_liters >= 0", name="chk_fuel_movements_balance"),
@@ -133,7 +155,12 @@ def upgrade() -> None:
         sa.Column("verified_by", sa.UUID(), nullable=True),
         sa.Column("movement_id", sa.UUID(), nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint("received_liters > 0", name="chk_fuel_receipts_positive_liters"),
         sa.CheckConstraint("status IN ('verified', 'disputed')", name="chk_fuel_receipts_status"),
         sa.ForeignKeyConstraint(["delivery_note_file_id"], ["files.id"]),
@@ -164,7 +191,12 @@ def upgrade() -> None:
         sa.Column("total_cost", sa.Numeric(precision=16, scale=2), nullable=True),
         sa.Column("movement_id", sa.UUID(), nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint("liters > 0", name="chk_vehicle_refuels_positive_liters"),
         sa.ForeignKeyConstraint(["driver_id"], ["drivers.id"]),
         sa.ForeignKeyConstraint(["movement_id"], ["fuel_movements.id"]),
@@ -192,7 +224,12 @@ def upgrade() -> None:
         sa.Column("counted_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("counted_by", sa.UUID(), nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint("measured_liters >= 0", name="chk_fuel_stock_counts_measured"),
         sa.ForeignKeyConstraint(["tank_id"], ["fuel_tanks.id"]),
         sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"]),

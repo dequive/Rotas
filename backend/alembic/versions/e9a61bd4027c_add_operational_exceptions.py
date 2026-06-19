@@ -7,9 +7,9 @@ Create Date: 2026-05-31 21:00:00.000000+02:00
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "e9a61bd4027c"
 down_revision: str | None = "d42f7c8e109a"
@@ -37,8 +37,18 @@ def upgrade() -> None:
         sa.Column("resolved_by", sa.UUID(), nullable=True),
         sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("resolution_notes", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "severity IN ('low', 'medium', 'high', 'critical')",
             name="chk_operational_exceptions_severity",
@@ -51,7 +61,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_operational_exceptions_tenant_id", "operational_exceptions", ["tenant_id"])
-    op.create_index("ix_operational_exceptions_entity_type", "operational_exceptions", ["entity_type"])
+    op.create_index(
+        "ix_operational_exceptions_entity_type", "operational_exceptions", ["entity_type"]
+    )
     op.create_index("ix_operational_exceptions_entity_id", "operational_exceptions", ["entity_id"])
     op.create_index(
         "ix_operational_exceptions_exception_type",
@@ -60,7 +72,9 @@ def upgrade() -> None:
     )
     op.create_index("ix_operational_exceptions_severity", "operational_exceptions", ["severity"])
     op.create_index("ix_operational_exceptions_status", "operational_exceptions", ["status"])
-    op.create_index("ix_operational_exceptions_source_type", "operational_exceptions", ["source_type"])
+    op.create_index(
+        "ix_operational_exceptions_source_type", "operational_exceptions", ["source_type"]
+    )
     op.create_index("ix_operational_exceptions_source_id", "operational_exceptions", ["source_id"])
     op.create_index(
         "idx_operational_exceptions_active_queue",

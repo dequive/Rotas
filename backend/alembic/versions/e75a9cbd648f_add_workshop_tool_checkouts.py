@@ -7,9 +7,9 @@ Create Date: 2026-06-02 13:00:00.000000+02:00
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "e75a9cbd648f"
 down_revision: str | None = "d64f8bac537e"
@@ -27,8 +27,18 @@ def upgrade() -> None:
         sa.Column("is_critical", sa.Boolean(), nullable=False),
         sa.Column("calibration_due_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("status", sa.String(length=30), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "status IN ('available', 'checked_out', 'damaged', 'lost', 'retired')",
             name="chk_workshop_tools_status",
@@ -39,7 +49,9 @@ def upgrade() -> None:
     )
     op.create_index("ix_workshop_tools_tenant_id", "workshop_tools", ["tenant_id"])
     op.create_index("ix_workshop_tools_code", "workshop_tools", ["code"])
-    op.create_index("ix_workshop_tools_calibration_due_at", "workshop_tools", ["calibration_due_at"])
+    op.create_index(
+        "ix_workshop_tools_calibration_due_at", "workshop_tools", ["calibration_due_at"]
+    )
     op.create_index("ix_workshop_tools_status", "workshop_tools", ["status"])
 
     op.create_table(
@@ -58,7 +70,12 @@ def upgrade() -> None:
         sa.Column("returned_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("return_condition", sa.String(length=30), nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "status IN ('checked_out', 'returned')",
             name="chk_tool_checkouts_status",
@@ -80,7 +97,9 @@ def upgrade() -> None:
     op.create_index("ix_tool_checkouts_tenant_id", "tool_checkouts", ["tenant_id"])
     op.create_index("ix_tool_checkouts_tool_id", "tool_checkouts", ["tool_id"])
     op.create_index("ix_tool_checkouts_work_order_id", "tool_checkouts", ["work_order_id"])
-    op.create_index("ix_tool_checkouts_checkout_reference", "tool_checkouts", ["checkout_reference"])
+    op.create_index(
+        "ix_tool_checkouts_checkout_reference", "tool_checkouts", ["checkout_reference"]
+    )
     op.create_index("ix_tool_checkouts_checked_out_at", "tool_checkouts", ["checked_out_at"])
     op.create_index("ix_tool_checkouts_due_at", "tool_checkouts", ["due_at"])
     op.create_index("ix_tool_checkouts_status", "tool_checkouts", ["status"])

@@ -7,9 +7,9 @@ Create Date: 2026-06-02 15:00:00.000000+02:00
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "a97cbdef860b"
 down_revision: str | None = "f86badce759a"
@@ -30,14 +30,28 @@ def upgrade() -> None:
         sa.Column("next_due_km", sa.Integer(), nullable=True),
         sa.Column("next_due_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("status", sa.String(length=30), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "interval_km IS NOT NULL OR interval_days IS NOT NULL",
             name="chk_maintenance_plans_interval",
         ),
-        sa.CheckConstraint("interval_km IS NULL OR interval_km > 0", name="chk_maintenance_plans_interval_km"),
-        sa.CheckConstraint("interval_days IS NULL OR interval_days > 0", name="chk_maintenance_plans_interval_days"),
+        sa.CheckConstraint(
+            "interval_km IS NULL OR interval_km > 0", name="chk_maintenance_plans_interval_km"
+        ),
+        sa.CheckConstraint(
+            "interval_days IS NULL OR interval_days > 0", name="chk_maintenance_plans_interval_days"
+        ),
         sa.CheckConstraint("status IN ('active', 'inactive')", name="chk_maintenance_plans_status"),
         sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"]),
         sa.ForeignKeyConstraint(["vehicle_id"], ["vehicles.id"]),
@@ -50,7 +64,9 @@ def upgrade() -> None:
     )
     op.create_index("ix_maintenance_plans_tenant_id", "maintenance_plans", ["tenant_id"])
     op.create_index("ix_maintenance_plans_vehicle_id", "maintenance_plans", ["vehicle_id"])
-    op.create_index("ix_maintenance_plans_request_reference", "maintenance_plans", ["request_reference"])
+    op.create_index(
+        "ix_maintenance_plans_request_reference", "maintenance_plans", ["request_reference"]
+    )
     op.create_index("ix_maintenance_plans_next_due_km", "maintenance_plans", ["next_due_km"])
     op.create_index("ix_maintenance_plans_next_due_at", "maintenance_plans", ["next_due_at"])
     op.create_index("ix_maintenance_plans_status", "maintenance_plans", ["status"])
@@ -64,7 +80,12 @@ def upgrade() -> None:
         sa.Column("due_km", sa.Integer(), nullable=True),
         sa.Column("due_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("status", sa.String(length=30), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "status IN ('overdue', 'completed', 'cancelled')",
             name="chk_maintenance_schedule_status",

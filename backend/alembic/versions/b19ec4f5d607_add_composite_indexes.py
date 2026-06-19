@@ -9,8 +9,8 @@ tenant_id is the leading column in all indexes.
 Uses CREATE INDEX CONCURRENTLY to avoid table locks.
 Requires transaction_per_migration=False in alembic/env.py.
 """
-from alembic import op
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "b19ec4f5d607"

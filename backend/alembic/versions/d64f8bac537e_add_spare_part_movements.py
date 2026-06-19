@@ -7,9 +7,9 @@ Create Date: 2026-06-02 12:00:00.000000+02:00
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "d64f8bac537e"
 down_revision: str | None = "c53e7a9b426d"
@@ -29,8 +29,18 @@ def upgrade() -> None:
         sa.Column("minimum_quantity", sa.Numeric(precision=14, scale=2), nullable=False),
         sa.Column("average_unit_cost", sa.Numeric(precision=14, scale=2), nullable=False),
         sa.Column("status", sa.String(length=30), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint("current_quantity >= 0", name="chk_spare_parts_current_quantity"),
         sa.CheckConstraint("minimum_quantity >= 0", name="chk_spare_parts_minimum_quantity"),
         sa.CheckConstraint("status IN ('active', 'inactive')", name="chk_spare_parts_status"),
@@ -59,7 +69,12 @@ def upgrade() -> None:
         sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("recorded_by", sa.UUID(), nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint("direction IN ('in', 'out')", name="chk_spare_part_movements_direction"),
         sa.CheckConstraint("quantity > 0", name="chk_spare_part_movements_quantity"),
         sa.CheckConstraint("balance_after_quantity >= 0", name="chk_spare_part_movements_balance"),
@@ -73,10 +88,16 @@ def upgrade() -> None:
         ),
     )
     op.create_index("ix_spare_part_movements_tenant_id", "spare_part_movements", ["tenant_id"])
-    op.create_index("ix_spare_part_movements_inventory_id", "spare_part_movements", ["inventory_id"])
-    op.create_index("ix_spare_part_movements_movement_type", "spare_part_movements", ["movement_type"])
+    op.create_index(
+        "ix_spare_part_movements_inventory_id", "spare_part_movements", ["inventory_id"]
+    )
+    op.create_index(
+        "ix_spare_part_movements_movement_type", "spare_part_movements", ["movement_type"]
+    )
     op.create_index("ix_spare_part_movements_direction", "spare_part_movements", ["direction"])
-    op.create_index("ix_spare_part_movements_request_reference", "spare_part_movements", ["request_reference"])
+    op.create_index(
+        "ix_spare_part_movements_request_reference", "spare_part_movements", ["request_reference"]
+    )
     op.create_index("ix_spare_part_movements_source_type", "spare_part_movements", ["source_type"])
     op.create_index("ix_spare_part_movements_source_id", "spare_part_movements", ["source_id"])
     op.create_index("ix_spare_part_movements_occurred_at", "spare_part_movements", ["occurred_at"])
@@ -93,7 +114,9 @@ def upgrade() -> None:
         sa.Column("unit_cost", sa.Numeric(precision=14, scale=2), nullable=True),
         sa.Column("total_cost", sa.Numeric(precision=16, scale=2), nullable=True),
         sa.Column("issued_by", sa.UUID(), nullable=True),
-        sa.Column("issued_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "issued_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False
+        ),
         sa.Column("notes", sa.Text(), nullable=True),
         sa.ForeignKeyConstraint(["inventory_id"], ["spare_parts_inventory.id"]),
         sa.ForeignKeyConstraint(["movement_id"], ["spare_part_movements.id"]),
@@ -107,10 +130,20 @@ def upgrade() -> None:
         ),
     )
     op.create_index("ix_maintenance_parts_used_tenant_id", "maintenance_parts_used", ["tenant_id"])
-    op.create_index("ix_maintenance_parts_used_work_order_id", "maintenance_parts_used", ["work_order_id"])
-    op.create_index("ix_maintenance_parts_used_inventory_id", "maintenance_parts_used", ["inventory_id"])
-    op.create_index("ix_maintenance_parts_used_movement_id", "maintenance_parts_used", ["movement_id"])
-    op.create_index("ix_maintenance_parts_used_request_reference", "maintenance_parts_used", ["request_reference"])
+    op.create_index(
+        "ix_maintenance_parts_used_work_order_id", "maintenance_parts_used", ["work_order_id"]
+    )
+    op.create_index(
+        "ix_maintenance_parts_used_inventory_id", "maintenance_parts_used", ["inventory_id"]
+    )
+    op.create_index(
+        "ix_maintenance_parts_used_movement_id", "maintenance_parts_used", ["movement_id"]
+    )
+    op.create_index(
+        "ix_maintenance_parts_used_request_reference",
+        "maintenance_parts_used",
+        ["request_reference"],
+    )
 
 
 def downgrade() -> None:

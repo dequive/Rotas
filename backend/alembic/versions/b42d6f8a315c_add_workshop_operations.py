@@ -7,9 +7,9 @@ Create Date: 2026-06-02 10:00:00.000000+02:00
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "b42d6f8a315c"
 down_revision: str | None = "a31c5e7f204b"
@@ -31,9 +31,24 @@ def upgrade() -> None:
         sa.Column("odometer_reading", sa.Integer(), nullable=True),
         sa.Column("status", sa.String(length=30), nullable=False),
         sa.Column("requested_by", sa.UUID(), nullable=True),
-        sa.Column("requested_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "requested_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "request_type IN ('corrective', 'preventive', 'inspection', 'breakdown')",
             name="chk_maintenance_requests_type",
@@ -56,10 +71,14 @@ def upgrade() -> None:
     op.create_index("ix_maintenance_requests_vehicle_id", "maintenance_requests", ["vehicle_id"])
     op.create_index("ix_maintenance_requests_trip_id", "maintenance_requests", ["trip_id"])
     op.create_index("ix_maintenance_requests_incident_id", "maintenance_requests", ["incident_id"])
-    op.create_index("ix_maintenance_requests_request_type", "maintenance_requests", ["request_type"])
+    op.create_index(
+        "ix_maintenance_requests_request_type", "maintenance_requests", ["request_type"]
+    )
     op.create_index("ix_maintenance_requests_priority", "maintenance_requests", ["priority"])
     op.create_index("ix_maintenance_requests_status", "maintenance_requests", ["status"])
-    op.create_index("ix_maintenance_requests_requested_at", "maintenance_requests", ["requested_at"])
+    op.create_index(
+        "ix_maintenance_requests_requested_at", "maintenance_requests", ["requested_at"]
+    )
 
     op.create_table(
         "work_orders",
@@ -78,8 +97,18 @@ def upgrade() -> None:
         sa.Column("closed_by", sa.UUID(), nullable=True),
         sa.Column("closed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("close_notes", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "status IN ('draft', 'approved', 'in_progress', 'quality_check', 'closed', 'cancelled')",
             name="chk_work_orders_status",
@@ -91,7 +120,9 @@ def upgrade() -> None:
         sa.UniqueConstraint("tenant_id", "work_order_number", name="uq_work_orders_tenant_number"),
     )
     op.create_index("ix_work_orders_tenant_id", "work_orders", ["tenant_id"])
-    op.create_index("ix_work_orders_maintenance_request_id", "work_orders", ["maintenance_request_id"])
+    op.create_index(
+        "ix_work_orders_maintenance_request_id", "work_orders", ["maintenance_request_id"]
+    )
     op.create_index("ix_work_orders_vehicle_id", "work_orders", ["vehicle_id"])
     op.create_index("ix_work_orders_work_order_number", "work_orders", ["work_order_number"])
     op.create_index("ix_work_orders_status", "work_orders", ["status"])

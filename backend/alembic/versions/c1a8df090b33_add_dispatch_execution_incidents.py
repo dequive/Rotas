@@ -7,9 +7,9 @@ Create Date: 2026-05-31 00:10:00.000000+02:00
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "c1a8df090b33"
 down_revision: str | None = "9b4ad2b7f1c0"
@@ -35,8 +35,18 @@ def upgrade() -> None:
         sa.Column("blocked_reason", sa.Text(), nullable=True),
         sa.Column("approved_by", sa.UUID(), nullable=True),
         sa.Column("approved_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "clearance_status IN ('pending', 'approved', 'blocked', 'cancelled')",
             name="chk_dispatch_clearance_status",
@@ -77,7 +87,12 @@ def upgrade() -> None:
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("reported_by", sa.UUID(), nullable=True),
         sa.Column("source", sa.String(length=40), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "event_type IN ('dispatched', 'departed_origin', 'arrived_loading_point', "
             "'loading_started', 'loading_completed', 'departed_loading_point', "
@@ -114,7 +129,12 @@ def upgrade() -> None:
         sa.Column("severity", sa.String(length=30), nullable=False),
         sa.Column("status", sa.String(length=30), nullable=False),
         sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("reported_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "reported_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.Column("location", sa.JSON(), nullable=True),
         sa.Column("description", sa.Text(), nullable=False),
         sa.Column("immediate_action", sa.Text(), nullable=True),
@@ -124,8 +144,18 @@ def upgrade() -> None:
         sa.Column("reported_by", sa.UUID(), nullable=True),
         sa.Column("resolved_by", sa.UUID(), nullable=True),
         sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "incident_type IN ('accident', 'breakdown', 'police_stop', 'border_delay', "
             "'client_delay', 'loading_delay', 'unloading_delay', 'theft', 'cargo_damage', "

@@ -7,9 +7,9 @@ Create Date: 2026-05-31 00:20:00.000000+02:00
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "f18a4b6d2e90"
 down_revision: str | None = "c1a8df090b33"
@@ -32,10 +32,20 @@ def upgrade() -> None:
         sa.Column("reason", sa.Text(), nullable=False),
         sa.Column("risk_level", sa.String(length=30), nullable=False),
         sa.Column("approved_by", sa.UUID(), nullable=True),
-        sa.Column("approved_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "approved_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("status", sa.String(length=30), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "waiver_type IN ('overweight_assignment', 'missing_document', 'expired_warning', "
             "'no_pod', 'cost_overrun', 'manual_dispatch')",

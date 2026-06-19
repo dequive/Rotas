@@ -1030,3 +1030,382 @@ async def cancel_billing_document(
         tenant_id=tenant_id,
         cancellation_reason=reason,
     )
+
+
+# ── FDOC-02: Nota de Débito ───────────────────────────────────────────────────
+
+
+async def create_debit_note(
+    db: AsyncSession,
+    tenant_id: UUID,
+    parent_id: UUID,
+    amount: Decimal,
+    reason: str,
+    iva_rate: Decimal = Decimal("0.1700"),
+) -> dict:
+    """Create a Nota de Débito child document referencing an issued/paid invoice.
+
+    The debit note receives a sequential invoice_number from the same FISC-01 sequence.
+    Parent status is not modified. amount must be positive (the additional charge).
+    """
+    parent = await db.get(BillingDocument, parent_id)
+    if not parent or parent.tenant_id != tenant_id:
+        raise ApiError("parent_not_found", "Parent billing document not found", status_code=404)
+    if parent.status not in ("issued", "paid"):
+        raise ApiError(
+            "parent_not_issued",
+            f"Debit notes can only be created against issued or paid documents (parent status: {parent.status})",
+            status_code=409,
+        )
+
+    iva_amount = (amount * iva_rate).quantize(Decimal("0.01"))
+    total = amount + iva_amount
+
+    note = BillingDocument(
+        tenant_id=tenant_id,
+        contract_id=parent.contract_id,
+        client_id=getattr(parent, "client_id", None),
+        client_name=parent.client_name,
+        client_nuit=parent.client_nuit,
+        contract_reference=parent.contract_reference,
+        billing_period_start=parent.billing_period_start,
+        billing_period_end=parent.billing_period_end,
+        currency=parent.currency,
+        subtotal=amount,
+        tax_amount=iva_amount,
+        total_amount=total,
+        iva_rate=iva_rate,
+        document_type="debit_note",
+        parent_document_id=parent_id,
+        status="issued",
+        issued_at=datetime.now(UTC),
+    )
+    db.add(note)
+    await db.flush()
+    await _assign_invoice_number(db, note, tenant_id)
+    await db.commit()
+    await db.refresh(note)
+
+    await record_audit_log(
+        db=db,
+        tenant_id=tenant_id,
+        action="billing.debit_note_created",
+        entity_type="billing_document",
+        entity_id=note.id,
+        new_values={
+            "invoice_number": note.invoice_number,
+            "parent_id": str(parent_id),
+            "amount": str(amount),
+            "reason": reason,
+        },
+    )
+
+    return {
+        "id": note.id,
+        "invoice_number": note.invoice_number,
+        "document_type": note.document_type,
+        "parent_document_id": note.parent_document_id,
+        "parent_invoice_number": parent.invoice_number,
+        "subtotal": note.subtotal,
+        "tax_amount": note.tax_amount,
+        "total_amount": note.total_amount,
+        "status": note.status,
+        "issued_at": note.issued_at,
+    }
+
+
+# ── FDOC-03: Nota de Crédito ──────────────────────────────────────────────────
+
+
+async def create_credit_note(
+    db: AsyncSession,
+    tenant_id: UUID,
+    parent_id: UUID,
+    amount: Decimal,
+    reason: str,
+    iva_rate: Decimal = Decimal("0.1700"),
+) -> dict:
+    """Create a Nota de Crédito child document referencing an issued/paid invoice.
+
+    The credit note receives a sequential invoice_number from the same FISC-01 sequence.
+    amount is the credit amount (positive value — type signals direction).
+    Parent status is not modified.
+    """
+    parent = await db.get(BillingDocument, parent_id)
+    if not parent or parent.tenant_id != tenant_id:
+        raise ApiError("parent_not_found", "Parent billing document not found", status_code=404)
+    if parent.status not in ("issued", "paid"):
+        raise ApiError(
+            "parent_not_issued",
+            f"Credit notes can only be created against issued or paid documents (parent status: {parent.status})",
+            status_code=409,
+        )
+
+    iva_amount = (amount * iva_rate).quantize(Decimal("0.01"))
+    total = amount + iva_amount
+
+    note = BillingDocument(
+        tenant_id=tenant_id,
+        contract_id=parent.contract_id,
+        client_id=getattr(parent, "client_id", None),
+        client_name=parent.client_name,
+        client_nuit=parent.client_nuit,
+        contract_reference=parent.contract_reference,
+        billing_period_start=parent.billing_period_start,
+        billing_period_end=parent.billing_period_end,
+        currency=parent.currency,
+        subtotal=amount,
+        tax_amount=iva_amount,
+        total_amount=total,
+        iva_rate=iva_rate,
+        document_type="credit_note",
+        parent_document_id=parent_id,
+        status="issued",
+        issued_at=datetime.now(UTC),
+    )
+    db.add(note)
+    await db.flush()
+    await _assign_invoice_number(db, note, tenant_id)
+    await db.commit()
+    await db.refresh(note)
+
+    await record_audit_log(
+        db=db,
+        tenant_id=tenant_id,
+        action="billing.credit_note_created",
+        entity_type="billing_document",
+        entity_id=note.id,
+        new_values={
+            "invoice_number": note.invoice_number,
+            "parent_id": str(parent_id),
+            "amount": str(amount),
+            "reason": reason,
+        },
+    )
+
+    return {
+        "id": note.id,
+        "invoice_number": note.invoice_number,
+        "document_type": note.document_type,
+        "parent_document_id": note.parent_document_id,
+        "parent_invoice_number": parent.invoice_number,
+        "subtotal": note.subtotal,
+        "tax_amount": note.tax_amount,
+        "total_amount": note.total_amount,
+        "status": note.status,
+        "issued_at": note.issued_at,
+    }
+
+
+# ── FDOC-04: Fatura-Recibo + Recibo ──────────────────────────────────────────
+
+
+async def create_invoice_receipt(
+    db: AsyncSession,
+    tenant_id: UUID,
+    parent_id: UUID,
+) -> dict:
+    """Transition parent invoice to paid and create a Fatura-Recibo child document.
+
+    The Fatura-Recibo is emitted simultaneously with full payment — it serves as both
+    invoice and receipt in one document (common in Mozambican SME practice).
+    """
+    parent = await db.get(BillingDocument, parent_id)
+    if not parent or parent.tenant_id != tenant_id:
+        raise ApiError("parent_not_found", "Parent billing document not found", status_code=404)
+    if parent.status not in ("issued", "overdue"):
+        raise ApiError(
+            "parent_not_issued",
+            f"Invoice-receipt can only be created against issued documents (parent status: {parent.status})",
+            status_code=409,
+        )
+
+    now = datetime.now(UTC)
+
+    note = BillingDocument(
+        tenant_id=tenant_id,
+        contract_id=parent.contract_id,
+        client_id=getattr(parent, "client_id", None),
+        client_name=parent.client_name,
+        client_nuit=parent.client_nuit,
+        contract_reference=parent.contract_reference,
+        billing_period_start=parent.billing_period_start,
+        billing_period_end=parent.billing_period_end,
+        currency=parent.currency,
+        subtotal=parent.subtotal,
+        tax_amount=parent.tax_amount,
+        total_amount=parent.total_amount,
+        iva_rate=parent.iva_rate,
+        document_type="invoice_receipt",
+        parent_document_id=parent_id,
+        status="issued",
+        issued_at=now,
+    )
+    db.add(note)
+    await db.flush()
+    await _assign_invoice_number(db, note, tenant_id)
+
+    parent.status = "paid"
+    parent.paid_at = now
+
+    await db.commit()
+    await db.refresh(note)
+    await db.refresh(parent)
+
+    return {
+        "id": note.id,
+        "invoice_number": note.invoice_number,
+        "document_type": note.document_type,
+        "parent_document_id": note.parent_document_id,
+        "parent_invoice_number": parent.invoice_number,
+        "parent_status": parent.status,
+        "total_amount": note.total_amount,
+        "status": note.status,
+        "issued_at": note.issued_at,
+    }
+
+
+async def create_receipt(
+    db: AsyncSession,
+    tenant_id: UUID,
+    parent_id: UUID,
+    amount_paid: Decimal,
+) -> dict:
+    """Create a standalone Recibo for a partial or out-of-band payment.
+
+    Unlike create_invoice_receipt, this does NOT transition the parent to paid.
+    Use for partial payments or when the parent status is managed separately.
+    """
+    parent = await db.get(BillingDocument, parent_id)
+    if not parent or parent.tenant_id != tenant_id:
+        raise ApiError("parent_not_found", "Parent billing document not found", status_code=404)
+    if parent.status not in ("issued", "overdue", "paid"):
+        raise ApiError(
+            "parent_invalid_status",
+            f"Receipt can only be created against issued or paid documents (parent status: {parent.status})",
+            status_code=409,
+        )
+
+    now = datetime.now(UTC)
+    note = BillingDocument(
+        tenant_id=tenant_id,
+        contract_id=parent.contract_id,
+        client_id=getattr(parent, "client_id", None),
+        client_name=parent.client_name,
+        client_nuit=parent.client_nuit,
+        contract_reference=parent.contract_reference,
+        billing_period_start=parent.billing_period_start,
+        billing_period_end=parent.billing_period_end,
+        currency=parent.currency,
+        subtotal=amount_paid,
+        tax_amount=Decimal("0"),
+        total_amount=amount_paid,
+        document_type="receipt",
+        parent_document_id=parent_id,
+        status="issued",
+        issued_at=now,
+    )
+    db.add(note)
+    await db.flush()
+    await _assign_invoice_number(db, note, tenant_id)
+    await db.commit()
+    await db.refresh(note)
+
+    return {
+        "id": note.id,
+        "invoice_number": note.invoice_number,
+        "document_type": note.document_type,
+        "parent_document_id": note.parent_document_id,
+        "parent_invoice_number": parent.invoice_number,
+        "amount_paid": note.total_amount,
+        "status": note.status,
+        "issued_at": note.issued_at,
+    }
+
+
+# ── FDOC-05: AR Básico ────────────────────────────────────────────────────────
+
+
+def _compute_aging(document: BillingDocument, today: "datetime") -> dict:
+    """Compute days_overdue and aging_bucket for a billing document."""
+    due = document.due_date
+    if not due or document.status not in ("issued", "overdue"):
+        return {"days_overdue": 0, "aging_bucket": "current"}
+
+    due_dt = due if hasattr(due, "date") else due
+    today_dt = today.date() if hasattr(today, "date") else today
+    try:
+        due_date_only = due_dt.date() if hasattr(due_dt, "date") else due_dt
+    except Exception:
+        return {"days_overdue": 0, "aging_bucket": "current"}
+
+    delta = (today_dt - due_date_only).days
+    days_overdue = max(0, delta)
+
+    if days_overdue == 0:
+        bucket = "current"
+    elif days_overdue <= 30:
+        bucket = "1_30"
+    elif days_overdue <= 60:
+        bucket = "31_60"
+    elif days_overdue <= 90:
+        bucket = "61_90"
+    else:
+        bucket = "over_90"
+
+    return {"days_overdue": days_overdue, "aging_bucket": bucket}
+
+
+async def list_ar_documents(
+    db: AsyncSession,
+    tenant_id: UUID,
+    aging_bucket: str | None = None,
+    contract_id: UUID | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[dict]:
+    """List issued billing_documents with due_date set (AR view).
+
+    Filters by aging_bucket if provided. Returns documents ordered by due_date ASC
+    (most urgent first). Only returns document_type='invoice' entries (not notes/receipts).
+    """
+    stmt = (
+        select(BillingDocument)
+        .where(
+            BillingDocument.tenant_id == tenant_id,
+            BillingDocument.status.in_(("issued", "overdue")),
+            BillingDocument.due_date.isnot(None),
+            BillingDocument.document_type == "invoice",
+        )
+        .order_by(BillingDocument.due_date.asc())
+        .limit(limit)
+        .offset(offset)
+    )
+    if contract_id:
+        stmt = stmt.where(BillingDocument.contract_id == contract_id)
+
+    result = await db.execute(stmt)
+    docs = list(result.scalars())
+
+    today = datetime.now(UTC)
+    output = []
+    for doc in docs:
+        aging = _compute_aging(doc, today)
+        if aging_bucket and aging["aging_bucket"] != aging_bucket:
+            continue
+        output.append(
+            {
+                "id": doc.id,
+                "invoice_number": doc.invoice_number,
+                "client_name": doc.client_name,
+                "contract_id": doc.contract_id,
+                "total_amount": doc.total_amount,
+                "currency": doc.currency,
+                "status": doc.status,
+                "issued_at": doc.issued_at,
+                "due_date": doc.due_date,
+                "days_overdue": aging["days_overdue"],
+                "aging_bucket": aging["aging_bucket"],
+            }
+        )
+    return output

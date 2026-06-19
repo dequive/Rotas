@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -20,7 +21,9 @@ class IssueBillingDocumentRequest(BaseModel):
 
 class CreateBillingWaiver(BaseModel):
     trip_id: UUID
-    reason: str = Field(..., min_length=10, description="Justification for the negative margin waiver")
+    reason: str = Field(
+        ..., min_length=10, description="Justification for the negative margin waiver"
+    )
 
 
 class BillingWaiverResponse(BaseModel):
@@ -40,3 +43,21 @@ class BillingDocumentMarkPaidRequest(BaseModel):
 class BillingDocumentCancelRequest(BaseModel):
     cancellation_reason: str = Field(..., min_length=5, max_length=500)
 
+
+# FDOC-02: Nota de Débito
+class CreateDebitNoteRequest(BaseModel):
+    amount: Decimal = Field(..., gt=0, description="Additional charge amount (pre-IVA)")
+    reason: str = Field(..., min_length=5, max_length=500)
+    iva_rate: Decimal = Field(Decimal("0.1700"), ge=0, le=1)
+
+
+# FDOC-03: Nota de Crédito
+class CreateCreditNoteRequest(BaseModel):
+    amount: Decimal = Field(..., gt=0, description="Credit amount (pre-IVA)")
+    reason: str = Field(..., min_length=5, max_length=500)
+    iva_rate: Decimal = Field(Decimal("0.1700"), ge=0, le=1)
+
+
+# FDOC-04: Recibo (standalone)
+class CreateReceiptRequest(BaseModel):
+    amount_paid: Decimal = Field(..., gt=0, description="Amount received")

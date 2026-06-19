@@ -311,3 +311,105 @@ async def cancel_billing_document(
     await db.commit()
     await db.refresh(doc)
     return {"id": doc.id, "status": doc.status, "cancellation_reason": doc.cancellation_reason}
+
+
+# ── FDOC-02: Nota de Débito ───────────────────────────────────────────────────
+
+
+@router.post("/documents/{document_id}/debit-note", status_code=201)
+async def create_debit_note(
+    document_id: UUID,
+    payload: schemas.CreateDebitNoteRequest,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """FDOC-02: Create a Nota de Débito against an issued invoice. Returns the new document."""
+    return await service.create_debit_note(
+        db,
+        tenant_id=principal.tenant_id,
+        parent_id=document_id,
+        amount=payload.amount,
+        reason=payload.reason,
+        iva_rate=payload.iva_rate,
+    )
+
+
+# ── FDOC-03: Nota de Crédito ──────────────────────────────────────────────────
+
+
+@router.post("/documents/{document_id}/credit-note", status_code=201)
+async def create_credit_note(
+    document_id: UUID,
+    payload: schemas.CreateCreditNoteRequest,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """FDOC-03: Create a Nota de Crédito against an issued invoice. Returns the new document."""
+    return await service.create_credit_note(
+        db,
+        tenant_id=principal.tenant_id,
+        parent_id=document_id,
+        amount=payload.amount,
+        reason=payload.reason,
+        iva_rate=payload.iva_rate,
+    )
+
+
+# ── FDOC-04: Fatura-Recibo + Recibo ──────────────────────────────────────────
+
+
+@router.post("/documents/{document_id}/invoice-receipt", status_code=201)
+async def create_invoice_receipt(
+    document_id: UUID,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """FDOC-04: Transition parent invoice to paid and create a Fatura-Recibo."""
+    return await service.create_invoice_receipt(
+        db,
+        tenant_id=principal.tenant_id,
+        parent_id=document_id,
+    )
+
+
+@router.post("/documents/{document_id}/receipt", status_code=201)
+async def create_receipt(
+    document_id: UUID,
+    payload: schemas.CreateReceiptRequest,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """FDOC-04: Create a standalone Recibo for a partial or out-of-band payment."""
+    return await service.create_receipt(
+        db,
+        tenant_id=principal.tenant_id,
+        parent_id=document_id,
+        amount_paid=payload.amount_paid,
+    )
+
+
+# ── FDOC-05: AR Básico ────────────────────────────────────────────────────────
+
+
+@router.get("/ar")
+async def list_ar_documents(
+    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    aging_bucket: str | None = Query(None, description="current | 1_30 | 31_60 | 61_90 | over_90"),
+    contract_id: UUID | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """FDOC-05: List issued invoices with due_date set, ordered by due_date ASC.
+
+    Returns days_overdue and aging_bucket for each document.
+    Filter by aging_bucket to get documents in a specific AR aging band.
+    """
+    return await service.list_ar_documents(
+        db,
+        tenant_id=principal.tenant_id,
+        aging_bucket=aging_bucket,
+        contract_id=contract_id,
+        limit=limit,
+        offset=offset,
+    )

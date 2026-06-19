@@ -60,6 +60,7 @@ export interface BillingDocumentSummary {
   reference: string;
   invoiceNumber: string | null;
   client: string;
+  clientId: string | null;
   period: string;
   trips: number;
   amount: number | null;
@@ -78,6 +79,7 @@ interface ApiBillingDocument {
   id: string;
   contract_reference: string | null;
   client_name: string;
+  client_id?: string | null;
   billing_period_start: string;
   billing_period_end: string;
   total_amount: number | string | null;
@@ -161,6 +163,7 @@ const fallbackDocuments: BillingDocumentSummary[] = [
     reference: "BIL-2026-06-001",
     invoiceNumber: null,
     client: "Cliente Industrial Piloto",
+    clientId: null,
     period: "Junho 2026",
     trips: 4,
     amount: 68000,
@@ -171,6 +174,7 @@ const fallbackDocuments: BillingDocumentSummary[] = [
     reference: "BIL-2026-06-002",
     invoiceNumber: "2026/0001",
     client: "Distribuidora Norte",
+    clientId: null,
     period: "Junho 2026",
     trips: 2,
     amount: 19000,
@@ -293,6 +297,7 @@ export async function loadBillingDocuments(): Promise<BillingDocumentSummary[]> 
         : `BIL-${document.id.slice(0, 8)}`,
       invoiceNumber: document.invoice_number ?? null,
       client: document.client_name,
+      clientId: document.client_id ?? null,
       period: formatPeriod(document.billing_period_start),
       trips: document.item_count,
       amount: parseAmount(document.total_amount),
@@ -353,4 +358,122 @@ export async function getJobStatus(
 
 export function getJobDownloadUrl(jobId: string): string {
   return `/api/v1/billing/jobs/${jobId}/download`;
+}
+
+// ── Phase 6: Payment Registration ──────────────────────────────────────────
+
+export interface ClientPaymentPayload {
+  client_id: string;
+  billing_document_id: string | null; // null = advance payment
+  amount: string; // Decimal as string to avoid float precision loss
+  currency?: string;
+  value_date: string; // ISO datetime string
+  payment_method: "bank_transfer" | "cheque" | "cash";
+  reference?: string | null;
+  notes?: string | null;
+}
+
+export interface PaymentAllocationSummary {
+  id: string;
+  billing_document_id: string;
+  amount_applied: string;
+  created_at: string;
+}
+
+export interface ClientPayment {
+  id: string;
+  client_id: string;
+  billing_document_id: string | null;
+  amount: string;
+  currency: string;
+  value_date: string;
+  payment_method: string;
+  reference: string | null;
+  status: "confirmed" | "voided";
+  void_reason: string | null;
+  created_at: string;
+  allocations: PaymentAllocationSummary[];
+}
+
+export interface ClientStatement {
+  client: {
+    id: string;
+    trading_name: string;
+    nuit: string | null;
+    outstanding_balance: string | null;
+  };
+  documents: Array<{
+    id: string;
+    invoice_number: string | null;
+    billing_period_start: string;
+    billing_period_end: string;
+    total_amount: string;
+    amount_paid: string;
+    outstanding_balance: string;
+    due_date: string | null;
+    status: string;
+  }>;
+  payments: Array<{
+    id: string;
+    amount: string;
+    value_date: string;
+    payment_method: string;
+    reference: string | null;
+    status: string;
+    unallocated: string;
+  }>;
+  summary: {
+    total_invoiced: string;
+    total_paid: string;
+    total_outstanding: string;
+    advance_balance: string;
+  };
+}
+
+export async function registerPayment(
+  payload: ClientPaymentPayload,
+  idempotencyKey: string,
+): Promise<ClientPayment> {
+  const res = await fetch("/api/payments", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Idempotency-Key": idempotencyKey,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { message?: string; detail?: string };
+    throw new Error(err?.message ?? err?.detail ?? `Payment registration failed: ${res.status}`);
+  }
+  return res.json() as Promise<ClientPayment>;
+}
+
+export async function voidPayment(
+  paymentId: string,
+  voidReason: string,
+): Promise<ClientPayment> {
+  const res = await fetch(`/api/payments/${paymentId}/void`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ void_reason: voidReason }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { message?: string; detail?: string };
+    throw new Error(err?.message ?? err?.detail ?? `Void failed: ${res.status}`);
+  }
+  return res.json() as Promise<ClientPayment>;
+}
+
+export async function getClientStatement(
+  clientId: string,
+  options?: { period_start?: string; period_end?: string },
+): Promise<ClientStatement> {
+  const params = new URLSearchParams();
+  if (options?.period_start) params.set("period_start", options.period_start);
+  if (options?.period_end) params.set("period_end", options.period_end);
+  const query = params.toString() ? `?${params}` : "";
+  const res = await fetch(`/api/clients/${clientId}/statement${query}`);
+  if (!res.ok) throw new Error(`Statement fetch failed: ${res.status}`);
+  return res.json() as Promise<ClientStatement>;
 }

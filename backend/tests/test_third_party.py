@@ -1,4 +1,12 @@
-"""Tests for the third_party module — TP-10: document expiry alert ARQ task."""
+"""Phase 23 — Third Party Registry integration tests.
+
+Covers Plans 02, 05, 06, 07, 08:
+- TP-02: ThirdParty CRUD + roles
+- TP-05: DriverVehicleAssignment
+- TP-06: OperationalDocument CRUD + verify + expiring
+- TP-10: Document expiry alerts (worker task — mocked)
+- TP-11: Party directory UNION ALL
+"""
 
 import uuid
 from datetime import date, timedelta
@@ -173,3 +181,413 @@ async def test_worker_settings_registration():
     assert task_check_document_expiry in cron_funcs, (
         "task_check_document_expiry must be registered in WorkerSettings.cron_jobs"
     )
+
+
+# ── TP-02: ThirdParty CRUD ────────────────────────────────────────────────────
+
+
+async def test_create_third_party(async_client, auth_headers):
+    """POST /api/v1/third-party creates and returns a third party."""
+    resp = await async_client.post(
+        "/api/v1/third-party",
+        json={"name": "Petromoc Maputo", "status": "active", "nuit": "400999000"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201, resp.text
+    data = resp.json()
+    assert data["name"] == "Petromoc Maputo"
+    assert data["status"] == "active"
+    assert data["nuit"] == "400999000"
+    assert "id" in data
+
+
+async def test_create_third_party_duplicate_nuit(async_client, auth_headers):
+    """POST with duplicate NUIT for same tenant returns 409."""
+    payload = {"name": "Empresa A", "nuit": f"5001{uuid.uuid4().hex[:5]}"}
+    await async_client.post("/api/v1/third-party", json=payload, headers=auth_headers)
+    resp = await async_client.post("/api/v1/third-party", json=payload, headers=auth_headers)
+    assert resp.status_code == 409
+
+
+async def test_list_third_parties(async_client, auth_headers):
+    """GET /api/v1/third-party returns the created third parties."""
+    await async_client.post(
+        "/api/v1/third-party",
+        json={"name": "Empresa Lista", "status": "active"},
+        headers=auth_headers,
+    )
+    resp = await async_client.get("/api/v1/third-party", headers=auth_headers)
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+    assert len(resp.json()) >= 1
+
+
+async def test_get_and_update_third_party(async_client, auth_headers):
+    """GET + PATCH /api/v1/third-party/{id} — full CRUD round-trip."""
+    create_resp = await async_client.post(
+        "/api/v1/third-party",
+        json={"name": "Empresa Update", "status": "active"},
+        headers=auth_headers,
+    )
+    assert create_resp.status_code == 201
+    tp_id = create_resp.json()["id"]
+
+    get_resp = await async_client.get(f"/api/v1/third-party/{tp_id}", headers=auth_headers)
+    assert get_resp.status_code == 200
+    assert get_resp.json()["id"] == tp_id
+
+    patch_resp = await async_client.patch(
+        f"/api/v1/third-party/{tp_id}",
+        json={"status": "inactive"},
+        headers=auth_headers,
+    )
+    assert patch_resp.status_code == 200
+    assert patch_resp.json()["status"] == "inactive"
+
+
+async def test_third_party_cross_tenant_isolation(async_client, auth_headers, db):
+    """Third party from tenant A is not accessible to tenant B."""
+    from app.modules.tenants.models import Tenant
+
+    create_resp = await async_client.post(
+        "/api/v1/third-party",
+        json={"name": "Empresa Isolada", "status": "active"},
+        headers=auth_headers,
+    )
+    tp_id = create_resp.json()["id"]
+
+    tenant_b = Tenant(name="Tenant B TP", slug=f"tb-tp-{uuid.uuid4().hex[:6]}")
+    db.add(tenant_b)
+    await db.commit()
+    await db.refresh(tenant_b)
+
+    other_headers = {"Authorization": "Bearer test-token", "X-Tenant-Id": str(tenant_b.id)}
+    resp = await async_client.get(f"/api/v1/third-party/{tp_id}", headers=other_headers)
+    assert resp.status_code == 404
+
+
+async def test_create_and_list_roles(async_client, auth_headers):
+    """POST + GET /api/v1/third-party/{id}/roles."""
+    create_resp = await async_client.post(
+        "/api/v1/third-party",
+        json={"name": "Fornecedor Combustivel", "status": "active"},
+        headers=auth_headers,
+    )
+    tp_id = create_resp.json()["id"]
+
+    role_resp = await async_client.post(
+        f"/api/v1/third-party/{tp_id}/roles",
+        json={"role_type": "fuel_supplier", "is_active": True},
+        headers=auth_headers,
+    )
+    assert role_resp.status_code == 201
+    assert role_resp.json()["role_type"] == "fuel_supplier"
+
+    list_resp = await async_client.get(
+        f"/api/v1/third-party/{tp_id}/roles", headers=auth_headers
+    )
+    assert list_resp.status_code == 200
+    assert len(list_resp.json()) == 1
+
+
+async def test_duplicate_role_rejected(async_client, auth_headers):
+    """Adding the same role twice returns 409."""
+    create_resp = await async_client.post(
+        "/api/v1/third-party",
+        json={"name": "Fornecedor Dup", "status": "active"},
+        headers=auth_headers,
+    )
+    tp_id = create_resp.json()["id"]
+    role_payload = {"role_type": "fuel_supplier", "is_active": True}
+    await async_client.post(
+        f"/api/v1/third-party/{tp_id}/roles", json=role_payload, headers=auth_headers
+    )
+    resp = await async_client.post(
+        f"/api/v1/third-party/{tp_id}/roles", json=role_payload, headers=auth_headers
+    )
+    assert resp.status_code == 409
+
+
+# ── TP-05: DriverVehicleAssignment ───────────────────────────────────────────
+
+
+async def test_assign_and_unassign_driver_vehicle(async_client, auth_headers, db, tenant_id):
+    """POST + DELETE driver-vehicle-assignments creates and soft-deletes assignment."""
+    from app.modules.drivers.models import Driver
+    from app.modules.vehicles.models import Vehicle
+
+    driver = Driver(tenant_id=tenant_id, full_name="Motorista Atribuição", status="active")
+    vehicle = Vehicle(
+        tenant_id=tenant_id,
+        plate=f"MZ-{uuid.uuid4().hex[:6].upper()}",
+        status="active",
+    )
+    db.add_all([driver, vehicle])
+    await db.commit()
+    await db.refresh(driver)
+    await db.refresh(vehicle)
+
+    assign_resp = await async_client.post(
+        "/api/v1/third-party/driver-vehicle-assignments",
+        json={
+            "driver_id": str(driver.id),
+            "vehicle_id": str(vehicle.id),
+            "assignment_type": "primary",
+        },
+        headers=auth_headers,
+    )
+    assert assign_resp.status_code == 201, assign_resp.text
+    assignment_id = assign_resp.json()["id"]
+    assert assign_resp.json()["unassigned_at"] is None
+
+    unassign_resp = await async_client.delete(
+        f"/api/v1/third-party/driver-vehicle-assignments/{assignment_id}",
+        headers=auth_headers,
+    )
+    assert unassign_resp.status_code == 200
+    assert unassign_resp.json()["unassigned_at"] is not None
+
+
+async def test_assignment_cross_tenant_rejected(async_client, auth_headers, db, tenant_id):
+    """Cannot assign a driver from tenant B to a vehicle from tenant A."""
+    from app.modules.tenants.models import Tenant
+    from app.modules.drivers.models import Driver
+    from app.modules.vehicles.models import Vehicle
+
+    tenant_b = Tenant(name="Tenant B Assign", slug=f"tb-assign-{uuid.uuid4().hex[:6]}")
+    db.add(tenant_b)
+    await db.commit()
+    await db.refresh(tenant_b)
+
+    other_driver = Driver(
+        tenant_id=tenant_b.id, full_name="Motorista Outro Tenant", status="active"
+    )
+    vehicle = Vehicle(
+        tenant_id=tenant_id,
+        plate=f"MZ-{uuid.uuid4().hex[:6].upper()}",
+        status="active",
+    )
+    db.add_all([other_driver, vehicle])
+    await db.commit()
+    await db.refresh(other_driver)
+    await db.refresh(vehicle)
+
+    resp = await async_client.post(
+        "/api/v1/third-party/driver-vehicle-assignments",
+        json={
+            "driver_id": str(other_driver.id),
+            "vehicle_id": str(vehicle.id),
+            "assignment_type": "primary",
+        },
+        headers=auth_headers,
+    )
+    assert resp.status_code == 404
+
+
+# ── TP-06: OperationalDocument ───────────────────────────────────────────────
+
+
+async def test_create_and_verify_operational_document(
+    async_client, auth_headers, db, tenant_id
+):
+    """POST /documents + POST /documents/{id}/verify round-trip."""
+    from app.modules.drivers.models import Driver
+
+    driver = Driver(tenant_id=tenant_id, full_name="Motorista Documento", status="active")
+    db.add(driver)
+    await db.commit()
+    await db.refresh(driver)
+
+    expiry = (date.today() + timedelta(days=60)).isoformat()
+    create_resp = await async_client.post(
+        "/api/v1/third-party/documents",
+        json={
+            "subject_type": "driver",
+            "subject_id": str(driver.id),
+            "document_type": "driving_license",
+            "document_number": "L-MZ-2024-001",
+            "expiry_date": expiry,
+        },
+        headers=auth_headers,
+    )
+    assert create_resp.status_code == 201, create_resp.text
+    doc_id = create_resp.json()["id"]
+    assert create_resp.json()["verification_status"] == "pending"
+
+    verify_resp = await async_client.post(
+        f"/api/v1/third-party/documents/{doc_id}/verify",
+        json={"verification_status": "verified"},
+        headers=auth_headers,
+    )
+    assert verify_resp.status_code == 200
+    assert verify_resp.json()["verification_status"] == "verified"
+
+
+async def test_list_documents_by_subject(async_client, auth_headers, db, tenant_id):
+    """GET /documents?subject_type=driver filters correctly."""
+    from app.modules.drivers.models import Driver
+
+    driver = Driver(tenant_id=tenant_id, full_name="Motorista Lista Doc", status="active")
+    db.add(driver)
+    await db.commit()
+    await db.refresh(driver)
+
+    await async_client.post(
+        "/api/v1/third-party/documents",
+        json={
+            "subject_type": "driver",
+            "subject_id": str(driver.id),
+            "document_type": "driving_license",
+        },
+        headers=auth_headers,
+    )
+
+    resp = await async_client.get(
+        f"/api/v1/third-party/documents?subject_type=driver&subject_id={driver.id}",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) >= 1
+    assert all(row["subject_type"] == "driver" for row in data)
+
+
+async def test_expiring_documents_endpoint(async_client, auth_headers, db, tenant_id):
+    """GET /documents/expiring?days_ahead=30 returns docs expiring within 30 days."""
+    from app.modules.drivers.models import Driver
+
+    driver = Driver(tenant_id=tenant_id, full_name="Motorista Expiry", status="active")
+    db.add(driver)
+    await db.commit()
+    await db.refresh(driver)
+
+    expiry = (date.today() + timedelta(days=10)).isoformat()
+    await async_client.post(
+        "/api/v1/third-party/documents",
+        json={
+            "subject_type": "driver",
+            "subject_id": str(driver.id),
+            "document_type": "driving_license",
+            "expiry_date": expiry,
+        },
+        headers=auth_headers,
+    )
+
+    resp = await async_client.get(
+        "/api/v1/third-party/documents/expiring?days_ahead=30",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert any(row["expiry_date"] == expiry for row in data)
+
+
+# ── TP-11: Party Directory UNION ALL (Plan 08) ───────────────────────────────
+
+
+async def test_party_directory_union_all(async_client, auth_headers, db, tenant_id):
+    """GET /party-directory returns entries from drivers, clients, and third_parties."""
+    from app.modules.drivers.models import Driver
+    from app.modules.clients.models import Client
+
+    driver = Driver(tenant_id=tenant_id, full_name="Américo Machava", status="active")
+    client = Client(
+        tenant_id=tenant_id,
+        trading_name="Transportes Beira Lda",
+        nuit=f"4001{uuid.uuid4().hex[:5]}",
+        is_active=True,
+    )
+    db.add_all([driver, client])
+    await db.commit()
+
+    tp_resp = await async_client.post(
+        "/api/v1/third-party",
+        json={"name": "Petromoc Maputo", "status": "active"},
+        headers=auth_headers,
+    )
+    assert tp_resp.status_code == 201
+
+    resp = await async_client.get(
+        "/api/v1/third-party/party-directory", headers=auth_headers
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+
+    types_found = {row["subject_type"] for row in data}
+    assert "driver" in types_found
+    assert "client" in types_found
+    assert "third_party" in types_found
+
+    for row in data:
+        assert "subject_id" in row
+        assert "name" in row
+        assert "status" in row
+
+
+async def test_party_directory_filter_subject_type(async_client, auth_headers, db, tenant_id):
+    """?subject_type=third_party returns ONLY third_party rows."""
+    from app.modules.drivers.models import Driver
+
+    driver = Driver(tenant_id=tenant_id, full_name="Driver Filter Test", status="active")
+    db.add(driver)
+    await db.commit()
+
+    tp_resp = await async_client.post(
+        "/api/v1/third-party",
+        json={"name": "Filtered TP", "status": "active"},
+        headers=auth_headers,
+    )
+    assert tp_resp.status_code == 201
+
+    resp = await async_client.get(
+        "/api/v1/third-party/party-directory?subject_type=third_party",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) >= 1
+    assert all(row["subject_type"] == "third_party" for row in data)
+
+
+async def test_party_directory_name_search(async_client, auth_headers, db, tenant_id):
+    """?q=<fragment> returns only entries whose name matches."""
+    from app.modules.drivers.models import Driver
+
+    driver_a = Driver(tenant_id=tenant_id, full_name="Américo Machava", status="active")
+    driver_b = Driver(tenant_id=tenant_id, full_name="João Nhantumbo", status="active")
+    db.add_all([driver_a, driver_b])
+    await db.commit()
+
+    resp = await async_client.get(
+        "/api/v1/third-party/party-directory?q=Américo",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert all("américo" in row["name"].lower() for row in data)
+
+
+async def test_party_directory_cross_tenant_isolation(
+    async_client, auth_headers, db, tenant_id
+):
+    """Party directory does not return entries from another tenant."""
+    from app.modules.tenants.models import Tenant
+    from app.modules.drivers.models import Driver
+
+    tenant_b = Tenant(name="Tenant B Dir", slug=f"tb-dir-{uuid.uuid4().hex[:6]}")
+    db.add(tenant_b)
+    await db.commit()
+    await db.refresh(tenant_b)
+
+    other_driver = Driver(
+        tenant_id=tenant_b.id, full_name="Motorista Outro Tenant Dir", status="active"
+    )
+    db.add(other_driver)
+    await db.commit()
+
+    resp = await async_client.get(
+        "/api/v1/third-party/party-directory", headers=auth_headers
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert str(other_driver.id) not in {row["subject_id"] for row in data}

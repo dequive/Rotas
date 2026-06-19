@@ -1028,4 +1028,4 @@ Plans:
 | 17. Infrastructure Enterprise v2 | 0/TBD | Not started | - |
 | 18. Analytics Avançado + Gestão de Seguros | 0/TBD | Not started | - |
 | 22. RBAC Permission-Based | 0/TBD | Not started | - |
-| 23. Third Party Registry | 5/8 | In Progress|  |
+| 23. Third Party Registry | 7/8 | In Progress|  |

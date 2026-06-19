@@ -5,6 +5,7 @@ from decimal import Decimal
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -41,7 +42,18 @@ class Trip(Base):
     cargo_weight: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     cargo_volume: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     payload_override_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    is_hazmat: Mapped[bool] = mapped_column(Boolean(), server_default="false", nullable=False, default=False)
+    is_hazmat: Mapped[bool] = mapped_column(
+        Boolean(),
+        server_default="false",
+        nullable=False,
+        default=False,
+    )
+    is_international: Mapped[bool] = mapped_column(
+        Boolean(),
+        server_default="false",
+        nullable=False,
+        default=False,
+    )
     hazmat_class: Mapped[str | None] = mapped_column(String(10), nullable=True)
     un_number: Mapped[str | None] = mapped_column(String(10), nullable=True)
     hazmat_label: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -85,6 +97,37 @@ class Trip(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     __table_args__ = (
+        CheckConstraint(
+            "km_start IS NULL OR km_start >= 0",
+            name="chk_trips_km_start_non_negative",
+        ),
+        CheckConstraint("km_end IS NULL OR km_end >= 0", name="chk_trips_km_end_non_negative"),
+        CheckConstraint(
+            "km_start IS NULL OR km_end IS NULL OR km_end >= km_start",
+            name="chk_trips_km_end_gte_start",
+        ),
+        CheckConstraint(
+            "cargo_weight IS NULL OR cargo_weight >= 0",
+            name="chk_trips_cargo_weight_non_negative",
+        ),
+        CheckConstraint(
+            "cargo_volume IS NULL OR cargo_volume >= 0",
+            name="chk_trips_cargo_volume_non_negative",
+        ),
+        CheckConstraint(
+            "cargo_volumes IS NULL OR cargo_volumes >= 0",
+            name="chk_trips_cargo_volumes_non_negative",
+        ),
+        CheckConstraint("total_fuel_cost >= 0", name="chk_trips_total_fuel_cost_non_negative"),
+        CheckConstraint(
+            "total_expense_cost >= 0",
+            name="chk_trips_total_expense_cost_non_negative",
+        ),
+        CheckConstraint(
+            "total_transport_cost >= 0",
+            name="chk_trips_total_transport_cost_non_negative",
+        ),
+        CheckConstraint("actual_revenue >= 0", name="chk_trips_actual_revenue_non_negative"),
         Index(
             "uniq_trips_trip_order",
             "trip_order_id",

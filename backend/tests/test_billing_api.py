@@ -73,6 +73,7 @@ async def _make_draft_doc_with_item(db, tenant_id, contract, vehicle, driver):
         billing_period_end=now,
         status="draft",
         currency="MZN",
+        client_nuit="400123456",
     )
     db.add(doc)
     await db.flush()

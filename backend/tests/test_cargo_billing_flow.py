@@ -192,6 +192,7 @@ async def test_trip_first_flow_reaches_billing_document() -> None:
                     billing_period_start=dt("2026-06-01T00:00:00"),
                     billing_period_end=dt("2026-07-01T00:00:00"),
                     trip_ids=[trip["id"]],
+                    client_nuit="400123456",
                 ),
             )
             assert billing_document["total_amount"] == 12500
@@ -447,6 +448,7 @@ async def test_api_trip_first_flow_respects_billing_issue_boundary() -> None:
                     "billing_period_start": "2026-07-01T00:00:00+00:00",
                     "billing_period_end": "2026-08-01T00:00:00+00:00",
                     "trip_ids": [trip["id"]],
+                    "client_nuit": "400123456",
                 },
             )
             assert document_response.status_code == 200

@@ -13,6 +13,7 @@ from app.modules.cargo.schemas import (
     CargoManifestCreate,
     CartaPorteCreate,
     DAVCreate,
+    DeclaracaoCargaPerisgosaCreate,
     DeliveryProofCreate,
     DisputeDeliveryProofRequest,
     GuiaRemessaCreate,
@@ -944,6 +945,67 @@ async def create_dav(
     return serialize_transport_document(doc)
 
 
+# ── Declaração de Carga Perigosa ──────────────────────────────────────────────
+
+
+async def create_declaracao_carga_perigosa(
+    db: AsyncSession,
+    tenant_id: UUID,
+    trip_id: UUID,
+    payload: DeclaracaoCargaPerisgosaCreate,
+    actor_id: UUID,
+) -> dict:
+    trip = await _require_trip(db, tenant_id, trip_id)
+
+    if not trip.is_hazmat:
+        raise ApiError(
+            "trip_not_hazmat",
+            "Declaração de Carga Perigosa só pode ser emitida para viagens marcadas como hazmat.",
+            status_code=409,
+        )
+
+    extra: dict = {
+        "hazmat_class": payload.hazmat_class,
+        "hazmat_description": payload.hazmat_description,
+    }
+    if payload.un_number:
+        extra["un_number"] = payload.un_number
+    if payload.authorization_code:
+        extra["authorization_code"] = payload.authorization_code
+
+    doc = TransportDocument(
+        tenant_id=tenant_id,
+        trip_id=trip_id,
+        contract_id=payload.contract_id,
+        document_type="declaracao_carga_perigosa",
+        document_number=payload.document_number,
+        issuer=payload.issuer,
+        origin=payload.origin,
+        destination=payload.destination,
+        issued_at=now_utc(),
+        valid_from=payload.valid_from,
+        valid_until=payload.valid_until,
+        notes=payload.notes,
+        extra_fields=extra,
+        status="issued",
+    )
+    db.add(doc)
+    await db.flush()
+
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="cargo.transport_document_created",
+        entity_type="transport_document",
+        entity_id=doc.id,
+        new_values={"document_type": "declaracao_carga_perigosa", "hazmat_class": payload.hazmat_class},
+    )
+    await db.commit()
+    await db.refresh(doc)
+    return serialize_transport_document(doc)
+
+
 # ── OPDOC-05: Document checklist per trip type ────────────────────────────────
 
 _DOMESTIC_DOC_TYPES = frozenset({"guia_remessa", "load_permit", "cargo_manifest", "dav"})
@@ -955,10 +1017,10 @@ async def get_document_checklist(
     db: AsyncSession,
     tenant_id: UUID,
     trip_id: UUID,
-    is_international: bool = False,
 ) -> dict:
     trip = await _require_trip(db, tenant_id, trip_id)
 
+    is_international = trip.is_international
     is_hazmat = trip.is_hazmat
 
     required: set[str] = (

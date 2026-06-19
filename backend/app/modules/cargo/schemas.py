@@ -143,3 +143,19 @@ class DAVCreate(BaseModel):
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     notes: str | None = None
+
+
+# Declaração de Carga Perigosa — INATTER/hazmat declaration (digital record, no PDF)
+class DeclaracaoCargaPerisgosaCreate(BaseModel):
+    contract_id: UUID | None = None
+    document_number: str | None = Field(None, max_length=80)
+    issuer: str | None = Field(None, max_length=160)
+    hazmat_class: str = Field(..., min_length=1, max_length=10, description="ADR class e.g. '3', '8'")
+    un_number: str | None = Field(None, max_length=10, description="UN number e.g. 'UN1203'")
+    hazmat_description: str = Field(..., min_length=1, max_length=300)
+    authorization_code: str | None = Field(None, max_length=80)
+    origin: str | None = Field(None, max_length=160)
+    destination: str | None = Field(None, max_length=160)
+    valid_from: datetime | None = None
+    valid_until: datetime | None = None
+    notes: str | None = None

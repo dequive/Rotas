@@ -22,6 +22,7 @@ class TripCreate(BaseModel):
     contract_reference: str | None = None
     payload_override_reason: str | None = None
     is_hazmat: bool = False
+    is_international: bool = False
     hazmat_class: str | None = None
     un_number: str | None = None
     hazmat_label: str | None = None

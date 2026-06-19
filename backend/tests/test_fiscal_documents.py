@@ -84,6 +84,7 @@ async def _make_draft_doc(db, tenant_id, contract, vehicle, driver):
         billing_period_end=now,
         status="draft",
         currency="MZN",
+        client_nuit="400123456",
     )
     db.add(doc)
     await db.flush()
@@ -380,3 +381,54 @@ async def test_serialize_billing_document_includes_ar_fields(db, tenant_id):
         assert "aging_bucket" in item
         assert isinstance(item["days_overdue"], int)
         assert item["aging_bucket"] in {"current", "1_30", "31_60", "61_90", "over_90"}
+
+
+# ---------------------------------------------------------------------------
+# client_nuit required to issue
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_client_nuit_required_to_issue_document(db, tenant_id):
+    """issue_document raises 422 (client_nuit_required) when client_nuit is absent."""
+    contract = await _make_contract(db, tenant_id)
+    vehicle = await _make_vehicle(db, tenant_id)
+    driver = await _make_driver(db, tenant_id)
+
+    now = datetime.now(UTC)
+    doc = BillingDocument(
+        tenant_id=tenant_id,
+        contract_id=contract.id,
+        client_name=contract.client_name,
+        billing_period_start=now - timedelta(days=30),
+        billing_period_end=now,
+        status="draft",
+        currency="MZN",
+    )
+    db.add(doc)
+    await db.flush()
+
+    trip = await _make_trip(db, tenant_id, vehicle.id, driver.id, contract_id=contract.id)
+    item = BillingItem(
+        tenant_id=tenant_id,
+        contract_id=contract.id,
+        billing_document_id=doc.id,
+        trip_id=trip.id,
+        origin="Maputo",
+        destination="Beira",
+        amount=Decimal("500.00"),
+        iva_rate=Decimal("0.1700"),
+        iva_amount=Decimal("85.00"),
+        delivered_at=now,
+        status="pending",
+    )
+    db.add(item)
+    await db.flush()
+
+    from app.core.errors import ApiError
+
+    with pytest.raises(ApiError) as exc_info:
+        await billing_service.issue_document(db, tenant_id, doc.id, IssueBillingDocumentRequest())
+
+    assert exc_info.value.code == "client_nuit_required"
+    assert exc_info.value.status_code == 422

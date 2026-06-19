@@ -419,6 +419,7 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
         billing_period_end=payload.billing_period_end,
         currency=payload.currency,
         status="draft",
+        client_nuit=payload.client_nuit,
     )
     db.add(document)
     await db.flush()
@@ -616,6 +617,14 @@ async def issue_document(
             "empty_billing_document",
             "Billing document has no items.",
             status_code=status.HTTP_409_CONFLICT,
+        )
+
+    if not document.client_nuit or not document.client_nuit.strip():
+        raise ApiError(
+            "client_nuit_required",
+            "O NUIT do cliente é obrigatório para emitir um documento fiscal. "
+            "Actualize o documento com client_nuit antes de emitir.",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
 
     issued_at = payload.issued_at or datetime.now(UTC)

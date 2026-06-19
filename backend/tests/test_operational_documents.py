@@ -40,7 +40,7 @@ async def _make_driver(db, tenant_id):
     return d
 
 
-async def _make_trip(db, tenant_id, is_hazmat: bool = False):
+async def _make_trip(db, tenant_id, is_hazmat: bool = False, is_international: bool = False):
     vehicle = await _make_vehicle(db, tenant_id)
     driver = await _make_driver(db, tenant_id)
     t = Trip(
@@ -48,10 +48,11 @@ async def _make_trip(db, tenant_id, is_hazmat: bool = False):
         vehicle_id=vehicle.id,
         driver_id=driver.id,
         origin="Maputo",
-        destination="Beira",
+        destination="Beira" if not is_international else "Johannesburg",
         status="draft",
         billing_status="pending_delivery_proof",
         is_hazmat=is_hazmat,
+        is_international=is_international,
         hazmat_class="3" if is_hazmat else None,
     )
     db.add(t)
@@ -59,8 +60,8 @@ async def _make_trip(db, tenant_id, is_hazmat: bool = False):
     return t
 
 
-async def _make_committed_trip(db, tenant_id, is_hazmat: bool = False):
-    trip = await _make_trip(db, tenant_id, is_hazmat=is_hazmat)
+async def _make_committed_trip(db, tenant_id, is_hazmat: bool = False, is_international: bool = False):
+    trip = await _make_trip(db, tenant_id, is_hazmat=is_hazmat, is_international=is_international)
     await db.commit()
     await db.refresh(trip)
     return trip
@@ -342,11 +343,11 @@ async def test_checklist_domestic_trip_requires_four_doc_types(
 async def test_checklist_international_trip_requires_five_doc_types(
     async_client, auth_headers, db, tenant_id
 ):
-    """GET /cargo/trips/{id}/document-checklist?is_international=true returns 5 types."""
-    trip = await _make_committed_trip(db, tenant_id)
+    """GET /cargo/trips/{id}/document-checklist for an international trip returns 5 types."""
+    trip = await _make_committed_trip(db, tenant_id, is_international=True)
 
     resp = await async_client.get(
-        f"/api/v1/trips/{trip.id}/document-checklist?is_international=true",
+        f"/api/v1/trips/{trip.id}/document-checklist",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -376,3 +377,74 @@ async def test_checklist_hazmat_adds_declaracao_carga_perigosa(
     assert "declaracao_carga_perigosa" in required_types
     assert data["is_hazmat"] is True
     assert len(data["checklist"]) == 5
+
+
+# ---------------------------------------------------------------------------
+# declaracao-carga-perigosa endpoint
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_declaracao_carga_perigosa_on_hazmat_trip(
+    async_client, auth_headers, db, tenant_id
+):
+    """POST /trips/{id}/declaracao-carga-perigosa succeeds on a hazmat trip, returns 201."""
+    trip = await _make_committed_trip(db, tenant_id, is_hazmat=True)
+
+    payload = {
+        "hazmat_class": "3",
+        "hazmat_description": "Gasolina — líquido inflamável",
+        "un_number": "UN1203",
+        "authorization_code": "INATTER-2026-DCP-00001",
+    }
+    resp = await async_client.post(
+        f"/api/v1/trips/{trip.id}/declaracao-carga-perigosa",
+        json=payload,
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["document_type"] == "declaracao_carga_perigosa"
+    assert data["extra_fields"]["hazmat_class"] == "3"
+    assert data["extra_fields"]["un_number"] == "UN1203"
+    assert data["extra_fields"]["authorization_code"] == "INATTER-2026-DCP-00001"
+    assert data.get("pdf_url") is None
+    assert data.get("file_id") is None
+
+
+@pytest.mark.asyncio
+async def test_declaracao_carga_perigosa_rejected_on_non_hazmat_trip(
+    async_client, auth_headers, db, tenant_id
+):
+    """POST /trips/{id}/declaracao-carga-perigosa returns 409 on a non-hazmat trip."""
+    trip = await _make_committed_trip(db, tenant_id, is_hazmat=False)
+
+    payload = {
+        "hazmat_class": "3",
+        "hazmat_description": "Tentativa inválida",
+    }
+    resp = await async_client.post(
+        f"/api/v1/trips/{trip.id}/declaracao-carga-perigosa",
+        json=payload,
+        headers=auth_headers,
+    )
+    assert resp.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# is_international field persists on Trip
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_trip_is_international_persists(db, tenant_id):
+    """Trip created with is_international=True stores the flag correctly."""
+    trip = await _make_committed_trip(db, tenant_id, is_international=True)
+    assert trip.is_international is True
+
+
+@pytest.mark.asyncio
+async def test_trip_is_international_defaults_false(db, tenant_id):
+    """Trip created without is_international defaults to False."""
+    trip = await _make_committed_trip(db, tenant_id)
+    assert trip.is_international is False

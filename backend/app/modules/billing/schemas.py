@@ -13,6 +13,7 @@ class BillingDocumentCreate(BaseModel):
     billing_period_end: datetime
     currency: str = "MZN"
     trip_ids: list[UUID] = Field(default_factory=list)
+    client_nuit: str | None = None
 
 
 class IssueBillingDocumentRequest(BaseModel):

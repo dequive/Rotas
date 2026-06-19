@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
@@ -307,17 +307,33 @@ async def create_dav(
 # ── OPDOC-05: Document checklist ──────────────────────────────────────────────
 
 
+@router.post("/declaracao-carga-perigosa", status_code=201)
+async def create_declaracao_carga_perigosa(
+    trip_id: UUID,
+    payload: schemas.DeclaracaoCargaPerisgosaCreate,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """Declaração de Carga Perigosa — digital record for hazmat trips (no PDF)."""
+    return await service.create_declaracao_carga_perigosa(
+        db,
+        principal.tenant_id,
+        trip_id,
+        payload,
+        actor_id=principal.user_id,
+    )
+
+
 @router.get("/document-checklist")
 async def get_document_checklist(
     trip_id: UUID,
     principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
     db: Annotated[AsyncSession, Depends(get_session)],
-    is_international: bool = Query(False, description="Mark trip as international to include Carta de Porte in checklist"),
 ):
-    """OPDOC-05: Return required document checklist for the trip, with present/missing status."""
+    """OPDOC-05: Return required document checklist for the trip, with present/missing status.
+    is_international and is_hazmat are read from the Trip record — set them on trip creation."""
     return await service.get_document_checklist(
         db,
         principal.tenant_id,
         trip_id,
-        is_international=is_international,
     )

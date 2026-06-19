@@ -532,6 +532,7 @@ async def create_trip(
         contract_reference=contract_reference,
         payload_override_reason=payload.payload_override_reason,
         is_hazmat=payload.is_hazmat,
+        is_international=payload.is_international,
         hazmat_class=payload.hazmat_class,
         un_number=payload.un_number,
         hazmat_label=payload.hazmat_label,

@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 23-08-PLAN.md (Phase 23 Third Party Registry — 11/11 PASS, 29 tests)
+stopped_at: Completed 06-01-PLAN.md (Phase 06 Payment Registration — RED phase, 10 test stubs)
 last_updated: "2026-06-19T00:00:00.000Z"
 last_activity: 2026-06-19
 progress:
@@ -21,11 +21,11 @@ _Last updated: 2026-06-06_
 
 ## Current Phase
 
-Phase: 09
-Plan: Not started
-Status: 05-05 complete 2026-06-19 — test_invoice_number_format in test_billing_api.py (2 tests, CLI-05); "Número" column with MonoCell in cobranca/page.tsx; invoice_number field wired in billing-api.ts; BillingDocument interface fixed in clientes/[id]/page.tsx; next build passes
+Phase: 06
+Plan: 01 complete — 02 next
+Status: 06-01 complete 2026-06-19 — RED phase: 10 test stubs for PAY-01, PAY-02, PAY-03; all skip cleanly (10 skipped, 0 failed)
 Last activity: 2026-06-19
-Stopped at: Completed 23-08-PLAN.md
+Stopped at: Completed 06-01-PLAN.md
 
 ### Completed v3.0 Phases
 

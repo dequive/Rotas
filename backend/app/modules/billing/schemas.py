@@ -62,3 +62,30 @@ class CreateCreditNoteRequest(BaseModel):
 # FDOC-04: Recibo (standalone)
 class CreateReceiptRequest(BaseModel):
     amount_paid: Decimal = Field(..., gt=0, description="Amount received")
+
+
+# ── Phase 6: Payment Registration Schemas ─────────────────────────────────────
+
+
+class ClientPaymentCreate(BaseModel):
+    client_id: UUID
+    billing_document_id: UUID | None = None  # None = advance payment
+    amount: Decimal = Field(..., gt=0, description="Payment amount (must be > 0)")
+    currency: str = Field("MZN", max_length=3)
+    value_date: datetime
+    payment_method: str = Field(
+        ...,
+        pattern="^(bank_transfer|cheque|cash)$",
+        description="bank_transfer | cheque | cash",
+    )
+    reference: str | None = Field(None, max_length=120)
+    notes: str | None = None
+
+
+class VoidPaymentRequest(BaseModel):
+    void_reason: str = Field(..., min_length=5, max_length=500)
+
+
+class ApplyAdvanceRequest(BaseModel):
+    billing_document_id: UUID
+    amount_applied: Decimal = Field(..., gt=0)

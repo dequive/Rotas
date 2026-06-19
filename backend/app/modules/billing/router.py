@@ -391,6 +391,77 @@ async def create_receipt(
 # ── FDOC-05: AR Básico ────────────────────────────────────────────────────────
 
 
+# ── PAY-01/02/03: Client Payments ────────────────────────────────────────────
+
+
+@router.post("/payments", status_code=201)
+async def register_payment(
+    payload: schemas.ClientPaymentCreate,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+):
+    """Register a client payment (full, partial, or advance).
+
+    Requires Idempotency-Key header to prevent double-registration.
+    If billing_document_id is None, creates an advance payment with no allocation.
+    """
+    return await execute_http_idempotent(
+        db,
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        idempotency_key=idempotency_key,
+        operation="billing.payment.register",
+        entity_type="client_payment",
+        payload=payload,
+        handler=lambda: service.register_payment(
+            db, principal.tenant_id, principal.user_id, payload
+        ),
+    )
+
+
+@router.post("/payments/{payment_id}/void")
+async def void_payment(
+    payment_id: UUID,
+    payload: schemas.VoidPaymentRequest,
+    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """Void a confirmed payment. Only owner/admin can void payments.
+
+    Sets status='voided', reverses billing_document paid_at if applicable.
+    Payments are never hard-deleted — financial audit trail preserved.
+    """
+    return await service.void_payment(
+        db,
+        payment_id=payment_id,
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        void_reason=payload.void_reason,
+    )
+
+
+@router.post("/payments/{payment_id}/apply", status_code=201)
+async def apply_advance_to_invoice(
+    payment_id: UUID,
+    payload: schemas.ApplyAdvanceRequest,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """Apply an existing advance payment to a specific invoice.
+
+    Creates a PaymentAllocation row. Verifies advance has not been over-applied.
+    """
+    return await service.apply_advance_to_invoice(
+        db,
+        payment_id=payment_id,
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        billing_document_id=payload.billing_document_id,
+        amount_applied=payload.amount_applied,
+    )
+
+
 @router.get("/ar")
 async def list_ar_documents(
     principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],

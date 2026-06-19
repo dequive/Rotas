@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 06-02-PLAN.md (Phase 06 Payment Registration — GREEN phase, 10 tests pass)
-last_updated: "2026-06-19T16:26:09.724Z"
+stopped_at: Completed 17-02-PLAN.md
+last_updated: "2026-06-19T16:54:18.843Z"
 last_activity: 2026-06-19
 progress:
   total_phases: 13
@@ -21,11 +21,11 @@ _Last updated: 2026-06-06_
 
 ## Current Phase
 
-Phase: 06
-Plan: 02 complete — 03 next
-Status: 17-01 complete 2026-06-19 — Redis rate limiter (INFRA2-01) + structlog JSON logging (INFRA2-02); 3 rate-limit tests pass; structlog>=24.0 declared in pyproject.toml
+Phase: 17
+Plan: 02 complete — Phase 17 COMPLETE
+Status: 17-02 complete 2026-06-19 — Prometheus /metrics (INFRA2-03) + /health/deep endpoint + ARQ worker heartbeat (INFRA2-04); prometheus-fastapi-instrumentator>=7.0 declared; all 4 INFRA2 requirements satisfied
 Last activity: 2026-06-19
-Stopped at: Completed 06-02-PLAN.md (Phase 06 Payment Registration — GREEN phase, 10 tests pass)
+Stopped at: Completed 17-02-PLAN.md
 
 ### Completed v3.0 Phases
 

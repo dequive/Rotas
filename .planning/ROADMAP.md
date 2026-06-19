@@ -659,7 +659,7 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 - [ ] **Phase 15: Fiscal Compliance + Segurança de Carga** — IVA Moçambique, numeração fiscal, validação de peso vs capacidade, suporte hazmat
 - [ ] **Phase 15.1: Documentos Fiscais Completos** — Estender billing_documents com document_type (invoice/debit_note/credit_note/invoice_receipt/receipt/proforma) e parent_document_id; criar Nota de Débito, Nota de Crédito, Fatura-Recibo e Recibo; AR básico com due_date e aging
 - [ ] **Phase 16: HOS + Availability** — Driver Hours of Service and vehicle/driver availability calendar
-- [ ] **Phase 17: Enterprise Infrastructure v2** — Distributed rate limiting, structured logging, Prometheus metrics, advanced worker heartbeat (completed 2026-06-18)
+- [x] **Phase 17: Enterprise Infrastructure v2** — Distributed rate limiting, structured logging, Prometheus metrics, advanced worker heartbeat (completed 2026-06-18) (completed 2026-06-19)
 - [ ] **Phase 18: Analytics + Insurance** — Client profitability, insurance management, deep BI layer
 - [ ] **Phase 19: Customs/Border Crossing** — Workflows for cross-border routes, documentation, and border dispatch
 - [ ] **Phase 20: Route Optimization** — Distance matrix, waypoint sequencing, integration with routing providers
@@ -978,7 +978,7 @@ Plans:
 
 **Requirements**: SEC-RBAC-01 a SEC-RBAC-05
 **Depends on:** Phase 9 (RLS — os dois planos partilham infra de isolamento), Phase 13 (Frontend usa roles nos componentes de UI)
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 22 to break down)
@@ -1032,7 +1032,7 @@ Plans:
 | 14. Domain State Machines | 0/TBD | Not started | - |
 | 15. Fiscal Compliance + Segurança de Carga | 0/TBD | Not started | - |
 | 16. Hours of Service + Availability Router | 0/TBD | Not started | - |
-| 17. Infrastructure Enterprise v2 | 1/2 | In Progress|  |
+| 17. Infrastructure Enterprise v2 | 2/2 | Complete   | 2026-06-19 |
 | 18. Analytics Avançado + Gestão de Seguros | 0/TBD | Not started | - |
 | 22. RBAC Permission-Based | 0/TBD | Not started | - |
 | 23. Third Party Registry | 7/8 | In Progress|  |

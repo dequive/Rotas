@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -46,3 +47,25 @@ async def patch_client(
     db: AsyncSession = Depends(get_session),
 ):
     return await service.patch_client(db, client_id, principal.tenant_id, payload)
+
+
+@router.get("/{client_id}/statement")
+async def get_client_statement(
+    client_id: UUID,
+    principal=Depends(get_current_principal),
+    db: AsyncSession = Depends(get_session),
+    period_start: datetime | None = None,
+    period_end: datetime | None = None,
+):
+    """Return a full client statement with invoices, payments, and balance summary.
+
+    Balance is computed synchronously from DB — no cache (PAY-03 requirement).
+    Optional period_start / period_end filter by billing_period_start / billing_period_end.
+    """
+    return await service.get_client_statement(
+        db,
+        client_id,
+        principal.tenant_id,
+        period_start=period_start,
+        period_end=period_end,
+    )

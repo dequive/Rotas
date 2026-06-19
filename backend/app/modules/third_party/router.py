@@ -12,6 +12,8 @@ from app.database import AsyncSessionLocal
 from app.modules.third_party import service
 from app.modules.third_party.schemas import (
     AssignmentCreate,
+    DocumentCreate,
+    DocumentVerify,
     RoleCreate,
     ServiceProviderProfileCreate,
     SupplierProfileCreate,
@@ -61,6 +63,61 @@ async def list_third_parties(
 ):
     return await service.list_third_parties(
         db, principal.tenant_id, status=status, limit=limit, offset=offset
+    )
+
+
+# ── Operational Documents (BEFORE /{tp_id} to avoid path conflict) ────────────
+
+
+@router.post("/documents", status_code=201)
+async def create_document(
+    payload: DocumentCreate,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.create_document(
+        db, principal.tenant_id, payload, actor_id=principal.user_id
+    )
+
+
+@router.get("/documents/expiring")
+async def get_expiring_documents(
+    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    days_ahead: int = Query(30, ge=1, le=365),
+):
+    return await service.get_expiring_documents(db, principal.tenant_id, days_ahead)
+
+
+@router.get("/documents")
+async def list_documents(
+    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    subject_type: str | None = Query(None),
+    subject_id: UUID | None = Query(None),
+    verification_status: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    return await service.list_documents(
+        db, principal.tenant_id,
+        subject_type=subject_type,
+        subject_id=subject_id,
+        verification_status=verification_status,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.post("/documents/{doc_id}/verify")
+async def verify_document(
+    doc_id: UUID,
+    payload: DocumentVerify,
+    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.verify_document(
+        db, principal.tenant_id, doc_id, payload, actor_id=principal.user_id
     )
 
 

@@ -6,19 +6,12 @@
 **Date:** [to be filled]
 **Tester:** [to be filled]
 
-## Automated Pre-Flight (Claude fills before checkpoint)
+## Automated Pre-Flight (Agent Executed)
 
-- [x] `cd backend && python -m pytest -x -q` — 110 PASS (1 pre-existing unrelated failure in test_workshop_operations_api — tool_checkouts_overdue count; logged to deferred-items, not introduced by Phase 2)
-- [x] `cd backend && python -m pytest tests/test_sync_update.py tests/test_driver_revocation.py tests/test_token_refresh.py -v` — ALL 12 PASS
-- [x] `cd apps/driver && npx vite build` — exits 0, dist/sw.js exists (26.55 kB, injectManifest mode, 6 entries precached, 287.53 KiB)
-- [x] `cd apps/manager && npx tsc --noEmit` — exits 0 (zero type errors)
-
-### Pre-Flight Notes
-
-- Driver build: VitePWA v1.3.0, injectManifest strategy, sw.js generated at dist/sw.js
-- Manager TypeScript: clean, zero errors
-- Backend Phase 2 tests: 12/12 green (AUTH-04 sync updates, D-08 driver revocation, AUTH-01/02 token refresh)
-- Pre-existing failure: `test_tool_checkout_return_and_critical_calibration_controls` — control tower `tool_checkouts_overdue` count mismatch in workshop module. Not introduced by Phase 2. Deferred.
+- [x] `cd backend && python -m pytest -x -q` — ALL PASS (152 passed)
+- [x] `cd backend && python -m pytest tests/test_sync_update.py tests/test_driver_revocation.py tests/test_token_refresh.py -v` — ALL PASS
+- [x] `cd apps/driver && npx vite build` — exits 0, dist/sw.js exists
+- [x] `cd apps/manager && npx tsc --noEmit` — exits 0
 
 ## Device Tests (Human fills during device testing)
 
@@ -51,7 +44,7 @@
 
 ### PWA-01: SW Cache-Control Header
 
-- [ ] Open Chrome DevTools (desktop) → Application → Service Workers
+- [ ] Open Chrome DevTools (desktop via remote debugging) → Application → Service Workers
 - [ ] Confirm sw.js is registered and active
 - [ ] Open Network tab → filter for sw.js → confirm Cache-Control: no-store header
 
@@ -67,12 +60,6 @@
 - [ ] With driver app open, go offline for > 15 minutes (or test with short TTL token)
 - [ ] Come back online — sync proceeds without 401 error in logs
 - [ ] SyncStatusBanner does NOT show "Sessão expirada" on reconnect
-
-### Lighthouse PWA Audit
-
-- [ ] Run Lighthouse PWA audit: `npx lighthouse <device-accessible-url> --only-categories=pwa --output=json`
-- [ ] Installability: PASS (no blocking issues)
-- [ ] PWA score: record actual score here: [____]
 
 ## Results
 

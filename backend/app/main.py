@@ -42,6 +42,7 @@ from app.modules.operational_exceptions.router import router as operational_exce
 from app.modules.operations.router import router as operations_router
 from app.modules.sync.router import router as sync_router
 from app.modules.tenants.router import router as tenants_router
+from app.modules.third_party.router import router as third_party_router
 from app.modules.trip_orders.router import router as trip_orders_router
 from app.modules.trips.known_routes_router import router as known_routes_router
 from app.modules.trips.router import router as trips_router
@@ -269,6 +270,7 @@ app.include_router(billing_router, prefix=api)
 app.include_router(operations_router, prefix=api)
 app.include_router(operational_exceptions_router, prefix=api)
 app.include_router(workshop_router, prefix=api)
+app.include_router(third_party_router, prefix=api)
 app.include_router(control_tower_router, prefix=api)
 app.include_router(alerts_router, prefix=api)
 app.include_router(sync_router, prefix=api)

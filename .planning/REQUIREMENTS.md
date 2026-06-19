@@ -9,7 +9,7 @@ _Last updated: 2026-06-06_
 - [x] **CLI-02**: Cliente tem prazo de pagamento padrão configurável (30/45/60/90 dias) e limite de crédito com aviso visual quando o saldo em aberto o ultrapassa
 - [x] **CLI-03**: Sistema migra os registos `client_name` existentes em Contratos e Faturas para referências `client_id` sem perda de dados históricos — `client_name` mantido como cache desnormalizado
 - [x] **CLI-04**: Contrato referencia `client_id`; gestor selecciona cliente ao criar ou editar um contrato
-- [ ] **CLI-05**: Faturas emitidas têm número sequencial por tenant sem gaps (formato `AAAA/NNNN`) gerado por PostgreSQL SEQUENCE
+- [x] **CLI-05**: Faturas emitidas têm número sequencial por tenant sem gaps (formato `AAAA/NNNN`) gerado por PostgreSQL SEQUENCE
 
 ### Pagamentos (PAY)
 
@@ -240,7 +240,7 @@ _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de
 | CLI-02 | Phase 5 | Complete |
 | CLI-03 | Phase 5 | Complete |
 | CLI-04 | Phase 5 | Complete |
-| CLI-05 | Phase 5 | Pending |
+| CLI-05 | Phase 5 | Complete |
 | PAY-01 | Phase 6 | Pending |
 | PAY-02 | Phase 6 | Pending |
 | PAY-03 | Phase 6 | Pending |

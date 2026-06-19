@@ -31,6 +31,10 @@ coverage/
 *.sqlite
 *.sqlite3
 tmp/
+scratch/
+
+# Local file uploads (test/dev data — not for VCS)
+backend/.rotas_uploads/
 
 # Generated documents / office temp files
 ~$*

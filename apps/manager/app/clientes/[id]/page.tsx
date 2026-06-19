@@ -18,6 +18,7 @@ import {
 import { apiFetch } from "@/app/lib/api";
 import type { ClientResponse } from "@/app/lib/clients-api";
 import { EditarClienteButton } from "./EditarClienteButton";
+import { PaymentModal } from "@/app/components/PaymentModal";
 
 interface Contract {
   id: string;
@@ -101,7 +102,21 @@ export default async function ClienteDetailPage({
       <PageHeader
         eyebrow="Cliente"
         title={client.trading_name}
-        actions={<EditarClienteButton client={client} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <PaymentModal
+              clientId={id}
+              clientName={client.trading_name}
+              advanceMode={true}
+              trigger={
+                <button className="text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded px-3 py-1.5 transition-colors">
+                  Registar Adiantamento
+                </button>
+              }
+            />
+            <EditarClienteButton client={client} />
+          </div>
+        }
       />
 
       {/* Client info card */}
@@ -270,6 +285,7 @@ export default async function ClienteDetailPage({
                 <RotasTableHeader>Em aberto</RotasTableHeader>
                 <RotasTableHeader>Data vcto.</RotasTableHeader>
                 <RotasTableHeader>Estado</RotasTableHeader>
+                <RotasTableHeader>Acção</RotasTableHeader>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -294,6 +310,23 @@ export default async function ClienteDetailPage({
                   <RotasTableCell>{formatDate(inv.due_date)}</RotasTableCell>
                   <RotasTableCell>
                     <StatusBadge status={inv.status} />
+                  </RotasTableCell>
+                  <RotasTableCell>
+                    {(inv.status === "issued" || inv.status === "overdue") && (
+                      <PaymentModal
+                        clientId={id}
+                        clientName={client.trading_name}
+                        invoiceId={inv.id}
+                        invoiceNumber={inv.invoice_number}
+                        invoiceTotal={inv.total_amount != null ? String(inv.total_amount) : null}
+                        invoiceOutstanding={inv.outstanding_balance != null ? String(inv.outstanding_balance) : null}
+                        trigger={
+                          <button className="text-xs font-semibold text-amber-600 hover:text-amber-700 border border-amber-200 rounded px-2 py-1">
+                            Registar Pagamento
+                          </button>
+                        }
+                      />
+                    )}
                   </RotasTableCell>
                 </RotasTableRow>
               ))}

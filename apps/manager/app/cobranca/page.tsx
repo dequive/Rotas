@@ -19,6 +19,7 @@ import { StatusBadge } from "@/app/components/ui/StatusBadge";
 import { MonoCell, MoneyCell } from "@/app/components/ui/MonoCell";
 import { DataSourceBadge } from "@/app/components/ui/DataSourceBadge";
 import { BillingTripActions } from "@/app/components/BillingTripActions";
+import { PaymentModal } from "@/app/components/PaymentModal";
 import {
   type BillingStatus,
   getApiConfig,
@@ -295,6 +296,20 @@ export default async function CobrancaPage() {
                     <dd><MoneyCell value={document.amount ?? 0} semantic="revenue" /></dd>
                   </div>
                 </dl>
+                {document.status === "Emitido" && document.clientId && (
+                  <PaymentModal
+                    clientId={document.clientId}
+                    clientName={document.client}
+                    invoiceId={document.id}
+                    invoiceNumber={document.invoiceNumber}
+                    invoiceTotal={document.amount != null ? String(document.amount) : null}
+                    trigger={
+                      <button className="text-xs font-semibold text-amber-600 hover:text-amber-700 border border-amber-200 rounded px-2 py-1 whitespace-nowrap">
+                        Registar Pagamento
+                      </button>
+                    }
+                  />
+                )}
               </article>
             ))}
           </div>

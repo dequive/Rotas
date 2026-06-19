@@ -1024,6 +1024,53 @@ Plans:
 
 ---
 
+---
+
+### Phase 24: Third Party Completion — UI, Conta Corrente & Avaliação
+
+**Goal**: O módulo de terceiros do ROTAS atinge paridade funcional com ERPs como PHC CS: qualquer gestor pode criar e gerir fornecedores e prestadores através do manager dashboard, os formulários de abastecimento e ordens de trabalho têm pickers estruturados, e existe conta corrente por fornecedor com registo de pagamentos e scoring de qualidade.
+
+**Depends on**: Phase 23 (Third Party Registry — backend e tabelas já existem)
+
+**Requirements**: TP2-01 a TP2-13
+
+| ID | Descrição |
+|----|-----------|
+| TP2-01 | Sub-contactos por terceiro — tabela `third_party_contacts` com nome, função, telefone, email; múltiplos por terceiro |
+| TP2-02 | Código de actividade/sector — campo `activity_code` + `sector` na ficha de terceiro |
+| TP2-03 | Conta corrente de fornecedor — tabela `supplier_ledger_entries` com débitos (compras) e créditos (pagamentos); saldo calculado em tempo real |
+| TP2-04 | Pagamentos a fornecedores — `POST /api/v1/third-party/{id}/payments`; ligação a `fuel_purchases` e `work_orders` como documentos de origem |
+| TP2-05 | Avaliação de fornecedores — `supplier_evaluations` com critérios configuráveis (prazo, qualidade, preço); score médio exposto na ficha |
+| TP2-06 | Idempotency keys nas mutações de terceiros — `Idempotency-Key` header em todos os POST/PUT do router de terceiros |
+| TP2-07 | UI manager `/terceiros` — página de lista com filtros (tipo, estado, sector), detalhe com tabs (Info / Contactos / Documentos / Conta Corrente / Avaliações) |
+| TP2-08 | Supplier picker no formulário de abastecimento (`/abastecimentos`) — combobox que substitui o campo de texto livre `supplier_name` quando existe terceiro |
+| TP2-09 | Service provider picker nas ordens de trabalho — combobox no formulário de criação/edição de work order |
+| TP2-10 | UI para documentos operacionais — upload e lista de documentos na tab Documentos do detalhe de terceiro e do perfil de motorista |
+| TP2-11 | UI para driver-vehicle assignments — tabela de atribuições na página de detalhe de veículo e de motorista |
+| TP2-12 | Migrations aplicadas + seed de províncias — `alembic upgrade head` documentado como step de deploy; seed script executado e verificado |
+| TP2-13 | Múltiplos telefones/emails por terceiro — `third_party_contacts` também serve como modelo de contacto adicional (tipo: comercial, técnico, financeiro, emergência) |
+
+**Success Criteria**:
+1. `GET /terceiros` mostra lista paginada de terceiros com filtro por `role_type` e `status`
+2. Criar um fornecedor via UI, abrir formulário de abastecimento — o campo supplier mostra o fornecedor criado no dropdown
+3. `GET /api/v1/third-party/{id}/account` retorna saldo em aberto calculado como `sum(débitos) - sum(créditos)`
+4. Registar pagamento a fornecedor via `POST /api/v1/third-party/{id}/payments` actualiza saldo da conta corrente
+5. Submeter avaliação de fornecedor com 3 critérios — score médio aparece na ficha
+6. Todos os POST do router de terceiros aceitam `Idempotency-Key`; duplo-submit com mesma key retorna 200 com resposta em cache
+7. Upload de documento para terceiro via UI — documento aparece na tab Documentos com estado `pending`
+
+**Architecture constraints**:
+- `third_party_contacts` tem `tenant_id` + RLS + GRANT na mesma migration (v2.0 rule)
+- `supplier_ledger_entries` tem `tenant_id` + RLS; `entry_type: debit|credit`; `source_type: fuel_purchase|work_order|manual`; `source_id UUID nullable`
+- `supplier_evaluations` tem `tenant_id` + RLS; `criteria JSONB`; `score NUMERIC(4,2)`; `evaluated_by → users.id`
+- Supplier picker no abastecimento é additive — `supplier_name` continua aceite como texto livre quando nenhum terceiro está seleccionado
+- UI usa Manrope + IBM Plex Mono (valores monetários) + amber-500 (acções primárias) conforme DESIGN.md
+- Saldo de conta corrente é calculado via query (não desnormalizado) — sem coluna de saldo que possa desincronizar
+
+**Plans**: TBD — run `/gsd:plan-phase 24`
+
+---
+
 ## Progress Table (v3.0)
 
 | Phase | Plans Complete | Status | Completed |
@@ -1035,4 +1082,5 @@ Plans:
 | 17. Infrastructure Enterprise v2 | 2/2 | Complete    | 2026-06-19 |
 | 18. Analytics Avançado + Gestão de Seguros | 0/TBD | Not started | - |
 | 22. RBAC Permission-Based | 0/TBD | Not started | - |
-| 23. Third Party Registry | 7/8 | In Progress|  |
+| 23. Third Party Registry | 8/8 | Complete | 2026-06-20 |
+| 24. Third Party Completion — UI, Conta Corrente & Avaliação | 0/TBD | Not started | - |

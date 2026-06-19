@@ -1032,7 +1032,7 @@ Plans:
 | 14. Domain State Machines | 0/TBD | Not started | - |
 | 15. Fiscal Compliance + Segurança de Carga | 0/TBD | Not started | - |
 | 16. Hours of Service + Availability Router | 0/TBD | Not started | - |
-| 17. Infrastructure Enterprise v2 | 2/2 | Complete   | 2026-06-19 |
+| 17. Infrastructure Enterprise v2 | 2/2 | Complete    | 2026-06-19 |
 | 18. Analytics Avançado + Gestão de Seguros | 0/TBD | Not started | - |
 | 22. RBAC Permission-Based | 0/TBD | Not started | - |
 | 23. Third Party Registry | 7/8 | In Progress|  |

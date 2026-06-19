@@ -217,3 +217,13 @@ class DocumentOut(BaseModel):
     notes: Optional[str]
     created_at: datetime
     updated_at: datetime
+
+
+# ── PartyDirectory ────────────────────────────────────────────────────────────
+
+
+class PartyDirectoryEntry(BaseModel):
+    subject_id: UUID
+    subject_type: str
+    name: str
+    status: str

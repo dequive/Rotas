@@ -175,10 +175,18 @@ EXPECTED_RLS_TABLES = sorted(
         "work_order_tasks",
         "work_orders",
         "workshop_tools",
+        # Phase 23: Third Party Registry
+        "driver_vehicle_assignments",
+        "operational_documents",
+        "service_provider_profiles",
+        "supplier_profiles",
+        "third_parties",
+        "third_party_roles",
     ]
 )
-# 54 tables: base RLS set + export_jobs + self-service token/outbox tables
-#            + Phase 5 clients/client_payments/payment_allocations.
+# 60 tables: base RLS set + export_jobs + self-service token/outbox tables
+#            + Phase 5 clients/client_payments/payment_allocations
+#            + Phase 23 third party registry (6 tables).
 
 INTENTIONALLY_EXCLUDED = {
     "files",

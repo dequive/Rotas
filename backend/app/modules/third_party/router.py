@@ -14,6 +14,7 @@ from app.modules.third_party.schemas import (
     AssignmentCreate,
     DocumentCreate,
     DocumentVerify,
+    PartyDirectoryEntry,
     RoleCreate,
     ServiceProviderProfileCreate,
     SupplierProfileCreate,
@@ -63,6 +64,32 @@ async def list_third_parties(
 ):
     return await service.list_third_parties(
         db, principal.tenant_id, status=status, limit=limit, offset=offset
+    )
+
+
+# ── Party Directory (BEFORE /{tp_id} to avoid UUID path conflict) ────────────
+
+
+@router.get("/party-directory", response_model=list[PartyDirectoryEntry])
+async def party_directory(
+    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    q: str | None = Query(None, description="Name search string (ILIKE)"),
+    subject_type: str | None = Query(
+        None,
+        description="Filter to one subject type: driver | client | third_party",
+    ),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    subject_types = [subject_type] if subject_type else None
+    return await service.search_party_directory(
+        db,
+        principal.tenant_id,
+        query=q,
+        subject_types=subject_types,
+        limit=limit,
+        offset=offset,
     )
 
 

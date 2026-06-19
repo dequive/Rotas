@@ -675,3 +675,99 @@ async def get_expiring_documents(
         ).order_by(OperationalDocument.expiry_date.asc())
     )
     return [serialize_document(d) for d in result.scalars()]
+
+
+# ── Party Directory (UNION ALL) ───────────────────────────────────────────────
+
+
+async def search_party_directory(
+    db: AsyncSession,
+    tenant_id: UUID,
+    *,
+    query: str | None = None,
+    subject_types: list[str] | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[dict]:
+    """Single UNION ALL query across drivers / clients / third_parties.
+
+    subject_types: optional list to restrict which entity types are included.
+                   e.g. ['driver'] returns only drivers.
+                   None or empty list returns all three types.
+    query: optional name search applied per-sub-select (ILIKE %query%) before the UNION.
+    """
+    from sqlalchemy import String, cast, column, literal, union_all
+
+    from app.modules.clients.models import Client
+    from app.modules.drivers.models import Driver
+
+    _all_types = subject_types or ["driver", "client", "third_party"]
+
+    subqueries = []
+
+    if "driver" in _all_types:
+        q = select(
+            Driver.id.label("subject_id"),
+            literal("driver").label("subject_type"),
+            Driver.full_name.label("name"),
+            Driver.status.label("status"),
+        ).where(Driver.tenant_id == tenant_id)
+        if query:
+            q = q.where(Driver.full_name.ilike(f"%{query}%"))
+        subqueries.append(q)
+
+    if "client" in _all_types:
+        q = select(
+            Client.id.label("subject_id"),
+            literal("client").label("subject_type"),
+            Client.trading_name.label("name"),
+            cast(Client.is_active, String).label("status"),
+        ).where(Client.tenant_id == tenant_id)
+        if query:
+            q = q.where(Client.trading_name.ilike(f"%{query}%"))
+        subqueries.append(q)
+
+    if "third_party" in _all_types:
+        q = select(
+            ThirdParty.id.label("subject_id"),
+            literal("third_party").label("subject_type"),
+            ThirdParty.name.label("name"),
+            ThirdParty.status.label("status"),
+        ).where(ThirdParty.tenant_id == tenant_id)
+        if query:
+            q = q.where(ThirdParty.name.ilike(f"%{query}%"))
+        subqueries.append(q)
+
+    if not subqueries:
+        return []
+
+    if len(subqueries) == 1:
+        stmt = subqueries[0]
+    else:
+        stmt = union_all(*subqueries)
+
+    # Wrap in subquery to apply ORDER BY + LIMIT + OFFSET on the full UNION result
+    paginated = (
+        select(
+            column("subject_id"),
+            column("subject_type"),
+            column("name"),
+            column("status"),
+        )
+        .select_from(stmt.subquery("party_union"))
+        .order_by(column("name").asc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    result = await db.execute(paginated)
+    rows = result.fetchall()
+    return [
+        {
+            "subject_id": row.subject_id,
+            "subject_type": row.subject_type,
+            "name": row.name,
+            "status": row.status,
+        }
+        for row in rows
+    ]

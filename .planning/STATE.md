@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 05-05-PLAN.md
-last_updated: "2026-06-19T05:16:58.783Z"
+stopped_at: Completed 15.1-09-PLAN.md
+last_updated: "2026-06-19T07:00:00.000Z"
 last_activity: 2026-06-19
 progress:
-  total_phases: 13
-  completed_phases: 7
-  total_plans: 60
-  completed_plans: 59
+  total_phases: 23
+  completed_phases: 10
+  total_plans: 84
+  completed_plans: 80
 ---
 
 # ROTAS — Project State
@@ -30,6 +30,7 @@ Stopped at: Completed 05-05-PLAN.md
 ### Completed v3.0 Phases
 
 - [x] **Phase 14** — Domain State Machines (SM-01 BillingDocument, SM-02 Contract, SM-03 DeliveryProof, SM-04 DispatchClearance)
+- [x] **Phase 15.1** — Documentos Fiscais Completos (FDOC-01..05: Nota de Débito, Nota de Crédito, Fatura-Recibo, Recibo, AR aging; OPDOC-01..05: extra_fields DDL, Guia de Remessa PDF, CPI bilingual PDF, DAV digital record, checklist por tipo de viagem) — 238 passed, 3 skipped
 - [x] **Phase 17** — Infrastructure Enterprise v2 (INFRA2-01 distributed rate limiting, INFRA2-02 structured logging, INFRA2-03 Prometheus metrics, INFRA2-04 deep health check + worker heartbeat)
 
 ---

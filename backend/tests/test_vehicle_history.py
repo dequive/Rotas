@@ -1,7 +1,6 @@
 # ruff: noqa: E402
 import os
 import uuid
-from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import httpx
@@ -73,28 +72,42 @@ async def seed_maintenance_request(tenant_id: uuid.UUID, vehicle_id: uuid.UUID) 
         return str(mr.id)
 
 
-async def seed_work_order_with_task(client: httpx.AsyncClient, headers: dict, vehicle_id) -> tuple[str, str]:
+async def seed_work_order_with_task(
+    client: httpx.AsyncClient, headers: dict, vehicle_id
+) -> tuple[str, str]:
     """Create maintenance request + work order + one task. Returns (wo_id, task_id)."""
-    mr = await client.post("/api/v1/workshop/maintenance-requests", headers=headers, json={
-        "vehicle_id": str(vehicle_id),
-        "request_type": "corrective",
-        "priority": "normal",
-        "description": "Test maintenance for vehicle history",
-    })
+    mr = await client.post(
+        "/api/v1/workshop/maintenance-requests",
+        headers=headers,
+        json={
+            "vehicle_id": str(vehicle_id),
+            "request_type": "corrective",
+            "priority": "normal",
+            "description": "Test maintenance for vehicle history",
+        },
+    )
     assert mr.status_code == 200, f"MR creation failed: {mr.text}"
     mr_id = mr.json()["id"]
 
-    wo = await client.post("/api/v1/workshop/work-orders", headers=headers, json={
-        "maintenance_request_id": mr_id,
-        "vehicle_id": str(vehicle_id),
-        "planned_work": "Test work for vehicle history",
-    })
+    wo = await client.post(
+        "/api/v1/workshop/work-orders",
+        headers=headers,
+        json={
+            "maintenance_request_id": mr_id,
+            "vehicle_id": str(vehicle_id),
+            "planned_work": "Test work for vehicle history",
+        },
+    )
     assert wo.status_code == 200, f"WO creation failed: {wo.text}"
     wo_id = wo.json()["id"]
 
-    task = await client.post(f"/api/v1/workshop/work-orders/{wo_id}/tasks", headers=headers, json={
-        "description": "Test task",
-    })
+    task = await client.post(
+        f"/api/v1/workshop/work-orders/{wo_id}/tasks",
+        headers=headers,
+        json={
+            "description": "Test task",
+        },
+    )
     assert task.status_code == 200, f"Task creation failed: {task.text}"
 
     return wo_id, task.json()["id"]
@@ -185,7 +198,9 @@ async def test_vehicle_history_pagination() -> None:
             )
             assert r2.status_code == 200, r2.text
             d2 = r2.json()
-            assert len(d2["events"]) == 5, f"Expected 5 events on second page, got {len(d2['events'])}"
+            assert len(d2["events"]) == 5, (
+                f"Expected 5 events on second page, got {len(d2['events'])}"
+            )
 
             # Ensure no overlap between pages
             ids_1 = {e["reference_id"] for e in d1["events"]}

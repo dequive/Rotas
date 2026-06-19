@@ -8,23 +8,27 @@ Requirements covered:
   PAY-02 — Advance payments and apply-to-invoice flow
   PAY-03 — Outstanding balance reflects payments immediately; void restores balance
 """
-import pytest
-from decimal import Decimal
+
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import uuid4
 
-from app.modules.billing.models import BillingDocument, BillingItem, ClientPayment, PaymentAllocation
+import pytest
+
+from app.core.errors import ApiError
+from app.modules.billing.models import (
+    BillingDocument,
+    ClientPayment,
+    PaymentAllocation,
+)
 from app.modules.billing.service import (
+    apply_advance_to_invoice,
     register_payment,
     void_payment,
-    apply_advance_to_invoice,
 )
 from app.modules.clients.models import Client
 from app.modules.clients.service import _get_outstanding_balance
-from app.modules.contracts.models import Contract
 from app.modules.users.models import User
-from app.core.errors import ApiError
-
 
 # ---------------------------------------------------------------------------
 # Helper factories — same pattern as test_billing_api.py
@@ -115,8 +119,17 @@ async def _make_user(db, tenant_id) -> User:
 
 # Simple payload shim — avoids importing schemas in tests (simpler, faster)
 class _PaymentPayload:
-    def __init__(self, client_id, amount, value_date, payment_method,
-                 billing_document_id=None, currency="MZN", reference=None, notes=None):
+    def __init__(
+        self,
+        client_id,
+        amount,
+        value_date,
+        payment_method,
+        billing_document_id=None,
+        currency="MZN",
+        reference=None,
+        notes=None,
+    ):
         self.client_id = client_id
         self.amount = amount
         self.value_date = value_date
@@ -216,12 +229,19 @@ async def test_payment_idempotency(db, tenant_id):
 
     # Only one ClientPayment row should exist for this client
     from sqlalchemy import select
-    rows = (await db.execute(
-        select(ClientPayment).where(
-            ClientPayment.client_id == client.id,
-            ClientPayment.tenant_id == tenant_id,
+
+    rows = (
+        (
+            await db.execute(
+                select(ClientPayment).where(
+                    ClientPayment.client_id == client.id,
+                    ClientPayment.tenant_id == tenant_id,
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(rows) == 1
     assert str(rows[0].id) == result1["id"]
 
@@ -295,9 +315,16 @@ async def test_advance_payment(db, tenant_id):
 
     # Verify no PaymentAllocation rows exist for this payment
     from sqlalchemy import select
-    alloc_rows = (await db.execute(
-        select(PaymentAllocation).where(PaymentAllocation.payment_id == result["id"])
-    )).scalars().all()
+
+    alloc_rows = (
+        (
+            await db.execute(
+                select(PaymentAllocation).where(PaymentAllocation.payment_id == result["id"])
+            )
+        )
+        .scalars()
+        .all()
+    )
     assert len(alloc_rows) == 0
 
 
@@ -322,7 +349,7 @@ async def test_apply_advance(db, tenant_id):
     doc = await _make_billing_document(db, tenant_id, client.id, total_amount=Decimal("2000.00"))
 
     # Apply advance to invoice
-    result = await apply_advance_to_invoice(
+    await apply_advance_to_invoice(
         db,
         payment_id=payment_id,
         tenant_id=tenant_id,
@@ -333,9 +360,16 @@ async def test_apply_advance(db, tenant_id):
 
     # A PaymentAllocation row must exist
     from sqlalchemy import select
-    alloc_rows = (await db.execute(
-        select(PaymentAllocation).where(PaymentAllocation.payment_id == payment_id)
-    )).scalars().all()
+
+    alloc_rows = (
+        (
+            await db.execute(
+                select(PaymentAllocation).where(PaymentAllocation.payment_id == payment_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
     assert len(alloc_rows) == 1
     assert alloc_rows[0].amount_applied == Decimal("2000.00")
 

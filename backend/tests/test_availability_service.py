@@ -12,10 +12,9 @@ Behaviors tested (plan 260607-o5b Task 1):
   6. Empty driver_required_documents in policy → defaults to {driving_license, passport, bi}
   7. All None expiry dates, no required_documents policy → returns []
 """
+
 from datetime import date, timedelta
 from unittest.mock import MagicMock
-
-import pytest
 
 from app.modules.availability.service import driver_compliance_violations
 from app.modules.drivers.models import Driver
@@ -23,6 +22,7 @@ from app.modules.drivers.models import Driver
 
 def _today() -> date:
     from datetime import UTC, datetime
+
     return datetime.now(UTC).date()
 
 
@@ -43,6 +43,7 @@ def _driver(
 # Test 1: Expired passport produces expired_document violation
 # ---------------------------------------------------------------------------
 
+
 def test_expired_passport_produces_violation():
     yesterday = _today() - timedelta(days=1)
     driver = _driver(passport_valid_until=yesterday)
@@ -58,6 +59,7 @@ def test_expired_passport_produces_violation():
 # Test 2: Expired BI produces expired_document violation
 # ---------------------------------------------------------------------------
 
+
 def test_expired_bi_produces_violation():
     yesterday = _today() - timedelta(days=1)
     driver = _driver(bi_valid_until=yesterday)
@@ -72,6 +74,7 @@ def test_expired_bi_produces_violation():
 # Test 3: Missing passport when policy requires it → missing_document
 # ---------------------------------------------------------------------------
 
+
 def test_missing_passport_required_by_policy():
     driver = _driver(passport_valid_until=None, bi_valid_until=None, license_valid_until=None)
     policy = {"driver_required_documents": ["passport"]}
@@ -85,6 +88,7 @@ def test_missing_passport_required_by_policy():
 # ---------------------------------------------------------------------------
 # Test 4: Valid license + expired passport → only passport violation
 # ---------------------------------------------------------------------------
+
 
 def test_valid_license_expired_passport_only_passport_violation():
     tomorrow = _today() + timedelta(days=1)
@@ -102,6 +106,7 @@ def test_valid_license_expired_passport_only_passport_violation():
 # Test 5: All three expired → three violations
 # ---------------------------------------------------------------------------
 
+
 def test_all_three_expired_produces_three_violations():
     yesterday = _today() - timedelta(days=1)
     driver = _driver(
@@ -110,9 +115,7 @@ def test_all_three_expired_produces_three_violations():
         bi_valid_until=yesterday,
     )
     violations = driver_compliance_violations(driver, policy={})
-    expired_doc_types = {
-        v["document_type"] for v in violations if v["code"] == "expired_document"
-    }
+    expired_doc_types = {v["document_type"] for v in violations if v["code"] == "expired_document"}
     assert expired_doc_types == {"driving_license", "passport", "bi"}, (
         f"Expected three expired_document violations, got: {violations}"
     )
@@ -125,6 +128,7 @@ def test_all_three_expired_produces_three_violations():
 # Test 6: Expired docs are always violations regardless of policy
 # ---------------------------------------------------------------------------
 
+
 def test_expired_docs_always_violate_regardless_of_policy():
     """expired_document is raised for any expired field — no policy required."""
     yesterday = _today() - timedelta(days=1)
@@ -136,9 +140,7 @@ def test_expired_docs_always_violate_regardless_of_policy():
     # Empty required_documents — but expired dates still produce violations
     policy = {"driver_required_documents": []}
     violations = driver_compliance_violations(driver, policy=policy)
-    expired_doc_types = {
-        v["document_type"] for v in violations if v["code"] == "expired_document"
-    }
+    expired_doc_types = {v["document_type"] for v in violations if v["code"] == "expired_document"}
     assert expired_doc_types == {"driving_license", "passport", "bi"}, (
         f"All three expired docs should produce violations regardless of policy, got: {violations}"
     )
@@ -148,6 +150,7 @@ def test_expired_docs_always_violate_regardless_of_policy():
 # Test 7: All None expiry + no policy → [] (missing_document only when policy
 #          explicitly requires the document)
 # ---------------------------------------------------------------------------
+
 
 def test_all_none_expiry_no_policy_returns_empty():
     """With no policy and all None expiry, returns [] — missing_document requires explicit policy."""
@@ -159,9 +162,7 @@ def test_all_none_expiry_no_policy_returns_empty():
     # No required_documents in policy → missing dates are NOT violations
     # (operators can onboard drivers without all dates upfront)
     violations = driver_compliance_violations(driver, policy={})
-    assert violations == [], (
-        f"No policy + all None expiry should return [], got: {violations}"
-    )
+    assert violations == [], f"No policy + all None expiry should return [], got: {violations}"
 
 
 def test_no_required_documents_no_violations_when_not_required():

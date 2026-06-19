@@ -24,14 +24,10 @@ from sqlalchemy import and_, select, update
 
 from app.modules.audit.models import AuditLog
 from app.modules.billing.models import BillingDocument, BillingItem
-from app.modules.billing import service as billing_service
-from app.modules.billing.schemas import IssueBillingDocumentRequest
 from app.modules.contracts.models import Contract
-from app.modules.contracts import service as contract_service
 from app.modules.drivers.models import Driver
 from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -234,7 +230,9 @@ async def test_sm01_mark_paid_on_draft_returns_409(async_client, auth_headers, d
 
 
 @pytest.mark.asyncio
-async def test_sm01_invalid_transition_paid_to_issued_returns_409(async_client, auth_headers, db, tenant_id):
+async def test_sm01_invalid_transition_paid_to_issued_returns_409(
+    async_client, auth_headers, db, tenant_id
+):
     """Must-have 7: paid → issued is not a valid transition; returns HTTP 409."""
     contract = await _make_contract(db, tenant_id)
     vehicle = await _make_vehicle(db, tenant_id)
@@ -327,7 +325,9 @@ async def test_sm02_cron_expires_active_contract(db, tenant_id):
 
 
 @pytest.mark.asyncio
-async def test_sm02_renew_without_new_ends_at_returns_422(async_client, auth_headers, db, tenant_id):
+async def test_sm02_renew_without_new_ends_at_returns_422(
+    async_client, auth_headers, db, tenant_id
+):
     """Must-have 5: PATCH /status action=renew without new_ends_at returns HTTP 422 ends_at_required."""
     # Create an expired contract
     past = datetime.now(UTC) - timedelta(days=1)
@@ -413,7 +413,9 @@ async def test_sm02_activate_draft_contract(async_client, auth_headers, db, tena
 
 
 @pytest.mark.asyncio
-async def test_sm02_invalid_transition_terminated_to_active_returns_409(async_client, auth_headers, db, tenant_id):
+async def test_sm02_invalid_transition_terminated_to_active_returns_409(
+    async_client, auth_headers, db, tenant_id
+):
     """Terminated → active is not allowed; returns HTTP 409 invalid_state_transition."""
     contract = await _make_contract(db, tenant_id, status="terminated")
 

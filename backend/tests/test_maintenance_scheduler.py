@@ -2,6 +2,7 @@
 
 These stubs document required behaviors. Remove skip markers as implementation completes.
 """
+
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4

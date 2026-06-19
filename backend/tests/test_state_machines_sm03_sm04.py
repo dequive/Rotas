@@ -16,20 +16,19 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import and_, select, update
+from sqlalchemy import and_, select
 
 from app.modules.audit.models import AuditLog
-from app.modules.cargo.models import DeliveryProof
 from app.modules.cargo import service as cargo_service
+from app.modules.cargo.models import DeliveryProof
 from app.modules.contracts.models import Contract
 from app.modules.drivers.models import Driver
 from app.modules.operational_exceptions.models import OperationalException
-from app.modules.trip_orders.models import TripOrder
 from app.modules.trip_orders import service as trip_order_service
+from app.modules.trip_orders.models import TripOrder
 from app.modules.trips.models import Trip
 from app.modules.users.models import User
 from app.modules.vehicles.models import Vehicle
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -328,7 +327,9 @@ async def test_sm04_reject_via_http(async_client, auth_headers, db, tenant_id):
 async def test_sm04_escalate_pending_clearances_cron_logic(db, tenant_id):
     """Must-have 5: cron logic marks escalated_at on dispatch_pending orders past their SLA."""
     # Create an order with clearance_sla_hours=1, created 2 hours ago
-    order = await _make_trip_order(db, tenant_id, status="dispatch_pending", created_at_offset_hours=2)
+    order = await _make_trip_order(
+        db, tenant_id, status="dispatch_pending", created_at_offset_hours=2
+    )
 
     assert order.status == "dispatch_pending"
     assert order.escalated_at is None
@@ -360,5 +361,7 @@ async def test_sm04_escalate_pending_clearances_cron_logic(db, tenant_id):
     assert order.id in escalated_ids, "Order past SLA must have escalated_at set by cron logic"
 
     await db.refresh(order)
-    assert order.status == "dispatch_pending", "Status remains dispatch_pending; escalated_at is the escalation marker"
+    assert order.status == "dispatch_pending", (
+        "Status remains dispatch_pending; escalated_at is the escalation marker"
+    )
     assert order.escalated_at is not None

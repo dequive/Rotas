@@ -1,4 +1,5 @@
 """Tests for INFRA-02: R2 migration script behavior."""
+
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -6,10 +7,10 @@ from uuid import uuid4
 
 from app.modules.files.models import File
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_file(tenant_id, storage_key: str, storage_provider: str = "local") -> File:
     return File(
@@ -82,6 +83,7 @@ async def _run_main_with_mocks(
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 async def test_migration_skips_missing_file(tmp_path, tenant_id):
     """Script continues past a File record whose local path does not exist on disk.

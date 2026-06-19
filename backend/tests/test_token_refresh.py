@@ -12,6 +12,7 @@ RED criteria:
 These tests validate the backend contracts that frontend AUTH-01/AUTH-02 implementations
 must rely on. If any backend contract is broken, these tests catch the regression.
 """
+
 from uuid import uuid4
 
 import httpx
@@ -21,7 +22,7 @@ from app.core.passwords import hash_password
 from app.core.tokens import create_opaque_token, hash_token
 from app.database import AsyncSessionLocal, engine, import_all_models
 from app.main import app
-from app.modules.drivers.models import Driver, DriverDevice
+from app.modules.drivers.models import Driver
 from app.modules.tenants.models import Tenant
 from app.modules.users.models import User
 from app.modules.vehicles.models import Vehicle

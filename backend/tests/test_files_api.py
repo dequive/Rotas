@@ -156,5 +156,19 @@ async def test_upload_rejects_unsupported_mime_type() -> None:
             data={"file_type": "receipt", "entity_type": "fuel_log"},
             files={"upload": ("payload.exe", b"not-an-image", "application/octet-stream")},
         )
-        assert response.status_code == 422
+        assert response.status_code == 415
         assert response.json()["error"]["code"] == "unsupported_mime_type"
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_oversized_file() -> None:
+    tenant = await create_tenant()
+    async with await create_api_client() as client:
+        response = await client.post(
+            "/api/v1/files/upload",
+            headers=auth_headers(tenant.id),
+            data={"file_type": "receipt", "entity_type": "fuel_log"},
+            files={"upload": ("large.pdf", b"x" * (8 * 1024 * 1024 + 1), "application/pdf")},
+        )
+        assert response.status_code == 413
+        assert response.json()["error"]["code"] == "invalid_file_size"

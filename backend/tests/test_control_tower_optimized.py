@@ -1,21 +1,21 @@
 """CT-01 / CT-03 regression tests. CT-02 cache tests implemented in Plan 03-03."""
+
 import json
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
-from uuid import UUID, uuid4
+from uuid import uuid4
 
+import httpx
 import pytest
 from sqlalchemy.exc import OperationalError
 
 from app.database import AsyncSessionLocal, import_all_models
 from app.main import app
 from app.modules.control_tower.service import CT_KPI_TTL, get_ct_cached
+from app.modules.drivers.models import Driver
 from app.modules.tenants.models import Tenant
 from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
-from app.modules.drivers.models import Driver
-
-import httpx
 
 import_all_models()
 
@@ -23,6 +23,7 @@ import_all_models()
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def _create_tenant(db, suffix: str) -> Tenant:
     tenant = Tenant(name=f"CT-Opt-Tenant-{suffix}", slug=f"ct-opt-{suffix}")
@@ -103,8 +104,8 @@ async def test_control_tower_cross_tenant_isolation_preserved(
             tenant_b = await _create_tenant(db, f"b-{suffix}")
             vehicle_a = await _create_vehicle(db, tenant_a.id, f"A{suffix[:5]}")
             driver_a = await _create_driver(db, tenant_a.id, f"A{suffix[:5]}")
-            vehicle_b = await _create_vehicle(db, tenant_b.id, f"B{suffix[:5]}")
-            driver_b = await _create_driver(db, tenant_b.id, f"B{suffix[:5]}")
+            await _create_vehicle(db, tenant_b.id, f"B{suffix[:5]}")
+            await _create_driver(db, tenant_b.id, f"B{suffix[:5]}")
 
             # Create 3 vehicles/drivers for tenant B (one per trip — unique constraint)
             vehicles_b = []
@@ -192,8 +193,8 @@ async def test_control_tower_cache_ttl():
     expected_key = f"ct:kpis:{tenant_id}"
 
     mock_redis = MagicMock()
-    mock_redis.get = AsyncMock(return_value=None)          # cache miss
-    mock_redis.set = AsyncMock(return_value=True)           # lock acquired
+    mock_redis.get = AsyncMock(return_value=None)  # cache miss
+    mock_redis.set = AsyncMock(return_value=True)  # lock acquired
     mock_redis.setex = AsyncMock()
     mock_redis.delete = AsyncMock()
 

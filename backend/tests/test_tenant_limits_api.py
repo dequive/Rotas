@@ -1,4 +1,5 @@
 """Tests for INFRA-03: GET /api/v1/tenants/me/limits endpoint and plan_limit_reached guards."""
+
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -58,12 +59,14 @@ async def test_get_limits_returns_correct_counts() -> None:
 
     # Seed 2 active vehicles directly in DB
     async with AsyncSessionLocal() as db:
-        for i in range(2):
-            db.add(Vehicle(
-                tenant_id=tenant.id,
-                plate=f"LIM-{uuid4().hex[:6].upper()}",
-                status="active",
-            ))
+        for _i in range(2):
+            db.add(
+                Vehicle(
+                    tenant_id=tenant.id,
+                    plate=f"LIM-{uuid4().hex[:6].upper()}",
+                    status="active",
+                )
+            )
         await db.commit()
 
     async with await _client() as client:
@@ -98,6 +101,7 @@ async def test_get_limits_null_max_for_unlimited_tenant() -> None:
     suffix = uuid4().hex[:8]
     async with AsyncSessionLocal() as db:
         from sqlalchemy import text
+
         tenant = Tenant(
             name=f"Unlimited Tenant {suffix}",
             slug=f"unlimited-{suffix}",
@@ -213,6 +217,7 @@ async def test_null_max_vehicles_allows_unlimited_creation() -> None:
     suffix = uuid4().hex[:8]
     async with AsyncSessionLocal() as db:
         from sqlalchemy import text
+
         tenant = Tenant(name=f"Unlimited {suffix}", slug=f"unlim-{suffix}", max_vehicles=999)
         db.add(tenant)
         await db.commit()
@@ -236,4 +241,4 @@ async def test_null_max_vehicles_allows_unlimited_creation() -> None:
                     "current_km": 0,
                 },
             )
-            assert r.status_code == 200, f"Vehicle {i+1} creation failed: {r.json()}"
+            assert r.status_code == 200, f"Vehicle {i + 1} creation failed: {r.json()}"

@@ -230,9 +230,7 @@ async def test_active_work_order_blocks_assignment_until_closed() -> None:
             )
             audit_actions = set(
                 (
-                    await db.execute(
-                        select(AuditLog.action).where(AuditLog.tenant_id == tenant_id)
-                    )
+                    await db.execute(select(AuditLog.action).where(AuditLog.tenant_id == tenant_id))
                 ).scalars()
             )
             assert request_count == 1
@@ -299,10 +297,7 @@ async def test_spare_part_movements_are_idempotent_and_stock_led() -> None:
                 json={**receipt_payload, "quantity": 11},
             )
             assert receipt_conflict.status_code == 409
-            assert (
-                receipt_conflict.json()["error"]["code"]
-                == "spare_part_request_reference_reused"
-            )
+            assert receipt_conflict.json()["error"]["code"] == "spare_part_request_reference_reused"
 
             request = await client.post(
                 "/api/v1/workshop/maintenance-requests",
@@ -436,10 +431,7 @@ async def test_tool_checkout_return_and_critical_calibration_controls() -> None:
                 },
             )
             assert expired_checkout.status_code == 409
-            assert (
-                expired_checkout.json()["error"]["code"]
-                == "workshop_tool_calibration_expired"
-            )
+            assert expired_checkout.json()["error"]["code"] == "workshop_tool_calibration_expired"
 
             tool = await client.post(
                 "/api/v1/workshop/tools",
@@ -489,10 +481,7 @@ async def test_tool_checkout_return_and_critical_calibration_controls() -> None:
                 json={},
             )
             assert blocked_quality_check.status_code == 409
-            assert (
-                blocked_quality_check.json()["error"]["code"]
-                == "work_order_tools_checked_out"
-            )
+            assert blocked_quality_check.json()["error"]["code"] == "work_order_tools_checked_out"
 
             return_payload = {
                 "return_reference": f"RET-{uuid4().hex[:8]}",

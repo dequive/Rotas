@@ -283,9 +283,7 @@ async def test_create_and_list_roles(async_client, auth_headers):
     assert role_resp.status_code == 201
     assert role_resp.json()["role_type"] == "fuel_supplier"
 
-    list_resp = await async_client.get(
-        f"/api/v1/third-party/{tp_id}/roles", headers=auth_headers
-    )
+    list_resp = await async_client.get(f"/api/v1/third-party/{tp_id}/roles", headers=auth_headers)
     assert list_resp.status_code == 200
     assert len(list_resp.json()) == 1
 
@@ -350,8 +348,8 @@ async def test_assign_and_unassign_driver_vehicle(async_client, auth_headers, db
 
 async def test_assignment_cross_tenant_rejected(async_client, auth_headers, db, tenant_id):
     """Cannot assign a driver from tenant B to a vehicle from tenant A."""
-    from app.modules.tenants.models import Tenant
     from app.modules.drivers.models import Driver
+    from app.modules.tenants.models import Tenant
     from app.modules.vehicles.models import Vehicle
 
     tenant_b = Tenant(name="Tenant B Assign", slug=f"tb-assign-{uuid.uuid4().hex[:6]}")
@@ -387,9 +385,7 @@ async def test_assignment_cross_tenant_rejected(async_client, auth_headers, db, 
 # ── TP-06: OperationalDocument ───────────────────────────────────────────────
 
 
-async def test_create_and_verify_operational_document(
-    async_client, auth_headers, db, tenant_id
-):
+async def test_create_and_verify_operational_document(async_client, auth_headers, db, tenant_id):
     """POST /documents + POST /documents/{id}/verify round-trip."""
     from app.modules.drivers.models import Driver
 
@@ -487,8 +483,8 @@ async def test_expiring_documents_endpoint(async_client, auth_headers, db, tenan
 
 async def test_party_directory_union_all(async_client, auth_headers, db, tenant_id):
     """GET /party-directory returns entries from drivers, clients, and third_parties."""
-    from app.modules.drivers.models import Driver
     from app.modules.clients.models import Client
+    from app.modules.drivers.models import Driver
 
     driver = Driver(tenant_id=tenant_id, full_name="Américo Machava", status="active")
     client = Client(
@@ -507,9 +503,7 @@ async def test_party_directory_union_all(async_client, auth_headers, db, tenant_
     )
     assert tp_resp.status_code == 201
 
-    resp = await async_client.get(
-        "/api/v1/third-party/party-directory", headers=auth_headers
-    )
+    resp = await async_client.get("/api/v1/third-party/party-directory", headers=auth_headers)
     assert resp.status_code == 200
     data = resp.json()
 
@@ -567,12 +561,10 @@ async def test_party_directory_name_search(async_client, auth_headers, db, tenan
     assert all("américo" in row["name"].lower() for row in data)
 
 
-async def test_party_directory_cross_tenant_isolation(
-    async_client, auth_headers, db, tenant_id
-):
+async def test_party_directory_cross_tenant_isolation(async_client, auth_headers, db, tenant_id):
     """Party directory does not return entries from another tenant."""
-    from app.modules.tenants.models import Tenant
     from app.modules.drivers.models import Driver
+    from app.modules.tenants.models import Tenant
 
     tenant_b = Tenant(name="Tenant B Dir", slug=f"tb-dir-{uuid.uuid4().hex[:6]}")
     db.add(tenant_b)
@@ -585,9 +577,7 @@ async def test_party_directory_cross_tenant_isolation(
     db.add(other_driver)
     await db.commit()
 
-    resp = await async_client.get(
-        "/api/v1/third-party/party-directory", headers=auth_headers
-    )
+    resp = await async_client.get("/api/v1/third-party/party-directory", headers=auth_headers)
     assert resp.status_code == 200
     data = resp.json()
     assert str(other_driver.id) not in {row["subject_id"] for row in data}

@@ -1,5 +1,21 @@
 const API_BASE = import.meta.env.VITE_ROTAS_API_BASE_URL ?? "";
 
+type ApiErrorBody = {
+  detail?: string;
+  error?: string | { code?: string; message?: string; details?: unknown };
+};
+
+function getApiErrorCode(body: ApiErrorBody): string | undefined {
+  if (typeof body.error === "string") return body.error;
+  if (body.error?.code) return body.error.code;
+  return body.detail;
+}
+
+function getApiErrorMessage(body: ApiErrorBody): string | undefined {
+  if (typeof body.error === "object" && body.error.message) return body.error.message;
+  return body.detail ?? getApiErrorCode(body);
+}
+
 export interface AuthState {
   accessToken: string;
   tenantId: string;
@@ -60,12 +76,10 @@ async function refreshAccessToken(): Promise<string | null> {
   })
     .then(async (res) => {
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { detail?: string; error?: string };
+        const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
+        const code = getApiErrorCode(body);
         // Distinguish access revocation from token expiry (per D-08 / CONTEXT.md)
-        if (
-          body.detail === "driver_access_revoked" ||
-          body.error === "driver_access_revoked"
-        ) {
+        if (code === "driver_access_revoked") {
           window.dispatchEvent(new CustomEvent("driver-access-revoked"));
         } else {
           window.dispatchEvent(new CustomEvent("session-expired"));
@@ -113,8 +127,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { detail?: string };
-    throw new Error(body.detail ?? `HTTP ${res.status}`);
+    const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
+    throw new Error(getApiErrorMessage(body) ?? `HTTP ${res.status}`);
   }
   return res.json() as Promise<T>;
 }
@@ -167,24 +181,21 @@ export interface ActiveTrip {
 }
 
 export interface BootstrapData {
+  profile: {
+    tenant_id: string;
+    driver_id: string;
+    device_id: string | null;
+  };
   checklistTemplates: ChecklistTemplate[];
   activeTrip: ActiveTrip | null;
+  vehicles: Vehicle[];
 }
 
 export async function bootstrap(): Promise<BootstrapData> {
   const auth = getAuth();
   if (!auth) throw new Error("Não autenticado");
 
-  const [templatesRes, tripsRes] = await Promise.allSettled([
-    request<ChecklistTemplate[]>("/api/v1/checklist-templates?type=pre_partida&limit=5"),
-    request<ActiveTrip[]>("/api/v1/trips?status=in_progress&limit=1"),
-  ]);
-
-  const checklistTemplates = templatesRes.status === "fulfilled" ? templatesRes.value : [];
-  const tripsList = tripsRes.status === "fulfilled" ? tripsRes.value : [];
-  const activeTrip = tripsList[0] ?? null;
-
-  return { checklistTemplates, activeTrip };
+  return request<BootstrapData>("/api/v1/driver/bootstrap");
 }
 
 export interface Vehicle {
@@ -197,7 +208,7 @@ export interface Vehicle {
 }
 
 export async function getVehicles(): Promise<Vehicle[]> {
-  return request<Vehicle[]>("/api/v1/vehicles?status=active&limit=50");
+  return request<Vehicle[]>("/api/v1/driver/vehicles?limit=50");
 }
 
 async function getDrivers(): Promise<Array<{ id: string; full_name: string; status: string }>> {
@@ -212,5 +223,5 @@ export async function createTrip(payload: {
   cargo_type?: string;
   load_state?: string;
 }): Promise<ActiveTrip> {
-  return request<ActiveTrip>("/api/v1/trips", { method: "POST", body: JSON.stringify(payload) });
+  return request<ActiveTrip>("/api/v1/driver/trips", { method: "POST", body: JSON.stringify(payload) });
 }

@@ -1,4 +1,5 @@
 """Tests for RPT-01 (KPI endpoint) and RPT-02 (document expiry)."""
+
 import pytest
 
 

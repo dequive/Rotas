@@ -1,11 +1,14 @@
 """BILL-03 waiver lifecycle tests."""
+
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
 
 @pytest.mark.asyncio
-async def test_negative_margin_trip_blocked_without_waiver(async_client, auth_headers, seed_negative_margin_trip):
+async def test_negative_margin_trip_blocked_without_waiver(
+    async_client, auth_headers, seed_negative_margin_trip
+):
     """BILL-03: Trip with margin < 0 returns 409 when billing is attempted without a waiver."""
     trip = seed_negative_margin_trip
     now = datetime.now(UTC)
@@ -26,7 +29,9 @@ async def test_negative_margin_trip_blocked_without_waiver(async_client, auth_he
 
 
 @pytest.mark.asyncio
-async def test_waiver_create_sets_pending_approval(async_client, auth_headers, seed_negative_margin_trip):
+async def test_waiver_create_sets_pending_approval(
+    async_client, auth_headers, seed_negative_margin_trip
+):
     """BILL-03: POST /api/v1/billing/waivers creates a waiver with status='pending_approval'."""
     trip = seed_negative_margin_trip
     payload = {
@@ -55,7 +60,9 @@ async def test_waiver_approve_allows_billing(async_client, owner_headers, seed_p
 
 
 @pytest.mark.asyncio
-async def test_waiver_approve_requires_owner_admin(async_client, viewer_headers, seed_pending_waiver):
+async def test_waiver_approve_requires_owner_admin(
+    async_client, viewer_headers, seed_pending_waiver
+):
     """BILL-03: RBAC — viewer cannot approve a waiver (must return 403)."""
     waiver = seed_pending_waiver
     response = await async_client.post(

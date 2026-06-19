@@ -31,7 +31,9 @@ def auth_headers(tenant_id) -> dict[str, str]:
     return {"Authorization": "Bearer test-token", "X-Tenant-Id": str(tenant_id)}
 
 
-def jwt_headers_for_user(tenant_id: uuid.UUID, user_id: uuid.UUID, role: str = "admin") -> dict[str, str]:
+def jwt_headers_for_user(
+    tenant_id: uuid.UUID, user_id: uuid.UUID, role: str = "admin"
+) -> dict[str, str]:
     """Mint a real JWT so principal.user_id is populated (required for labor cost accumulation)."""
     settings = get_settings()
     token = _jwt.encode(
@@ -92,36 +94,54 @@ async def seed_user_in_db(tenant_id: uuid.UUID, role: str = "admin") -> uuid.UUI
         return user.id
 
 
-async def seed_work_order_with_task(client: httpx.AsyncClient, headers: dict, vehicle_id) -> tuple[str, str]:
+async def seed_work_order_with_task(
+    client: httpx.AsyncClient, headers: dict, vehicle_id
+) -> tuple[str, str]:
     """Create maintenance request + approved + started work order + one task.
     Returns (wo_id, task_id) — work order is in_progress so tasks can be completed.
     """
-    mr = await client.post("/api/v1/workshop/maintenance-requests", headers=headers, json={
-        "vehicle_id": str(vehicle_id),
-        "request_type": "corrective",
-        "priority": "normal",
-        "description": "Test maintenance for staff rates",
-    })
+    mr = await client.post(
+        "/api/v1/workshop/maintenance-requests",
+        headers=headers,
+        json={
+            "vehicle_id": str(vehicle_id),
+            "request_type": "corrective",
+            "priority": "normal",
+            "description": "Test maintenance for staff rates",
+        },
+    )
     assert mr.status_code == 200, f"MR creation failed: {mr.text}"
     mr_id = mr.json()["id"]
 
-    wo = await client.post("/api/v1/workshop/work-orders", headers=headers, json={
-        "maintenance_request_id": mr_id,
-        "vehicle_id": str(vehicle_id),
-        "planned_work": "Test work for staff rates",
-    })
+    wo = await client.post(
+        "/api/v1/workshop/work-orders",
+        headers=headers,
+        json={
+            "maintenance_request_id": mr_id,
+            "vehicle_id": str(vehicle_id),
+            "planned_work": "Test work for staff rates",
+        },
+    )
     assert wo.status_code == 200, f"WO creation failed: {wo.text}"
     wo_id = wo.json()["id"]
 
-    approved = await client.post(f"/api/v1/workshop/work-orders/{wo_id}/approve", headers=headers, json={})
+    approved = await client.post(
+        f"/api/v1/workshop/work-orders/{wo_id}/approve", headers=headers, json={}
+    )
     assert approved.status_code == 200, f"WO approve failed: {approved.text}"
 
-    started = await client.post(f"/api/v1/workshop/work-orders/{wo_id}/start", headers=headers, json={})
+    started = await client.post(
+        f"/api/v1/workshop/work-orders/{wo_id}/start", headers=headers, json={}
+    )
     assert started.status_code == 200, f"WO start failed: {started.text}"
 
-    task = await client.post(f"/api/v1/workshop/work-orders/{wo_id}/tasks", headers=headers, json={
-        "description": "Test task for staff rates",
-    })
+    task = await client.post(
+        f"/api/v1/workshop/work-orders/{wo_id}/tasks",
+        headers=headers,
+        json={
+            "description": "Test task for staff rates",
+        },
+    )
     assert task.status_code == 200, f"Task creation failed: {task.text}"
     task_id = task.json()["id"]
 
@@ -136,11 +156,15 @@ async def test_create_staff_rate_201() -> None:
         user_id = await seed_user_in_db(tenant_id)
         headers = auth_headers(tenant_id)
         async with await create_api_client() as client:
-            resp = await client.post("/api/v1/workshop/staff-rates", headers=headers, json={
-                "user_id": str(user_id),
-                "hourly_rate": "150.00",
-                "effective_from": "2026-01-01",
-            })
+            resp = await client.post(
+                "/api/v1/workshop/staff-rates",
+                headers=headers,
+                json={
+                    "user_id": str(user_id),
+                    "hourly_rate": "150.00",
+                    "effective_from": "2026-01-01",
+                },
+            )
             assert resp.status_code == 201, resp.text
             data = resp.json()
             assert "id" in data
@@ -157,18 +181,24 @@ async def test_list_staff_rates_returns_created() -> None:
         user_id = await seed_user_in_db(tenant_id)
         headers = auth_headers(tenant_id)
         async with await create_api_client() as client:
-            create_resp = await client.post("/api/v1/workshop/staff-rates", headers=headers, json={
-                "user_id": str(user_id),
-                "hourly_rate": "200.00",
-                "effective_from": "2026-01-01",
-            })
+            create_resp = await client.post(
+                "/api/v1/workshop/staff-rates",
+                headers=headers,
+                json={
+                    "user_id": str(user_id),
+                    "hourly_rate": "200.00",
+                    "effective_from": "2026-01-01",
+                },
+            )
             assert create_resp.status_code == 201, create_resp.text
             rate_id = create_resp.json()["id"]
 
             list_resp = await client.get("/api/v1/workshop/staff-rates", headers=headers)
             assert list_resp.status_code == 200
             rates = list_resp.json()
-            assert any(r["id"] == rate_id for r in rates), f"Rate {rate_id} not found in list: {rates}"
+            assert any(r["id"] == rate_id for r in rates), (
+                f"Rate {rate_id} not found in list: {rates}"
+            )
     except OperationalError as exc:
         pytest.skip(f"DB not available: {exc}")
 
@@ -208,11 +238,15 @@ async def test_labor_cost_increments_on_complete() -> None:
 
         async with await create_api_client() as client:
             # Create the staff rate for this user
-            rate_resp = await client.post("/api/v1/workshop/staff-rates", headers=headers, json={
-                "user_id": str(user_id),
-                "hourly_rate": "100.00",
-                "effective_from": "2026-01-01",
-            })
+            rate_resp = await client.post(
+                "/api/v1/workshop/staff-rates",
+                headers=headers,
+                json={
+                    "user_id": str(user_id),
+                    "hourly_rate": "100.00",
+                    "effective_from": "2026-01-01",
+                },
+            )
             assert rate_resp.status_code == 201, rate_resp.text
 
             # Create WO + task (in_progress so task can be completed)
@@ -265,7 +299,9 @@ async def test_mechanic_cannot_access_billing() -> None:
 
         async with await create_api_client() as client:
             # mechanic is in DASHBOARD_ROLES — GET billing is allowed (200)
-            billing_get_resp = await client.get("/api/v1/billing/documents", headers=mechanic_headers)
+            billing_get_resp = await client.get(
+                "/api/v1/billing/documents", headers=mechanic_headers
+            )
             assert billing_get_resp.status_code == 200, (
                 f"Expected 200 for mechanic reading billing documents, got {billing_get_resp.status_code}"
             )
@@ -274,7 +310,11 @@ async def test_mechanic_cannot_access_billing() -> None:
             billing_post_resp = await client.post(
                 "/api/v1/billing/documents",
                 headers=mechanic_headers,
-                json={"contract_id": "00000000-0000-0000-0000-000000000001", "period_start": "2026-01-01", "period_end": "2026-01-31"},
+                json={
+                    "contract_id": "00000000-0000-0000-0000-000000000001",
+                    "period_start": "2026-01-01",
+                    "period_end": "2026-01-31",
+                },
             )
             assert billing_post_resp.status_code == 403, (
                 f"Expected 403 for mechanic creating billing document, got {billing_post_resp.status_code}: {billing_post_resp.text}"
@@ -294,11 +334,15 @@ async def test_staff_rate_cross_tenant_isolation() -> None:
         headers_b = auth_headers(tenant_b_id)
 
         async with await create_api_client() as client:
-            create_resp = await client.post("/api/v1/workshop/staff-rates", headers=headers_a, json={
-                "user_id": str(user_a_id),
-                "hourly_rate": "300.00",
-                "effective_from": "2026-01-01",
-            })
+            create_resp = await client.post(
+                "/api/v1/workshop/staff-rates",
+                headers=headers_a,
+                json={
+                    "user_id": str(user_a_id),
+                    "hourly_rate": "300.00",
+                    "effective_from": "2026-01-01",
+                },
+            )
             assert create_resp.status_code == 201, create_resp.text
             rate_id = create_resp.json()["id"]
 

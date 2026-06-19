@@ -66,7 +66,9 @@ async def test_create_contract_with_client_id(async_client, auth_headers, client
 
 
 @pytest.mark.asyncio
-async def test_create_contract_client_id_cross_tenant(async_client, auth_headers, client_payload, db):
+async def test_create_contract_client_id_cross_tenant(
+    async_client, auth_headers, client_payload, db
+):
     """POST /api/v1/contracts with client_id from another tenant returns 404."""
     from app.modules.clients.models import Client
     from app.modules.tenants.models import Tenant

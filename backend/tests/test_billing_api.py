@@ -6,6 +6,7 @@ The backend implementation (_assign_invoice_number) was completed in Phase 15.
 This file adds a concise end-to-end confirmation test using the service layer directly,
 consistent with the pattern established in test_fiscal_compliance.py.
 """
+
 import re
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -13,15 +14,13 @@ from uuid import uuid4
 
 import pytest
 
-from app.modules.billing.models import BillingDocument, BillingItem
 from app.modules.billing import service as billing_service
+from app.modules.billing.models import BillingDocument, BillingItem
 from app.modules.billing.schemas import IssueBillingDocumentRequest
 from app.modules.contracts.models import Contract
 from app.modules.drivers.models import Driver
-from app.modules.tenants.models import Tenant
 from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -134,7 +133,7 @@ async def test_invoice_number_format(db, tenant_id):
         "invoice_number must be populated after issue_document()"
     )
     year = datetime.now(UTC).year
-    assert re.match(rf"^\d{{4}}/\d{{4}}$", result["invoice_number"]), (
+    assert re.match(r"^\d{4}/\d{4}$", result["invoice_number"]), (
         f"invoice_number '{result['invoice_number']}' must match AAAA/NNNN format"
     )
     assert result["invoice_number"].startswith(str(year)), (

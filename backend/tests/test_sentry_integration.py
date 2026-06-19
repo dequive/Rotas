@@ -1,5 +1,4 @@
 """Tests for INFRA-01: Sentry PII scrubber and init guard."""
-import pytest
 
 
 def test_scrub_pii_strips_all_fields():

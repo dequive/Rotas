@@ -254,16 +254,24 @@ async def test_alg_none_token_rejected() -> None:
         .rstrip(b"=")
         .decode()
     )
-    payload = base64.urlsafe_b64encode(json.dumps({
-        "sub": "dashboard:fake-user-id",
-        "typ": "access",
-        "scope": "dashboard",
-        "tenant_id": "00000000-0000-0000-0000-000000000001",
-        "user_id": "00000000-0000-0000-0000-000000000001",
-        "driver_id": None,
-        "role": "admin",
-        "device_id": None,
-    }).encode()).rstrip(b"=").decode()
+    payload = (
+        base64.urlsafe_b64encode(
+            json.dumps(
+                {
+                    "sub": "dashboard:fake-user-id",
+                    "typ": "access",
+                    "scope": "dashboard",
+                    "tenant_id": "00000000-0000-0000-0000-000000000001",
+                    "user_id": "00000000-0000-0000-0000-000000000001",
+                    "driver_id": None,
+                    "role": "admin",
+                    "device_id": None,
+                }
+            ).encode()
+        )
+        .rstrip(b"=")
+        .decode()
+    )
     forged_token = f"{header}.{payload}."  # empty signature
 
     async with await create_api_client() as client:

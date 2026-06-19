@@ -10,12 +10,11 @@ Test cases:
   7. test_none_dates_skipped — all date fields None → is_eligible=True (no doc on file = not blocking)
   8. test_custom_reference_date — pass reference_date explicitly; future date becomes past relative to reference
 """
+
 from datetime import date, timedelta
 from unittest.mock import MagicMock
 
-import pytest
-
-from app.modules.third_party.eligibility import EligibilityResult, check_driver_eligibility
+from app.modules.third_party.eligibility import check_driver_eligibility
 
 REF = date(2026, 6, 19)  # fixed reference date for deterministic tests
 

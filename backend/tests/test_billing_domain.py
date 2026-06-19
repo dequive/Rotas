@@ -53,11 +53,14 @@ def test_trip_without_delivery_proof_is_not_billable() -> None:
     )
 
     assert billing_status_for_delivery(candidate.delivered_at) == BILLING_PENDING_DELIVERY
-    assert belongs_to_billing_period(
-        candidate,
-        dt("2026-05-01T00:00:00"),
-        dt("2026-06-01T00:00:00"),
-    ) is False
+    assert (
+        belongs_to_billing_period(
+            candidate,
+            dt("2026-05-01T00:00:00"),
+            dt("2026-06-01T00:00:00"),
+        )
+        is False
+    )
 
 
 def test_trip_with_delivery_proof_is_billable() -> None:

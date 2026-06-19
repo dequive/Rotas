@@ -97,7 +97,7 @@ async def test_driver_not_accessible_from_other_tenant():
 
 async def test_trip_not_accessible_from_other_tenant():
     """D-21: Trip data must be invisible to other tenants."""
-    tenant_a = await create_tenant()
+    await create_tenant()
     tenant_b = await create_tenant()
 
     async with await create_api_client() as client:

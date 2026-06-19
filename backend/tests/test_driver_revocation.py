@@ -10,13 +10,12 @@ Test RED criteria:
   auth.py raises ApiError("driver_inactive", ...) not ApiError("driver_access_revoked", ...)
 - test_active_driver_device_succeeds PASSES (sanity check)
 """
-from datetime import UTC, datetime, timedelta
+
 from uuid import uuid4
 
 import httpx
 import pytest
 
-from app.config import get_settings
 from app.core.tokens import create_access_token
 from app.database import AsyncSessionLocal, engine, import_all_models
 from app.main import app

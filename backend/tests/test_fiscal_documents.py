@@ -3,20 +3,20 @@
 Requirements: FDOC-01, FDOC-02, FDOC-03, FDOC-04, FDOC-05
 All tests require a live PostgreSQL DB.
 """
+
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
 import pytest
 
-from app.modules.billing.models import BillingDocument, BillingItem
 from app.modules.billing import service as billing_service
+from app.modules.billing.models import BillingDocument, BillingItem
 from app.modules.billing.schemas import IssueBillingDocumentRequest
 from app.modules.contracts.models import Contract
 from app.modules.drivers.models import Driver
 from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -114,7 +114,9 @@ async def _make_issued_doc(db, tenant_id):
     vehicle = await _make_vehicle(db, tenant_id)
     driver = await _make_driver(db, tenant_id)
     doc = await _make_draft_doc(db, tenant_id, contract, vehicle, driver)
-    result = await billing_service.issue_document(db, tenant_id, doc.id, IssueBillingDocumentRequest())
+    result = await billing_service.issue_document(
+        db, tenant_id, doc.id, IssueBillingDocumentRequest()
+    )
     await db.flush()
     return result
 
@@ -128,8 +130,8 @@ async def _make_issued_doc(db, tenant_id):
 async def test_billing_document_has_document_type_column(db, tenant_id):
     """BillingDocument ORM model exposes document_type, parent_document_id, due_date, client_nuit."""
     contract = await _make_contract(db, tenant_id)
-    vehicle = await _make_vehicle(db, tenant_id)
-    driver = await _make_driver(db, tenant_id)
+    await _make_vehicle(db, tenant_id)
+    await _make_driver(db, tenant_id)
 
     now = datetime.now(UTC)
     doc = BillingDocument(
@@ -158,8 +160,8 @@ async def test_billing_document_has_document_type_column(db, tenant_id):
 async def test_billing_document_type_defaults_to_invoice(db, tenant_id):
     """BillingDocument created without document_type defaults to 'invoice'."""
     contract = await _make_contract(db, tenant_id)
-    vehicle = await _make_vehicle(db, tenant_id)
-    driver = await _make_driver(db, tenant_id)
+    await _make_vehicle(db, tenant_id)
+    await _make_driver(db, tenant_id)
 
     now = datetime.now(UTC)
     doc = BillingDocument(
@@ -222,8 +224,15 @@ async def test_debit_note_parent_must_be_issued(db, tenant_id):
         )
 
     exc = exc_info.value
-    status = getattr(exc, "status_code", None) or getattr(getattr(exc, "detail", {}), "get", lambda k, d: d)("status_code", None)
-    assert status == 409 or "status" in str(exc).lower() or "draft" in str(exc).lower() or "issued" in str(exc).lower()
+    status = getattr(exc, "status_code", None) or getattr(
+        getattr(exc, "detail", {}), "get", lambda k, d: d
+    )("status_code", None)
+    assert (
+        status == 409
+        or "status" in str(exc).lower()
+        or "draft" in str(exc).lower()
+        or "issued" in str(exc).lower()
+    )
 
 
 @pytest.mark.asyncio
@@ -278,10 +287,18 @@ async def test_credit_note_gets_sequential_invoice_number(db, tenant_id):
     p2 = await _make_issued_doc(db, tenant_id)
 
     n1 = await billing_service.create_credit_note(
-        db, tenant_id=tenant_id, parent_id=p1["id"], amount=Decimal("100.00"), reason="Crédito teste 1 FDOC-03"
+        db,
+        tenant_id=tenant_id,
+        parent_id=p1["id"],
+        amount=Decimal("100.00"),
+        reason="Crédito teste 1 FDOC-03",
     )
     n2 = await billing_service.create_credit_note(
-        db, tenant_id=tenant_id, parent_id=p2["id"], amount=Decimal("100.00"), reason="Crédito teste 2 FDOC-03"
+        db,
+        tenant_id=tenant_id,
+        parent_id=p2["id"],
+        amount=Decimal("100.00"),
+        reason="Crédito teste 2 FDOC-03",
     )
 
     assert n1["invoice_number"] is not None
@@ -297,7 +314,6 @@ async def test_credit_note_gets_sequential_invoice_number(db, tenant_id):
 @pytest.mark.asyncio
 async def test_invoice_receipt_transitions_parent_to_paid(db, tenant_id):
     """create_invoice_receipt creates invoice_receipt and sets parent status='paid'."""
-    from sqlalchemy import select
 
     parent_data = await _make_issued_doc(db, tenant_id)
     parent_id = parent_data["id"]

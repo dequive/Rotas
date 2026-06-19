@@ -3,28 +3,25 @@
 Requirements: FISC-01, FISC-02, FISC-03, LOAD-01, LOAD-02
 All tests require a live PostgreSQL DB (DATABASE_URL env var must point to a real DB).
 """
+
 import asyncio
 import re
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from io import BytesIO
 from uuid import uuid4
 
 import pytest
-from openpyxl import load_workbook
 from sqlalchemy import select
-from unittest.mock import AsyncMock
 
 from app.database import AsyncSessionLocal
-from app.modules.billing.models import BillingDocument, BillingItem, ExportJob
 from app.modules.billing import service as billing_service
+from app.modules.billing.models import BillingDocument, BillingItem, ExportJob
 from app.modules.billing.schemas import IssueBillingDocumentRequest
 from app.modules.contracts.models import Contract
 from app.modules.drivers.models import Driver
 from app.modules.tenants.models import Tenant
 from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
-
 
 # ---------------------------------------------------------------------------
 # Internal setup helpers
@@ -268,8 +265,8 @@ def test_iva_mixed_rates():
     """FISC-02: Mixed IVA rates produce correct per-item amounts and document tax total."""
     items = [
         (Decimal("1000.00"), Decimal("0.1700")),  # iva_amount = 170.00
-        (Decimal("500.00"), Decimal("0.0500")),   # iva_amount = 25.00
-        (Decimal("200.00"), Decimal("0.0000")),   # iva_amount = 0.00
+        (Decimal("500.00"), Decimal("0.0500")),  # iva_amount = 25.00
+        (Decimal("200.00"), Decimal("0.0000")),  # iva_amount = 0.00
     ]
     iva_amounts = [(amount * rate).quantize(Decimal("0.01")) for amount, rate in items]
     assert iva_amounts[0] == Decimal("170.00")
@@ -454,9 +451,7 @@ async def test_payload_exceeded_start_trip(db, tenant_id, async_client, auth_hea
     # Create vehicle without payload limit first, then set it after trip is created
     vehicle = await _make_vehicle(db, tenant_id, max_payload_kg=None)
     driver = await _make_driver(db, tenant_id)
-    trip = await _make_trip(
-        db, tenant_id, vehicle.id, driver.id, cargo_weight=Decimal("5001.00")
-    )
+    trip = await _make_trip(db, tenant_id, vehicle.id, driver.id, cargo_weight=Decimal("5001.00"))
     # Now set the limit — simulates a later vehicle spec update
     vehicle.max_payload_kg = Decimal("5000.00")
     await db.commit()
@@ -480,9 +475,7 @@ async def test_hazmat_load_permit_missing_class(db, tenant_id, async_client, aut
     """LOAD-02: Hazmat trip without hazmat_class raises 422 on Load Permit creation."""
     vehicle = await _make_vehicle(db, tenant_id)
     driver = await _make_driver(db, tenant_id)
-    trip = await _make_trip(
-        db, tenant_id, vehicle.id, driver.id, is_hazmat=True, hazmat_class=None
-    )
+    trip = await _make_trip(db, tenant_id, vehicle.id, driver.id, is_hazmat=True, hazmat_class=None)
     await db.commit()
 
     response = await async_client.post(

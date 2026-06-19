@@ -3,9 +3,11 @@
 Score formula: 40% delivery proof rate + 25% sync discipline + 20% distance + 15% stop efficiency.
 Rolling 30-day window. Score 0-100. Manager only.
 """
+
+from uuid import uuid4
+
 import httpx
 import pytest
-from uuid import uuid4
 
 from app.database import AsyncSessionLocal, engine, import_all_models
 from app.main import app

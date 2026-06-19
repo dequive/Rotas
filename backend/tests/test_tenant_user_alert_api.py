@@ -104,12 +104,18 @@ async def test_tenant_me_and_user_management_are_tenant_scoped() -> None:
         assert policy_response.json()["compliance_policy"]["trip_required_stops_by_cargo_type"][
             "Carga contratual"
         ] == ["weighbridge", "checkpoint"]
-        assert policy_response.json()["compliance_policy"]["driver_travel_allowance_policy"][
-            "table_reference"
-        ] == "TD-CENTRO-2026"
-        assert policy_response.json()["compliance_policy"]["driver_travel_allowance_policy"][
-            "tiers"
-        ][0]["amount"] == 750
+        assert (
+            policy_response.json()["compliance_policy"]["driver_travel_allowance_policy"][
+                "table_reference"
+            ]
+            == "TD-CENTRO-2026"
+        )
+        assert (
+            policy_response.json()["compliance_policy"]["driver_travel_allowance_policy"]["tiers"][
+                0
+            ]["amount"]
+            == 750
+        )
 
         invalid_policy_response = await client.patch(
             "/api/v1/tenants/me",
@@ -145,8 +151,7 @@ async def test_tenant_me_and_user_management_are_tenant_scoped() -> None:
         )
         assert invalid_allowance_table_response.status_code == 422
         assert (
-            invalid_allowance_table_response.json()["error"]["code"]
-            == "invalid_compliance_policy"
+            invalid_allowance_table_response.json()["error"]["code"] == "invalid_compliance_policy"
         )
 
         manual_despacho_table = await client.put(

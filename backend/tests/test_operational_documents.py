@@ -3,6 +3,7 @@
 Requirements: OPDOC-01, OPDOC-02, OPDOC-03, OPDOC-04, OPDOC-05
 All tests require a live PostgreSQL DB.
 """
+
 from uuid import uuid4
 
 import pytest
@@ -11,7 +12,6 @@ from app.modules.cargo.models import TransportDocument
 from app.modules.drivers.models import Driver
 from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -60,7 +60,9 @@ async def _make_trip(db, tenant_id, is_hazmat: bool = False, is_international: b
     return t
 
 
-async def _make_committed_trip(db, tenant_id, is_hazmat: bool = False, is_international: bool = False):
+async def _make_committed_trip(
+    db, tenant_id, is_hazmat: bool = False, is_international: bool = False
+):
     trip = await _make_trip(db, tenant_id, is_hazmat=is_hazmat, is_international=is_international)
     await db.commit()
     await db.refresh(trip)

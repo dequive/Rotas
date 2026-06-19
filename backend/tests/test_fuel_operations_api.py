@@ -143,10 +143,7 @@ async def test_fuel_operations_receipt_refuel_and_stock_count_flow() -> None:
                 },
             )
             assert duplicate_receipt.status_code == 409
-            assert (
-                duplicate_receipt.json()["error"]["code"]
-                == "fuel_receipt_delivery_note_exists"
-            )
+            assert duplicate_receipt.json()["error"]["code"] == "fuel_receipt_delivery_note_exists"
 
             trip = await client.post(
                 "/api/v1/trips",
@@ -257,9 +254,7 @@ async def test_fuel_operations_receipt_refuel_and_stock_count_flow() -> None:
         async with AsyncSessionLocal() as db:
             audit_actions = set(
                 (
-                    await db.execute(
-                        select(AuditLog.action).where(AuditLog.tenant_id == tenant_id)
-                    )
+                    await db.execute(select(AuditLog.action).where(AuditLog.tenant_id == tenant_id))
                 ).scalars()
             )
             assert "fuel_movement.recorded" in audit_actions

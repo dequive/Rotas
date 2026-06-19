@@ -57,7 +57,11 @@ async def seed_entities():
         return tenant.id, vehicle.id, driver.id
 
 
-async def seed_spare_part(tenant_id: uuid.UUID, current_qty: Decimal = Decimal("10.00"), min_qty: Decimal = Decimal("2.00")) -> str:
+async def seed_spare_part(
+    tenant_id: uuid.UUID,
+    current_qty: Decimal = Decimal("10.00"),
+    min_qty: Decimal = Decimal("2.00"),
+) -> str:
     """Insert a SparePartInventory directly in DB and return part ID as string."""
     async with AsyncSessionLocal() as db:
         part = SparePartInventory(

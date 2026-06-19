@@ -55,11 +55,7 @@ async def test_public_onboarding_creates_trial_tenant_owner_and_tokens(async_cli
         assert notification.recipient == owner.email
         assert payload["verification_url"] in notification.body_text
         actions = set(
-            (
-                await db.scalars(
-                    select(AuditLog.action).where(AuditLog.tenant_id == tenant.id)
-                )
-            ).all()
+            (await db.scalars(select(AuditLog.action).where(AuditLog.tenant_id == tenant.id))).all()
         )
         assert {"tenant.self_registered", "user.owner_created"}.issubset(actions)
 

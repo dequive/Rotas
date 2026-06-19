@@ -8,18 +8,17 @@ These tests are intentionally RED against the current codebase:
 - SyncOperation schema has no client_timestamp field
 - bootstrap returns ["create"] only, not ["create", "update"]
 """
+
 from datetime import UTC, datetime
 from uuid import uuid4
 
 import httpx
 import pytest
 
-from app.core.passwords import hash_password
 from app.database import AsyncSessionLocal, engine, import_all_models
 from app.main import app
-from app.modules.drivers.models import Driver, DriverDevice
+from app.modules.drivers.models import Driver
 from app.modules.tenants.models import Tenant
-from app.modules.users.models import User
 from app.modules.vehicles.models import Vehicle
 
 import_all_models()

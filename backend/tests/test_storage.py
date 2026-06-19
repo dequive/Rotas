@@ -1,4 +1,5 @@
 """Tests for INFRA-02: storage.py dual-provider (LOCAL and R2)."""
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.storage import StorageProvider, generate_presigned_url, upload_file
@@ -26,6 +27,22 @@ async def test_local_upload_writes_to_disk(tmp_path, monkeypatch):
     written = tmp_path / relative
     assert written.exists()
     assert written.read_bytes() == content
+
+
+async def test_local_upload_rejects_path_traversal(tmp_path, monkeypatch):
+    from app import storage as storage_mod
+
+    settings_mock = MagicMock()
+    settings_mock.storage_provider = "local"
+    settings_mock.local_upload_dir = str(tmp_path)
+    monkeypatch.setattr(storage_mod, "get_settings", lambda: settings_mock)
+
+    try:
+        await upload_file("tenant-id/../escape.pdf", b"bad", mime_type="application/pdf")
+    except ValueError as exc:
+        assert "outside local_upload_dir" in str(exc)
+    else:
+        raise AssertionError("Expected path traversal storage_key to be rejected")
 
 
 async def test_r2_upload_calls_put_object(monkeypatch):

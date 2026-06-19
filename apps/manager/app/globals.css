@@ -190,14 +190,6 @@
   padding: 24px;
 }
 
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
 .title h1 {
   margin: 0 0 4px;
   font-size: 26px;
@@ -1038,12 +1030,6 @@
   overflow-wrap: anywhere;
 }
 
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 /* .worklist-item kept — still used in TransportCargoBoard.tsx */
 .worklist-item {
   display: grid;
@@ -1233,30 +1219,6 @@
 .queue-icon.green {
   background: #e7f6ee;
   color: var(--green);
-}
-
-.queue-list {
-  display: grid;
-  gap: 8px;
-}
-
-.queue-item {
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 8px;
-  display: grid;
-  gap: 3px;
-}
-
-.queue-item strong,
-.queue-item span,
-.queue-item small {
-  overflow-wrap: anywhere;
-}
-
-.queue-item span,
-.queue-item small {
-  color: var(--muted);
 }
 
 .content {
@@ -2301,11 +2263,6 @@
     overflow-x: hidden;
   }
 
-  .topbar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
   .operation-date {
     padding-left: 10px;
   }
@@ -2332,10 +2289,6 @@
     align-items: flex-start;
     display: flex;
     width: 100%;
-  }
-
-  .toolbar {
-    justify-content: flex-start;
   }
 
   .fleet-renew-form {

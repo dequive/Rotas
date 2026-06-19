@@ -8,7 +8,7 @@ _Last updated: 2026-06-06_
 - [x] **CLI-01**: Gestor pode criar, editar e desactivar um cliente com NUIT, nome comercial, morada, cidade, telefone e email — dentro do contexto do seu tenant
 - [x] **CLI-02**: Cliente tem prazo de pagamento padrão configurável (30/45/60/90 dias) e limite de crédito com aviso visual quando o saldo em aberto o ultrapassa
 - [x] **CLI-03**: Sistema migra os registos `client_name` existentes em Contratos e Faturas para referências `client_id` sem perda de dados históricos — `client_name` mantido como cache desnormalizado
-- [ ] **CLI-04**: Contrato referencia `client_id`; gestor selecciona cliente ao criar ou editar um contrato
+- [x] **CLI-04**: Contrato referencia `client_id`; gestor selecciona cliente ao criar ou editar um contrato
 - [ ] **CLI-05**: Faturas emitidas têm número sequencial por tenant sem gaps (formato `AAAA/NNNN`) gerado por PostgreSQL SEQUENCE
 
 ### Pagamentos (PAY)
@@ -239,7 +239,7 @@ _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de
 | CLI-01 | Phase 5 | Complete |
 | CLI-02 | Phase 5 | Complete |
 | CLI-03 | Phase 5 | Complete |
-| CLI-04 | Phase 5 | Pending |
+| CLI-04 | Phase 5 | Complete |
 | CLI-05 | Phase 5 | Pending |
 | PAY-01 | Phase 6 | Pending |
 | PAY-02 | Phase 6 | Pending |

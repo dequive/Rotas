@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 13.5-05-PLAN.md
-last_updated: "2026-06-19T03:43:27.776Z"
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-06-19T04:02:20.907Z"
 last_activity: 2026-06-19
 progress:
   total_phases: 13
   completed_phases: 6
   total_plans: 59
-  completed_plans: 56
+  completed_plans: 57
 ---
 
 # ROTAS — Project State
@@ -22,10 +22,10 @@ _Last updated: 2026-06-06_
 ## Current Phase
 
 Phase: 05 (CLI — Client Registry + Migration Foundation)
-Plan: 03 complete (3/5)
-Status: 05-03 complete 2026-06-19 — /clientes list page, /clientes/[id] detail page, ClientFormModal (9 fields), Clientes in sidebar nav; next build passes with 0 errors
+Plan: 04 complete (4/5)
+Status: 05-04 complete 2026-06-19 — ClientCombobox (Radix Popover, no cmdk), ContractFormModal client_id combobox, backend ContractCreate client_id resolution, 5 tests passing; next build passes with 0 errors
 Last activity: 2026-06-19
-Stopped at: Completed 13.5-05-PLAN.md
+Stopped at: Completed 05-04-PLAN.md
 
 ### Completed v3.0 Phases
 
@@ -107,6 +107,8 @@ Phase 21 (Frontend E2E)  — new; E2E tests for stability
 | _get_outstanding_balance returns Decimal('0.00') in Plan 01 — client_id FK on billing_documents not yet added | 5-01 | Plan 02 migration (b) adds FK; outstanding_balance_estimate flag signals interim state to API consumers |
 | Plan 02 migration revision IDs: e5f6a7b8c9d0 (b), f6a7b8c9d0e1 (c), a7b8c9d0e1f2 (d) | 5-02 | Plan-specified b2c3d4e5f6a7 and d4e5f6a7b8c9 were taken by existing migrations; down_revision = 22fbf8416463 (merge head, not plan-specified a1b2c3d4e5f6) |
 | outstanding_balance_estimate flag removed in Plan 02 — _get_outstanding_balance now queries BillingDocument.client_id | 5-02 | FK live after migration e5f6a7b8c9d0; real sum(total_amount WHERE status='issued') query active |
+| Radix Popover + native input for ClientCombobox — cmdk not installed in manager app | 5-04 | cmdk/Command not in package.json; native implementation satisfies all UI-SPEC combobox behavior requirements |
+| GET /api/clients proxy route added to Next.js app — client components cannot read httpOnly cookies | 5-04 | httpOnly cookies require server-side access; Next.js route handler reads cookies and forwards auth headers to backend |
 | RLS policy created in the CREATE TABLE migration — not a follow-up patch | 5, 8-12 | PITFALL-06: new tables not covered by existing RLS migration; must be explicit per table |
 | due_date added in Phase 5 migration (b) alongside client_id — not in Phase 7 | 5 | PITFALL-04: aging needs stored due_date from day one; adding later requires second backfill of all issued documents |
 | payment_allocations junction table created in Phase 6 — not deferred to Phase 7 | 6 | PITFALL-05: retrofitting allocation table after payment rows exist is high-risk schema migration |

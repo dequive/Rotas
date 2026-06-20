@@ -97,6 +97,7 @@ metrics:
 | 47f43aa | feat(24-05): TP2-11 OperationalDocumentsList, DocumentUploadModal, API route |
 | 165f3f3 | feat(24-05): TP2-11 wire Documentos tab in /terceiros/[id] |
 | a12ee1e | feat(24-05): TP2-12 vehicle and driver detail pages with assignments |
+| bcaa160 | feat(24-05): add driver detail links to motoristas list + vehicle detail links to viaturas list |
 
 ---
 
@@ -138,6 +139,10 @@ None. All data is fetched from live backend endpoints (Phase 23 API). No hardcod
 - `apps/manager/app/api/operational-documents/route.ts` — FOUND
 - `apps/manager/app/viaturas/[id]/page.tsx` — FOUND
 - `apps/manager/app/motoristas/[id]/page.tsx` — FOUND
+- `apps/manager/app/motoristas/page.tsx` — FOUND (Link to /motoristas/[id] added)
+- `apps/manager/app/viaturas/page.tsx` — FOUND ("Ver Detalhe" link to /viaturas/[id] added)
 - Commit `47f43aa` — FOUND
 - Commit `165f3f3` — FOUND
 - Commit `a12ee1e` — FOUND
+- Commit `bcaa160` — FOUND
+- TypeScript: 0 errors (`npx tsc --noEmit` passes)

@@ -1025,6 +1025,19 @@ async def create_evaluation(
     await _require_third_party(db, tenant_id, third_party_id)
     if not payload.criteria:
         raise ApiError("empty_criteria", "Critérios de avaliação não podem estar vazios", 422)
+    for c in payload.criteria:
+        if not (0 < c["weight"] <= 1):
+            raise ApiError(
+                "invalid_criterion_weight",
+                f"Peso do critério '{c['name']}' deve estar em (0, 1]: recebido {c['weight']}",
+                422,
+            )
+        if not (0 <= c["score"] <= 10):
+            raise ApiError(
+                "invalid_criterion_score",
+                f"Score do critério '{c['name']}' deve estar em [0, 10]: recebido {c['score']}",
+                422,
+            )
     total_weight = sum(c["weight"] for c in payload.criteria)
     if abs(total_weight - 1.0) > 0.01:
         raise ApiError(

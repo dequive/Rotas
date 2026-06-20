@@ -13,6 +13,7 @@ from app.core.rbac import ADMIN_USERS, require_own_tenant_or_platform, require_p
 from app.database import AsyncSessionLocal, set_rls_tenant
 from app.modules.tenants import schemas, service
 from app.modules.tenants.models import Tenant
+from app.modules.tenants.schemas import TenantDocumentProfileUpdate
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
 
@@ -134,6 +135,27 @@ async def put_my_driver_despacho_table(
     finally:
         if principal.scope != "platform":
             set_rls_tenant(None)
+
+
+@router.get("/me/document-profile")
+async def get_my_document_profile(
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> dict:
+    result = await service.get_document_profile(db, principal.tenant_id)
+    return result or {}
+
+
+@router.put("/me/document-profile")
+async def put_my_document_profile(
+    payload: TenantDocumentProfileUpdate,
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> dict:
+    data = payload.model_dump(exclude_unset=True)
+    return await service.upsert_document_profile(
+        db, principal.tenant_id, data, actor_id=principal.user_id
+    )
 
 
 @router.get("/me/limits")

@@ -1,11 +1,12 @@
 from uuid import UUID
 
 from fastapi import status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
 from app.modules.audit.service import record_audit_log
-from app.modules.tenants.models import Tenant
+from app.modules.tenants.models import Tenant, TenantDocumentProfile
 from app.modules.tenants.schemas import DriverDespachoTableUpdate, TenantPatch
 
 DRIVER_DESPACHO_TABLE_KEY = "driver_travel_allowance_policy"
@@ -140,6 +141,62 @@ async def put_driver_despacho_table(
         "configured": True,
         "table": tenant.compliance_policy[DRIVER_DESPACHO_TABLE_KEY],
     }
+
+
+def _serialize_document_profile(p: TenantDocumentProfile) -> dict:
+    return {
+        "id": p.id,
+        "tenant_id": p.tenant_id,
+        "logo_file_id": p.logo_file_id,
+        "legal_name": p.legal_name,
+        "address_line1": p.address_line1,
+        "address_line2": p.address_line2,
+        "city": p.city,
+        "province": p.province,
+        "country": p.country,
+        "phone": p.phone,
+        "email": p.email,
+        "website": p.website,
+        "bank_name": p.bank_name,
+        "bank_account": p.bank_account,
+        "bank_nib": p.bank_nib,
+        "invoice_prefix": p.invoice_prefix,
+        "invoice_seq_padding": p.invoice_seq_padding,
+        "invoice_start_seq": p.invoice_start_seq,
+        "per_type_sequences": p.per_type_sequences,
+        "payment_conditions": p.payment_conditions,
+        "invoice_footer": p.invoice_footer,
+        "show_bank_details": p.show_bank_details,
+        "show_logo": p.show_logo,
+        "created_at": p.created_at,
+        "updated_at": p.updated_at,
+    }
+
+
+async def get_document_profile(db: AsyncSession, tenant_id: UUID) -> dict | None:
+    profile = await db.scalar(
+        select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == tenant_id)
+    )
+    return _serialize_document_profile(profile) if profile else None
+
+
+async def upsert_document_profile(
+    db: AsyncSession, tenant_id: UUID, data: dict, *, actor_id: UUID | None = None
+) -> dict:
+    profile = await db.scalar(
+        select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == tenant_id)
+    )
+    if profile is None:
+        profile = TenantDocumentProfile(tenant_id=tenant_id)
+        db.add(profile)
+    for field, value in data.items():
+        if value is not None or field in data:
+            setattr(profile, field, value)
+    await db.flush()
+    await db.refresh(profile)
+    await db.commit()
+    await db.refresh(profile)
+    return _serialize_document_profile(profile)
 
 
 async def _require_active_tenant(db: AsyncSession, tenant_id: UUID) -> Tenant:

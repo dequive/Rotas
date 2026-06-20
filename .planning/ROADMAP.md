@@ -676,6 +676,7 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
  (completed 2026-06-20)
 - [x] **Phase 23: Third Party Registry** — Fornecedores e prestadores externos como entidades estruturadas; elegibilidade operacional de motoristas calculada em tempo real; atribuição motorista-viatura com histórico temporal; documentos com validade rastreada (completed 2026-06-20)
 - [x] **Phase 24: Third Party Completion** — UI /terceiros no manager, supplier/service-provider pickers em abastecimentos e ordens de trabalho, sub-contactos, conta corrente de fornecedor, pagamentos a fornecedores, avaliação/scoring, idempotency keys, seed de províncias (completed 2026-06-20)
+- [x] **Phase 25: Platform/Tenant Scope Separation** — Separação estrutural entre plano de plataforma (ROTAS) e plano de tenant: `scope="platform"|"tenant"` no JWT, `PlatformUser` model separado, `require_platform_role()` com validação de scope antes de role, 8 endpoints de gestão de plataforma, auditoria de todas as acções platform, 3 roles de plataforma (`platform_admin`, `platform_support`, `platform_billing`) (completed 2026-06-20)
 
 ---
 
@@ -1107,9 +1108,10 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 13. Frontend Completeness | 0/TBD | Not started | - |
-| 14. Domain State Machines | 0/TBD | Not started | - |
-| 15. Fiscal Compliance + Segurança de Carga | 0/TBD | Not started | - |
+| 13. Frontend Completeness | 0/3 | In Progress | - |
+| 14. Domain State Machines | 2/2 | Complete | 2026-06-19 |
+| 15. Fiscal Compliance + Segurança de Carga | 6/6 | Complete | 2026-06-19 |
+| 15.1. Documentos Fiscais Completos | 9/9 | Complete | 2026-06-19 |
 | 16. Hours of Service + Availability Router | 0/TBD | Not started | - |
 | 17. Infrastructure Enterprise v2 | 2/2 | Complete    | 2026-06-19 |
 | 18. Analytics Avançado + Gestão de Seguros | 0/TBD | Not started | - |

@@ -191,7 +191,7 @@ EXPECTED_RLS_TABLES = sorted(
 # 63 tables: base RLS set + export_jobs + self-service token/outbox tables
 #            + Phase 5 clients/client_payments/payment_allocations
 #            + Phase 23 third party registry (6 tables)
-#            + Phase 23 Plan 09: supplier_evaluations, supplier_ledger_entries, third_party_contacts.
+#            + Phase 23 Plan 09: supplier_evaluations, supplier_ledger_entries, third_party_contacts
 
 INTENTIONALLY_EXCLUDED = {
     "files",

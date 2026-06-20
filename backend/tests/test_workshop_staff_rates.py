@@ -288,11 +288,11 @@ async def test_labor_cost_increments_on_complete() -> None:
 
 @pytest.mark.asyncio
 async def test_mechanic_cannot_access_billing() -> None:
-    """mechanic role is in DASHBOARD_ROLES (can read billing) but blocked from billing mutations.
+    """mechanic role has no billing.read or billing.write permission.
 
-    DASHBOARD_ROLES = {owner, admin, manager, viewer, mechanic} — mechanic CAN read billing GET.
-    WRITE_ROLES = {owner, admin, manager} — mechanic CANNOT create billing documents (POST -> 403).
-    This test verifies: mechanic GET billing/documents=200, POST billing/documents=403.
+    The new permission-based RBAC (rbac.py) deliberately excludes mechanics from
+    all billing access — they only hold fleet/drivers/trips/fuel/workshop permissions.
+    This test verifies: mechanic GET billing/documents=403, POST billing/documents=403.
     """
     try:
         tenant_id, vehicle_id, driver_id = await seed_entities()
@@ -300,16 +300,16 @@ async def test_mechanic_cannot_access_billing() -> None:
         mechanic_headers = jwt_headers_for_user(tenant_id, user_id, role="mechanic")
 
         async with await create_api_client() as client:
-            # mechanic is in DASHBOARD_ROLES — GET billing is allowed (200)
+            # mechanic has no billing.read — GET billing is forbidden (403)
             billing_get_resp = await client.get(
                 "/api/v1/billing/documents", headers=mechanic_headers
             )
-            assert billing_get_resp.status_code == 200, (
-                f"Expected 200 for mechanic reading billing documents,"
+            assert billing_get_resp.status_code == 403, (
+                f"Expected 403 for mechanic reading billing documents,"
                 f" got {billing_get_resp.status_code}"
             )
 
-            # mechanic is NOT in WRITE_ROLES — POST billing is blocked (403)
+            # mechanic has no billing.write either — POST billing is also forbidden (403)
             billing_post_resp = await client.post(
                 "/api/v1/billing/documents",
                 headers=mechanic_headers,

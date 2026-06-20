@@ -262,7 +262,9 @@ async def test_offline_sync_batch_idempotent_replay():
 
     assert first_result["status"] == "processed"
     assert replay_result["status"] == "processed"
-    assert replay_result["server_id"] == first_result["server_id"], "Replay must return same server_id"
+    assert replay_result["server_id"] == first_result["server_id"], (
+        "Replay must return same server_id"
+    )
     assert replay_result["message"] == "idempotent_replay"
 
 

@@ -239,12 +239,26 @@ class ContactCreate(BaseModel):
 # ── Payments ──────────────────────────────────────────────────────────────────
 
 
+VALID_CURRENCIES = {"MZN", "USD", "ZAR", "EUR"}
+
+
 class PaymentCreate(BaseModel):
     amount: Decimal
+    currency: str = "MZN"
     payment_date: date | None = None
     description: str | None = None
     fuel_purchase_id: UUID | None = None
     work_order_id: UUID | None = None
+
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    def model_post_init(self, __context: object) -> None:
+        if self.currency not in VALID_CURRENCIES:
+            raise ValueError(
+                f"currency must be one of {sorted(VALID_CURRENCIES)}, got '{self.currency}'"
+            )
 
 
 # ── Evaluations ───────────────────────────────────────────────────────────────

@@ -890,9 +890,10 @@ async def get_supplier_account(
     third_party_id: UUID,
 ) -> dict:
     await _require_third_party(db, tenant_id, third_party_id)
-    # Balance = sum(credits) - sum(debits) — NEVER denormalised, always computed
-    agg = await db.execute(
+    # Group by currency so MZN + USD amounts are never summed together
+    agg_result = await db.execute(
         select(
+            SupplierLedgerEntry.currency,
             func.coalesce(
                 func.sum(SupplierLedgerEntry.amount).filter(
                     SupplierLedgerEntry.entry_type == "credit"
@@ -905,15 +906,27 @@ async def get_supplier_account(
                 ),
                 Decimal("0.00"),
             ).label("total_debits"),
-        ).where(
+        )
+        .where(
             SupplierLedgerEntry.tenant_id == tenant_id,
             SupplierLedgerEntry.third_party_id == third_party_id,
         )
+        .group_by(SupplierLedgerEntry.currency)
     )
-    row = agg.one()
-    total_credits = row.total_credits
-    total_debits = row.total_debits
-    balance = total_credits - total_debits
+    rows = agg_result.fetchall()
+
+    balances: dict[str, dict] = {}
+    for row in rows:
+        credits = row.total_credits
+        debits = row.total_debits
+        balances[row.currency] = {
+            "total_credits": str(credits),
+            "total_debits": str(debits),
+            "balance": str(credits - debits),
+        }
+
+    # Backward-compatible scalar summary (MZN only, or zero when no entries)
+    mzn = balances.get("MZN", {"total_credits": "0.00", "total_debits": "0.00", "balance": "0.00"})
 
     entries_result = await db.execute(
         select(SupplierLedgerEntry)
@@ -930,9 +943,11 @@ async def get_supplier_account(
     entries = [serialize_ledger_entry(e) for e in entries_result.scalars().all()]
     return {
         "third_party_id": str(third_party_id),
-        "total_debits": str(total_debits),
-        "total_credits": str(total_credits),
-        "balance": str(balance),
+        # Legacy scalar fields use MZN totals for backward compat
+        "total_debits": mzn["total_debits"],
+        "total_credits": mzn["total_credits"],
+        "balance": mzn["balance"],
+        "balances": balances,
         "entries": entries,
     }
 
@@ -960,6 +975,7 @@ async def create_payment(
         third_party_id=third_party_id,
         entry_type="credit",
         amount=payload.amount,
+        currency=payload.currency,
         source_type=source_type,
         source_id=source_id,
         description=payload.description,
@@ -987,6 +1003,7 @@ def serialize_ledger_entry(e: SupplierLedgerEntry) -> dict:
         "third_party_id": str(e.third_party_id),
         "entry_type": e.entry_type,
         "amount": str(e.amount),
+        "currency": e.currency,
         "source_type": e.source_type,
         "source_id": str(e.source_id) if e.source_id else None,
         "description": e.description,

@@ -309,6 +309,7 @@ class SupplierLedgerEntry(Base):
     )
     entry_type: Mapped[str] = mapped_column(String(10), nullable=False)  # 'debit' | 'credit'
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="MZN")
     source_type: Mapped[str] = mapped_column(String(40), nullable=False)
     # source_type values: manual_payment | fuel_purchase | work_order | invoice | adjustment
     source_id: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)

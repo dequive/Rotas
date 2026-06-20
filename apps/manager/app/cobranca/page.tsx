@@ -20,6 +20,7 @@ import { MonoCell, MoneyCell } from "@/app/components/ui/MonoCell";
 import { DataSourceBadge } from "@/app/components/ui/DataSourceBadge";
 import { BillingTripActions } from "@/app/components/BillingTripActions";
 import { PaymentModal } from "@/app/components/PaymentModal";
+import { IssueDocumentButton } from "@/app/cobranca/IssueDocumentButton";
 import {
   type BillingStatus,
   getApiConfig,
@@ -122,15 +123,17 @@ export default async function CobrancaPage() {
           />
           <div className="flex items-center gap-2">
             <button
-              className="inline-flex items-center gap-1.5 h-9 px-4 text-[13px] font-semibold bg-primary text-primary-foreground border-0 rounded-md hover:opacity-90 transition-opacity duration-75"
-              title="Gerar documento de cobrança"
+              disabled
+              className="inline-flex items-center gap-1.5 h-9 px-4 text-[13px] font-semibold bg-primary text-primary-foreground border-0 rounded-md opacity-50 cursor-not-allowed"
+              title="Selecione viagens prontas a cobrar para gerar um documento de cobrança"
             >
               <ReceiptText size={15} />
-              Gerar Fatura
+              Gerar Documento
             </button>
             <button
               className="inline-flex items-center justify-center h-9 w-9 bg-surface border border-border rounded-md hover:bg-surface-2 transition-colors duration-75"
-              title="Exportar Relatório em PDF"
+              title="Exportar Relatório — a preparar download, disponível em breve"
+              aria-label="Exportar Relatório em PDF"
             >
               <FileText size={15} />
             </button>
@@ -296,20 +299,24 @@ export default async function CobrancaPage() {
                     <dd><MoneyCell value={document.amount ?? 0} semantic="revenue" /></dd>
                   </div>
                 </dl>
-                {document.status === "Emitido" && document.clientId && (
-                  <PaymentModal
-                    clientId={document.clientId}
-                    clientName={document.client}
-                    invoiceId={document.id}
-                    invoiceNumber={document.invoiceNumber}
-                    invoiceTotal={document.amount != null ? String(document.amount) : null}
-                    trigger={
-                      <button className="text-xs font-semibold text-amber-600 hover:text-amber-700 border border-amber-200 rounded px-2 py-1 whitespace-nowrap">
-                        Registar Pagamento
-                      </button>
-                    }
-                  />
-                )}
+                <div className="flex-shrink-0">
+                  {document.status === "Emitido" && document.clientId ? (
+                    <PaymentModal
+                      clientId={document.clientId}
+                      clientName={document.client}
+                      invoiceId={document.id}
+                      invoiceNumber={document.invoiceNumber}
+                      invoiceTotal={document.amount != null ? String(document.amount) : null}
+                      trigger={
+                        <button className="text-xs font-semibold text-amber-600 hover:text-amber-700 border border-amber-200 rounded px-2 py-1 whitespace-nowrap">
+                          Registar Pagamento
+                        </button>
+                      }
+                    />
+                  ) : document.status !== "Emitido" ? (
+                    <IssueDocumentButton documentId={document.id} />
+                  ) : null}
+                </div>
               </article>
             ))}
           </div>

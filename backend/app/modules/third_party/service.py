@@ -1,7 +1,8 @@
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
@@ -11,16 +12,22 @@ from app.modules.third_party.models import (
     MzProvince,
     OperationalDocument,
     ServiceProviderProfile,
+    SupplierEvaluation,
+    SupplierLedgerEntry,
     SupplierProfile,
     ThirdParty,
+    ThirdPartyContact,
     ThirdPartyRole,
 )
 from app.modules.third_party.schemas import (
     VALID_ROLE_TYPES,
     VALID_SUBJECT_TYPES,
     AssignmentCreate,
+    ContactCreate,
     DocumentCreate,
     DocumentVerify,
+    EvaluationCreate,
+    PaymentCreate,
     RoleCreate,
     ServiceProviderProfileCreate,
     SupplierProfileCreate,
@@ -31,7 +38,7 @@ from app.modules.third_party.schemas import (
 # ── Serializers ───────────────────────────────────────────────────────────────
 
 
-def serialize_third_party(tp: ThirdParty) -> dict:
+def serialize_third_party(tp: ThirdParty, *, average_score: Decimal | None = None) -> dict:
     return {
         "id": tp.id,
         "tenant_id": tp.tenant_id,
@@ -43,12 +50,15 @@ def serialize_third_party(tp: ThirdParty) -> dict:
         "contact_phone": tp.contact_phone,
         "province_code": tp.province_code,
         "address": tp.address,
+        "activity_code": tp.activity_code,
+        "sector": tp.sector,
         "status": tp.status,
         "is_verified": tp.is_verified,
         "verified_at": tp.verified_at,
         "notes": tp.notes,
         "created_at": tp.created_at,
         "updated_at": tp.updated_at,
+        "average_score": str(average_score) if average_score is not None else None,
     }
 
 
@@ -757,3 +767,301 @@ async def search_party_directory(
         }
         for row in rows
     ]
+
+
+# ── Contacts ──────────────────────────────────────────────────────────────────
+
+
+async def create_contact(
+    db: AsyncSession,
+    tenant_id: UUID,
+    third_party_id: UUID,
+    payload: ContactCreate,
+    actor_id: UUID,
+) -> dict:
+    party = await _require_third_party(db, tenant_id, third_party_id)
+    contact = ThirdPartyContact(
+        tenant_id=tenant_id,
+        third_party_id=party.id,
+        name=payload.name,
+        role=payload.role,
+        phone=payload.phone,
+        email=payload.email,
+        is_primary=payload.is_primary,
+    )
+    db.add(contact)
+    await db.flush()
+    await db.refresh(contact)
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="third_party_contact.created",
+        entity_type="third_party_contact",
+        entity_id=contact.id,
+        new_values={"third_party_id": str(third_party_id), "name": payload.name},
+    )
+    await db.commit()
+    return serialize_contact(contact)
+
+
+async def list_contacts(
+    db: AsyncSession,
+    tenant_id: UUID,
+    third_party_id: UUID,
+) -> list[dict]:
+    await _require_third_party(db, tenant_id, third_party_id)
+    result = await db.execute(
+        select(ThirdPartyContact)
+        .where(
+            ThirdPartyContact.tenant_id == tenant_id,
+            ThirdPartyContact.third_party_id == third_party_id,
+        )
+        .order_by(ThirdPartyContact.is_primary.desc(), ThirdPartyContact.created_at)
+    )
+    return [serialize_contact(c) for c in result.scalars().all()]
+
+
+async def delete_contact(
+    db: AsyncSession,
+    tenant_id: UUID,
+    third_party_id: UUID,
+    contact_id: UUID,
+    actor_id: UUID,
+) -> None:
+    await _require_third_party(db, tenant_id, third_party_id)
+    result = await db.execute(
+        select(ThirdPartyContact).where(
+            ThirdPartyContact.id == contact_id,
+            ThirdPartyContact.tenant_id == tenant_id,
+            ThirdPartyContact.third_party_id == third_party_id,
+        )
+    )
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise ApiError("contact_not_found", "Contacto não encontrado", 404)
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="third_party_contact.deleted",
+        entity_type="third_party_contact",
+        entity_id=contact_id,
+        old_values={"name": contact.name},
+    )
+    await db.delete(contact)
+    await db.commit()
+
+
+def serialize_contact(c: ThirdPartyContact) -> dict:
+    return {
+        "id": str(c.id),
+        "third_party_id": str(c.third_party_id),
+        "name": c.name,
+        "role": c.role,
+        "phone": c.phone,
+        "email": c.email,
+        "is_primary": c.is_primary,
+        "created_at": c.created_at.isoformat(),
+    }
+
+
+# ── Ledger / account ──────────────────────────────────────────────────────────
+
+
+async def get_supplier_account(
+    db: AsyncSession,
+    tenant_id: UUID,
+    third_party_id: UUID,
+) -> dict:
+    await _require_third_party(db, tenant_id, third_party_id)
+    # Balance = sum(credits) - sum(debits) — NEVER denormalised, always computed
+    agg = await db.execute(
+        select(
+            func.coalesce(
+                func.sum(SupplierLedgerEntry.amount).filter(
+                    SupplierLedgerEntry.entry_type == "credit"
+                ),
+                Decimal("0.00"),
+            ).label("total_credits"),
+            func.coalesce(
+                func.sum(SupplierLedgerEntry.amount).filter(
+                    SupplierLedgerEntry.entry_type == "debit"
+                ),
+                Decimal("0.00"),
+            ).label("total_debits"),
+        ).where(
+            SupplierLedgerEntry.tenant_id == tenant_id,
+            SupplierLedgerEntry.third_party_id == third_party_id,
+        )
+    )
+    row = agg.one()
+    total_credits = row.total_credits
+    total_debits = row.total_debits
+    balance = total_credits - total_debits
+
+    entries_result = await db.execute(
+        select(SupplierLedgerEntry)
+        .where(
+            SupplierLedgerEntry.tenant_id == tenant_id,
+            SupplierLedgerEntry.third_party_id == third_party_id,
+        )
+        .order_by(
+            SupplierLedgerEntry.entry_date.desc(),
+            SupplierLedgerEntry.created_at.desc(),
+        )
+        .limit(200)
+    )
+    entries = [serialize_ledger_entry(e) for e in entries_result.scalars().all()]
+    return {
+        "third_party_id": str(third_party_id),
+        "total_debits": str(total_debits),
+        "total_credits": str(total_credits),
+        "balance": str(balance),
+        "entries": entries,
+    }
+
+
+async def create_payment(
+    db: AsyncSession,
+    tenant_id: UUID,
+    third_party_id: UUID,
+    payload: PaymentCreate,
+    actor_id: UUID,
+) -> dict:
+    """Creates a supplier_ledger_entry with entry_type=credit."""
+    await _require_third_party(db, tenant_id, third_party_id)
+    if payload.fuel_purchase_id:
+        source_type = "fuel_purchase"
+        source_id = payload.fuel_purchase_id
+    elif payload.work_order_id:
+        source_type = "work_order"
+        source_id = payload.work_order_id
+    else:
+        source_type = "manual_payment"
+        source_id = None
+    entry = SupplierLedgerEntry(
+        tenant_id=tenant_id,
+        third_party_id=third_party_id,
+        entry_type="credit",
+        amount=payload.amount,
+        source_type=source_type,
+        source_id=source_id,
+        description=payload.description,
+        entry_date=payload.payment_date or date.today(),
+    )
+    db.add(entry)
+    await db.flush()
+    await db.refresh(entry)
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="supplier_payment.created",
+        entity_type="supplier_ledger_entry",
+        entity_id=entry.id,
+        new_values={"amount": str(payload.amount), "source_type": source_type},
+    )
+    await db.commit()
+    return serialize_ledger_entry(entry)
+
+
+def serialize_ledger_entry(e: SupplierLedgerEntry) -> dict:
+    return {
+        "id": str(e.id),
+        "third_party_id": str(e.third_party_id),
+        "entry_type": e.entry_type,
+        "amount": str(e.amount),
+        "source_type": e.source_type,
+        "source_id": str(e.source_id) if e.source_id else None,
+        "description": e.description,
+        "entry_date": e.entry_date.isoformat(),
+        "created_at": e.created_at.isoformat(),
+    }
+
+
+# ── Evaluations ───────────────────────────────────────────────────────────────
+
+
+async def create_evaluation(
+    db: AsyncSession,
+    tenant_id: UUID,
+    third_party_id: UUID,
+    payload: EvaluationCreate,
+    actor_id: UUID,
+) -> dict:
+    await _require_third_party(db, tenant_id, third_party_id)
+    if not payload.criteria:
+        raise ApiError("empty_criteria", "Critérios de avaliação não podem estar vazios", 422)
+    total_weight = sum(c["weight"] for c in payload.criteria)
+    if abs(total_weight - 1.0) > 0.01:
+        raise ApiError(
+            "invalid_weights",
+            f"Pesos devem somar 1.0 (soma actual: {total_weight:.2f})",
+            422,
+        )
+    score = Decimal(
+        str(sum(c["weight"] * c["score"] for c in payload.criteria))
+    ).quantize(Decimal("0.01"))
+
+    evaluation = SupplierEvaluation(
+        tenant_id=tenant_id,
+        third_party_id=third_party_id,
+        evaluated_by=actor_id,
+        evaluation_date=payload.evaluation_date or date.today(),
+        criteria=payload.criteria,
+        score=score,
+        notes=payload.notes,
+    )
+    db.add(evaluation)
+    await db.flush()
+    await db.refresh(evaluation)
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="supplier_evaluation.created",
+        entity_type="supplier_evaluation",
+        entity_id=evaluation.id,
+        new_values={"score": str(score)},
+    )
+    await db.commit()
+    return serialize_evaluation(evaluation)
+
+
+async def list_evaluations(
+    db: AsyncSession,
+    tenant_id: UUID,
+    third_party_id: UUID,
+) -> dict:
+    await _require_third_party(db, tenant_id, third_party_id)
+    result = await db.execute(
+        select(SupplierEvaluation)
+        .where(
+            SupplierEvaluation.tenant_id == tenant_id,
+            SupplierEvaluation.third_party_id == third_party_id,
+        )
+        .order_by(SupplierEvaluation.evaluation_date.desc())
+    )
+    evals = [serialize_evaluation(e) for e in result.scalars().all()]
+    avg_score = None
+    if evals:
+        avg_score = str(
+            Decimal(str(sum(float(e["score"]) for e in evals) / len(evals))).quantize(
+                Decimal("0.01")
+            )
+        )
+    return {"average_score": avg_score, "evaluations": evals}
+
+
+def serialize_evaluation(e: SupplierEvaluation) -> dict:
+    return {
+        "id": str(e.id),
+        "third_party_id": str(e.third_party_id),
+        "evaluated_by": str(e.evaluated_by) if e.evaluated_by else None,
+        "evaluation_date": e.evaluation_date.isoformat(),
+        "criteria": e.criteria,
+        "score": str(e.score),
+        "notes": e.notes,
+        "created_at": e.created_at.isoformat(),
+    }

@@ -223,3 +223,40 @@ class PartyDirectoryEntry(BaseModel):
     subject_type: str
     name: str
     status: str
+
+
+# ── Contacts ──────────────────────────────────────────────────────────────────
+
+
+class ContactCreate(BaseModel):
+    name: str
+    role: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    is_primary: bool = False
+
+
+# ── Payments ──────────────────────────────────────────────────────────────────
+
+
+class PaymentCreate(BaseModel):
+    amount: Decimal
+    payment_date: date | None = None
+    description: str | None = None
+    fuel_purchase_id: UUID | None = None
+    work_order_id: UUID | None = None
+
+
+# ── Evaluations ───────────────────────────────────────────────────────────────
+
+
+class EvaluationCriterion(BaseModel):
+    name: str
+    weight: float  # must sum to 1.0 across all criteria
+    score: float  # 0–10 scale
+
+
+class EvaluationCreate(BaseModel):
+    evaluation_date: date | None = None
+    criteria: list[dict]  # list of EvaluationCriterion dicts
+    notes: str | None = None

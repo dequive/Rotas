@@ -13,7 +13,6 @@ from httpx import AsyncClient
 from app.database import AsyncSessionLocal
 from app.modules.tenants.models import Tenant
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
@@ -283,7 +282,8 @@ async def test_create_evaluation_invalid_criteria_rejected(
     async_client: AsyncClient, auth_headers: dict, third_party_id: str
 ):
     """Negative weight, out-of-range score, and wrong sum all return 422."""
-    base_idem = lambda: {**auth_headers, "Idempotency-Key": str(uuid.uuid4())}
+    def base_idem() -> dict:
+        return {**auth_headers, "Idempotency-Key": str(uuid.uuid4())}
 
     # Negative weight
     resp = await async_client.post(

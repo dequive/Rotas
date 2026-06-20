@@ -301,7 +301,8 @@ async def test_platform_admin_can_access_tenant_me_with_query_param() -> None:
             headers={"Authorization": f"Bearer {platform_token}"},
         )
         assert resp.status_code == 200, (
-            f"platform_admin should get 200 on /tenants/me?tenant_id=. Got: {resp.status_code} {resp.text}"
+            "platform_admin should get 200 on /tenants/me?tenant_id=."
+            f" Got: {resp.status_code} {resp.text}"
         )
         body = resp.json()
         assert "id" in body, f"Response should be a tenant object with 'id'. Got: {body}"

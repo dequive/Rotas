@@ -12,14 +12,14 @@ generate_client_statement_pdf to billing/service.py. If 07-01 is not yet complet
 that test will be skipped automatically via importorskip guard.
 """
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import AsyncSessionLocal, import_all_models
+from app.database import import_all_models
 from app.modules.billing.models import BillingDocument, ClientPayment, PaymentAllocation
 from app.modules.billing.service import get_ar_summary, get_client_statement
 from app.modules.clients.models import Client

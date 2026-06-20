@@ -18,17 +18,12 @@ The existing require_roles() in permissions.py remains untouched as a compatibil
 Migrate call sites to require_permission() in subsequent plans (22-02 onward).
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from fastapi import Depends, status
 
 from app.core.errors import ApiError
-
-if TYPE_CHECKING:
-    from app.core.auth import Principal
 
 # ── Permission string constants ────────────────────────────────────────────────
 
@@ -142,13 +137,17 @@ def require_permission(*permissions: str) -> Callable:
     The actual runtime import happens inside get_current_principal() which is imported
     here without touching auth.py's Principal class at module load time.
     """
-    from app.core.auth import get_current_principal  # avoid circular at module level
+    # Import at call time to avoid circular import at module level.
+    # Principal must be a concrete type (not a string forward-ref) so FastAPI's
+    # get_type_hints() can resolve it and recognise the Depends() annotation rather
+    # than treating `principal` as a query parameter.
+    from app.core.auth import Principal, get_current_principal  # noqa: PLC0415
 
     required: frozenset[str] = frozenset(permissions)
 
     async def dependency(
-        principal: Annotated["Principal", Depends(get_current_principal)],
-    ) -> "Principal":
+        principal: Annotated[Principal, Depends(get_current_principal)],
+    ) -> Principal:
         if not principal.has_any_permission(required):
             raise ApiError(
                 "forbidden",

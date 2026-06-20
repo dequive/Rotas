@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
 from app.core.deps import get_session
-from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import require_permission, TRIPS_READ, TRIPS_CLOSE
 from app.modules.operational_exceptions import service
 from app.modules.operational_exceptions.schemas import ResolveExceptionRequest
 
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/operational-exceptions", tags=["operational-exceptio
 
 @router.get("")
 async def list_exceptions(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
     exception_type: str | None = None,
@@ -33,7 +33,7 @@ async def list_exceptions(
 @router.post("/{exception_id}/acknowledge")
 async def acknowledge_exception(
     exception_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_CLOSE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.acknowledge_exception(
@@ -45,7 +45,7 @@ async def acknowledge_exception(
 async def resolve_exception(
     exception_id: UUID,
     payload: ResolveExceptionRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_CLOSE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.resolve_exception(

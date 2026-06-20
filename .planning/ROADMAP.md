@@ -989,7 +989,7 @@ Plans:
 
 **Requirements**: SEC-RBAC-01 a SEC-RBAC-05
 **Depends on:** Phase 9 (RLS — os dois planos partilham infra de isolamento), Phase 13 (Frontend usa roles nos componentes de UI)
-**Plans:** 3/3 plans complete
+**Plans:** 3/4 plans executed
 
 Plans:
 - [x] 22-01-PLAN.md — Wave 1: rbac.py (23 permission constants, ROLE_PERMISSIONS, require_permission()), Principal.permissions, JWT perms claim at login
@@ -1108,7 +1108,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 13. Frontend Completeness | 0/3 | In Progress | - |
+| 13. Frontend Completeness | 3/4 | In Progress|  |
 | 14. Domain State Machines | 2/2 | Complete | 2026-06-19 |
 | 15. Fiscal Compliance + Segurança de Carga | 6/6 | Complete | 2026-06-19 |
 | 15.1. Documentos Fiscais Completos | 9/9 | Complete | 2026-06-19 |

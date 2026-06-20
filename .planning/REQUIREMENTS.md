@@ -134,7 +134,7 @@ _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de
 ### Frontend Completo — Manager (FE)
 
 - [ ] **FE-01**: Página `/manutencao` exposta no sidebar — lista de work orders, ordens de serviço e manutenções preventivas do workshop; integrada nos 26 endpoints existentes do módulo workshop
-- [ ] **FE-02**: Página `/cobranca` dedicada com lista de billing documents, filtros por contrato/período, acções de emissão e download; substituição da secção embutida em page.tsx
+- [x] **FE-02**: Página `/cobranca` dedicada com lista de billing documents, filtros por contrato/período, acções de emissão e download; substituição da secção embutida em page.tsx
 - [ ] **FE-03**: Página `/alertas` com lista de alertas activos, reconhecimento e registo de resolução; ligada ao módulo alerts backend
 - [ ] **FE-04**: Página `/settings` com configurações de tenant (logo, timezone, moeda, compliance policy, limites de plano), gestão de users/roles e pairing de dispositivos de motoristas
 
@@ -274,7 +274,7 @@ _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de
 | WSHOP-04 | Phase 13.5 | Complete |
 | WSHOP-05 | Phase 13.5 | Complete |
 | FE-01 | Phase 13 | Pending |
-| FE-02 | Phase 13 | Pending |
+| FE-02 | Phase 13 | Complete |
 | FE-03 | Phase 13 | Pending |
 | FE-04 | Phase 13 | Pending |
 | SM-01 | Phase 14 | Pending |

@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TripCreate(BaseModel):
@@ -26,6 +26,7 @@ class TripCreate(BaseModel):
     hazmat_class: str | None = None
     un_number: str | None = None
     hazmat_label: str | None = None
+    hos_override_reason: str | None = Field(None, max_length=500)
 
 
 class StartTripRequest(BaseModel):

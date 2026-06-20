@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
+from app.modules.drivers.hos_service import calculate_driving_hours
 from app.modules.drivers.models import Driver
 from app.modules.operations.models import OperationalWaiver
 from app.modules.operations.service import has_active_waiver
@@ -391,6 +392,8 @@ async def driver_availability_summary(
         active_trip_query = active_trip_query.where(Trip.id != exclude_trip_id)
     active_trip_id = await db.scalar(active_trip_query)
 
+    hos_data = await calculate_driving_hours(driver_id, tenant_id, db)
+
     blockers = []
     if driver.status != "active":
         blockers.append({"code": "driver_unavailable", "driver_status": driver.status})
@@ -398,6 +401,15 @@ async def driver_availability_summary(
         blockers.append({"code": "driver_compliance_blocked", "violations": violations})
     if active_trip_id:
         blockers.append({"code": "driver_assignment_conflict", "trip_id": active_trip_id})
+    if hos_data["status"] == "violation":
+        blockers.append(
+            {
+                "code": "driver_hos_violation",
+                "hours_today": hos_data["hours_today"],
+                "hours_this_week": hos_data["hours_this_week"],
+                "violation_reason": hos_data["violation_reason"],
+            }
+        )
 
     return {
         "entity_type": "driver",
@@ -414,6 +426,7 @@ async def driver_availability_summary(
             entity_id=driver.id,
         ),
         "active_trip_id": active_trip_id,
+        "hos": hos_data,
     }
 
 

@@ -11,6 +11,7 @@ from app.modules.audit.service import record_audit_log
 from app.modules.availability.service import require_vehicle_and_driver_available
 from app.modules.cargo.models import CargoManifest, DeliveryProof, LoadPermit, TransportDocument
 from app.modules.contracts.models import Contract
+from app.modules.drivers.hos_service import calculate_driving_hours
 from app.modules.operational_exceptions.service import ensure_exception
 from app.modules.operations.service import has_active_waiver
 from app.modules.tenants.models import Tenant
@@ -484,6 +485,22 @@ async def create_trip(
         driver_id=payload.driver_id,
     )
 
+    # HOS guard — runs after vehicle/driver row locks are held
+    if not payload.hos_override_reason:
+        hos_data = await calculate_driving_hours(payload.driver_id, tenant_id, db)
+        if hos_data["status"] == "violation":
+            raise ApiError(
+                "hos_violation_active",
+                "Driver has exceeded Hours of Service limits and cannot be assigned.",
+                status_code=status.HTTP_409_CONFLICT,
+                details={
+                    "override_required": True,
+                    "hours_today": hos_data["hours_today"],
+                    "hours_this_week": hos_data["hours_this_week"],
+                    "violation_reason": hos_data["violation_reason"],
+                },
+            )
+
     contract_reference = payload.contract_reference
     if payload.contract_id:
         contract = await db.get(Contract, payload.contract_id)
@@ -549,6 +566,16 @@ async def create_trip(
             "Vehicle or driver already has an active trip.",
             status_code=409,
         ) from exc
+    audit_new_values: dict = {
+        "status": trip.status,
+        "origin": trip.origin,
+        "destination": trip.destination,
+        "vehicle_id": str(trip.vehicle_id),
+        "driver_id": str(trip.driver_id),
+        "contract_id": str(trip.contract_id) if trip.contract_id else None,
+    }
+    if payload.hos_override_reason:
+        audit_new_values["hos_override_reason"] = payload.hos_override_reason
     await record_audit_log(
         db,
         tenant_id=tenant_id,
@@ -556,14 +583,7 @@ async def create_trip(
         action="trip.created",
         entity_type="trip",
         entity_id=trip.id,
-        new_values={
-            "status": trip.status,
-            "origin": trip.origin,
-            "destination": trip.destination,
-            "vehicle_id": str(trip.vehicle_id),
-            "driver_id": str(trip.driver_id),
-            "contract_id": str(trip.contract_id) if trip.contract_id else None,
-        },
+        new_values=audit_new_values,
     )
     await db.commit()
     await db.refresh(trip)

@@ -237,10 +237,12 @@ async def download_job_file(
     principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    """BILL-01/02: Download completed export file. Tenant-isolated — no public URL."""
+    """BILL-01/02: Download completed export file via Files service. Tenant-isolated."""
+    from fastapi.responses import RedirectResponse
     from sqlalchemy import select as sa_select
 
     from app.modules.billing.models import ExportJob
+    from app.modules.files.models import File
 
     job = await db.scalar(
         sa_select(ExportJob).where(
@@ -255,15 +257,24 @@ async def download_job_file(
             f"Job status is '{job.status}' — not ready for download.",
             status_code=409,
         )
-    if not job.file_path or not Path(job.file_path).exists():
-        raise ApiError("file_not_found", "Export file not found on disk.", status_code=404)
 
-    content_type = (
-        "application/pdf"
-        if job.job_type == "billing_pdf"
-        else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-    return FileResponse(path=job.file_path, media_type=content_type)
+    # Prefer file_id (Files service) over legacy file_path
+    if job.file_id:
+        file_record = await db.get(File, job.file_id)
+        if not file_record or file_record.tenant_id != principal.tenant_id:
+            raise ApiError("file_not_found", "Export file record not found.", status_code=404)
+        return RedirectResponse(url=f"/api/v1/files/{file_record.id}/download", status_code=302)
+
+    # Legacy fallback: file_path on disk (backward compat for old jobs)
+    if job.file_path and Path(job.file_path).exists():
+        content_type = (
+            "application/pdf"
+            if job.job_type == "billing_pdf"
+            else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        return FileResponse(path=job.file_path, media_type=content_type)
+
+    raise ApiError("file_not_found", "No file associated with this export job.", status_code=404)
 
 
 # ── SM-01: BillingDocument state machine endpoints ───────────────────────────

@@ -37,6 +37,25 @@ _WHITE = (255, 255, 255)
 _GREEN = (22, 121, 76)  # #16794C
 _ORANGE = (180, 83, 9)  # #B45309
 
+# ── Document type labels (Portuguese fiscal) ─────────────────────────────────
+_DOC_TYPE_LABELS = {
+    "invoice": "FATURA",
+    "debit_note": "NOTA DE DÉBITO",
+    "credit_note": "NOTA DE CRÉDITO",
+    "receipt": "RECIBO",
+    "invoice_receipt": "FATURA-RECIBO",
+}
+
+
+def _doc_type_label(document: BillingDocument) -> str:
+    """Return the correct Portuguese fiscal label for this document.
+
+    Draft documents are labelled PROFORMA — no fiscal value.
+    """
+    if document.status == "draft":
+        return "PROFORMA — SEM VALOR FISCAL"
+    return _DOC_TYPE_LABELS.get(document.document_type, "DOCUMENTO DE COBRANÇA")
+
 
 @dataclass(frozen=True)
 class ExportArtifact:
@@ -49,15 +68,17 @@ def render_billing_export(
     document: BillingDocument,
     items: list[BillingItem],
     export_format: str,
-    *,
-    issuer_name: str = "ROTAS",
-    issuer_contact: str | None = None,
 ) -> ExportArtifact:
     """Generate PDF or XLSX billing document.
 
-    issuer_name: the tenant company name that appears in the document header.
-    issuer_contact: optional phone/email shown in the document footer.
+    issuer_name and issuer_nuit are pulled from document columns (populated at
+    create_document time from the Tenant record). No caller arguments needed.
     """
+    issuer_name = document.issuer_name or "ROTAS"
+    issuer_nuit = document.issuer_nuit
+    # Show NUIT as the contact/subtitle line in header and footer
+    issuer_contact = f"NUIT {issuer_nuit}" if issuer_nuit else None
+
     if export_format == "pdf":
         return _render_pdf(document, items, issuer_name=issuer_name, issuer_contact=issuer_contact)
     return _render_xlsx(document, items, issuer_name=issuer_name)
@@ -99,13 +120,19 @@ class _RotasPDF(FPDF):
     """FPDF subclass with tenant-branded header and footer."""
 
     def __init__(
-        self, doc_number: str, issue_date: str, issuer_name: str, issuer_contact: str | None
+        self,
+        doc_number: str,
+        issue_date: str,
+        issuer_name: str,
+        issuer_contact: str | None,
+        doc_type: str,
     ):
         super().__init__(orientation="P", unit="mm", format="A4")
         self._doc_number = doc_number
         self._issue_date = issue_date
         self._issuer_name = issuer_name
         self._issuer_contact = issuer_contact
+        self._doc_type = doc_type
         self.add_font("DejaVu", "", str(FONTS_DIR / "DejaVuSans.ttf"))
         self.add_font("DejaVu", "B", str(FONTS_DIR / "DejaVuSans-Bold.ttf"))
         self.set_auto_page_break(auto=True, margin=18)
@@ -133,7 +160,7 @@ class _RotasPDF(FPDF):
         self.set_y(25)
         self.set_text_color(*_INK)
         self.set_font("DejaVu", "B", 11)
-        self.cell(0, 6, "DOCUMENTO DE COBRANÇA", align="C")
+        self.cell(0, 6, self._doc_type, align="C")
 
         # ── Doc number + issue date (top-right) ──────────────────────────────
         self.set_font("DejaVu", "", 7)
@@ -167,7 +194,8 @@ def _render_pdf(
     issuer_contact: str | None = None,
 ) -> ExportArtifact:
     currency = document.currency or "MZN"
-    doc_number = str(document.id)[:8].upper()
+    # E1: use invoice_number for doc_number; fallback to UUID prefix only for drafts
+    doc_number = document.invoice_number or str(document.id)[:8].upper()
     issue_date = _date(document.issued_at or document.created_at)
 
     pdf = _RotasPDF(
@@ -175,6 +203,7 @@ def _render_pdf(
         issue_date=issue_date,
         issuer_name=issuer_name,
         issuer_contact=issuer_contact,
+        doc_type=_doc_type_label(document),  # E2: correct type label / PROFORMA for draft
     )
     pdf.add_page()
 
@@ -190,9 +219,15 @@ def _render_pdf(
         pdf.cell(0, 5, value or "—", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     _meta_row("Cliente", document.client_name or "—")
+    # E4: render client NUIT when present
+    if document.client_nuit:
+        _meta_row("NUIT do Cliente", document.client_nuit)
     _meta_row("Contrato", document.contract_reference or "—")
     _meta_row("Período de faturação", period)
-    _meta_row("Estado do documento", _status_label(document.status))
+    # E6: show due_date when present
+    if document.due_date:
+        _meta_row("Data de vencimento", _date(document.due_date))
+    # E3: "Estado do documento" row removed — status is shown via document type label
 
     # Horizontal divider
     pdf.ln(3)
@@ -274,6 +309,7 @@ def _render_pdf(
         _money_val(document.total_amount) if document.total_amount else subtotal + tax_amount
     )
 
+    # Wave A: iva_rate=None raises ValueError — no silent fallback to 17
     if document.iva_rate is None:
         raise ValueError("iva_rate is NULL on issued document — cannot render export")
     iva_pct = int(float(document.iva_rate) * 100)
@@ -331,7 +367,8 @@ def _render_pdf(
         align="L",
     )
 
-    filename = f"cobranca_{doc_number}.pdf"
+    # E7: filename uses invoice_number
+    filename = f"fatura_{document.invoice_number or str(document.id)[:8]}.pdf"
     return ExportArtifact(filename=filename, content_type="application/pdf", content=pdf.output())
 
 
@@ -358,10 +395,11 @@ def _render_xlsx(
     ws = wb.active
     ws.title = "Cobrança"
 
-    # ── Branding / document metadata block (rows 1-8) ─────────────────────────
+    # ── Branding / document metadata block ───────────────────────────────────
     ws.merge_cells("A1:H1")
     title_cell = ws["A1"]
-    title_cell.value = f"{issuer_name} — DOCUMENTO DE COBRANÇA"
+    # E2: correct document type label in title; E5: issuer_name from document
+    title_cell.value = f"{issuer_name} — {_doc_type_label(document)}"
     title_cell.font = Font(bold=True, size=14, color="FFFFFF")
     title_cell.fill = _xlsx_fill("102033")
     title_cell.alignment = Alignment(horizontal="center", vertical="center")
@@ -378,17 +416,30 @@ def _render_xlsx(
 
     period = f"{_date(document.billing_period_start)} — {_date(document.billing_period_end)}"
     _meta(2, "Cliente", document.client_name or "—")
-    _meta(3, "Contrato", document.contract_reference or "—")
-    _meta(4, "Período", period)
-    _meta(5, "Estado", _status_label(document.status))
-    _meta(6, "Emitido em", _date(document.issued_at or document.created_at))
+    # E4: render client NUIT when present; shift subsequent rows accordingly
+    next_row = 3
+    if document.client_nuit:
+        _meta(next_row, "NUIT do Cliente", document.client_nuit)
+        next_row += 1
+    _meta(next_row, "Contrato", document.contract_reference or "—")
+    next_row += 1
+    _meta(next_row, "Período", period)
+    next_row += 1
+    # E6: show due_date when present
+    if document.due_date:
+        _meta(next_row, "Data de vencimento", _date(document.due_date))
+        next_row += 1
+    # E3: "Estado" row removed from metadata block
+    _meta(next_row, "Emitido em", _date(document.issued_at or document.created_at))
+    next_row += 1
 
     # Spacer
-    ws.row_dimensions[7].height = 6
+    ws.row_dimensions[next_row].height = 6
+    next_row += 1
 
-    # ── Table header (row 8) ──────────────────────────────────────────────────
-    HEADER_ROW = 8
-    DATA_START = 9
+    # ── Table header ──────────────────────────────────────────────────────────
+    HEADER_ROW = next_row
+    DATA_START = HEADER_ROW + 1
     HEADERS = [
         "Data descarga",
         "Origem",
@@ -461,6 +512,7 @@ def _render_xlsx(
         if document.total_amount
         else subtotal_val + tax_val
     )
+    # Wave A: iva_rate=None raises ValueError — no silent fallback to 17
     if document.iva_rate is None:
         raise ValueError("iva_rate is NULL on issued document — cannot render export")
     iva_pct = int(float(document.iva_rate) * 100)
@@ -495,8 +547,8 @@ def _render_xlsx(
 
     output = BytesIO()
     wb.save(output)
-    doc_number = str(document.id)[:8].upper()
-    filename = f"cobranca_{doc_number}.xlsx"
+    # E7: filename uses invoice_number
+    filename = f"fatura_{document.invoice_number or str(document.id)[:8]}.xlsx"
     return ExportArtifact(
         filename=filename,
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

@@ -979,7 +979,7 @@ Plans:
 
 **Requirements**: SEC-RBAC-01 a SEC-RBAC-05
 **Depends on:** Phase 9 (RLS — os dois planos partilham infra de isolamento), Phase 13 (Frontend usa roles nos componentes de UI)
-**Plans:** 2/2 plans complete
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 22 to break down)
@@ -1082,6 +1082,6 @@ Plans:
 | 16. Hours of Service + Availability Router | 0/TBD | Not started | - |
 | 17. Infrastructure Enterprise v2 | 2/2 | Complete    | 2026-06-19 |
 | 18. Analytics Avançado + Gestão de Seguros | 0/TBD | Not started | - |
-| 22. RBAC Permission-Based | 0/TBD | Not started | - |
+| 22. RBAC Permission-Based | 2/3 | In Progress|  |
 | 23. Third Party Registry | 8/8 | Complete | 2026-06-20 |
 | 24. Third Party Completion — UI, Conta Corrente & Avaliação | 0/TBD | Not started | - |

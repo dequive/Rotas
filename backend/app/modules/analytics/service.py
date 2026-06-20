@@ -1,11 +1,14 @@
 """Analytics service — fleet KPI queries for RPT-01, RPT-02, and ANA-01."""
 
+import json
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.billing.models import BillingItem
+from app.modules.cargo.models import DeliveryProof
 from app.modules.drivers.models import Driver
 from app.modules.fuel.models import FuelLog
 from app.modules.trips.models import Trip
@@ -262,3 +265,212 @@ async def get_document_expiry_alerts(
     # Sort by days_remaining ascending (most urgent first)
     alerts.sort(key=lambda a: a["days_remaining"])
     return alerts
+
+
+# ── ANA-01: Extended dashboard KPI functions ──────────────────────────────────
+
+
+async def get_route_profitability(
+    db: AsyncSession,
+    tenant_id: UUID,
+    period_start: datetime,
+    period_end: datetime,
+) -> list[dict]:
+    """ANA-01: Cost per route, ordered by avg_cost DESC. Only closed trips in period."""
+    rows = (
+        await db.execute(
+            select(
+                Trip.origin,
+                Trip.destination,
+                func.count(Trip.id).label("trip_count"),
+                func.coalesce(func.avg(Trip.total_transport_cost), 0).label("avg_cost"),
+            )
+            .where(
+                Trip.tenant_id == tenant_id,
+                Trip.status == "closed",
+                Trip.closed_at >= period_start,
+                Trip.closed_at <= period_end,
+            )
+            .group_by(Trip.origin, Trip.destination)
+            .order_by(func.avg(Trip.total_transport_cost).desc())
+            .limit(10)
+        )
+    ).all()
+    return [
+        {
+            "origin": r.origin,
+            "destination": r.destination,
+            "trip_count": r.trip_count,
+            "avg_cost": float(r.avg_cost),
+        }
+        for r in rows
+    ]
+
+
+async def get_contract_margins(
+    db: AsyncSession,
+    tenant_id: UUID,
+    period_start: datetime,
+    period_end: datetime,
+) -> list[dict]:
+    """ANA-01: Gross margin per billing document. JOIN billing_items → trips on trip_id.
+
+    Step 1: sum billing_items.amount per billing_document (revenue).
+    Step 2: sum trips.total_transport_cost for those trips (cost).
+    Composed in Python for clarity. Returns up to 20 rows.
+    """
+    # Revenue per billing_document_id
+    rev_rows = (
+        await db.execute(
+            select(
+                BillingItem.billing_document_id,
+                func.sum(BillingItem.amount).label("total_revenue"),
+            )
+            .where(
+                BillingItem.tenant_id == tenant_id,
+                BillingItem.delivered_at >= period_start,
+                BillingItem.delivered_at <= period_end,
+            )
+            .group_by(BillingItem.billing_document_id)
+            .limit(20)
+        )
+    ).all()
+
+    if not rev_rows:
+        return []
+
+    doc_ids = [r.billing_document_id for r in rev_rows]
+
+    # Cost per billing_document_id (via billing_items → trips join)
+    cost_rows = (
+        await db.execute(
+            select(
+                BillingItem.billing_document_id,
+                func.coalesce(func.sum(Trip.total_transport_cost), 0).label("total_cost"),
+            )
+            .join(Trip, BillingItem.trip_id == Trip.id)
+            .where(
+                BillingItem.billing_document_id.in_(doc_ids),
+                BillingItem.tenant_id == tenant_id,
+            )
+            .group_by(BillingItem.billing_document_id)
+        )
+    ).all()
+
+    cost_by_doc = {str(r.billing_document_id): float(r.total_cost) for r in cost_rows}
+
+    result = []
+    for r in rev_rows:
+        doc_id = str(r.billing_document_id)
+        total_revenue = float(r.total_revenue)
+        total_cost = cost_by_doc.get(doc_id, 0.0)
+        result.append(
+            {
+                "billing_document_id": doc_id,
+                "total_revenue": total_revenue,
+                "total_cost": total_cost,
+                "gross_margin": total_revenue - total_cost,
+            }
+        )
+    return result
+
+
+async def get_delivery_nps(
+    db: AsyncSession,
+    tenant_id: UUID,
+    period_start: datetime,
+    period_end: datetime,
+) -> float:
+    """ANA-01: Percentage of intact delivery proofs in period. Returns 0.0 if no proofs."""
+    row = (
+        await db.execute(
+            select(
+                func.sum(
+                    cast(DeliveryProof.cargo_condition == "intact", Integer)
+                ).label("intact_count"),
+                func.count(DeliveryProof.id).label("total"),
+            ).where(
+                DeliveryProof.tenant_id == tenant_id,
+                DeliveryProof.delivered_at >= period_start,
+                DeliveryProof.delivered_at <= period_end,
+            )
+        )
+    ).one()
+
+    total = row.total or 0
+    if total == 0:
+        return 0.0
+    intact = row.intact_count or 0
+    return round(intact * 100.0 / total, 2)
+
+
+async def get_top_drivers_by_score(
+    db: AsyncSession,
+    tenant_id: UUID,
+    period_start: datetime,
+    period_end: datetime,
+) -> list[dict]:
+    """ANA-01: Top 5 drivers by trip_count DESC. Only closed trips in period."""
+    rows = (
+        await db.execute(
+            select(
+                Trip.driver_id,
+                func.count(Trip.id).label("trip_count"),
+                func.coalesce(func.sum(Trip.km_end - Trip.km_start), 0).label("total_km"),
+            )
+            .where(
+                Trip.tenant_id == tenant_id,
+                Trip.status == "closed",
+                Trip.closed_at >= period_start,
+                Trip.closed_at <= period_end,
+            )
+            .group_by(Trip.driver_id)
+            .order_by(func.count(Trip.id).desc())
+            .limit(5)
+        )
+    ).all()
+    return [
+        {
+            "driver_id": str(r.driver_id),
+            "trip_count": r.trip_count,
+            "total_km": float(r.total_km or 0),
+        }
+        for r in rows
+    ]
+
+
+async def get_analytics_dashboard(
+    db: AsyncSession,
+    tenant_id: UUID,
+    period_start: datetime,
+    period_end: datetime,
+    redis=None,
+) -> dict:
+    """ANA-01: Compose all KPI blocks into a single dashboard payload with Redis cache (TTL 300s)."""
+    cache_key = (
+        f"analytics:dashboard:{tenant_id}"
+        f":{period_start.isoformat()}:{period_end.isoformat()}"
+    )
+    if redis is not None:
+        cached = await redis.get(cache_key)
+        if cached:
+            return json.loads(cached)
+
+    base = await get_fleet_kpis(db, tenant_id, period_start, period_end)
+    route_profitability = await get_route_profitability(db, tenant_id, period_start, period_end)
+    contract_margins = await get_contract_margins(db, tenant_id, period_start, period_end)
+    delivery_nps = await get_delivery_nps(db, tenant_id, period_start, period_end)
+    top_drivers = await get_top_drivers_by_score(db, tenant_id, period_start, period_end)
+
+    result = {
+        **base,
+        "route_profitability": route_profitability,
+        "contract_margins": contract_margins,
+        "delivery_nps": delivery_nps,
+        "top_drivers": top_drivers,
+    }
+
+    if redis is not None:
+        await redis.setex(cache_key, 300, json.dumps(result, default=str))
+
+    return result

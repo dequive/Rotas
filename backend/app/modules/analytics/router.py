@@ -51,6 +51,21 @@ async def get_document_expiry(
     )
 
 
+@router.get("/dashboard")
+async def get_dashboard(
+    request: Request,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    period_start: Annotated[datetime, Query(description="Period start (ISO 8601)")],
+    period_end: Annotated[datetime, Query(description="Period end (ISO 8601)")],
+) -> dict:
+    """ANA-01: Extended analytics dashboard with Redis cache (TTL 300s)."""
+    redis = getattr(request.app.state, "redis", None)
+    return await service.get_analytics_dashboard(
+        db, principal.tenant_id, period_start, period_end, redis=redis
+    )
+
+
 @router.get("/fuel-report")
 async def trigger_fuel_report(
     request: Request,

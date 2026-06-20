@@ -1097,7 +1097,7 @@ the JWT, not by convention.
 
 Plans:
 - [x] 25-01-PLAN.md — Wave 1: core auth/token primitives (scope=platform JWT), platform_users + platform_audit_logs migration, platform module (models, schemas, auth_service, audit_service, auth_router), 6 isolation tests
-- [ ] 25-02-PLAN.md — Wave 2: 8 platform management endpoints (list/suspend/reactivate tenants, change plan, platform users CRUD, audit log), service layer with mandatory audit trail, 8 management tests
+- [x] 25-02-PLAN.md — Wave 2: 8 platform management endpoints (list/suspend/reactivate tenants, change plan, platform users CRUD, audit log), service layer with mandatory audit trail, 8 management tests
 - [ ] 25-03-PLAN.md — Wave 3: require_own_tenant_or_platform() combined guard, tenants/router.py wired, 2 additional isolation tests, Ruff clean
 
 ---
@@ -1116,4 +1116,4 @@ Plans:
 | 22. RBAC Permission-Based | 3/3 | Complete   | 2026-06-20 |
 | 23. Third Party Registry | 8/8 | Complete | 2026-06-20 |
 | 24. Third Party Completion — UI, Conta Corrente & Avaliação | 7/7 | Complete | 2026-06-20 |
-| 25. Platform/Tenant Scope Separation | 1/3 | In Progress|  |
+| 25. Platform/Tenant Scope Separation | 2/3 | In Progress|  |

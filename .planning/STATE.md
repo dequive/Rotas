@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 25-01-PLAN.md
-last_updated: "2026-06-20T14:52:12.329Z"
+stopped_at: Completed 25-02-PLAN.md
+last_updated: "2026-06-20T15:20:19.678Z"
 last_activity: 2026-06-20
 progress:
   total_phases: 13
   completed_phases: 8
   total_plans: 69
-  completed_plans: 64
+  completed_plans: 65
 ---
 
 # ROTAS — Project State
@@ -25,7 +25,7 @@ Phase: 24
 Plan: 24-06 complete — Phase 24 DONE
 Status: Phase 24 COMPLETE — 24-01 (migrations) DONE; 24-02 (backend API) DONE; 24-03 (frontend /terceiros) DONE; 24-04 (pickers) DONE; 24-05 (documents + assignments UI) DONE; 24-06 (alembic head + seed + 7/7 smoke tests + tsc clean) DONE 2026-06-20
 Last activity: 2026-06-20
-Stopped at: Completed 25-01-PLAN.md
+Stopped at: Completed 25-02-PLAN.md
 
 ### Completed v3.0 Phases
 

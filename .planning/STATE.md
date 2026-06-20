@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 24-03-PLAN.md
-last_updated: "2026-06-20T14:30:00.000Z"
+stopped_at: Completed 24-04-PLAN.md
+last_updated: "2026-06-20T11:52:58.969Z"
 last_activity: 2026-06-20
 progress:
   total_phases: 13
   completed_phases: 8
   total_plans: 64
-  completed_plans: 63
+  completed_plans: 64
 ---
 
 # ROTAS — Project State
@@ -22,10 +22,10 @@ _Last updated: 2026-06-06_
 ## Current Phase
 
 Phase: 24
-Plan: 24-03 complete — next: 24-04 (OperationalDocumentsList UI)
-Status: Phase 24 in execution — 24-01 (migrations) DONE; 24-02 (backend API) DONE; 24-03 (frontend /terceiros) DONE 2026-06-20; remaining: 24-04, 24-05, 24-06
+Plan: 24-04 complete — next: 24-05
+Status: Phase 24 in execution — 24-01 (migrations) DONE; 24-02 (backend API) DONE; 24-03 (frontend /terceiros) DONE 2026-06-20; 24-04 (supplier/service-provider pickers) DONE 2026-06-20; remaining: 24-05, 24-06
 Last activity: 2026-06-20
-Stopped at: Completed 24-03-PLAN.md
+Stopped at: Completed 24-04-PLAN.md
 
 ### Completed v3.0 Phases
 

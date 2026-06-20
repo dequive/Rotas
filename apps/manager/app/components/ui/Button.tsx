@@ -38,7 +38,7 @@ export function Button({
       {...props}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center font-bold rounded-r-md whitespace-nowrap',
+        'inline-flex items-center justify-center font-bold rounded-lg whitespace-nowrap',
         'transition-colors duration-100 cursor-pointer',
         'disabled:opacity-60 disabled:cursor-not-allowed',
         variantClasses[variant],

@@ -661,7 +661,7 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 
 - [x] **Phase 13.5: Workshop Operations Expansion** — Staff de oficina (atribuição + custo mão de obra), ferramentas com histórico de calibrações, peças serializadas e timeline unificada de veículo
  (completed 2026-06-19)
-- [ ] **Phase 13: Frontend Completeness** — As 4 páginas do manager referenciadas no sidebar mas sem implementação real: `/manutencao`, `/cobranca`, `/alertas`, `/settings`
+- [x] **Phase 13: Frontend Completeness** — As 4 páginas do manager referenciadas no sidebar mas sem implementação real: `/manutencao`, `/cobranca`, `/alertas`, `/settings` (completed 2026-06-20)
 - [ ] **Phase 14: Domain State Machines** — Fechar state machines incompletas de `BillingDocument`, `Contract`, `DeliveryProof` e `DispatchClearance` — o núcleo financeiro e documental fica coerente
 - [ ] **Phase 15: Fiscal Compliance + Segurança de Carga** — IVA Moçambique, numeração fiscal, validação de peso vs capacidade, suporte hazmat
 - [ ] **Phase 15.1: Documentos Fiscais Completos** — Estender billing_documents com document_type (invoice/debit_note/credit_note/invoice_receipt/receipt/proforma) e parent_document_id; criar Nota de Débito, Nota de Crédito, Fatura-Recibo e Recibo; AR básico com due_date e aging
@@ -944,7 +944,13 @@ Plans:
 - **INS-01 (Apólices)**: Novo modelo `VehicleInsurance` em `backend/app/modules/vehicles/models.py` (ou sub-módulo `insurance`). Campos: `id`, `tenant_id`, `vehicle_id`, `policy_number`, `insurer`, `coverage_type` (enum: `civil_liability/comprehensive/cargo`), `premium_amount Numeric(10,2)`, `valid_from DATE`, `valid_until DATE`, `notes TEXT`, `created_at`. Migration com RLS policy + GRANT no mesmo ficheiro. Endpoints: CRUD em `/api/v1/vehicles/{id}/insurance`. ARQ cron de renovação: cria `Alert` 60/30/7 dias antes de `valid_until`.
 - **INS-02 (Sinistros)**: Modelo `InsuranceClaim` com campos: `id`, `tenant_id`, `vehicle_id`, `insurance_id` (FK), `incident_id` (FK para `trip_incidents` nullable), `claim_number`, `claim_date DATE`, `estimated_damage Numeric(10,2)`, `status` (enum: `open/under_review/paid/rejected`), `resolved_at`, `notes`. Endpoints: CRUD em `/api/v1/vehicles/{id}/insurance/{insurance_id}/claims`. Status transitions auditadas. UI: tab "Sinistros" na página de detalhe de veículo.
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 18-01-PLAN.md — Extended KPIs backend (ANA-01): get_analytics_dashboard + Redis cache
+- [ ] 18-02-PLAN.md — Async export reports (ANA-02 fuel XLSX, ANA-03 compliance PDF)
+- [ ] 18-03-PLAN.md — Insurance models, migration, CRUD API, renewal cron (INS-01, INS-02)
+- [ ] 18-04-PLAN.md — Frontend: analytics dashboard sections + vehicle insurance tab
 
 **UI hint**: yes
 
@@ -1108,7 +1114,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 13. Frontend Completeness | 3/4 | In Progress|  |
+| 13. Frontend Completeness | 3/3 | Complete | 2026-06-20 |
 | 14. Domain State Machines | 2/2 | Complete | 2026-06-19 |
 | 15. Fiscal Compliance + Segurança de Carga | 6/6 | Complete | 2026-06-19 |
 | 15.1. Documentos Fiscais Completos | 9/9 | Complete | 2026-06-19 |

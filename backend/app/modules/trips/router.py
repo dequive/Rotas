@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import require_permission, TRIPS_READ, TRIPS_DISPATCH, TRIPS_CLOSE
 from app.modules.trips import schemas, service
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/trips", tags=["trips"])
 
 @router.get("")
 async def list_trips(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
     vehicle_id: UUID | None = None,
@@ -42,7 +42,7 @@ async def list_trips(
 @router.post("")
 async def create_trip(
     payload: schemas.TripCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -65,7 +65,7 @@ async def create_trip(
 
 @router.post("/sla/evaluate")
 async def evaluate_delivery_sla(
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.evaluate_delivery_sla(
@@ -79,7 +79,7 @@ async def evaluate_delivery_sla(
 async def start_trip(
     trip_id: UUID,
     payload: schemas.StartTripRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -104,7 +104,7 @@ async def start_trip(
 @router.post("/{trip_id}/dispatch-clearance/request")
 async def request_dispatch_clearance(
     trip_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.request_dispatch_clearance(
@@ -117,7 +117,7 @@ async def request_dispatch_clearance(
 
 @router.get("/dispatch-clearances")
 async def list_dispatch_clearances(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     trip_id: UUID | None = None,
     status: str | None = None,
@@ -138,7 +138,7 @@ async def list_dispatch_clearances(
 async def approve_dispatch_clearance(
     trip_id: UUID,
     payload: schemas.DispatchClearanceApproveRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -164,7 +164,7 @@ async def approve_dispatch_clearance(
 async def dispatch_trip(
     trip_id: UUID,
     payload: schemas.TripDispatchRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -188,7 +188,7 @@ async def dispatch_trip(
 
 @router.get("/events")
 async def list_execution_events(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     trip_id: UUID | None = None,
     event_type: str | None = None,
@@ -209,7 +209,7 @@ async def list_execution_events(
 async def create_execution_event(
     trip_id: UUID,
     payload: schemas.TripExecutionEventCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -233,7 +233,7 @@ async def create_execution_event(
 
 @router.get("/incidents")
 async def list_incidents(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     trip_id: UUID | None = None,
     status: str | None = None,
@@ -256,7 +256,7 @@ async def list_incidents(
 async def create_incident(
     trip_id: UUID,
     payload: schemas.TripIncidentCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -283,7 +283,7 @@ async def resolve_incident(
     trip_id: UUID,
     incident_id: UUID,
     payload: schemas.TripIncidentResolveRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.resolve_incident(
@@ -300,7 +300,7 @@ async def resolve_incident(
 async def create_stop(
     trip_id: UUID,
     payload: schemas.TripStopCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -326,7 +326,7 @@ async def create_stop(
 async def associate_contract(
     trip_id: UUID,
     payload: schemas.AssociateContractRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.associate_contract(
@@ -342,7 +342,7 @@ async def associate_contract(
 async def create_cost(
     trip_id: UUID,
     payload: schemas.TripCostCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.create_cost(
@@ -354,7 +354,7 @@ async def create_cost(
 async def record_driver_travel_allowance(
     trip_id: UUID,
     payload: schemas.TripDriverAllowanceRecordRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -379,7 +379,7 @@ async def record_driver_travel_allowance(
 @router.get("/{trip_id}/costs")
 async def list_costs(
     trip_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.list_costs(db, principal.tenant_id, trip_id)
@@ -389,7 +389,7 @@ async def list_costs(
 async def complete_trip(
     trip_id: UUID,
     payload: schemas.CompleteTripRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_CLOSE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -415,7 +415,7 @@ async def complete_trip(
 async def operational_close_trip(
     trip_id: UUID,
     payload: schemas.OperationalCloseTripRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_CLOSE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import require_permission, TRIPS_READ, TRIPS_DISPATCH, ADMIN_USERS
 from app.modules.trip_orders import schemas, service
 from app.modules.trip_orders.schemas import DispatchClearanceRejectRequest
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/trip-orders", tags=["trip-orders"])
 
 @router.get("")
 async def list_trip_orders(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
     vehicle_id: UUID | None = None,
@@ -38,7 +38,7 @@ async def list_trip_orders(
 @router.post("")
 async def create_trip_order(
     payload: schemas.TripOrderCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -62,7 +62,7 @@ async def create_trip_order(
 @router.get("/{order_id}")
 async def get_trip_order(
     order_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_trip_order(db, principal.tenant_id, order_id)
@@ -72,7 +72,7 @@ async def get_trip_order(
 async def confirm_trip_order(
     order_id: UUID,
     payload: schemas.TripOrderConfirmRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -98,7 +98,7 @@ async def confirm_trip_order(
 async def assign_trip_order(
     order_id: UUID,
     payload: schemas.TripOrderAssignRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -124,7 +124,7 @@ async def assign_trip_order(
 async def cancel_trip_order(
     order_id: UUID,
     payload: schemas.TripOrderCancelRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -151,7 +151,7 @@ async def reject_dispatch_endpoint(
     order_id: UUID,
     body: DispatchClearanceRejectRequest,
     db: Annotated[AsyncSession, Depends(get_session)],
-    principal: Annotated[Principal, Depends(require_roles("owner", "admin"))],
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
     request: Request = None,
 ):
     from app.modules.trip_orders.service import reject_dispatch_clearance

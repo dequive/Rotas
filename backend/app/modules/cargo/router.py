@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import require_permission, CARGO_WRITE
 from app.modules.cargo import schemas, service
 from app.modules.cargo.schemas import DeliveryProofRejectRequest
 
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/trips/{trip_id}", tags=["cargo"])
 async def create_load_permit(
     trip_id: UUID,
     payload: schemas.LoadPermitCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -44,7 +44,7 @@ async def create_load_permit(
 async def create_cargo_manifest(
     trip_id: UUID,
     payload: schemas.CargoManifestCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -70,7 +70,7 @@ async def create_cargo_manifest(
 async def create_transport_document(
     trip_id: UUID,
     payload: schemas.TransportDocumentCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -96,7 +96,7 @@ async def create_transport_document(
 async def create_delivery_proof(
     trip_id: UUID,
     payload: schemas.DeliveryProofCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -123,7 +123,7 @@ async def validate_delivery_proof(
     trip_id: UUID,
     proof_id: UUID,
     payload: schemas.ValidateDeliveryProofRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -151,7 +151,7 @@ async def dispute_delivery_proof(
     trip_id: UUID,
     proof_id: UUID,
     payload: schemas.DisputeDeliveryProofRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -179,7 +179,7 @@ async def resolve_delivery_proof_dispute(
     trip_id: UUID,
     proof_id: UUID,
     payload: schemas.ResolveDeliveryProofDisputeRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -207,7 +207,7 @@ async def accept_delivery_proof_endpoint(
     trip_id: UUID,
     proof_id: UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
-    principal: Annotated[Principal, Depends(require_roles("owner", "admin", "manager"))],
+    principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
 ):
     from app.modules.cargo.service import accept_delivery_proof
 
@@ -228,7 +228,7 @@ async def reject_delivery_proof_endpoint(
     proof_id: UUID,
     body: DeliveryProofRejectRequest,
     db: Annotated[AsyncSession, Depends(get_session)],
-    principal: Annotated[Principal, Depends(require_roles("owner", "admin", "manager"))],
+    principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
 ):
     from app.modules.cargo.service import reject_delivery_proof
 
@@ -251,7 +251,7 @@ async def reject_delivery_proof_endpoint(
 async def create_guia_remessa(
     trip_id: UUID,
     payload: schemas.GuiaRemessaCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """OPDOC-02: Create a Guia de Remessa and generate its PDF. Returns document + pdf_url."""
@@ -271,7 +271,7 @@ async def create_guia_remessa(
 async def create_carta_porte(
     trip_id: UUID,
     payload: schemas.CartaPorteCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """OPDOC-03: Create a Carta de Porte Internacional (bilingual PT/EN PDF).
@@ -294,7 +294,7 @@ async def create_carta_porte(
 async def create_dav(
     trip_id: UUID,
     payload: schemas.DAVCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """OPDOC-04: Record a DAV (Declaração de Aprovação de Viagem). Digital record only — no PDF."""
@@ -314,7 +314,7 @@ async def create_dav(
 async def create_declaracao_carga_perigosa(
     trip_id: UUID,
     payload: schemas.DeclaracaoCargaPerisgosaCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """Declaração de Carga Perigosa — digital record for hazmat trips (no PDF)."""
@@ -330,7 +330,7 @@ async def create_declaracao_carga_perigosa(
 @router.get("/document-checklist")
 async def get_document_checklist(
     trip_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """OPDOC-05: Return required document checklist for the trip, with present/missing status.

@@ -13,6 +13,22 @@ interface UserResponse {
   role: string;
 }
 
+interface TenantData {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  timezone: string;
+  currency: string;
+}
+
+interface DriverBasic {
+  id: string;
+  full_name: string;
+  phone: string;
+  status: string;
+}
+
 async function getTenantLimits(): Promise<TenantLimits | null> {
   try {
     return await apiFetch<TenantLimits>("/api/v1/tenants/me/limits", { revalidate: 30 });
@@ -29,13 +45,30 @@ async function getUsers(): Promise<UserResponse[]> {
   }
 }
 
+async function getTenant(): Promise<TenantData | null> {
+  try {
+    return await apiFetch<TenantData>("/api/v1/tenants/me", { revalidate: 30 });
+  } catch {
+    return null;
+  }
+}
+
+async function getDrivers(): Promise<DriverBasic[]> {
+  try {
+    return await apiFetch<DriverBasic[]>("/api/v1/drivers?limit=100", { revalidate: 30 });
+  } catch {
+    return [];
+  }
+}
+
 export default async function SettingsPage() {
   const session = await requireSession();
-  
-  // Load limits and all users in parallel
-  const [limits, users] = await Promise.all([
+
+  const [limits, users, tenant, drivers] = await Promise.all([
     getTenantLimits(),
     getUsers(),
+    getTenant(),
+    getDrivers(),
   ]);
 
   // Find current logged in user details
@@ -44,8 +77,8 @@ export default async function SettingsPage() {
   return (
     <SidebarLayout active="settings">
       <div className="w-full max-w-4xl mx-auto space-y-6">
-        <PageHeader 
-          title="Definições da Conta" 
+        <PageHeader
+          title="Definições da Conta"
           description="Gira as suas preferências, acessos e os limites do plano subscrito com sincronização no banco de dados."
         />
 
@@ -56,6 +89,9 @@ export default async function SettingsPage() {
           initialEmail={currentUser?.email ?? ""}
           initialPhone={currentUser?.phone ?? ""}
           limits={limits}
+          users={users}
+          tenant={tenant}
+          drivers={drivers}
         />
       </div>
     </SidebarLayout>

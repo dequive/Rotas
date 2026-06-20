@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 22-01-PLAN.md
-last_updated: "2026-06-20T08:00:34.547Z"
+stopped_at: Completed 24-01-PLAN.md
+last_updated: "2026-06-20T08:22:26.949Z"
 last_activity: 2026-06-20
 progress:
-  total_phases: 24
-  completed_phases: 14
-  total_plans: 106
-  completed_plans: 96
+  total_phases: 13
+  completed_phases: 8
+  total_plans: 64
+  completed_plans: 63
 ---
 
 # ROTAS — Project State
@@ -22,10 +22,10 @@ _Last updated: 2026-06-06_
 ## Current Phase
 
 Phase: 24
-Plan: Not started (plans written, execution pending)
-Status: Phase 24 planning complete 2026-06-20 — 6 plans written: 24-01 (migrations tp07/tp08/tp09), 24-02 (backend service+API+idempotency), 24-03 (frontend /terceiros list+detail 5 tabs), 24-04 (supplier/service-provider pickers), 24-05 (OperationalDocuments UI + driver/vehicle assignments), 24-06 (alembic upgrade head + seed + smoke tests)
+Plan: 24-01 complete — next: 24-02 (backend service+API+idempotency)
+Status: Phase 24 in execution — 24-01 (migrations tp07/tp08/tp09) DONE 2026-06-20; remaining: 24-02, 24-03, 24-04, 24-05, 24-06
 Last activity: 2026-06-20
-Stopped at: Completed 22-01-PLAN.md
+Stopped at: Completed 24-01-PLAN.md
 
 ### Completed v3.0 Phases
 
@@ -134,6 +134,7 @@ Phase 24 (Third Party Completion) — plans written 2026-06-20; ready to execute
 | Tracking page target under 50KB — text-format position, no heavy map library | 12 | Low-end Android browsers on shared mobile data in Mozambique outside Maputo/Beira/Nampula |
 | supplier_ledger balance = sum(credits) - sum(debits) — never denormalised | 24 | Denormalised balance drifts on concurrent writes; calculated at query time is always correct |
 | ThirdPartyCombobox uses native fetch via Next.js /api/third-party proxy — not direct backend URL | 24 | Client Components cannot read httpOnly session cookies; proxy pattern established in Phase 5 for /api/clients |
+| tp07 down_revision=b1c2d3e4f5a6 not tp06 — tp06 already merged via tp_merge_wave2 | 24-01 | Using tp06 as down_revision would create a parallel branch head; b1c2d3e4f5a6 is the actual current head, keeping linear chain |
 
 ### Architecture: v2.0 Phase Sequence
 

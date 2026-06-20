@@ -45,6 +45,29 @@ interface BillingDocument {
   client_id?: string | null;
 }
 
+interface StatementDoc {
+  id: string;
+  invoice_number: string | null;
+  document_type: string;
+  status: string;
+  total_amount: string | number;
+  amount_paid: string | number;
+  outstanding: string | number;
+  currency: string;
+  issued_at: string | null;
+  due_date: string | null;
+}
+
+interface ClientStatement {
+  client_id: string;
+  client_name: string;
+  total_invoiced: string | number;
+  total_paid: string | number;
+  balance: string | number;
+  currency: string;
+  documents: StatementDoc[];
+}
+
 function formatMzn(val: string | number | null | undefined): string {
   if (val == null) return "—";
   const n = Number(val);
@@ -90,6 +113,14 @@ export default async function ClienteDetailPage({
       : [];
   } catch {
     invoices = [];
+  }
+
+  // Fetch AR statement — per-document outstanding for Extrato Conta Corrente
+  let statement: ClientStatement | null = null;
+  try {
+    statement = await apiFetch<ClientStatement>(`/api/v1/billing/clients/${id}/statement`);
+  } catch {
+    statement = null;
   }
 
   // Credit limit warning computation
@@ -216,6 +247,112 @@ export default async function ClienteDetailPage({
                 : `Saldo em aberto de ${formatMzn(client.outstanding_balance)} está a aproximar-se do limite de crédito (${formatMzn(client.credit_limit)}).`}
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Extrato Conta Corrente */}
+      {statement && (
+        <div className="rounded-lg border border-border bg-surface overflow-hidden mb-6">
+          <SectionHeader
+            title="Extrato Conta Corrente"
+            count={statement.documents.length}
+            actions={
+              <a
+                href={`/api/billing/clients/${id}/statement/pdf`}
+                download={`extrato_${id}.pdf`}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md text-white transition-colors"
+                style={{ background: "var(--amber)" }}
+              >
+                Exportar PDF
+              </a>
+            }
+          />
+
+          {/* Balance summary bar */}
+          <div
+            className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-3 border-b"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+          >
+            <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+              Saldo em Aberto
+            </span>
+            <span
+              className="font-mono text-2xl font-semibold"
+              style={{ color: Number(statement.balance) > 0 ? "var(--error)" : "var(--success)" }}
+            >
+              {formatMzn(statement.balance)}
+            </span>
+            <span className="ml-auto text-[11px]" style={{ color: "var(--muted)" }}>
+              Emitido: <span className="font-mono">{formatMzn(statement.total_invoiced)}</span>
+              &nbsp;|&nbsp;
+              Recebido: <span className="font-mono">{formatMzn(statement.total_paid)}</span>
+            </span>
+          </div>
+
+          {statement.documents.length === 0 ? (
+            <EmptyState
+              title="Sem documentos de cobrança"
+              description="Ainda não foram emitidos documentos de cobrança para este cliente."
+            />
+          ) : (
+            <DataTable>
+              <TableHeader>
+                <TableRow>
+                  <RotasTableHeader>Fatura</RotasTableHeader>
+                  <RotasTableHeader align="center">Emissão</RotasTableHeader>
+                  <RotasTableHeader align="center">Vencimento</RotasTableHeader>
+                  <RotasTableHeader align="right">Total MZN</RotasTableHeader>
+                  <RotasTableHeader align="right">Pago MZN</RotasTableHeader>
+                  <RotasTableHeader align="right">Em Aberto MZN</RotasTableHeader>
+                  <RotasTableHeader align="center">Estado</RotasTableHeader>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {statement.documents.map((doc) => {
+                  const isOverdue =
+                    doc.status === "overdue" ||
+                    (doc.status === "issued" &&
+                      doc.due_date != null &&
+                      new Date(doc.due_date) < new Date());
+                  const outstandingNum = Number(doc.outstanding);
+                  return (
+                    <RotasTableRow key={doc.id}>
+                      <RotasTableCell>
+                        <MonoCell>{doc.invoice_number ?? "—"}</MonoCell>
+                      </RotasTableCell>
+                      <RotasTableCell align="center">
+                        {formatDate(doc.issued_at)}
+                      </RotasTableCell>
+                      <RotasTableCell align="center">
+                        <span
+                          className={isOverdue ? "font-medium" : ""}
+                          style={isOverdue ? { color: "var(--error)" } : undefined}
+                        >
+                          {formatDate(doc.due_date)}
+                        </span>
+                      </RotasTableCell>
+                      <RotasTableCell align="right">
+                        <MonoCell>{formatMzn(doc.total_amount)}</MonoCell>
+                      </RotasTableCell>
+                      <RotasTableCell align="right">
+                        <MonoCell>{formatMzn(doc.amount_paid)}</MonoCell>
+                      </RotasTableCell>
+                      <RotasTableCell align="right">
+                        <MonoCell
+                          className={outstandingNum > 0 ? "font-medium text-error" : "text-success"}
+                        >
+                          {formatMzn(doc.outstanding)}
+                        </MonoCell>
+                      </RotasTableCell>
+                      <RotasTableCell align="center">
+                        <StatusBadge status={doc.status} />
+                      </RotasTableCell>
+                    </RotasTableRow>
+                  );
+                })}
+              </TableBody>
+            </DataTable>
+          )}
         </div>
       )}
 

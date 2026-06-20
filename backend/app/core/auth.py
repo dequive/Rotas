@@ -17,7 +17,7 @@ from app.modules.users.models import User
 @dataclass(frozen=True)
 class Principal:
     subject: str
-    tenant_id: UUID
+    tenant_id: UUID | None  # Phase 25: None for platform-scoped tokens
     scope: str
     role: str | None = None
     user_id: UUID | None = None
@@ -154,6 +154,78 @@ async def get_current_principal(
         driver_id=driver_id,
         device_id=claims.get("device_id"),
         permissions=permissions,
+    )
+
+
+async def get_current_platform_principal(
+    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
+) -> "Principal":
+    """Decode and validate a platform-scoped JWT.
+
+    This is a SEPARATE function from get_current_principal() — not a branch inside it.
+    Structural separation is a security invariant: tenant tokens never reach platform logic.
+
+    Scope check fires BEFORE any role or DB lookup — a tenant JWT with role="platform_admin"
+    is rejected at the scope check, before its role field is ever examined.
+    """
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise ApiError(
+            "unauthorized",
+            "Authentication token is required.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+    token = authorization.split(" ", 1)[1]
+    settings = get_settings()
+    try:
+        claims = jwt.decode(
+            token,
+            settings.jwt_secret_key.get_secret_value(),
+            algorithms=[settings.jwt_algorithm],
+        )
+        if claims.get("typ") != "access":
+            raise jwt.DecodeError("invalid token type")
+    except (jwt.PyJWTError, KeyError, TypeError, ValueError) as exc:
+        raise ApiError(
+            "invalid_token",
+            "Authentication token is invalid or expired.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        ) from exc
+
+    # Scope check MUST come before role — rejects tenant tokens that happen to have a
+    # role string matching a platform role name.
+    if claims.get("scope") != "platform":
+        raise ApiError(
+            "forbidden",
+            "Platform scope required.",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+
+    platform_user_id_str = claims.get("platform_user_id")
+    if not platform_user_id_str:
+        raise ApiError(
+            "invalid_token",
+            "Token missing platform_user_id.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+    platform_user_id = UUID(platform_user_id_str)
+
+    async with AsyncSessionLocal() as db:
+        from app.modules.platform.models import PlatformUser  # noqa: PLC0415
+
+        user = await db.get(PlatformUser, platform_user_id)
+        if not user or not user.is_active:
+            raise ApiError(
+                "forbidden",
+                "Platform user inactive or not found.",
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
+    return Principal(
+        subject=claims["sub"],
+        tenant_id=None,
+        scope="platform",
+        role=claims.get("role"),
+        user_id=platform_user_id,
     )
 
 

@@ -158,3 +158,49 @@ def require_permission(*permissions: str) -> Callable:
         return principal
 
     return dependency
+
+
+# ── Platform role constants (Phase 25) ────────────────────────────────────────
+
+PLATFORM_ADMIN = "platform_admin"
+PLATFORM_SUPPORT = "platform_support"
+PLATFORM_BILLING = "platform_billing"
+
+PLATFORM_ROLES: frozenset[str] = frozenset({PLATFORM_ADMIN, PLATFORM_SUPPORT, PLATFORM_BILLING})
+
+
+def require_platform_role(*roles: str) -> Callable:
+    """FastAPI dependency for platform-scoped endpoints.
+
+    Validation is dual and ordered:
+      1. Delegates to get_current_platform_principal() which ONLY accepts scope="platform" tokens.
+         A tenant JWT (scope="dashboard") is rejected at the decode step with 403 — role is never
+         read. This prevents a tenant user with a custom role named "platform_admin" from gaining
+         access (scope check fires BEFORE role check).
+      2. Checks that principal.role is in the allowed set.
+    """
+    from app.core.auth import Principal, get_current_platform_principal  # noqa: PLC0415
+
+    allowed: frozenset[str] = frozenset(roles)
+
+    async def dependency(
+        principal: Annotated[Principal, Depends(get_current_platform_principal)],
+    ) -> Principal:
+        # Scope already validated by get_current_platform_principal.
+        # Belt-and-suspenders: assert it here so this guard is self-contained.
+        if principal.scope != "platform":
+            raise ApiError(
+                "forbidden",
+                "Platform scope required.",
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+        if principal.role not in allowed:
+            raise ApiError(
+                "forbidden",
+                "Insufficient platform role for this operation.",
+                status_code=status.HTTP_403_FORBIDDEN,
+                details={"required_roles": sorted(allowed)},
+            )
+        return principal
+
+    return dependency

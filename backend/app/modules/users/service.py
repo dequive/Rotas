@@ -1,3 +1,4 @@
+import re as _re
 from uuid import UUID
 
 from fastapi import status
@@ -8,10 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.core.errors import ApiError
 from app.core.passwords import hash_password
+from app.core.rbac import ALL_PERMISSIONS
 from app.modules.audit.service import record_audit_log
 from app.modules.tenants.models import Tenant
-from app.modules.users.models import User
-from app.modules.users.schemas import UserCreate, UserPatch
+from app.modules.users.models import TenantRole, User
+from app.modules.users.schemas import TenantRoleCreate, TenantRoleUpdate, UserCreate, UserPatch
+
+_SLUG_RE = _re.compile(r"^[a-z0-9_-]{1,80}$")
 
 USER_ROLES = {"owner", "admin", "manager", "viewer"}
 
@@ -226,3 +230,133 @@ async def patch_user(
     await db.commit()
     await db.refresh(user)
     return serialize_user(user)
+
+
+# ── Tenant role service functions ─────────────────────────────────────────────
+
+
+def _serialize_tenant_role(role: TenantRole) -> dict:
+    return {
+        "id": role.id,
+        "tenant_id": role.tenant_id,
+        "name": role.name,
+        "slug": role.slug,
+        "permissions": role.permissions,
+        "is_system": role.is_system,
+        "created_by": role.created_by,
+        "created_at": role.created_at,
+        "updated_at": role.updated_at,
+    }
+
+
+async def create_tenant_role(
+    db: AsyncSession,
+    tenant_id: UUID,
+    payload: TenantRoleCreate,
+    *,
+    actor_id: UUID,
+) -> dict:
+    if not _SLUG_RE.match(payload.slug):
+        raise ApiError(
+            "invalid_slug",
+            "Slug must be 1-80 chars: lowercase letters, digits, hyphens, underscores.",
+            status_code=400,
+        )
+    unknown = frozenset(payload.permissions) - ALL_PERMISSIONS
+    if unknown:
+        raise ApiError(
+            "invalid_permissions",
+            f"Unknown permissions: {sorted(unknown)}",
+            status_code=400,
+            details={"unknown": sorted(unknown), "valid": sorted(ALL_PERMISSIONS)},
+        )
+    existing = await db.scalar(
+        select(TenantRole).where(
+            TenantRole.tenant_id == tenant_id,
+            TenantRole.slug == payload.slug,
+        )
+    )
+    if existing:
+        raise ApiError("slug_conflict", "A role with this slug already exists.", status_code=409)
+    role = TenantRole(
+        tenant_id=tenant_id,
+        name=payload.name,
+        slug=payload.slug,
+        permissions=sorted(payload.permissions),
+        created_by=actor_id,
+    )
+    db.add(role)
+    await db.flush()
+    await db.commit()
+    await db.refresh(role)
+    return _serialize_tenant_role(role)
+
+
+async def list_tenant_roles(db: AsyncSession, tenant_id: UUID) -> list[dict]:
+    roles = await db.scalars(
+        select(TenantRole)
+        .where(TenantRole.tenant_id == tenant_id)
+        .order_by(TenantRole.name)
+    )
+    return [_serialize_tenant_role(r) for r in roles.all()]
+
+
+async def update_tenant_role(
+    db: AsyncSession,
+    tenant_id: UUID,
+    role_id: UUID,
+    payload: TenantRoleUpdate,
+) -> dict:
+    role = await db.get(TenantRole, role_id)
+    if not role or role.tenant_id != tenant_id:
+        raise ApiError("role_not_found", "Custom role not found.", status_code=404)
+    if role.is_system:
+        raise ApiError(
+            "cannot_modify_system_role", "System roles cannot be modified.", status_code=400
+        )
+    if payload.name is not None:
+        role.name = payload.name
+    if payload.permissions is not None:
+        unknown = frozenset(payload.permissions) - ALL_PERMISSIONS
+        if unknown:
+            raise ApiError(
+                "invalid_permissions",
+                f"Unknown permissions: {sorted(unknown)}",
+                status_code=400,
+                details={"unknown": sorted(unknown), "valid": sorted(ALL_PERMISSIONS)},
+            )
+        role.permissions = sorted(payload.permissions)
+    await db.commit()
+    await db.refresh(role)
+    return _serialize_tenant_role(role)
+
+
+async def assign_custom_role_to_user(
+    db: AsyncSession,
+    tenant_id: UUID,
+    user_id: UUID,
+    *,
+    custom_role_id: UUID | None,
+    actor_id: UUID,
+) -> dict:
+    user = await db.get(User, user_id)
+    if not user or user.tenant_id != tenant_id:
+        raise ApiError("user_not_found", "User not found.", status_code=404)
+    if custom_role_id is not None:
+        role = await db.get(TenantRole, custom_role_id)
+        if not role or role.tenant_id != tenant_id:
+            raise ApiError("role_not_found", "Custom role not found.", status_code=404)
+    old_role_id = user.custom_role_id
+    user.custom_role_id = custom_role_id
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="user.custom_role_assigned",
+        entity_type="user",
+        entity_id=user_id,
+        old_values={"custom_role_id": str(old_role_id) if old_role_id else None},
+        new_values={"custom_role_id": str(custom_role_id) if custom_role_id else None},
+    )
+    await db.commit()
+    return {"user_id": user_id, "custom_role_id": custom_role_id}

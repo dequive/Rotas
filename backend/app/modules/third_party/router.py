@@ -64,11 +64,19 @@ async def list_third_parties(
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = Query(None),
+    role_type: str | None = Query(None, description="Filter by role type"),
+    name: str | None = Query(None, description="Case-insensitive name search (ILIKE)"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
     return await service.list_third_parties(
-        db, principal.tenant_id, status=status, limit=limit, offset=offset
+        db,
+        principal.tenant_id,
+        status=status,
+        role_type=role_type,
+        name=name,
+        limit=limit,
+        offset=offset,
     )
 
 

@@ -171,12 +171,27 @@ async def list_third_parties(
     tenant_id: UUID,
     *,
     status: str | None = None,
+    role_type: str | None = None,
+    name: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> list[dict]:
     query = select(ThirdParty).where(ThirdParty.tenant_id == tenant_id)
     if status is not None:
         query = query.where(ThirdParty.status == status)
+    if name is not None:
+        query = query.where(ThirdParty.name.ilike(f"%{name}%"))
+    if role_type is not None:
+        # Filter to third parties that have an active role of the specified type
+        query = query.where(
+            ThirdParty.id.in_(
+                select(ThirdPartyRole.third_party_id).where(
+                    ThirdPartyRole.tenant_id == tenant_id,
+                    ThirdPartyRole.role_type == role_type,
+                    ThirdPartyRole.is_active.is_(True),
+                )
+            )
+        )
     query = query.order_by(ThirdParty.name.asc()).limit(limit).offset(offset)
     result = await db.execute(query)
     return [serialize_third_party(tp) for tp in result.scalars()]

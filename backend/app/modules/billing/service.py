@@ -454,7 +454,7 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
         raise ApiError(
             "contract_required",
             "Billing document requires a contract.",
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
 
     contract = await db.get(Contract, payload.contract_id)
@@ -682,7 +682,7 @@ async def issue_document(
             "client_nuit_required",
             "O NUIT do cliente é obrigatório para emitir um documento fiscal. "
             "Actualize o documento com client_nuit antes de emitir.",
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
 
     issued_at = payload.issued_at or datetime.now(UTC)

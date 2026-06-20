@@ -161,6 +161,7 @@ EXPECTED_RLS_TABLES = sorted(
         "spare_part_movements",
         "spare_parts_inventory",
         "sync_events",
+        "tenant_roles",
         "tool_checkouts",
         "transport_documents",
         "trip_costs",

@@ -358,7 +358,7 @@ async def accept_delivery_proof(
             status_code=409,
         )
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     proof.status = "accepted"
     proof.accepted_at = now
     proof.accepted_by = user_id
@@ -404,7 +404,7 @@ async def reject_delivery_proof(
             status_code=409,
         )
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     proof.status = "rejected"
     proof.rejected_at = now
     proof.rejected_by = user_id

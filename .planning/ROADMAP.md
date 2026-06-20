@@ -1079,9 +1079,29 @@ Plans:
 - UI usa Manrope + IBM Plex Mono (valores monetários) + amber-500 (acções primárias) conforme DESIGN.md
 - Saldo de conta corrente é calculado via query (não desnormalizado) — sem coluna de saldo que possa desincronizar
 
-**Plans**: TBD — run `/gsd:plan-phase 24`
+**Plans**: 7 plans (complete)
 
 ---
+
+### Phase 25: Platform/Tenant Scope Separation
+
+**Goal**: A JWT with scope="platform" can never access tenant business endpoints; a JWT with
+scope="tenant" can never access /platform/* endpoints. The separation is enforced structurally in
+the JWT, not by convention.
+
+**Depends on**: Phase 22 (RBAC — require_permission() pattern established; Principal dataclass stable)
+
+**Requirements**: PLAT-01, PLAT-02, PLAT-03, PLAT-04, PLAT-05, PLAT-06, PLAT-07, PLAT-08
+
+**Plans**: 3 plans
+
+Plans:
+- [ ] 25-01-PLAN.md — Wave 1: core auth/token primitives (scope=platform JWT), platform_users + platform_audit_logs migration, platform module (models, schemas, auth_service, audit_service, auth_router), 6 isolation tests
+- [ ] 25-02-PLAN.md — Wave 2: 8 platform management endpoints (list/suspend/reactivate tenants, change plan, platform users CRUD, audit log), service layer with mandatory audit trail, 8 management tests
+- [ ] 25-03-PLAN.md — Wave 3: require_own_tenant_or_platform() combined guard, tenants/router.py wired, 2 additional isolation tests, Ruff clean
+
+---
+
 
 ## Progress Table (v3.0)
 
@@ -1096,3 +1116,4 @@ Plans:
 | 22. RBAC Permission-Based | 3/3 | Complete   | 2026-06-20 |
 | 23. Third Party Registry | 8/8 | Complete | 2026-06-20 |
 | 24. Third Party Completion — UI, Conta Corrente & Avaliação | 7/7 | Complete | 2026-06-20 |
+| 25. Platform/Tenant Scope Separation | 0/3 | In progress | - |

@@ -664,7 +664,7 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 - [ ] **Phase 19: Customs/Border Crossing** — Workflows for cross-border routes, documentation, and border dispatch
 - [ ] **Phase 20: Route Optimization** — Distance matrix, waypoint sequencing, integration with routing providers
 - [ ] **Phase 21: Frontend E2E Tests** — Playwright E2E testing suite to prevent visual and functional UI regressions
-- [ ] **Phase 22: RBAC Permission-Based** — Refactor do sistema de roles e permissões: dois planos (platform vs tenant), roles em português com agregados de gestão e operacional, `require_permission()` granular por domínio, `tenant_roles` custom para owner/director, migração dos 174 call sites de `require_roles`
+- [x] **Phase 22: RBAC Permission-Based** — Refactor do sistema de roles e permissões: dois planos (platform vs tenant), roles em português com agregados de gestão e operacional, `require_permission()` granular por domínio, `tenant_roles` custom para owner/director, migração dos 174 call sites de `require_roles` (completed 2026-06-20)
 - [x] **Phase 23: Third Party Registry** — Fornecedores e prestadores externos como entidades estruturadas; elegibilidade operacional de motoristas calculada em tempo real; atribuição motorista-viatura com histórico temporal; documentos com validade rastreada (completed 2026-06-20)
 - [ ] **Phase 24: Third Party Completion** — UI /terceiros no manager, supplier/service-provider pickers em abastecimentos e ordens de trabalho, sub-contactos, conta corrente de fornecedor, pagamentos a fornecedores, avaliação/scoring, idempotency keys, seed de províncias
 
@@ -979,7 +979,7 @@ Plans:
 
 **Requirements**: SEC-RBAC-01 a SEC-RBAC-05
 **Depends on:** Phase 9 (RLS — os dois planos partilham infra de isolamento), Phase 13 (Frontend usa roles nos componentes de UI)
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 22 to break down)
@@ -1082,6 +1082,6 @@ Plans:
 | 16. Hours of Service + Availability Router | 0/TBD | Not started | - |
 | 17. Infrastructure Enterprise v2 | 2/2 | Complete    | 2026-06-19 |
 | 18. Analytics Avançado + Gestão de Seguros | 0/TBD | Not started | - |
-| 22. RBAC Permission-Based | 2/3 | In Progress|  |
+| 22. RBAC Permission-Based | 3/3 | Complete   | 2026-06-20 |
 | 23. Third Party Registry | 8/8 | Complete | 2026-06-20 |
 | 24. Third Party Completion — UI, Conta Corrente & Avaliação | 2/7 | In Progress|  |

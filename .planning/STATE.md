@@ -15,7 +15,7 @@ progress:
 
 # ROTAS — Project State
 
-_Last updated: 2026-06-06_
+_Last updated: 2026-06-20 — Completed quick task 260620-r9k: Design system overhaul (token layer + Button component)_
 
 ---
 
@@ -204,6 +204,7 @@ Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
 | 260607-o5b | Document expiry compliance fix and proactive alerts | 2026-06-07 | f4c04b5 | [260607-o5b](./quick/260607-o5b-document-expiry-compliance-fix-and-proac/) |
 | 260618-po2 | Fix Phase 13.5 production issues in manager (8 bugs: auth headers, NEXT_PUBLIC misuse, silent errors, KPI dedup, hardcoded email, stub tabs) | 2026-06-18 | 8b5c000 | [260618-po2](./quick/260618-po2-fix-phase-13-5-production-issues-in-mana/) |
 | 260620-cme | Billing module production hardening (IVA 16%, invoice_number no PDF, issuer snapshot, state machine, N+1 fix, 4 novos endpoints, invariantes) | 2026-06-20 | e8467c9 | [260620-cme](./quick/260620-cme-billing-module-production-hardening/) |
+| 260620-r9k | Design system overhaul: fix token layer + create reusable components | 2026-06-20 | 07df112 | [260620-r9k](./quick/260620-r9k-design-system-overhaul-fix-token-layer-c/) |
 
 ### Blockers
 

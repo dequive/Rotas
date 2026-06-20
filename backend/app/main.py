@@ -27,6 +27,7 @@ from app.modules.analytics.router import router as analytics_router
 from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import driver_router
 from app.modules.auth.router import router as auth_router
+from app.modules.availability.router import router as availability_router
 from app.modules.billing.router import router as billing_router
 from app.modules.cargo.router import router as cargo_router
 from app.modules.checklists.router import router as checklists_router
@@ -278,6 +279,7 @@ app.include_router(control_tower_router, prefix=api)
 app.include_router(alerts_router, prefix=api)
 app.include_router(sync_router, prefix=api)
 app.include_router(audit_router, prefix=api)
+app.include_router(availability_router, prefix=api)
 app.include_router(analytics_router, prefix=api)
 app.include_router(platform_auth_router, prefix=api)
 app.include_router(platform_router, prefix=api)

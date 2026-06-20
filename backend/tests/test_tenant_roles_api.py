@@ -178,7 +178,6 @@ async def test_assign_custom_role_jwt_perms_reflect_custom_role():
 
         # Create a viewer user (has fleet.read in standard role permissions)
         viewer = await _make_user(tenant.id, "viewer", password=password)
-        viewer_headers = _jwt_headers(tenant.id, viewer, perms=["admin.users"])
 
         # Assign custom role (reuse owner headers for the assign endpoint)
         r = await c.post(
@@ -189,7 +188,6 @@ async def test_assign_custom_role_jwt_perms_reflect_custom_role():
         assert r.status_code == 200, r.text
 
         # Viewer logs in — JWT should carry custom role perms
-        settings = get_settings()
         r = await c.post(
             "/api/v1/auth/login",
             json={

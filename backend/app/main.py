@@ -42,6 +42,7 @@ from app.modules.onboarding.router import router as onboarding_router
 from app.modules.operational_exceptions.router import router as operational_exceptions_router
 from app.modules.operations.router import router as operations_router
 from app.modules.platform.auth_router import router as platform_auth_router
+from app.modules.platform.router import router as platform_router
 from app.modules.sync.router import router as sync_router
 from app.modules.tenants.router import router as tenants_router
 from app.modules.third_party.router import router as third_party_router
@@ -279,3 +280,4 @@ app.include_router(sync_router, prefix=api)
 app.include_router(audit_router, prefix=api)
 app.include_router(analytics_router, prefix=api)
 app.include_router(platform_auth_router, prefix=api)
+app.include_router(platform_router, prefix=api)

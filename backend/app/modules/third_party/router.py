@@ -2,19 +2,23 @@ from collections.abc import AsyncIterator
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
 from app.core.deps import get_session
+from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
 from app.database import AsyncSessionLocal
 from app.modules.third_party import service
 from app.modules.third_party.schemas import (
     AssignmentCreate,
+    ContactCreate,
     DocumentCreate,
     DocumentVerify,
+    EvaluationCreate,
     PartyDirectoryEntry,
+    PaymentCreate,
     RoleCreate,
     ServiceProviderProfileCreate,
     SupplierProfileCreate,
@@ -266,3 +270,117 @@ async def unassign_driver_from_vehicle(
     return await service.unassign_driver_from_vehicle(
         db, principal.tenant_id, assignment_id, actor_id=principal.user_id
     )
+
+
+# ── Contacts ──────────────────────────────────────────────────────────────────
+
+
+@router.post("/{third_party_id}/contacts", status_code=201)
+async def create_contact(
+    third_party_id: UUID,
+    payload: ContactCreate,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+):
+    return await execute_http_idempotent(
+        db,
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        idempotency_key=idempotency_key,
+        operation="third_party.contact.create",
+        entity_type="third_party_contact",
+        payload=payload,
+        handler=lambda: service.create_contact(
+            db, principal.tenant_id, third_party_id, payload, principal.user_id
+        ),
+    )
+
+
+@router.get("/{third_party_id}/contacts")
+async def list_contacts(
+    third_party_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.list_contacts(db, principal.tenant_id, third_party_id)
+
+
+@router.delete("/{third_party_id}/contacts/{contact_id}", status_code=204)
+async def delete_contact(
+    third_party_id: UUID,
+    contact_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    await service.delete_contact(
+        db, principal.tenant_id, third_party_id, contact_id, principal.user_id
+    )
+
+
+# ── Ledger / account ──────────────────────────────────────────────────────────
+
+
+@router.get("/{third_party_id}/account")
+async def get_supplier_account(
+    third_party_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.get_supplier_account(db, principal.tenant_id, third_party_id)
+
+
+@router.post("/{third_party_id}/payments", status_code=201)
+async def create_payment(
+    third_party_id: UUID,
+    payload: PaymentCreate,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+):
+    return await execute_http_idempotent(
+        db,
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        idempotency_key=idempotency_key,
+        operation="third_party.payment.create",
+        entity_type="supplier_ledger_entry",
+        payload=payload,
+        handler=lambda: service.create_payment(
+            db, principal.tenant_id, third_party_id, payload, principal.user_id
+        ),
+    )
+
+
+# ── Evaluations ───────────────────────────────────────────────────────────────
+
+
+@router.post("/{third_party_id}/evaluations", status_code=201)
+async def create_evaluation(
+    third_party_id: UUID,
+    payload: EvaluationCreate,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+):
+    return await execute_http_idempotent(
+        db,
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        idempotency_key=idempotency_key,
+        operation="third_party.evaluation.create",
+        entity_type="supplier_evaluation",
+        payload=payload,
+        handler=lambda: service.create_evaluation(
+            db, principal.tenant_id, third_party_id, payload, principal.user_id
+        ),
+    )
+
+
+@router.get("/{third_party_id}/evaluations")
+async def list_evaluations(
+    third_party_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.list_evaluations(db, principal.tenant_id, third_party_id)

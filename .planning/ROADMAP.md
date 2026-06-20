@@ -1084,4 +1084,4 @@ Plans:
 | 18. Analytics Avançado + Gestão de Seguros | 0/TBD | Not started | - |
 | 22. RBAC Permission-Based | 2/3 | In Progress|  |
 | 23. Third Party Registry | 8/8 | Complete | 2026-06-20 |
-| 24. Third Party Completion — UI, Conta Corrente & Avaliação | 0/TBD | Not started | - |
+| 24. Third Party Completion — UI, Conta Corrente & Avaliação | 2/7 | In Progress|  |

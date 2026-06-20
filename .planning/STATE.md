@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 24-05-PLAN.md
-last_updated: "2026-06-20T12:17:40.038Z"
+stopped_at: Completed 24-06-PLAN.md
+last_updated: "2026-06-20T12:57:01.486Z"
 last_activity: 2026-06-20
 progress:
   total_phases: 13
@@ -22,10 +22,10 @@ _Last updated: 2026-06-06_
 ## Current Phase
 
 Phase: 24
-Plan: 24-05 complete — next: 24-06
-Status: Phase 24 in execution — 24-01 (migrations) DONE; 24-02 (backend API) DONE; 24-03 (frontend /terceiros) DONE 2026-06-20; 24-04 (supplier/service-provider pickers) DONE 2026-06-20; 24-05 (operational documents UI + assignments) DONE 2026-06-20; remaining: 24-06
+Plan: 24-06 complete — Phase 24 DONE
+Status: Phase 24 COMPLETE — 24-01 (migrations) DONE; 24-02 (backend API) DONE; 24-03 (frontend /terceiros) DONE; 24-04 (pickers) DONE; 24-05 (documents + assignments UI) DONE; 24-06 (alembic head + seed + 7/7 smoke tests + tsc clean) DONE 2026-06-20
 Last activity: 2026-06-20
-Stopped at: Completed 24-05-PLAN.md
+Stopped at: Completed 24-06-PLAN.md
 
 ### Completed v3.0 Phases
 
@@ -33,6 +33,7 @@ Stopped at: Completed 24-05-PLAN.md
 - [x] **Phase 14** — Domain State Machines (SM-01 BillingDocument, SM-02 Contract, SM-03 DeliveryProof, SM-04 DispatchClearance)
 - [x] **Phase 15.1** — Documentos Fiscais Completos (FDOC-01..05: Nota de Débito, Nota de Crédito, Fatura-Recibo, Recibo, AR aging; OPDOC-01..05: extra_fields DDL, Guia de Remessa PDF, CPI bilingual PDF, DAV digital record, checklist por tipo de viagem) — 238 passed, 3 skipped
 - [x] **Phase 17** — Infrastructure Enterprise v2 (INFRA2-01 distributed rate limiting, INFRA2-02 structured logging, INFRA2-03 Prometheus metrics, INFRA2-04 deep health check + worker heartbeat)
+- [x] **Phase 24** — Third Party Completion (24-01 tp07/08/09 migrations; 24-02 contacts/ledger/payments/evaluations API; 24-03 /terceiros UI; 24-04 ThirdPartyCombobox/ServiceProviderCombobox pickers; 24-05 OperationalDocuments + assignments UI; 24-06 alembic head + seed + 348 tests green + tsc clean) — completed 2026-06-20
 
 ---
 

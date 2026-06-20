@@ -666,7 +666,7 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 - [ ] **Phase 21: Frontend E2E Tests** — Playwright E2E testing suite to prevent visual and functional UI regressions
 - [x] **Phase 22: RBAC Permission-Based** — Refactor do sistema de roles e permissões: dois planos (platform vs tenant), roles em português com agregados de gestão e operacional, `require_permission()` granular por domínio, `tenant_roles` custom para owner/director, migração dos 174 call sites de `require_roles` (completed 2026-06-20)
 - [x] **Phase 23: Third Party Registry** — Fornecedores e prestadores externos como entidades estruturadas; elegibilidade operacional de motoristas calculada em tempo real; atribuição motorista-viatura com histórico temporal; documentos com validade rastreada (completed 2026-06-20)
-- [ ] **Phase 24: Third Party Completion** — UI /terceiros no manager, supplier/service-provider pickers em abastecimentos e ordens de trabalho, sub-contactos, conta corrente de fornecedor, pagamentos a fornecedores, avaliação/scoring, idempotency keys, seed de províncias
+- [x] **Phase 24: Third Party Completion** — UI /terceiros no manager, supplier/service-provider pickers em abastecimentos e ordens de trabalho, sub-contactos, conta corrente de fornecedor, pagamentos a fornecedores, avaliação/scoring, idempotency keys, seed de províncias (completed 2026-06-20)
 
 ---
 
@@ -982,7 +982,9 @@ Plans:
 **Plans:** 3/3 plans complete
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 22 to break down)
+- [x] 22-01-PLAN.md — Wave 1: rbac.py (23 permission constants, ROLE_PERMISSIONS, require_permission()), Principal.permissions, JWT perms claim at login
+- [x] 22-02-PLAN.md — Wave 2: Migrate all 24 router files from require_roles() to require_permission(); zero require_roles in modules
+- [x] 22-03-PLAN.md — Wave 3: tenant_roles table (RLS+GRANT), TenantRole ORM, 4 CRUD endpoints, _load_user_permissions(), 6 integration tests
 
 ---
 
@@ -1084,4 +1086,4 @@ Plans:
 | 18. Analytics Avançado + Gestão de Seguros | 0/TBD | Not started | - |
 | 22. RBAC Permission-Based | 3/3 | Complete   | 2026-06-20 |
 | 23. Third Party Registry | 8/8 | Complete | 2026-06-20 |
-| 24. Third Party Completion — UI, Conta Corrente & Avaliação | 2/7 | In Progress|  |
+| 24. Third Party Completion — UI, Conta Corrente & Avaliação | 7/7 | Complete | 2026-06-20 |

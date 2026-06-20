@@ -272,6 +272,7 @@ def serialize_billing_document_summary(
         "id": document.id,
         "tenant_id": document.tenant_id,
         "contract_id": document.contract_id,
+        "client_id": str(document.client_id) if document.client_id else None,
         "client_name": document.client_name,
         "contract_reference": document.contract_reference,
         "billing_period_start": document.billing_period_start,

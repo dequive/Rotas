@@ -211,10 +211,6 @@ export async function getVehicles(): Promise<Vehicle[]> {
   return request<Vehicle[]>("/api/v1/driver/vehicles?limit=50");
 }
 
-async function getDrivers(): Promise<Array<{ id: string; full_name: string; status: string }>> {
-  return request("/api/v1/drivers?status=active&limit=50");
-}
-
 export async function createTrip(payload: {
   vehicle_id: string;
   driver_id: string;

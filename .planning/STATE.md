@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 06-04-PLAN.md
-last_updated: "2026-06-19T22:26:06.994Z"
-last_activity: 2026-06-19
+status: in_progress
+stopped_at: Completed 24-06-PLAN.md (Phase 24 planning complete — 6 plans written)
+last_updated: "2026-06-20T00:00:00.000Z"
+last_activity: 2026-06-20
 progress:
   total_phases: 13
   completed_phases: 8
-  total_plans: 64
+  total_plans: 70
   completed_plans: 63
 ---
 
@@ -21,11 +21,11 @@ _Last updated: 2026-06-06_
 
 ## Current Phase
 
-Phase: 17
-Plan: Not started
-Status: 17-02 complete 2026-06-19 — Prometheus /metrics (INFRA2-03) + /health/deep endpoint + ARQ worker heartbeat (INFRA2-04); prometheus-fastapi-instrumentator>=7.0 declared; all 4 INFRA2 requirements satisfied
-Last activity: 2026-06-19
-Stopped at: Completed 06-04-PLAN.md
+Phase: 24
+Plan: Not started (plans written, execution pending)
+Status: Phase 24 planning complete 2026-06-20 — 6 plans written: 24-01 (migrations tp07/tp08/tp09), 24-02 (backend service+API+idempotency), 24-03 (frontend /terceiros list+detail 5 tabs), 24-04 (supplier/service-provider pickers), 24-05 (OperationalDocuments UI + driver/vehicle assignments), 24-06 (alembic upgrade head + seed + smoke tests)
+Last activity: 2026-06-20
+Stopped at: Completed 24-06-PLAN.md
 
 ### Completed v3.0 Phases
 
@@ -65,6 +65,7 @@ Phase 18 (Analytics+Ins) — requires Phases 13 + 14 + 15
 Phase 19 (Customs/Border) — new; requires Phase 14
 Phase 20 (Route Optim)   — new; requires GPS/Maps integration
 Phase 21 (Frontend E2E)  — new; E2E tests for stability
+Phase 24 (Third Party Completion) — plans written 2026-06-20; ready to execute
 ```
 
 ---
@@ -131,6 +132,8 @@ Phase 21 (Frontend E2E)  — new; E2E tests for stability
 | GPS HMAC validation before tenant_id resolution | 12 | PITFALL-08: attacker who knows IMEI cannot inject positions without device_secret |
 | vehicle_last_position upsert table as fast read path — never query gps_positions for live display | 12 | PITFALL-07: 120,000 rows/day at 50 vehicles; raw event table must never be queried for live fleet map |
 | Tracking page target under 50KB — text-format position, no heavy map library | 12 | Low-end Android browsers on shared mobile data in Mozambique outside Maputo/Beira/Nampula |
+| supplier_ledger balance = sum(credits) - sum(debits) — never denormalised | 24 | Denormalised balance drifts on concurrent writes; calculated at query time is always correct |
+| ThirdPartyCombobox uses native fetch via Next.js /api/third-party proxy — not direct backend URL | 24 | Client Components cannot read httpOnly session cookies; proxy pattern established in Phase 5 for /api/clients |
 
 ### Architecture: v2.0 Phase Sequence
 
@@ -230,7 +233,7 @@ _None — v3.0 roadmap criado; nenhum bloqueio activo._
 
 ## Session Continuity
 
-_Last session: 2026-06-06 — v2.0 roadmap expanded from 3 phases (CLI/PAY/AR, 12 reqs) to 8 phases (5-12, 32 reqs); added INFRA (Phase 8), RLS (Phase 9), NOTIF+ONBRD (Phase 10), DESP (Phase 11), GPS+TRK (Phase 12); all 32 v2.0 requirements mapped; REQUIREMENTS.md traceability updated; STATE.md milestone_name updated to plataforma-operacional-completa_
+_Last session: 2026-06-20 — Phase 24 plans written (24-01 through 24-06); covers third_party_contacts, supplier_ledger_entries, supplier_evaluations migrations (tp07/tp08/tp09), backend service+API extensions with idempotency, frontend /terceiros pages (list + 5-tab detail), ThirdPartyCombobox picker, FuelPurchaseModal, OperationalDocumentsList, vehicle/driver detail pages with assignments UI_
 
 ---
 

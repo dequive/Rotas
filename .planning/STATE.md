@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.0
+milestone: v2.0
 milestone_name: milestone
-status: in_progress
-stopped_at: Completed 24-06-PLAN.md (Phase 24 planning complete — 6 plans written)
-last_updated: "2026-06-20T00:00:00.000Z"
+status: planning
+stopped_at: Completed 22-01-PLAN.md
+last_updated: "2026-06-20T08:00:34.547Z"
 last_activity: 2026-06-20
 progress:
-  total_phases: 13
-  completed_phases: 8
-  total_plans: 70
-  completed_plans: 63
+  total_phases: 24
+  completed_phases: 14
+  total_plans: 106
+  completed_plans: 96
 ---
 
 # ROTAS — Project State
@@ -25,7 +25,7 @@ Phase: 24
 Plan: Not started (plans written, execution pending)
 Status: Phase 24 planning complete 2026-06-20 — 6 plans written: 24-01 (migrations tp07/tp08/tp09), 24-02 (backend service+API+idempotency), 24-03 (frontend /terceiros list+detail 5 tabs), 24-04 (supplier/service-provider pickers), 24-05 (OperationalDocuments UI + driver/vehicle assignments), 24-06 (alembic upgrade head + seed + smoke tests)
 Last activity: 2026-06-20
-Stopped at: Completed 24-06-PLAN.md
+Stopped at: Completed 22-01-PLAN.md
 
 ### Completed v3.0 Phases
 

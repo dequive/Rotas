@@ -3,6 +3,7 @@
 import { Info, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "@/app/components/ui/Button";
 import type { KnownRoute } from "../lib/known-routes-api";
 import { calcDespacho, calcFuel } from "../lib/known-routes-api";
 import type { Vehicle } from "../lib/vehicles-api";
@@ -133,9 +134,9 @@ export function TripFormModal({
 
   return (
     <>
-      <button className="primary-btn" onClick={() => setOpen(true)}>
+      <Button variant="primary" onClick={() => setOpen(true)}>
         <Plus size={16} /> Nova viagem
-      </button>
+      </Button>
 
       {open && (
         <div className="modal-backdrop" onClick={() => setOpen(false)}>
@@ -279,7 +280,7 @@ export function TripFormModal({
               {error && <p className="form-error">{error}</p>}
               <div className="modal-actions">
                 <button type="button" className="secondary-btn" onClick={() => setOpen(false)}>Cancelar</button>
-                <button type="submit" className="primary-btn" disabled={loading}>{loading ? "A criar..." : "Criar viagem"}</button>
+                <Button type="submit" variant="primary" disabled={loading}>{loading ? "A criar..." : "Criar viagem"}</Button>
               </div>
             </form>
           </div>

@@ -4,6 +4,7 @@ import { KeyRound, Truck } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { Button } from "@/app/components/ui/Button";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -60,10 +61,10 @@ function ResetPasswordForm() {
         />
       </label>
       {error && <p className="login-error">{error}</p>}
-      <button type="submit" className="login-btn" disabled={loading}>
+      <Button type="submit" variant="primary" disabled={loading} className="w-full h-11 text-[15px] mt-1">
         <KeyRound size={18} />
         {loading ? "A atualizar..." : "Atualizar palavra-passe"}
-      </button>
+      </Button>
     </form>
   );
 }

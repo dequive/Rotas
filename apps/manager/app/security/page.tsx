@@ -3,6 +3,7 @@
 import { RefreshCw, ShieldCheck, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SidebarLayout } from "@/app/components/SidebarLayout";
+import { Button } from "@/app/components/ui/Button";
 
 type SessionItem = {
   id: string;
@@ -201,16 +202,16 @@ export default function SecurityPage() {
                   placeholder="Código de 6 dígitos"
                   required
                 />
-                <button className="primary-btn" disabled={mfaBusy}>
+                <Button variant="primary" disabled={mfaBusy}>
                   Confirmar MFA
-                </button>
+                </Button>
               </div>
             </form>
           ) : (
-            <button className="primary-btn" onClick={startMfaSetup} disabled={mfaBusy}>
+            <Button variant="primary" onClick={startMfaSetup} disabled={mfaBusy}>
               <ShieldCheck size={16} />
               Ativar MFA
-            </button>
+            </Button>
           )}
         </div>
       </section>

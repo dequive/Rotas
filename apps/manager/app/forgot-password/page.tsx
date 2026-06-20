@@ -3,6 +3,7 @@
 import { KeyRound, Mail, Truck } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { Button } from "@/app/components/ui/Button";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -84,10 +85,10 @@ export default function ForgotPasswordPage() {
               Abrir link local de recuperação
             </Link>
           )}
-          <button type="submit" className="login-btn" disabled={loading}>
+          <Button type="submit" variant="primary" disabled={loading} className="w-full h-11 text-[15px] mt-1">
             <Mail size={18} />
             {loading ? "A enviar..." : "Enviar instruções"}
-          </button>
+          </Button>
         </form>
         <p className="login-subtitle">
           Lembrou-se? <Link href="/login">Entrar</Link>

@@ -4,6 +4,7 @@ import { Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { ClientResponse } from "../lib/clients-api";
+import { Button } from "@/app/components/ui/Button";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -324,10 +325,10 @@ export function ClientFormModal({
             >
               Cancelar
             </button>
-            <button type="submit" className="primary-btn" disabled={loading}>
+            <Button type="submit" variant="primary" disabled={loading}>
               {loading ? (
                 <>
-                  <Loader2 size={14} className="animate-spin" style={{ display: "inline", marginRight: 6 }} />
+                  <Loader2 size={14} className="animate-spin" />
                   A guardar...
                 </>
               ) : mode === "create" ? (
@@ -335,7 +336,7 @@ export function ClientFormModal({
               ) : (
                 "Guardar Alterações"
               )}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

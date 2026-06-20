@@ -4,6 +4,7 @@ import { Building2, Truck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "@/app/components/ui/Button";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -90,10 +91,10 @@ export default function RegisterPage() {
             />
           </label>
           {error && <p className="login-error">{error}</p>}
-          <button type="submit" className="login-btn" disabled={loading}>
+          <Button type="submit" variant="primary" disabled={loading} className="w-full h-11 text-[15px] mt-1">
             <Building2 size={18} />
             {loading ? "A criar..." : "Criar conta"}
-          </button>
+          </Button>
         </form>
         <p className="login-subtitle">
           Já tem conta? <Link href="/login">Entrar</Link>

@@ -4,6 +4,7 @@ import { Edit2, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Driver } from "../lib/drivers-api";
+import { Button } from "@/app/components/ui/Button";
 
 export function DriverFormModal({ driver }: { driver?: Driver }) {
   const router = useRouter();
@@ -97,7 +98,7 @@ export function DriverFormModal({ driver }: { driver?: Driver }) {
               {error && <p className="form-error">{error}</p>}
               <div className="modal-actions">
                 <button type="button" className="secondary-btn" onClick={() => setOpen(false)}>Cancelar</button>
-                <button type="submit" className="primary-btn" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</button>
+                <Button type="submit" variant="primary" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</Button>
               </div>
             </form>
           </div>

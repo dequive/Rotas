@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Contract } from "../lib/contracts-api";
 import { ClientCombobox } from "./ClientCombobox";
+import { Button } from "@/app/components/ui/Button";
 
 export function ContractFormModal({ contract }: { contract?: Contract }) {
   const router = useRouter();
@@ -172,7 +173,7 @@ export function ContractFormModal({ contract }: { contract?: Contract }) {
               {error && <p className="form-error">{error}</p>}
               <div className="modal-actions">
                 <button type="button" className="secondary-btn" onClick={() => setOpen(false)}>Cancelar</button>
-                <button type="submit" className="primary-btn" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</button>
+                <Button type="submit" variant="primary" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</Button>
               </div>
             </form>
           </div>

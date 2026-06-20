@@ -135,7 +135,7 @@ export function TmsExecutiveDashboard({
           label="Prontas a cobrar"
           value={summary.billingReady}
           delta={`${summary.deliveryProofsPendingValidation} descargas a validar`}
-          tone="purple"
+          tone="info"
         />
         <ExecutiveMetric
           icon={Clock3}
@@ -268,7 +268,7 @@ function ExecutiveMetric({
   label: string;
   value: number;
   delta: string;
-  tone: "blue" | "green" | "purple" | "amber";
+  tone: "blue" | "green" | "info" | "amber";
 }) {
   return (
     <div className="tms-metric">

@@ -3,6 +3,7 @@
 import { AlertTriangle, Banknote, Calculator, ReceiptText, Save, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/app/components/ui/Button";
 
 import type {
   ControlTowerLoadResult,
@@ -176,15 +177,15 @@ function NegativeMarginItem({ apiConfig, item }: { apiConfig: ApiConfig; item: N
             <dd className="mt-[3px] m-0"><MoneyCell value={item.margin} semantic="error" /></dd>
           </div>
         </dl>
-        <button
-          className="tool-btn primary"
+        <Button
+          variant="primary"
           disabled={busy || !canUseApi}
           onClick={approveNegativeMargin}
           type="button"
         >
           <ShieldCheck size={15} />
           {busy ? "A aprovar" : "Aprovar"}
-        </button>
+        </Button>
         {error ? <small className="error-text">{error}</small> : null}
       </div>
     </div>
@@ -255,10 +256,10 @@ function DespachoPendingItem({ apiConfig, item }: { apiConfig: ApiConfig; item: 
             onChange={(event) => setDistanceKm(Number(event.target.value || 0))}
           />
         </label>
-        <button className="tool-btn primary" disabled={busy || !canUseApi} onClick={recordDespacho} type="button">
+        <Button variant="primary" disabled={busy || !canUseApi} onClick={recordDespacho} type="button">
           <Save size={15} />
           {busy ? "A lançar" : "Lançar"}
-        </button>
+        </Button>
         {error ? <small className="error-text">{error}</small> : null}
       </div>
     </div>

@@ -66,14 +66,19 @@ export interface EvaluationsResult {
 
 export interface OperationalDocument {
   id: string;
+  tenant_id: string;
   subject_type: string;
   subject_id: string;
   document_type: string;
-  file_name: string;
-  file_url: string;
-  issued_date: string | null;
+  file_id: string | null;
+  document_number: string | null;
+  issued_at: string | null;
   expiry_date: string | null;
-  verification_status: string;
+  issuing_authority: string | null;
+  verification_status: "pending" | "verified" | "rejected";
+  verified_by: string | null;
+  verified_at: string | null;
+  notes: string | null;
   created_at: string;
 }
 

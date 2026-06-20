@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.core.errors import ApiError
 from app.core.passwords import hash_password, verify_password
+from app.core.rbac import ROLE_PERMISSIONS
 from app.core.tokens import create_access_token, create_opaque_token, hash_token
 from app.core.totp import build_otpauth_uri, generate_totp_secret, verify_totp_code
 from app.modules.audit.service import record_audit_log
@@ -60,11 +61,15 @@ async def _create_user_tokens(
             user_agent=user_agent,
         )
     )
+    # Phase 22: embed effective permissions in JWT so require_permission() works without DB hit.
+    # Plan 22-03 will extend this to load custom_role_id permissions from DB.
+    permissions = ROLE_PERMISSIONS.get(user.role, frozenset())
     access_token, expires_in = create_access_token(
         tenant_id=user.tenant_id,
         user_id=user.id,
         scope="dashboard",
         role=user.role,
+        permissions=permissions,
     )
     return {
         "access_token": access_token,

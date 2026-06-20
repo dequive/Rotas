@@ -1,7 +1,8 @@
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class VehicleCreate(BaseModel):
@@ -47,4 +48,65 @@ class VehicleDocumentRenewalRequest(BaseModel):
     valid_until: date
     file_id: UUID | None = None
     reference: str | None = None
+    notes: str | None = None
+
+
+# ── Insurance schemas ─────────────────────────────────────────────────────────
+
+
+class VehicleInsuranceCreate(BaseModel):
+    policy_number: str = Field(..., max_length=80)
+    insurer: str = Field(..., max_length=120)
+    coverage_type: str = Field(..., pattern="^(civil_liability|comprehensive|cargo)$")
+    premium_amount: Decimal | None = Field(None, gt=0)
+    valid_from: date
+    valid_until: date
+    notes: str | None = None
+
+
+class VehicleInsuranceRead(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    vehicle_id: UUID
+    policy_number: str
+    insurer: str
+    coverage_type: str
+    premium_amount: Decimal | None
+    valid_from: date
+    valid_until: date
+    notes: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class InsuranceClaimCreate(BaseModel):
+    claim_number: str | None = None
+    claim_date: date
+    estimated_damage: Decimal | None = None
+    incident_id: UUID | None = None
+    notes: str | None = None
+
+
+class InsuranceClaimRead(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    vehicle_id: UUID
+    insurance_id: UUID
+    incident_id: UUID | None
+    claim_number: str | None
+    claim_date: date
+    estimated_damage: Decimal | None
+    status: str
+    resolved_at: datetime | None
+    notes: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class InsuranceClaimStatusUpdate(BaseModel):
+    status: str = Field(..., pattern="^(open|under_review|paid|rejected)$")
     notes: str | None = None

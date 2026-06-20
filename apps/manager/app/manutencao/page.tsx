@@ -20,6 +20,7 @@ import { StatusBadge } from "@/app/components/ui/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PartsInventoryTable } from "@/app/manutencao/components/PartsInventoryTable";
 import { ToolsTable } from "@/app/manutencao/components/ToolsTable";
+import { WorkOrderFormModal } from "@/app/manutencao/components/WorkOrderFormModal";
 
 export default async function ManutencaoPage() {
   await requireSession();
@@ -111,6 +112,9 @@ export default async function ManutencaoPage() {
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-muted">
                   Ordens de Trabalho e Intervenções
                 </h3>
+                <WorkOrderFormModal
+                  vehicleOptions={vehicles.map((v) => ({ id: v.id, plate: v.plate }))}
+                />
                 {workOrdersTruncated && (
                   <span className="text-xs text-warning font-semibold">
                     A mostrar os primeiros 500 registos

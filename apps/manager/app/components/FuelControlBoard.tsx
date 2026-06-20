@@ -7,6 +7,7 @@ import { PageHeader } from "@/app/components/ui/PageHeader";
 import { StatusBadge } from "@/app/components/ui/StatusBadge";
 import { EmptyStateInline } from "@/app/components/ui/EmptyState";
 import { DataSourceBadge } from "@/app/components/ui/DataSourceBadge";
+import { FuelPurchaseModal } from "@/app/components/FuelPurchaseModal";
 
 interface FuelControlBoardProps {
   result: FuelControlBoardLoadResult;
@@ -21,7 +22,12 @@ export function FuelControlBoard({ result }: FuelControlBoardProps) {
         eyebrow="Combustível Interno"
         title="Fuel Control Board"
         description="Stock teórico por movimento, compras pendentes e risco de autonomia."
-        actions={<DataSourceBadge source={result.source} message={result.message ?? undefined} />}
+        actions={
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <DataSourceBadge source={result.source} message={result.message ?? undefined} />
+            <FuelPurchaseModal />
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">

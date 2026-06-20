@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-06-20T18:00:00.000Z"
+stopped_at: Completed 16-03-PLAN.md
+last_updated: "2026-06-20T17:46:28Z"
 last_activity: 2026-06-20
 progress:
   total_phases: 13
@@ -22,10 +22,10 @@ _Last updated: 2026-06-06_
 ## Current Phase
 
 Phase: 24
-Plan: 24-06 complete — Phase 24 DONE
-Status: Phase 24 COMPLETE — 24-01 (migrations) DONE; 24-02 (backend API) DONE; 24-03 (frontend /terceiros) DONE; 24-04 (pickers) DONE; 24-05 (documents + assignments UI) DONE; 24-06 (alembic head + seed + 7/7 smoke tests + tsc clean) DONE 2026-06-20
+Plan: 16-03 complete
+Status: Phase 16 in progress — 16-01 DONE; 16-02 DONE; 16-03 (availability endpoints + Redis cache) DONE 2026-06-20
 Last activity: 2026-06-20
-Stopped at: Completed 13-03-PLAN.md
+Stopped at: Completed 16-03-PLAN.md
 
 ### Completed v3.0 Phases
 

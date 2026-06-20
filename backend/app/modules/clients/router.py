@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
 from app.core.deps import get_session
-from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import BILLING_READ, BILLING_WRITE, require_permission
 from app.modules.clients import schemas, service
 
 router = APIRouter(prefix="/clients", tags=["clients"])
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/clients", tags=["clients"])
 
 @router.get("")
 async def list_clients(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
@@ -26,7 +26,7 @@ async def list_clients(
 @router.post("", status_code=201)
 async def create_client(
     payload: schemas.ClientCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.create_client(db, principal.tenant_id, payload)
@@ -35,7 +35,7 @@ async def create_client(
 @router.get("/{client_id}")
 async def get_client(
     client_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_client_with_balance(db, client_id, principal.tenant_id)
@@ -45,7 +45,7 @@ async def get_client(
 async def patch_client(
     client_id: UUID,
     payload: schemas.ClientPatch,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.patch_client(db, client_id, principal.tenant_id, payload)
@@ -54,7 +54,7 @@ async def patch_client(
 @router.get("/{client_id}/statement")
 async def get_client_statement(
     client_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     period_start: datetime | None = None,
     period_end: datetime | None = None,

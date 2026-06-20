@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
 from app.core.deps import get_session
-from app.core.rbac import require_permission, TRIPS_READ, TRIPS_CLOSE
+from app.core.rbac import TRIPS_CLOSE, TRIPS_READ, require_permission
 from app.modules.operational_exceptions import service
 from app.modules.operational_exceptions.schemas import ResolveExceptionRequest
 

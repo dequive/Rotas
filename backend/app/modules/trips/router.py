@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.rbac import require_permission, TRIPS_READ, TRIPS_DISPATCH, TRIPS_CLOSE
+from app.core.rbac import TRIPS_CLOSE, TRIPS_DISPATCH, TRIPS_READ, require_permission
 from app.modules.trips import schemas, service
 
 router = APIRouter(prefix="/trips", tags=["trips"])

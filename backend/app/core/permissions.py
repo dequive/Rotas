@@ -1,3 +1,8 @@
+# DEPRECATED: This module is superseded by `app.core.rbac`.
+# All router files now use `require_permission()` with named permission constants
+# from `app.core.rbac`. This file is retained only for backward compatibility
+# during the migration period and will be removed in a future cleanup phase.
+# Do NOT add new imports from this module in router files.
 from collections.abc import Callable
 from typing import Annotated
 

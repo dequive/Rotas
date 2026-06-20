@@ -11,7 +11,13 @@ from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import ADMIN_ROLES, DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import (
+    BILLING_ISSUE,
+    BILLING_READ,
+    BILLING_VOID,
+    BILLING_WRITE,
+    require_permission,
+)
 from app.modules.billing import schemas, service
 
 router = APIRouter(prefix="/billing", tags=["billing"])
@@ -19,7 +25,7 @@ router = APIRouter(prefix="/billing", tags=["billing"])
 
 @router.get("/billable-trips")
 async def list_billable_trips(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     client_name: str | None = None,
     contract_reference: str | None = None,
@@ -45,7 +51,7 @@ async def list_billable_trips(
 @router.post("/documents")
 async def create_document(
     payload: schemas.BillingDocumentCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -63,7 +69,7 @@ async def create_document(
 
 @router.get("/documents")
 async def list_documents(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
     period_start: datetime | None = None,
@@ -90,7 +96,7 @@ async def list_documents(
 @router.get("/documents/{document_id}")
 async def get_document(
     document_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_document(db, principal.tenant_id, document_id)
@@ -99,7 +105,7 @@ async def get_document(
 @router.get("/documents/{document_id}/export")
 async def export_document(
     document_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     export_format: str = Query("pdf", pattern="^(pdf|xlsx)$"),
 ):
@@ -115,7 +121,7 @@ async def export_document(
 async def issue_document(
     document_id: UUID,
     payload: schemas.IssueBillingDocumentRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_ISSUE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -134,7 +140,7 @@ async def issue_document(
 @router.post("/waivers", status_code=201)
 async def create_waiver(
     payload: schemas.CreateBillingWaiver,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """BILL-03: Create a billing waiver request for a negative-margin trip.
@@ -152,7 +158,7 @@ async def create_waiver(
 @router.post("/waivers/{waiver_id}/approve")
 async def approve_waiver(
     waiver_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_VOID))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """BILL-03: Approve a pending billing waiver. Requires owner or admin role."""
@@ -167,7 +173,7 @@ async def approve_waiver(
 @router.post("/waivers/{waiver_id}/reject")
 async def reject_waiver(
     waiver_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_VOID))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """BILL-03: Reject a pending billing waiver. Requires owner or admin role."""
@@ -183,7 +189,7 @@ async def reject_waiver(
 async def create_export_job(
     document_id: UUID,
     request: Request,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     export_format: str = Query("pdf", pattern="^(pdf|xlsx)$"),
 ):
@@ -205,7 +211,7 @@ async def create_export_job(
 async def get_compliance_report(
     month: str,
     request: Request,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """FISC-03: Enqueue monthly compliance XLSX export for AT submission.
@@ -229,7 +235,7 @@ async def get_compliance_report(
 @router.get("/jobs/{job_id}/status")
 async def get_job_status(
     job_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """Poll export job status: queued | processing | done | failed."""
@@ -239,7 +245,7 @@ async def get_job_status(
 @router.get("/jobs/{job_id}/download")
 async def download_job_file(
     job_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """BILL-01/02: Download completed export file via Files service. Tenant-isolated."""
@@ -289,7 +295,7 @@ async def download_job_file(
 async def mark_billing_document_paid(
     document_id: UUID,
     payload: schemas.BillingDocumentMarkPaidRequest,
-    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_VOID))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """SM-01: Transition BillingDocument from 'issued' or 'overdue' to 'paid'.
@@ -311,7 +317,7 @@ async def mark_billing_document_paid(
 async def cancel_billing_document(
     document_id: UUID,
     payload: schemas.BillingDocumentCancelRequest,
-    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_VOID))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """SM-01: Transition BillingDocument to 'cancelled'. Requires cancellation_reason.
@@ -336,7 +342,7 @@ async def cancel_billing_document(
 async def create_debit_note(
     document_id: UUID,
     payload: schemas.CreateDebitNoteRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """FDOC-02: Create a Nota de Débito against an issued invoice. Returns the new document."""
@@ -357,7 +363,7 @@ async def create_debit_note(
 async def create_credit_note(
     document_id: UUID,
     payload: schemas.CreateCreditNoteRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """FDOC-03: Create a Nota de Crédito against an issued invoice. Returns the new document."""
@@ -377,7 +383,7 @@ async def create_credit_note(
 @router.post("/documents/{document_id}/invoice-receipt", status_code=201)
 async def create_invoice_receipt(
     document_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """FDOC-04: Transition parent invoice to paid and create a Fatura-Recibo."""
@@ -392,7 +398,7 @@ async def create_invoice_receipt(
 async def create_receipt(
     document_id: UUID,
     payload: schemas.CreateReceiptRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """FDOC-04: Create a standalone Recibo for a partial or out-of-band payment."""
@@ -409,7 +415,7 @@ async def create_receipt(
 
 @router.get("/ar/summary")
 async def get_ar_summary(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """AR aging summary — outstanding invoice totals per bucket in MZN."""
@@ -419,7 +425,7 @@ async def get_ar_summary(
 @router.get("/clients/{client_id}/statement")
 async def get_client_statement(
     client_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """Client AR statement — total invoiced, paid, balance and recent documents."""
@@ -431,7 +437,7 @@ async def get_client_statement(
 
 @router.get("/payments")
 async def list_payments(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     client_id: UUID | None = None,
     status: str | None = None,
@@ -456,7 +462,7 @@ async def list_payments(
 @router.post("/payments", status_code=201)
 async def register_payment(
     payload: schemas.ClientPaymentCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -483,7 +489,7 @@ async def register_payment(
 async def void_payment(
     payment_id: UUID,
     payload: schemas.VoidPaymentRequest,
-    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_VOID))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """Void a confirmed payment. Only owner/admin can void payments.
@@ -504,7 +510,7 @@ async def void_payment(
 async def apply_advance_to_invoice(
     payment_id: UUID,
     payload: schemas.ApplyAdvanceRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """Apply an existing advance payment to a specific invoice.
@@ -523,7 +529,7 @@ async def apply_advance_to_invoice(
 
 @router.get("/ar")
 async def list_ar_documents(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     aging_bucket: Annotated[
         str | None, Query(description="current | 1_30 | 31_60 | 61_90 | over_90")

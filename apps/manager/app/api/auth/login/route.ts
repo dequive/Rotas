@@ -13,8 +13,9 @@ export async function POST(req: NextRequest) {
   });
 
   if (!upstream.ok) {
-    const body = (await upstream.json().catch(() => ({}))) as { detail?: string };
-    return NextResponse.json({ error: body.detail ?? "Credenciais inválidas." }, { status: 401 });
+    const body = (await upstream.json().catch(() => ({}))) as { detail?: string; error?: { message?: string; code?: string } };
+    const msg = body.error?.message ?? body.error?.code ?? body.detail ?? "Credenciais inválidas.";
+    return NextResponse.json({ error: msg }, { status: 401 });
   }
 
   const data = (await upstream.json()) as {

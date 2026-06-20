@@ -22,8 +22,8 @@ export function TripActionButton({ trip }: { trip: Trip }) {
         body: JSON.stringify({ _action: "start", id: trip.id }),
       });
       if (!res.ok) {
-        const body = (await res.json()) as { detail?: string };
-        setError(body.detail ?? "Erro ao iniciar viagem.");
+        const body = (await res.json()) as { detail?: string; error?: { message?: string; code?: string } };
+        setError(body.error?.message ?? body.error?.code ?? body.detail ?? "Erro ao iniciar viagem.");
         return;
       }
       router.refresh();
@@ -43,8 +43,8 @@ export function TripActionButton({ trip }: { trip: Trip }) {
         body: JSON.stringify({ _action: "complete", id: trip.id, km_end: Number(kmEnd) }),
       });
       if (!res.ok) {
-        const body = (await res.json()) as { detail?: string };
-        setError(body.detail ?? "Erro ao concluir viagem.");
+        const body = (await res.json()) as { detail?: string; error?: { message?: string; code?: string } };
+        setError(body.error?.message ?? body.error?.code ?? body.detail ?? "Erro ao concluir viagem.");
         return;
       }
       setShowComplete(false);

@@ -20,8 +20,8 @@ export function PairingCodeButton({ driverId, driverName }: { driverId: string; 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ driver_id: driverId }),
       });
-      const body = (await res.json()) as { pairing_code?: string; expires_at?: string; detail?: string };
-      if (!res.ok) { setError(body.detail ?? "Erro ao gerar código."); return; }
+      const body = (await res.json()) as { pairing_code?: string; expires_at?: string; detail?: string; error?: { message?: string; code?: string } };
+      if (!res.ok) { setError(body.error?.message ?? body.error?.code ?? body.detail ?? "Erro ao gerar código."); return; }
       setCode(body.pairing_code ?? null);
       setExpiresAt(body.expires_at ?? null);
     } finally {

@@ -38,8 +38,8 @@ async function login(email: string, password: string): Promise<{ error?: string 
       body: JSON.stringify({ email, password }),
     });
     if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as { detail?: string };
-      return { error: body.detail ?? "Credenciais inválidas." };
+      const body = (await res.json().catch(() => ({}))) as { detail?: string; error?: { message?: string; code?: string } };
+      return { error: body.error?.message ?? body.error?.code ?? body.detail ?? "Credenciais inválidas." };
     }
     const data = (await res.json()) as {
       access_token: string;

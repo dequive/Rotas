@@ -39,8 +39,8 @@ export function VehicleFormModal({ vehicle }: { vehicle?: Vehicle }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const body = (await res.json()) as { detail?: string };
-      if (!res.ok) { setError(body.detail ?? "Erro ao guardar viatura."); return; }
+      const body = (await res.json()) as { detail?: string; error?: { message?: string; code?: string } };
+      if (!res.ok) { setError(body.error?.message ?? body.error?.code ?? body.detail ?? "Erro ao guardar viatura."); return; }
       setOpen(false);
       router.refresh();
     } finally {

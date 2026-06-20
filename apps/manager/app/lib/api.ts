@@ -2,6 +2,21 @@ import { requireSession, refreshAccessToken } from "./auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+type ApiErrorBody = {
+  detail?: string;
+  error?: { code?: string; message?: string; details?: unknown };
+};
+
+/** Extract a human-readable message from the ROTAS error envelope. */
+export function extractApiError(body: ApiErrorBody, fallback: string): string {
+  if (typeof body.error === "object" && body.error !== null) {
+    if (body.error.message) return body.error.message;
+    if (body.error.code) return body.error.code;
+  }
+  if (typeof body.detail === "string" && body.detail) return body.detail;
+  return fallback;
+}
+
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit & { revalidate?: number }
@@ -39,8 +54,8 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { detail?: string };
-    throw new Error(body.detail ?? `HTTP ${res.status}`);
+    const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
+    throw new Error(extractApiError(body, `HTTP ${res.status}`));
   }
   return res.json() as Promise<T>;
 }

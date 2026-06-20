@@ -114,9 +114,9 @@ export function ClientFormModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const body = (await res.json().catch(() => ({}))) as { detail?: string };
+      const body = (await res.json().catch(() => ({}))) as { detail?: string; error?: { message?: string; code?: string } };
       if (!res.ok) {
-        setApiError(body.detail ?? "Erro ao guardar cliente. Tente novamente.");
+        setApiError(body.error?.message ?? body.error?.code ?? body.detail ?? "Erro ao guardar cliente. Tente novamente.");
         return;
       }
 
@@ -141,8 +141,8 @@ export function ClientFormModal({
         body: JSON.stringify({ is_active: false }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { detail?: string };
-        setApiError(body.detail ?? "Erro ao desactivar cliente. Tente novamente.");
+        const body = (await res.json().catch(() => ({}))) as { detail?: string; error?: { message?: string; code?: string } };
+        setApiError(body.error?.message ?? body.error?.code ?? body.detail ?? "Erro ao desactivar cliente. Tente novamente.");
         return;
       }
       onOpenChange(false);

@@ -24,6 +24,7 @@ def create_access_token(
     driver_id: UUID | None = None,
     role: str | None = None,
     device_id: str | None = None,
+    permissions: frozenset[str] | None = None,
 ) -> tuple[str, int]:
     settings = get_settings()
     now = datetime.now(UTC)
@@ -41,6 +42,11 @@ def create_access_token(
         "exp": expires_at,
         "jti": str(uuid4()),
     }
+    # Phase 22: embed permissions as sorted list when provided.
+    # Omit the key entirely when None — keeps backward compat with decoders
+    # that use claims.get("perms") returning None for absent keys.
+    if permissions is not None:
+        claims["perms"] = sorted(permissions)
     return (
         jwt.encode(
             claims, settings.jwt_secret_key.get_secret_value(), algorithm=settings.jwt_algorithm

@@ -23,6 +23,26 @@ class Principal:
     user_id: UUID | None = None
     driver_id: UUID | None = None
     device_id: str | None = None
+    # Phase 22: optional explicit permission set (from JWT "perms" claim or custom tenant role).
+    # When None, has_any_permission() falls back to ROLE_PERMISSIONS[role] (static mapping).
+    # Existing tokens without "perms" claim will have permissions=None — backward compatible.
+    permissions: frozenset[str] | None = None
+
+    def has_any_permission(self, required: frozenset[str]) -> bool:
+        """Return True if the principal holds at least one of the required permissions.
+
+        Effective permissions are resolved in priority order:
+          1. self.permissions (explicit frozenset from JWT "perms" claim or custom role)
+          2. ROLE_PERMISSIONS[self.role] (static mapping — fallback for existing tokens)
+        """
+        from app.core.rbac import ROLE_PERMISSIONS  # late import — breaks circular dep
+
+        effective = (
+            self.permissions
+            if self.permissions is not None
+            else ROLE_PERMISSIONS.get(self.role or "", frozenset())
+        )
+        return bool(effective & required)
 
 
 async def get_current_principal(
@@ -78,6 +98,9 @@ async def get_current_principal(
             "Tenant header does not match the authenticated tenant.",
             status_code=status.HTTP_403_FORBIDDEN,
         )
+    # Phase 22: extract permissions claim — None when absent (backward compat with old tokens)
+    raw_perms = claims.get("perms")  # list[str] | None
+    permissions: frozenset[str] | None = frozenset(raw_perms) if raw_perms else None
     scope = claims.get("scope")
     async with AsyncSessionLocal() as db:
         tenant = await db.get(Tenant, tenant_id)
@@ -130,6 +153,7 @@ async def get_current_principal(
         user_id=user_id,
         driver_id=driver_id,
         device_id=claims.get("device_id"),
+        permissions=permissions,
     )
 
 

@@ -272,3 +272,70 @@ async def test_tenant_jwt_scope_is_dashboard() -> None:
         assert "tenant_id" in claims, "Tenant JWT must contain tenant_id claim"
         assert claims["tenant_id"] is not None
         assert str(tenant.id) == claims["tenant_id"]
+
+
+@pytest.mark.asyncio
+async def test_platform_admin_can_access_tenant_me_with_query_param() -> None:
+    """GET /api/v1/tenants/me?tenant_id={uuid} with a platform_admin JWT returns 200.
+
+    Verifies that require_own_tenant_or_platform() accepts the platform path and
+    the route correctly uses the ?tenant_id= query param as effective_tenant_id.
+    """
+    suffix = uuid4().hex[:8]
+    # Create a real tenant so the service lookup succeeds.
+    tenant, _user, _password = await create_tenant_with_user(suffix)
+    platform_user, platform_password = await create_platform_user("platform_admin", suffix)
+
+    async with await make_client() as client:
+        # Log in as platform_admin to get a platform-scoped JWT.
+        login_resp = await client.post(
+            "/api/v1/platform/auth/login",
+            json={"email": platform_user.email, "password": platform_password},
+        )
+        assert login_resp.status_code == 200, login_resp.text
+        platform_token = login_resp.json()["access_token"]
+
+        # GET /tenants/me?tenant_id=<uuid> — must return 200 with the tenant object.
+        resp = await client.get(
+            f"/api/v1/tenants/me?tenant_id={tenant.id}",
+            headers={"Authorization": f"Bearer {platform_token}"},
+        )
+        assert resp.status_code == 200, (
+            f"platform_admin should get 200 on /tenants/me?tenant_id=. Got: {resp.status_code} {resp.text}"
+        )
+        body = resp.json()
+        assert "id" in body, f"Response should be a tenant object with 'id'. Got: {body}"
+        assert body["id"] == str(tenant.id)
+
+
+@pytest.mark.asyncio
+async def test_platform_support_cannot_access_tenant_me() -> None:
+    """GET /api/v1/tenants/me with a platform_support JWT returns 403.
+
+    Verifies that require_own_tenant_or_platform() rejects platform roles other than
+    platform_admin — they must use the dedicated /platform/tenants/{id} read endpoints.
+    """
+    suffix = uuid4().hex[:8]
+    tenant, _user, _password = await create_tenant_with_user(suffix)
+    platform_user, platform_password = await create_platform_user("platform_support", suffix)
+
+    async with await make_client() as client:
+        # Log in as platform_support.
+        login_resp = await client.post(
+            "/api/v1/platform/auth/login",
+            json={"email": platform_user.email, "password": platform_password},
+        )
+        assert login_resp.status_code == 200, login_resp.text
+        support_token = login_resp.json()["access_token"]
+
+        # GET /tenants/me?tenant_id=<uuid> — must return 403 for platform_support.
+        resp = await client.get(
+            f"/api/v1/tenants/me?tenant_id={tenant.id}",
+            headers={"Authorization": f"Bearer {support_token}"},
+        )
+        assert resp.status_code == 403, (
+            f"platform_support should get 403 on /tenants/me. Got: {resp.status_code} {resp.text}"
+        )
+        assert resp.json()["error"]["code"] == "forbidden", (
+            f"Expected error.code='forbidden'. Got: {resp.json()}"
+        )

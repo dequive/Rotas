@@ -411,7 +411,14 @@ Plans:
 - Client statement PDF uses `fpdf2 + DejaVuSans.ttf` (same pattern established in Phase 3 for invoice PDF) — no new PDF library introduced
 - Composite index `(tenant_id, client_id, due_date)` on `billing_documents` is required for aging query performance — add in the Phase 7 migration if not already present
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Wave 1: Backend — as_of param for ar-summary, per-doc outstanding in client statement, generate_client_statement_pdf, get_top_debtors, new endpoints
+- [ ] 07-02-PLAN.md — Wave 1: 6 AR correctness tests (buckets, as_of exclusion, draft exclusion, outstanding calc, PDF bytes, cross-tenant)
+- [ ] 07-03-PLAN.md — Wave 2: /ar AR dashboard page (KPI cards, aging grid, top debtors) + Contas a Receber sidebar entry
+- [ ] 07-04-PLAN.md — Wave 2: /clientes/[id] statement section + Exportar PDF + Next.js PDF proxy route
+- [ ] 07-05-PLAN.md — Wave 3: Verification checkpoint (pytest + ruff + tsc + manual review)
 
 **UI hint**: yes
 
@@ -616,7 +623,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 5. Client Registry + Migration Foundation | 3/5 | In Progress|  |
 | 6. Payment Registration | 0/TBD | Not started | - |
-| 7. Accounts Receivable + Aging Dashboard | 0/TBD | Not started | - |
+| 7. Accounts Receivable + Aging Dashboard | 0/5 | Planned | - |
 | 8. Infrastructure Hardening | 0/8 | Not started | - |
 | 9. PostgreSQL RLS Policies | 0/TBD | Complete    | 2026-06-07 |
 | 10. Notifications + Self-Service Onboarding | 0/TBD | Not started | - |
@@ -659,12 +666,14 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 - [ ] **Phase 15: Fiscal Compliance + Segurança de Carga** — IVA Moçambique, numeração fiscal, validação de peso vs capacidade, suporte hazmat
 - [ ] **Phase 15.1: Documentos Fiscais Completos** — Estender billing_documents com document_type (invoice/debit_note/credit_note/invoice_receipt/receipt/proforma) e parent_document_id; criar Nota de Débito, Nota de Crédito, Fatura-Recibo e Recibo; AR básico com due_date e aging
 - [ ] **Phase 16: HOS + Availability** — Driver Hours of Service and vehicle/driver availability calendar
-- [x] **Phase 17: Enterprise Infrastructure v2** — Distributed rate limiting, structured logging, Prometheus metrics, advanced worker heartbeat (completed 2026-06-18) (completed 2026-06-19)
+- [x] **Phase 17: Enterprise Infrastructure v2** — Distributed rate limiting, structured logging, Prometheus metrics, advanced worker heartbeat (completed 2026-06-18)
+ (completed 2026-06-19)
 - [ ] **Phase 18: Analytics + Insurance** — Client profitability, insurance management, deep BI layer
 - [ ] **Phase 19: Customs/Border Crossing** — Workflows for cross-border routes, documentation, and border dispatch
 - [ ] **Phase 20: Route Optimization** — Distance matrix, waypoint sequencing, integration with routing providers
 - [ ] **Phase 21: Frontend E2E Tests** — Playwright E2E testing suite to prevent visual and functional UI regressions
-- [x] **Phase 22: RBAC Permission-Based** — Refactor do sistema de roles e permissões: dois planos (platform vs tenant), roles em português com agregados de gestão e operacional, `require_permission()` granular por domínio, `tenant_roles` custom para owner/director, migração dos 174 call sites de `require_roles` (completed 2026-06-20)
+- [x] **Phase 22: RBAC Permission-Based** — Refactor do sistema de roles e permissões: dois planos (platform vs tenant), roles em português com agregados de gestão e operacional, `require_permission()` granular por domínio, `tenant_roles` custom para owner/director, migração dos 174 call sites de `require_roles`
+ (completed 2026-06-20)
 - [x] **Phase 23: Third Party Registry** — Fornecedores e prestadores externos como entidades estruturadas; elegibilidade operacional de motoristas calculada em tempo real; atribuição motorista-viatura com histórico temporal; documentos com validade rastreada (completed 2026-06-20)
 - [x] **Phase 24: Third Party Completion** — UI /terceiros no manager, supplier/service-provider pickers em abastecimentos e ordens de trabalho, sub-contactos, conta corrente de fornecedor, pagamentos a fornecedores, avaliação/scoring, idempotency keys, seed de províncias (completed 2026-06-20)
 

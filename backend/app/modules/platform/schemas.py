@@ -24,3 +24,13 @@ class PlatformTokenResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     user: PlatformUserRead
+
+
+class PlatformChangePlanRequest(BaseModel):
+    plan: str
+
+
+class PlatformCreateUserRequest(BaseModel):
+    email: str
+    role: str
+    password: str

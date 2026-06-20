@@ -365,7 +365,9 @@ async def test_checklist_international_trip_requires_five_doc_types(
 async def test_checklist_hazmat_adds_declaracao_carga_perigosa(
     async_client, auth_headers, db, tenant_id
 ):
-    """GET /cargo/trips/{id}/document-checklist for hazmat trip includes declaracao_carga_perigosa."""
+    """GET /cargo/trips/{id}/document-checklist for hazmat trip includes
+    declaracao_carga_perigosa.
+    """
     trip = await _make_committed_trip(db, tenant_id, is_hazmat=True)
 
     resp = await async_client.get(

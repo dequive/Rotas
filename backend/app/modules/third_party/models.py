@@ -92,7 +92,8 @@ class ThirdPartyRole(Base):
         nullable=False,
     )
     role_type: Mapped[str] = mapped_column(String(40), nullable=False)
-    # Valid role_type values: fuel_supplier | spare_parts_supplier | service_provider | transport_subcontractor
+    # Valid role_type values: fuel_supplier | spare_parts_supplier | service_provider
+    # | transport_subcontractor
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     certified_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     certification_ref: Mapped[str | None] = mapped_column(String(120), nullable=True)

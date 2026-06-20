@@ -190,7 +190,8 @@ EXPECTED_RLS_TABLES = sorted(
 
 INTENTIONALLY_EXCLUDED = {
     "files",
-    # Phase 13.5 workshop expansion tables created without RLS in a8f3b2c1d4e5_add_workshop_expansion.py.
+    # Phase 13.5 workshop expansion tables created without RLS
+    # in a8f3b2c1d4e5_add_workshop_expansion.py.
     # These are pre-existing gaps tracked in deferred-items; Phase 13.5 plan must add RLS.
     "tool_calibrations",
     "spare_part_serial_items",

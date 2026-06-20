@@ -6,13 +6,17 @@ Covers:
 
 Must-haves tested:
   1. BillingDocument with issued status and past billing_period_end is marked overdue by cron logic
-  2. PATCH /api/v1/billing/documents/{id}/mark-paid transitions issued → paid; audit log action='billing.document.paid'
+  2. PATCH /api/v1/billing/documents/{id}/mark-paid transitions issued → paid;
+     audit log action='billing.document.paid'
   3. PATCH /api/v1/billing/documents/{id}/mark-paid with document in 'draft' returns HTTP 409
   4. Contract with ends_at in past and status='active' is marked 'expired' by cron logic
   5. PATCH /api/v1/contracts/{id}/status with action='renew' without new_ends_at returns HTTP 422
-  6. PATCH /api/v1/contracts/{id}/status with action='terminate' without termination_reason returns HTTP 422
-  7. Invalid BillingDocument transition (paid → issued) returns HTTP 409 code='invalid_state_transition'
-  8. Terminating a contract sets audit log with entity_type='contract' and action='contract.terminated'
+  6. PATCH /api/v1/contracts/{id}/status with action='terminate' without termination_reason
+     returns HTTP 422
+  7. Invalid BillingDocument transition (paid → issued) returns HTTP 409
+     code='invalid_state_transition'
+  8. Terminating a contract sets audit log with entity_type='contract'
+     and action='contract.terminated'
 """
 
 from datetime import UTC, datetime, timedelta
@@ -184,7 +188,9 @@ async def test_sm01_cron_marks_overdue(db, tenant_id):
 
 @pytest.mark.asyncio
 async def test_sm01_mark_paid_transitions_issued_to_paid(async_client, auth_headers, db, tenant_id):
-    """Must-have 2: PATCH mark-paid transitions issued → paid; audit has action='billing.document.paid'."""
+    """Must-have 2: PATCH mark-paid transitions issued → paid;
+    audit has action='billing.document.paid'.
+    """
     contract = await _make_contract(db, tenant_id)
     vehicle = await _make_vehicle(db, tenant_id)
     driver = await _make_driver(db, tenant_id)
@@ -213,7 +219,8 @@ async def test_sm01_mark_paid_transitions_issued_to_paid(async_client, auth_head
 
 @pytest.mark.asyncio
 async def test_sm01_mark_paid_on_draft_returns_409(async_client, auth_headers, db, tenant_id):
-    """Must-have 3: PATCH mark-paid on a draft document returns HTTP 409 invalid_state_transition."""
+    """Must-have 3: PATCH mark-paid on a draft document returns HTTP 409 invalid_state_transition.
+    """
     contract = await _make_contract(db, tenant_id)
     doc = await _make_draft_billing_doc(db, tenant_id, contract)
 
@@ -328,7 +335,9 @@ async def test_sm02_cron_expires_active_contract(db, tenant_id):
 async def test_sm02_renew_without_new_ends_at_returns_422(
     async_client, auth_headers, db, tenant_id
 ):
-    """Must-have 5: PATCH /status action=renew without new_ends_at returns HTTP 422 ends_at_required."""
+    """Must-have 5: PATCH /status action=renew without new_ends_at returns HTTP 422
+    ends_at_required.
+    """
     # Create an expired contract
     past = datetime.now(UTC) - timedelta(days=1)
     contract = Contract(
@@ -372,7 +381,9 @@ async def test_sm02_terminate_without_reason_returns_422(async_client, auth_head
 
 @pytest.mark.asyncio
 async def test_sm02_terminate_creates_audit_log(async_client, auth_headers, db, tenant_id):
-    """Must-have 8: terminating a contract records audit log with entity_type='contract' and action='contract.terminated'."""
+    """Must-have 8: terminating a contract records audit log with entity_type='contract'
+    and action='contract.terminated'.
+    """
     contract = await _make_contract(db, tenant_id, status="active")
 
     resp = await async_client.patch(

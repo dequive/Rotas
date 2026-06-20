@@ -274,7 +274,10 @@ async def create_carta_porte(
     principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    """OPDOC-03: Create a Carta de Porte Internacional (bilingual PT/EN PDF). Returns document + pdf_url."""
+    """OPDOC-03: Create a Carta de Porte Internacional (bilingual PT/EN PDF).
+
+    Returns document + pdf_url.
+    """
     return await service.create_carta_porte(
         db,
         principal.tenant_id,

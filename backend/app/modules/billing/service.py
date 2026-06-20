@@ -1032,7 +1032,10 @@ async def cancel_billing_document(
     user_id: UUID,
     reason: str,
 ) -> BillingDocument:
-    """SM-01: Transition BillingDocument to 'cancelled'. Requires reason. Allowed from 'draft' or 'overdue'."""
+    """SM-01: Transition BillingDocument to 'cancelled'. Requires reason.
+
+    Allowed from 'draft' or 'overdue'.
+    """
     doc = await db.get(BillingDocument, document_id)
     if not doc or doc.tenant_id != tenant_id:
         raise ApiError("not_found", "BillingDocument not found", status_code=404)
@@ -1068,7 +1071,8 @@ async def create_debit_note(
     if parent.status not in ("issued", "paid"):
         raise ApiError(
             "parent_not_issued",
-            f"Debit notes can only be created against issued or paid documents (parent status: {parent.status})",
+            f"Debit notes can only be created against issued or paid documents"
+            f" (parent status: {parent.status})",
             status_code=409,
         )
 
@@ -1151,7 +1155,8 @@ async def create_credit_note(
     if parent.status not in ("issued", "paid"):
         raise ApiError(
             "parent_not_issued",
-            f"Credit notes can only be created against issued or paid documents (parent status: {parent.status})",
+            f"Credit notes can only be created against issued or paid documents"
+            f" (parent status: {parent.status})",
             status_code=409,
         )
 
@@ -1230,7 +1235,8 @@ async def create_invoice_receipt(
     if parent.status not in ("issued", "overdue"):
         raise ApiError(
             "parent_not_issued",
-            f"Invoice-receipt can only be created against issued documents (parent status: {parent.status})",
+            f"Invoice-receipt can only be created against issued documents"
+            f" (parent status: {parent.status})",
             status_code=409,
         )
 
@@ -1296,7 +1302,8 @@ async def create_receipt(
     if parent.status not in ("issued", "overdue", "paid"):
         raise ApiError(
             "parent_invalid_status",
-            f"Receipt can only be created against issued or paid documents (parent status: {parent.status})",
+            f"Receipt can only be created against issued or paid documents"
+            f" (parent status: {parent.status})",
             status_code=409,
         )
 

@@ -466,7 +466,9 @@ async def apply_advance_to_invoice(
 async def list_ar_documents(
     principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
     db: Annotated[AsyncSession, Depends(get_session)],
-    aging_bucket: Annotated[str | None, Query(description="current | 1_30 | 31_60 | 61_90 | over_90")] = None,
+    aging_bucket: Annotated[
+        str | None, Query(description="current | 1_30 | 31_60 | 61_90 | over_90")
+    ] = None,
     contract_id: Annotated[UUID | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,

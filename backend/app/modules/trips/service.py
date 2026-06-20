@@ -651,7 +651,10 @@ async def start_trip(
                     entity_type="trip",
                     entity_id=trip.id,
                     title=f"Viagem hazmat em curso: classe {trip.hazmat_class or 'N/D'}",
-                    message=f"Trip {trip.id} started with hazmat cargo. Class={trip.hazmat_class}, UN={trip.un_number}",
+                    message=(
+                        f"Trip {trip.id} started with hazmat cargo."
+                        f" Class={trip.hazmat_class}, UN={trip.un_number}"
+                    ),
                 ),
                 actor_id=actor_id,
             )

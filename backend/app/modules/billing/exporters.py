@@ -438,7 +438,9 @@ def _render_xlsx(
         ]
         ALIGNS = ["center", "left", "left", "left", "center", "center", "right", "right"]
 
-        for col_idx, ((val, num_fmt), h_align) in enumerate(zip(values, ALIGNS, strict=False), start=1):
+        for col_idx, ((val, num_fmt), h_align) in enumerate(
+            zip(values, ALIGNS, strict=False), start=1
+        ):
             cell = ws.cell(row=row, column=col_idx, value=val)
             cell.font = Font(size=9)
             cell.fill = fill

@@ -8,7 +8,8 @@ Must-haves tested:
   1. Accepting a pending delivery proof sets status='accepted', accepted_at and accepted_by
   2. Rejecting a pending delivery proof sets status='rejected' and creates an OperationalException
   3. Accepting an already-accepted proof returns HTTP 409 invalid_state_transition
-  4. Rejecting a TripOrder dispatch clearance transitions it to 'rejected' with reason and rejected_at
+  4. Rejecting a TripOrder dispatch clearance transitions it to 'rejected'
+     with reason and rejected_at
   5. task_escalate_pending_clearances cron logic escalates pending orders past SLA to 'escalated'
 """
 
@@ -150,7 +151,9 @@ async def test_sm03_accept_proof_sets_accepted_fields(db, tenant_id):
 
 @pytest.mark.asyncio
 async def test_sm03_reject_proof_sets_rejected_and_creates_exception(db, tenant_id):
-    """Must-have 2: rejecting a pending proof sets status=rejected and creates an OperationalException."""
+    """Must-have 2: rejecting a pending proof sets status=rejected
+    and creates an OperationalException.
+    """
     vehicle = await _make_vehicle(db, tenant_id)
     driver = await _make_driver(db, tenant_id)
     trip = await _make_trip(db, tenant_id, vehicle, driver)
@@ -186,7 +189,9 @@ async def test_sm03_reject_proof_sets_rejected_and_creates_exception(db, tenant_
 
 @pytest.mark.asyncio
 async def test_sm03_accept_already_accepted_proof_raises_409(db, tenant_id):
-    """Must-have 3: accepting an already-accepted proof raises ApiError 409 invalid_state_transition."""
+    """Must-have 3: accepting an already-accepted proof raises ApiError 409
+    invalid_state_transition.
+    """
     from app.core.errors import ApiError
 
     vehicle = await _make_vehicle(db, tenant_id)

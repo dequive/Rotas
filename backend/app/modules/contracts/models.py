@@ -31,7 +31,8 @@ class Contract(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
-    # Phase 5 Plan 02: client_id FK added via migration e5f6a7b8c9d0 (migration b); nullable until backfill
+    # Phase 5 Plan 02: client_id FK added via migration e5f6a7b8c9d0 (migration b);
+    # nullable until backfill
     client_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("clients.id"), index=True, nullable=True
     )

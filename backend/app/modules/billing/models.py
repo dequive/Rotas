@@ -39,7 +39,8 @@ class BillingDocument(Base):
     status: Mapped[str] = mapped_column(String(30), default="draft", index=True)
     issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # Phase 5 Plan 02: due_date added via migration e5f6a7b8c9d0; aging uses stored date (not derived)
+    # Phase 5 Plan 02: due_date added via migration e5f6a7b8c9d0;
+    # aging uses stored date (not derived)
     due_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # SM-01: State machine audit fields
     overdue_since_at: Mapped[datetime | None] = mapped_column(

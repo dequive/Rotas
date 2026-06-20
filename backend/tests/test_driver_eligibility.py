@@ -6,9 +6,12 @@ Test cases:
   3. test_expired_license_not_eligible — license_valid_until in the past → is_eligible=False
   4. test_expired_bi_not_eligible — bi_valid_until in the past → is_eligible=False
   5. test_expired_passport_not_eligible — passport_valid_until in the past → is_eligible=False
-  6. test_expiring_soon_warning — license expires in 15 days → is_eligible=True, expiring_soon populated
-  7. test_none_dates_skipped — all date fields None → is_eligible=True (no doc on file = not blocking)
-  8. test_custom_reference_date — pass reference_date explicitly; future date becomes past relative to reference
+  6. test_expiring_soon_warning — license expires in 15 days → is_eligible=True,
+     expiring_soon populated
+  7. test_none_dates_skipped — all date fields None → is_eligible=True
+     (no doc on file = not blocking)
+  8. test_custom_reference_date — pass reference_date explicitly;
+     future date becomes past relative to reference
 """
 
 from datetime import date, timedelta

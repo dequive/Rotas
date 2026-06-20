@@ -205,7 +205,9 @@ async def test_list_staff_rates_returns_created() -> None:
 
 @pytest.mark.asyncio
 async def test_assign_task_to_mechanic_200() -> None:
-    """PATCH /workshop/work-orders/{wo_id}/tasks/{task_id} with user_id+estimated_minutes returns 200."""
+    """PATCH /workshop/work-orders/{wo_id}/tasks/{task_id} with user_id+estimated_minutes
+    returns 200.
+    """
     try:
         tenant_id, vehicle_id, driver_id = await seed_entities()
         user_id = await seed_user_in_db(tenant_id)
@@ -303,7 +305,8 @@ async def test_mechanic_cannot_access_billing() -> None:
                 "/api/v1/billing/documents", headers=mechanic_headers
             )
             assert billing_get_resp.status_code == 200, (
-                f"Expected 200 for mechanic reading billing documents, got {billing_get_resp.status_code}"
+                f"Expected 200 for mechanic reading billing documents,"
+                f" got {billing_get_resp.status_code}"
             )
 
             # mechanic is NOT in WRITE_ROLES — POST billing is blocked (403)
@@ -317,7 +320,8 @@ async def test_mechanic_cannot_access_billing() -> None:
                 },
             )
             assert billing_post_resp.status_code == 403, (
-                f"Expected 403 for mechanic creating billing document, got {billing_post_resp.status_code}: {billing_post_resp.text}"
+                f"Expected 403 for mechanic creating billing document,"
+                f" got {billing_post_resp.status_code}: {billing_post_resp.text}"
             )
     except OperationalError as exc:
         pytest.skip(f"DB not available: {exc}")

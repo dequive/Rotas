@@ -137,7 +137,8 @@ async def test_vehicle_history_empty() -> None:
 
 @pytest.mark.asyncio
 async def test_work_order_in_vehicle_history() -> None:
-    """Create WO for vehicle -> GET history with types=work_order -> event_type=work_order present."""
+    """Create WO for vehicle -> GET history with types=work_order -> event_type=work_order present.
+    """
     try:
         tenant_id, vehicle_id, _ = await seed_entities()
         headers = auth_headers(tenant_id)
@@ -161,7 +162,9 @@ async def test_work_order_in_vehicle_history() -> None:
 
 @pytest.mark.asyncio
 async def test_vehicle_history_pagination() -> None:
-    """Create 55 maintenance requests -> first page next_cursor not null; second page has remainder."""
+    """Create 55 maintenance requests -> first page next_cursor not null;
+    second page has remainder.
+    """
     try:
         tenant_id, vehicle_id, _ = await seed_entities()
         headers = auth_headers(tenant_id)
@@ -232,7 +235,8 @@ async def test_vehicle_history_type_filter() -> None:
             data = resp.json()
             for event in data["events"]:
                 assert event["event_type"] == "work_order", (
-                    f"Got unexpected event_type '{event['event_type']}' when filtering by work_order"
+                    f"Got unexpected event_type '{event['event_type']}'"
+                    " when filtering by work_order"
                 )
     except OperationalError as exc:
         pytest.skip(f"DB not available: {exc}")
@@ -259,7 +263,8 @@ async def test_vehicle_history_cross_tenant() -> None:
             if resp.status_code == 200:
                 data = resp.json()
                 assert len(data["events"]) == 0, (
-                    f"Tenant B should see 0 events for tenant A's vehicle, got {len(data['events'])}"
+                    f"Tenant B should see 0 events for tenant A's vehicle,"
+                    f" got {len(data['events'])}"
                 )
             else:
                 assert resp.status_code == 404

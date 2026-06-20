@@ -200,7 +200,8 @@ def render_guia_remessa(document: object, extra: dict | None = None) -> bytes:
 def render_carta_porte_internacional(document: object, extra: dict | None = None) -> bytes:
     """Generate Carta de Porte Internacional (CPI) PDF — bilingual PT/EN.
 
-    extra: extra_fields dict (border_post, country_destination, sadc_cpi_number, consignee_name, consignee_nuit)
+    extra: extra_fields dict (border_post, country_destination, sadc_cpi_number,
+    consignee_name, consignee_nuit)
     Returns raw PDF bytes.
     """
     extra = extra or {}
@@ -268,8 +269,9 @@ def render_carta_porte_internacional(document: object, extra: dict | None = None
     pdf.multi_cell(
         0,
         4,
-        "O expedidor declara que as informações fornecidas neste documento são verdadeiras e correctas. / "
-        "The consignor declares that the information provided in this document is true and correct.",
+        "O expedidor declara que as informações fornecidas neste documento são verdadeiras e"
+        " correctas. / The consignor declares that the information provided in this document"
+        " is true and correct.",
         new_x=XPos.LMARGIN,
         new_y=YPos.NEXT,
     )

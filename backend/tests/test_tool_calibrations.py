@@ -139,7 +139,9 @@ async def test_calibration_history_list_200() -> None:
 
 @pytest.mark.asyncio
 async def test_update_tool_patch_200() -> None:
-    """PATCH /api/v1/workshop/tools/{tool_id} with location+category returns 200 with updated fields."""
+    """PATCH /api/v1/workshop/tools/{tool_id} with location+category returns 200
+    with updated fields.
+    """
     try:
         tenant_id, _, _ = await seed_entities()
         headers = auth_headers(tenant_id)
@@ -161,7 +163,9 @@ async def test_update_tool_patch_200() -> None:
 
 @pytest.mark.asyncio
 async def test_no_alert_when_interval_null() -> None:
-    """Critical tool with calibration_interval_days=None -> no operational_exception even near expiry."""
+    """Critical tool with calibration_interval_days=None -> no operational_exception
+    even near expiry.
+    """
     try:
         tenant_id, _, _ = await seed_entities()
         headers = auth_headers(tenant_id)
@@ -200,7 +204,9 @@ async def test_no_alert_when_interval_null() -> None:
 
 @pytest.mark.asyncio
 async def test_alert_for_critical_tool_near_expiry() -> None:
-    """is_critical=True + calibration_interval_days=90 + next_due_at within 30 days -> operational_exception."""
+    """is_critical=True + calibration_interval_days=90 + next_due_at within 30 days
+    -> operational_exception.
+    """
     try:
         tenant_id, _, _ = await seed_entities()
         headers = auth_headers(tenant_id)

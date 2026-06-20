@@ -179,7 +179,8 @@ async def create_load_permit(
     if trip.is_hazmat and (not trip.hazmat_class or not trip.hazmat_class.strip()):
         raise ApiError(
             "hazmat_declaration_required",
-            "Trip is marked as hazmat — hazmat_class must be declared on the trip before creating a Load Permit.",
+            "Trip is marked as hazmat — hazmat_class must be declared on the trip"
+            " before creating a Load Permit.",
             status_code=422,
             details={"trip_id": str(trip_id), "is_hazmat": True},
         )

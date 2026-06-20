@@ -153,7 +153,8 @@ def test_expired_docs_always_violate_regardless_of_policy():
 
 
 def test_all_none_expiry_no_policy_returns_empty():
-    """With no policy and all None expiry, returns [] — missing_document requires explicit policy."""
+    """With no policy and all None expiry, returns [] — missing_document requires explicit policy.
+    """
     driver = _driver(
         license_valid_until=None,
         passport_valid_until=None,

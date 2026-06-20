@@ -5,7 +5,9 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_kpi_endpoint_returns_expected_fields(async_client, auth_headers):
-    """RPT-01: GET /api/v1/analytics/kpis must return cost_per_km, fleet_utilization, l_per_100km, driver_summary."""
+    """RPT-01: GET /api/v1/analytics/kpis must return cost_per_km, fleet_utilization,
+    l_per_100km, driver_summary.
+    """
     response = await async_client.get(
         "/api/v1/analytics/kpis",
         params={
@@ -46,7 +48,9 @@ async def test_kpi_filters_by_tenant(async_client, auth_headers, second_tenant_h
 
 @pytest.mark.asyncio
 async def test_document_expiry_returns_severity_levels(async_client, auth_headers):
-    """RPT-02: GET /api/v1/analytics/document-expiry returns items with 'severity' field (30d/15d/7d)."""
+    """RPT-02: GET /api/v1/analytics/document-expiry returns items with 'severity' field
+    (30d/15d/7d).
+    """
     response = await async_client.get(
         "/api/v1/analytics/document-expiry",
         headers=auth_headers,

@@ -48,9 +48,10 @@ const NAV_SECTIONS: NavSection[] = [
   {
     section: "Frota",
     items: [
-      { key: "viaturas",   label: "Viaturas",   href: "/viaturas",   icon: Truck  },
-      { key: "motoristas", label: "Motoristas", href: "/motoristas", icon: Users  },
-      { key: "manutencao", label: "Manutenção", href: "/manutencao", icon: Wrench },
+      { key: "viaturas",   label: "Viaturas",   href: "/viaturas",   icon: Truck     },
+      { key: "motoristas", label: "Motoristas", href: "/motoristas", icon: Users     },
+      { key: "manutencao", label: "Manutenção", href: "/manutencao", icon: Wrench   },
+      { key: "terceiros",  label: "Terceiros",  href: "/terceiros",  icon: Building2 },
     ],
   },
   {

@@ -397,9 +397,12 @@ async def list_documents(
     status_filter: str | None = None,
     period_start: datetime | None = None,
     period_end: datetime | None = None,
+    document_type: str | None = None,
+    client_id: UUID | None = None,
     limit: int = 50,
     offset: int = 0,
-) -> list[dict]:
+) -> dict:
+    """List billing documents with optional filters. Returns {items, total}."""
     item_count = func.count(BillingItem.id)
     query = (
         select(BillingDocument, item_count)
@@ -413,13 +416,37 @@ async def list_documents(
         query = query.where(BillingDocument.billing_period_start >= period_start)
     if period_end:
         query = query.where(BillingDocument.billing_period_start < period_end)
+    if document_type:
+        query = query.where(BillingDocument.document_type == document_type)
+    if client_id:
+        query = query.where(BillingDocument.client_id == client_id)
 
+    # COUNT query with same filters (without pagination)
+    count_query = select(func.count(BillingDocument.id)).where(
+        BillingDocument.tenant_id == tenant_id
+    )
+    if status_filter:
+        count_query = count_query.where(BillingDocument.status == status_filter)
+    if period_start:
+        count_query = count_query.where(BillingDocument.billing_period_start >= period_start)
+    if period_end:
+        count_query = count_query.where(BillingDocument.billing_period_start < period_end)
+    if document_type:
+        count_query = count_query.where(BillingDocument.document_type == document_type)
+    if client_id:
+        count_query = count_query.where(BillingDocument.client_id == client_id)
+
+    total = await db.scalar(count_query) or 0
     rows = await db.execute(
         query.order_by(BillingDocument.created_at.desc()).limit(limit).offset(offset)
     )
-    return [
-        serialize_billing_document_summary(document, int(count or 0)) for document, count in rows
-    ]
+    return {
+        "items": [
+            serialize_billing_document_summary(document, int(count or 0))
+            for document, count in rows
+        ],
+        "total": int(total),
+    }
 
 
 async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDocumentCreate):
@@ -1515,6 +1542,180 @@ async def list_ar_documents(
             }
         )
     return output
+
+
+# ── D: AR Summary + Client Statement + Payments List ─────────────────────────
+
+
+async def get_ar_summary(
+    db: AsyncSession,
+    tenant_id: UUID,
+) -> dict:
+    """GET /billing/ar/summary — totals per aging bucket in MZN."""
+    stmt = select(BillingDocument).where(
+        BillingDocument.tenant_id == tenant_id,
+        BillingDocument.status.in_(("issued", "overdue")),
+        BillingDocument.due_date.isnot(None),
+        BillingDocument.document_type == "invoice",
+    )
+    result = await db.execute(stmt)
+    docs = list(result.scalars())
+
+    today = datetime.now(UTC)
+    buckets: dict[str, Decimal] = {
+        "current": Decimal("0"),
+        "1_30": Decimal("0"),
+        "31_60": Decimal("0"),
+        "61_90": Decimal("0"),
+        "over_90": Decimal("0"),
+    }
+    for doc in docs:
+        aging = _compute_aging(doc, today)
+        bucket = aging["aging_bucket"]
+        buckets[bucket] = (buckets[bucket] + (doc.total_amount or Decimal("0"))).quantize(
+            Decimal("0.01")
+        )
+
+    total_ar = sum(buckets.values()).quantize(Decimal("0.01"))
+    return {
+        "current": buckets["current"],
+        "1_30": buckets["1_30"],
+        "31_60": buckets["31_60"],
+        "61_90": buckets["61_90"],
+        "over_90": buckets["over_90"],
+        "total_ar": total_ar,
+        "currency": "MZN",
+    }
+
+
+async def get_client_statement(
+    db: AsyncSession,
+    tenant_id: UUID,
+    client_id: UUID,
+) -> dict:
+    """GET /billing/clients/{client_id}/statement — balance and recent documents."""
+    from app.modules.clients.models import Client  # avoid circular import at module level
+
+    client = await db.get(Client, client_id)
+    if not client or client.tenant_id != tenant_id:
+        raise ApiError("client_not_found", "Client not found", status_code=404)
+
+    # Total invoiced = sum of issued/paid/overdue invoice totals for this client
+    invoiced_result = await db.execute(
+        select(func.coalesce(func.sum(BillingDocument.total_amount), 0)).where(
+            BillingDocument.tenant_id == tenant_id,
+            BillingDocument.client_id == client_id,
+            BillingDocument.document_type == "invoice",
+            BillingDocument.status.in_(("issued", "paid", "overdue")),
+        )
+    )
+    total_invoiced = Decimal(str(invoiced_result.scalar_one())).quantize(Decimal("0.01"))
+
+    # Total paid = sum of confirmed payment allocations for this client's invoices
+    paid_result = await db.execute(
+        select(func.coalesce(func.sum(PaymentAllocation.amount_applied), 0))
+        .join(ClientPayment, ClientPayment.id == PaymentAllocation.payment_id)
+        .join(BillingDocument, BillingDocument.id == PaymentAllocation.billing_document_id)
+        .where(
+            BillingDocument.tenant_id == tenant_id,
+            BillingDocument.client_id == client_id,
+            ClientPayment.status == "confirmed",
+        )
+    )
+    total_paid = Decimal(str(paid_result.scalar_one())).quantize(Decimal("0.01"))
+    balance = (total_invoiced - total_paid).quantize(Decimal("0.01"))
+
+    # Recent documents (last 50)
+    docs_result = await db.execute(
+        select(BillingDocument)
+        .where(
+            BillingDocument.tenant_id == tenant_id,
+            BillingDocument.client_id == client_id,
+        )
+        .order_by(BillingDocument.created_at.desc())
+        .limit(50)
+    )
+    documents = [
+        {
+            "id": d.id,
+            "invoice_number": d.invoice_number,
+            "document_type": d.document_type,
+            "status": d.status,
+            "total_amount": d.total_amount,
+            "currency": d.currency,
+            "issued_at": d.issued_at,
+            "due_date": d.due_date,
+        }
+        for d in docs_result.scalars()
+    ]
+
+    return {
+        "client_id": client_id,
+        "client_name": client.trading_name,
+        "total_invoiced": total_invoiced,
+        "total_paid": total_paid,
+        "balance": balance,
+        "currency": "MZN",
+        "documents": documents,
+    }
+
+
+async def list_payments(
+    db: AsyncSession,
+    tenant_id: UUID,
+    *,
+    client_id: UUID | None = None,
+    status: str | None = None,
+    value_date_start: datetime | None = None,
+    value_date_end: datetime | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict:
+    """GET /billing/payments — paginated list with optional filters."""
+    query = (
+        select(ClientPayment)
+        .where(ClientPayment.tenant_id == tenant_id)
+        .order_by(ClientPayment.created_at.desc())
+    )
+    if client_id:
+        query = query.where(ClientPayment.client_id == client_id)
+    if status:
+        query = query.where(ClientPayment.status == status)
+    if value_date_start:
+        query = query.where(ClientPayment.value_date >= value_date_start)
+    if value_date_end:
+        query = query.where(ClientPayment.value_date < value_date_end)
+
+    count_query = select(func.count(ClientPayment.id)).where(
+        ClientPayment.tenant_id == tenant_id
+    )
+    if client_id:
+        count_query = count_query.where(ClientPayment.client_id == client_id)
+    if status:
+        count_query = count_query.where(ClientPayment.status == status)
+    if value_date_start:
+        count_query = count_query.where(ClientPayment.value_date >= value_date_start)
+    if value_date_end:
+        count_query = count_query.where(ClientPayment.value_date < value_date_end)
+
+    total = await db.scalar(count_query) or 0
+    rows = await db.execute(query.limit(limit).offset(offset))
+    payments = list(rows.scalars())
+
+    # Bulk-fetch allocations for all payments in one query
+    payment_ids = [p.id for p in payments]
+    alloc_map: dict = {}
+    if payment_ids:
+        alloc_rows = await db.execute(
+            select(PaymentAllocation).where(PaymentAllocation.payment_id.in_(payment_ids))
+        )
+        for a in alloc_rows.scalars():
+            alloc_map.setdefault(a.payment_id, []).append(a)
+
+    return {
+        "items": [serialize_payment(p, alloc_map.get(p.id, [])) for p in payments],
+        "total": int(total),
+    }
 
 
 # ── Phase 6: Payment Registration Service Functions ───────────────────────────

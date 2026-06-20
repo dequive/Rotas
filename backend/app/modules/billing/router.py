@@ -68,15 +68,20 @@ async def list_documents(
     status: str | None = None,
     period_start: datetime | None = None,
     period_end: datetime | None = None,
+    document_type: str | None = None,
+    client_id: UUID | None = None,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
+    """List billing documents. Returns {items, total} with optional filters."""
     return await service.list_documents(
         db,
         principal.tenant_id,
         status_filter=status,
         period_start=period_start,
         period_end=period_end,
+        document_type=document_type,
+        client_id=client_id,
         limit=limit,
         offset=offset,
     )
@@ -402,7 +407,50 @@ async def create_receipt(
 # ── FDOC-05: AR Básico ────────────────────────────────────────────────────────
 
 
+@router.get("/ar/summary")
+async def get_ar_summary(
+    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """AR aging summary — outstanding invoice totals per bucket in MZN."""
+    return await service.get_ar_summary(db, principal.tenant_id)
+
+
+@router.get("/clients/{client_id}/statement")
+async def get_client_statement(
+    client_id: UUID,
+    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """Client AR statement — total invoiced, paid, balance and recent documents."""
+    return await service.get_client_statement(db, principal.tenant_id, client_id)
+
+
 # ── PAY-01/02/03: Client Payments ────────────────────────────────────────────
+
+
+@router.get("/payments")
+async def list_payments(
+    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    client_id: UUID | None = None,
+    status: str | None = None,
+    value_date_start: datetime | None = None,
+    value_date_end: datetime | None = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """Paginated list of client payments with optional filters. Returns {items, total}."""
+    return await service.list_payments(
+        db,
+        principal.tenant_id,
+        client_id=client_id,
+        status=status,
+        value_date_start=value_date_start,
+        value_date_end=value_date_end,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.post("/payments", status_code=201)

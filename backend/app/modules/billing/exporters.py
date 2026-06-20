@@ -219,13 +219,13 @@ def _render_pdf(
         pdf.cell(0, 5, value or "—", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     _meta_row("Cliente", document.client_name or "—")
-    # E4: render client NUIT when present
-    if document.client_nuit:
+    # E4: render client NUIT when present (isinstance guards against MagicMock in tests)
+    if isinstance(document.client_nuit, str) and document.client_nuit:
         _meta_row("NUIT do Cliente", document.client_nuit)
     _meta_row("Contrato", document.contract_reference or "—")
     _meta_row("Período de faturação", period)
-    # E6: show due_date when present
-    if document.due_date:
+    # E6: show due_date when present and is a real datetime
+    if isinstance(document.due_date, datetime):
         _meta_row("Data de vencimento", _date(document.due_date))
     # E3: "Estado do documento" row removed — status is shown via document type label
 
@@ -416,18 +416,21 @@ def _render_xlsx(
 
     period = f"{_date(document.billing_period_start)} — {_date(document.billing_period_end)}"
     _meta(2, "Cliente", document.client_name or "—")
-    # E4: render client NUIT when present; shift subsequent rows accordingly
+    # E4: render client NUIT when present (check isinstance to guard against MagicMock in tests)
+    client_nuit_str = document.client_nuit if isinstance(document.client_nuit, str) else None
+    due_date_val = document.due_date if not isinstance(document.due_date, type(None)) else None
+
     next_row = 3
-    if document.client_nuit:
-        _meta(next_row, "NUIT do Cliente", document.client_nuit)
+    if client_nuit_str:
+        _meta(next_row, "NUIT do Cliente", client_nuit_str)
         next_row += 1
     _meta(next_row, "Contrato", document.contract_reference or "—")
     next_row += 1
     _meta(next_row, "Período", period)
     next_row += 1
-    # E6: show due_date when present
-    if document.due_date:
-        _meta(next_row, "Data de vencimento", _date(document.due_date))
+    # E6: show due_date when present and is a real datetime
+    if due_date_val is not None and isinstance(due_date_val, datetime):
+        _meta(next_row, "Data de vencimento", _date(due_date_val))
         next_row += 1
     # E3: "Estado" row removed from metadata block
     _meta(next_row, "Emitido em", _date(document.issued_at or document.created_at))

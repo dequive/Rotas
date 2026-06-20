@@ -462,8 +462,11 @@ async def test_api_trip_first_flow_respects_billing_issue_boundary() -> None:
                 params={"period_start": "2026-07-01T00:00:00+00:00"},
             )
             assert documents_response.status_code == 200
-            documents = documents_response.json()
+            documents_body = documents_response.json()
+            # list_documents now returns {items, total}
+            documents = documents_body["items"]
             assert len(documents) == 1
+            assert documents_body["total"] == 1
             assert documents[0]["id"] == document["id"]
             assert documents[0]["status"] == "draft"
             assert documents[0]["item_count"] == 1

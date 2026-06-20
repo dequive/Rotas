@@ -86,8 +86,8 @@ def test_xlsx_header_row_is_bold():
     ws = wb.active
     # Row 1: ROTAS institutional title — must be bold
     assert ws.cell(row=1, column=1).font.bold is True
-    # Row 8: table column header — must be bold
-    assert ws.cell(row=8, column=1).font.bold is True
+    # Row 7: table column header — must be bold (row 8 was Estado which was removed in CME)
+    assert ws.cell(row=7, column=1).font.bold is True
 
 
 def test_xlsx_currency_columns_have_format():
@@ -101,9 +101,10 @@ def test_xlsx_currency_columns_have_format():
     artifact = render_billing_export(doc, [_make_mock_item()], "xlsx")
     wb = load_workbook(BytesIO(artifact.content))
     ws = wb.active
-    # Row 9 = first data row; columns 7-8 = unit price / total
-    assert "#,##0.00" in ws.cell(row=9, column=7).number_format
-    assert "#,##0.00" in ws.cell(row=9, column=8).number_format
+    # Row 8 = first data row; columns 7-8 = unit price / total
+    # (row 9 was data when Estado row existed; Estado removed in CME, data shifts up by 1)
+    assert "#,##0.00" in ws.cell(row=8, column=7).number_format
+    assert "#,##0.00" in ws.cell(row=8, column=8).number_format
 
 
 def test_pdf_contains_iva_section():

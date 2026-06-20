@@ -35,15 +35,15 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("true"),
         ),
-        sa.Column(
+                sa.Column(
             "created_at",
-            sa.TIMESTAMP(timezone=True),
+            sa.DateTime(timezone=True),
             nullable=False,
             server_default=sa.text("now()"),
         ),
         sa.Column(
             "updated_at",
-            sa.TIMESTAMP(timezone=True),
+            sa.DateTime(timezone=True),
             nullable=False,
             server_default=sa.text("now()"),
         ),
@@ -76,7 +76,7 @@ def upgrade() -> None:
         sa.Column("ip_address", sa.String(45), nullable=True),
         sa.Column(
             "timestamp",
-            sa.TIMESTAMP(timezone=True),
+            sa.DateTime(timezone=True),
             nullable=False,
             server_default=sa.text("now()"),
         ),

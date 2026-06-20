@@ -4,10 +4,14 @@ import {
   loadContacts,
   loadSupplierAccount,
   loadEvaluations,
+  loadOperationalDocuments,
+  type OperationalDocument,
 } from "@/app/lib/third-party-api";
 import { SidebarLayout } from "@/app/components/SidebarLayout";
 import { StatusBadge } from "@/app/components/ui/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { OperationalDocumentsList } from "@/app/components/OperationalDocumentsList";
+import { DocumentUploadModal } from "@/app/components/DocumentUploadModal";
 import { notFound } from "next/navigation";
 
 export default async function TerceiroDetailPage({
@@ -18,11 +22,12 @@ export default async function TerceiroDetailPage({
   await requireSession();
   const { id } = await params;
 
-  const [party, contacts, account, evalsResult] = await Promise.all([
+  const [party, contacts, account, evalsResult, documents] = await Promise.all([
     loadThirdParty(id).catch(() => null),
     loadContacts(id).catch(() => []),
     loadSupplierAccount(id).catch(() => null),
     loadEvaluations(id).catch(() => ({ average_score: null, evaluations: [] })),
+    loadOperationalDocuments("third_party", id).catch(() => [] as OperationalDocument[]),
   ]);
 
   if (!party) notFound();
@@ -400,33 +405,22 @@ export default async function TerceiroDetailPage({
                   }}
                 >
                   Documentos Operacionais
+                  {documents.length > 0 && (
+                    <span
+                      style={{
+                        marginLeft: 8,
+                        fontSize: "12px",
+                        fontWeight: 400,
+                        color: "var(--muted)",
+                      }}
+                    >
+                      ({documents.length})
+                    </span>
+                  )}
                 </h2>
-                <a
-                  href={`/terceiros/${id}/documentos/upload`}
-                  style={{
-                    padding: "5px 12px",
-                    background: "var(--amber)",
-                    color: "#fff",
-                    borderRadius: "var(--r-md, 6px)",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    fontFamily: "Manrope, sans-serif",
-                    textDecoration: "none",
-                    display: "inline-block",
-                  }}
-                >
-                  Upload Documento
-                </a>
+                <DocumentUploadModal subjectType="third_party" subjectId={id} />
               </div>
-              <p
-                style={{
-                  fontSize: "13px",
-                  color: "var(--muted)",
-                  fontFamily: "Manrope, sans-serif",
-                }}
-              >
-                Documentos associados a este terceiro aparecem aqui.
-              </p>
+              <OperationalDocumentsList documents={documents} />
             </div>
           </TabsContent>
 

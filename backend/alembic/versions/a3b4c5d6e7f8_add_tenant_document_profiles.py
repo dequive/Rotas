@@ -41,7 +41,7 @@ def upgrade() -> None:
         sa.Column("address_line2", sa.String(160), nullable=True),
         sa.Column("city", sa.String(80), nullable=True),
         sa.Column("province", sa.String(80), nullable=True),
-        sa.Column("country", sa.String(80), nullable=False, server_default="Mocambique"),
+        sa.Column("country", sa.String(80), nullable=False, server_default="Moçambique"),
         sa.Column("phone", sa.String(40), nullable=True),
         sa.Column("email", sa.String(120), nullable=True),
         sa.Column("website", sa.String(160), nullable=True),
@@ -51,15 +51,18 @@ def upgrade() -> None:
         sa.Column("invoice_prefix", sa.String(10), nullable=False, server_default=""),
         sa.Column("invoice_seq_padding", sa.Integer(), nullable=False, server_default="4"),
         sa.Column("invoice_start_seq", sa.Integer(), nullable=False, server_default="1"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-            onupdate=sa.func.now(),
-        ),
+        sa.Column("per_type_sequences", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("payment_conditions", sa.String(80), nullable=False, server_default="Pronto"),
+        sa.Column("invoice_footer", sa.Text(), nullable=True),
+        sa.Column("show_bank_details", sa.Boolean(), nullable=False, server_default="true"),
+        sa.Column("show_logo", sa.Boolean(), nullable=False, server_default="true"),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
     )
-
+    op.create_index(
+        "ix_tenant_document_profiles_tenant_id", "tenant_document_profiles", ["tenant_id"]
+    )
+    # v2.0 Migration Rules — MANDATORY RLS + GRANT in same migration as CREATE TABLE
     op.execute("ALTER TABLE tenant_document_profiles ENABLE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE tenant_document_profiles FORCE ROW LEVEL SECURITY")
     op.execute(
@@ -74,5 +77,8 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.execute(
         "DROP POLICY IF EXISTS rls_tenant_document_profiles ON tenant_document_profiles"
+    )
+    op.drop_index(
+        "ix_tenant_document_profiles_tenant_id", table_name="tenant_document_profiles"
     )
     op.drop_table("tenant_document_profiles")

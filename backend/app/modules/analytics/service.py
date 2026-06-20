@@ -446,7 +446,8 @@ async def get_analytics_dashboard(
     period_end: datetime,
     redis=None,
 ) -> dict:
-    """ANA-01: Compose all KPI blocks into a single dashboard payload with Redis cache (TTL 300s)."""
+    """ANA-01: Compose all KPI blocks into a single dashboard payload with Redis cache (TTL 300s).
+    """
     cache_key = (
         f"analytics:dashboard:{tenant_id}"
         f":{period_start.isoformat()}:{period_end.isoformat()}"

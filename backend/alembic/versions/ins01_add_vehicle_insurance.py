@@ -1,7 +1,7 @@
 """add_vehicle_insurance
 
-Revision ID: e1f2a3b4c5d6
-Revises: e1a2b3c4d5f6
+Revision ID: ins01
+Revises: tp11
 Create Date: 2026-06-20
 """
 
@@ -11,8 +11,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "e1f2a3b4c5d6"
-down_revision: str | None = "e1a2b3c4d5f6"
+revision: str = "ins01"
+down_revision: str | None = "tp11"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -38,7 +38,7 @@ def upgrade() -> None:
         ),
         sa.Column("policy_number", sa.String(80), nullable=False),
         sa.Column("insurer", sa.String(120), nullable=False),
-        sa.Column("coverage_type", sa.String(40), nullable=False),  # civil_liability|comprehensive|cargo
+        sa.Column("coverage_type", sa.String(40), nullable=False),
         sa.Column("premium_amount", sa.Numeric(10, 2), nullable=True),
         sa.Column("valid_from", sa.Date(), nullable=False),
         sa.Column("valid_until", sa.Date(), nullable=False, index=True),
@@ -52,7 +52,6 @@ def upgrade() -> None:
         ),
     )
 
-    # v2.0 rule: RLS + GRANT in same migration as CREATE TABLE
     op.execute("ALTER TABLE vehicle_insurances ENABLE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE vehicle_insurances FORCE ROW LEVEL SECURITY")
     op.execute(
@@ -97,7 +96,6 @@ def upgrade() -> None:
         sa.Column("claim_date", sa.Date(), nullable=False),
         sa.Column("estimated_damage", sa.Numeric(10, 2), nullable=True),
         sa.Column("status", sa.String(30), nullable=False, server_default="open"),
-        # open | under_review | paid | rejected
         sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
@@ -109,7 +107,6 @@ def upgrade() -> None:
         ),
     )
 
-    # v2.0 rule: RLS + GRANT in same migration as CREATE TABLE
     op.execute("ALTER TABLE insurance_claims ENABLE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE insurance_claims FORCE ROW LEVEL SECURITY")
     op.execute(

@@ -9,7 +9,7 @@ from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
 from app.modules.availability import service as availability_service
-from app.modules.vehicles import schemas, service
+from app.modules.vehicles import insurance_service, schemas, service
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 
@@ -180,4 +180,119 @@ async def renew_vehicle_document(
             payload,
             actor_id=principal.user_id,
         ),
+    )
+
+
+# ── INS-01: Insurance policy routes ──────────────────────────────────────────
+
+
+@router.get("/{vehicle_id}/insurance")
+async def list_vehicle_insurances(
+    vehicle_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    return await insurance_service.list_insurances(
+        db, principal.tenant_id, vehicle_id, limit=limit, offset=offset
+    )
+
+
+@router.post("/{vehicle_id}/insurance", status_code=201)
+async def create_vehicle_insurance(
+    vehicle_id: UUID,
+    payload: schemas.VehicleInsuranceCreate,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await insurance_service.create_insurance(
+        db, principal.tenant_id, vehicle_id, payload, actor_id=principal.user_id
+    )
+
+
+@router.get("/{vehicle_id}/insurance/{insurance_id}")
+async def get_vehicle_insurance(
+    vehicle_id: UUID,
+    insurance_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await insurance_service.get_insurance(
+        db, principal.tenant_id, vehicle_id, insurance_id
+    )
+
+
+@router.patch("/{vehicle_id}/insurance/{insurance_id}")
+async def update_vehicle_insurance(
+    vehicle_id: UUID,
+    insurance_id: UUID,
+    payload: schemas.VehicleInsuranceCreate,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await insurance_service.update_insurance(
+        db, principal.tenant_id, vehicle_id, insurance_id, payload, actor_id=principal.user_id
+    )
+
+
+@router.delete("/{vehicle_id}/insurance/{insurance_id}", status_code=204)
+async def delete_vehicle_insurance(
+    vehicle_id: UUID,
+    insurance_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    await insurance_service.delete_insurance(
+        db, principal.tenant_id, vehicle_id, insurance_id, actor_id=principal.user_id
+    )
+
+
+# ── INS-01: Insurance claims routes ──────────────────────────────────────────
+
+
+@router.get("/{vehicle_id}/insurance/{insurance_id}/claims")
+async def list_insurance_claims(
+    vehicle_id: UUID,
+    insurance_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    return await insurance_service.list_claims(
+        db, principal.tenant_id, vehicle_id, insurance_id, limit=limit, offset=offset
+    )
+
+
+@router.post("/{vehicle_id}/insurance/{insurance_id}/claims", status_code=201)
+async def create_insurance_claim(
+    vehicle_id: UUID,
+    insurance_id: UUID,
+    payload: schemas.InsuranceClaimCreate,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await insurance_service.create_claim(
+        db, principal.tenant_id, vehicle_id, insurance_id, payload, actor_id=principal.user_id
+    )
+
+
+@router.patch("/{vehicle_id}/insurance/{insurance_id}/claims/{claim_id}/status")
+async def update_claim_status(
+    vehicle_id: UUID,
+    insurance_id: UUID,
+    claim_id: UUID,
+    payload: schemas.InsuranceClaimStatusUpdate,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await insurance_service.update_claim_status(
+        db,
+        principal.tenant_id,
+        vehicle_id,
+        insurance_id,
+        claim_id,
+        payload,
+        actor_id=principal.user_id,
     )

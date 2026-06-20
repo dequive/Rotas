@@ -396,6 +396,73 @@ async def task_check_document_expiry(ctx: dict) -> str:
     return f"Generated {alert_count} document expiry alerts"
 
 
+# ── INS-02: Insurance renewal alert cron ─────────────────────────────────────
+
+
+async def task_check_insurance_renewals(ctx: dict) -> str:
+    """INS-02: Daily cron — generate alerts for vehicle insurance policies expiring
+    in 60, 30, and 7 days. Deduplicates via request_reference.
+    Uses BYPASSRLS admin session for cross-tenant scan.
+    Runs daily at 07:00 Africa/Maputo = 05:00 UTC.
+    """
+    from datetime import date, timedelta
+
+    import structlog
+    from sqlalchemy import and_, select
+
+    from app.modules.alerts.schemas import AlertCreate
+    from app.modules.alerts.service import create_alert
+    from app.modules.vehicles.models import Vehicle, VehicleInsurance
+
+    logger = structlog.get_logger("worker")
+    today = date.today()
+    alert_count = 0
+    THRESHOLDS = [60, 30, 7]
+
+    async with ctx["db_factory"]() as db:
+        for days in THRESHOLDS:
+            target_date = today + timedelta(days=days)
+            result = await db.execute(
+                select(VehicleInsurance, Vehicle.plate)
+                .join(Vehicle, Vehicle.id == VehicleInsurance.vehicle_id)
+                .where(
+                    and_(
+                        VehicleInsurance.valid_until == target_date,
+                    )
+                )
+            )
+            rows = result.all()
+            for ins, plate in rows:
+                priority = "critical" if days <= 7 else "high" if days <= 30 else "medium"
+                try:
+                    await create_alert(
+                        db,
+                        ins.tenant_id,
+                        AlertCreate(
+                            alert_type="insurance_renewal",
+                            priority=priority,
+                            entity_type="vehicle_insurance",
+                            entity_id=ins.id,
+                            title="Apólice de seguro a renovar",
+                            message=(
+                                f"Apólice {ins.policy_number} do veículo {plate} "
+                                f"vence em {days} dias ({ins.valid_until.isoformat()})"
+                            ),
+                            channel="dashboard",
+                            request_reference=(
+                                f"ins_renewal:{ins.id}:{ins.valid_until.isoformat()}:{days}d"
+                            ),
+                        ),
+                    )
+                    alert_count += 1
+                except Exception:
+                    # Duplicate key (same request_reference) — already alerted, skip silently
+                    pass
+
+    logger.info("task_check_insurance_renewals", alerts_created=alert_count)
+    return f"Insurance renewal alerts created: {alert_count}"
+
+
 class WorkerSettings:
     functions = [
         generate_billing_export,
@@ -405,6 +472,7 @@ class WorkerSettings:
         task_update_active_tenants_metric,
         task_worker_heartbeat,
         task_check_document_expiry,
+        task_check_insurance_renewals,
     ]
     cron_jobs = [
         # SM-01: Mark overdue billing documents — 01:00 Africa/Maputo = 23:00 UTC
@@ -421,6 +489,8 @@ class WorkerSettings:
         cron(task_worker_heartbeat, minute=set(range(60))),
         # TP-10: Document expiry alerts — 06:00 Africa/Maputo = 04:00 UTC
         cron(task_check_document_expiry, hour=4, minute=0),
+        # INS-02: Insurance renewal alerts — 07:00 Africa/Maputo = 05:00 UTC
+        cron(task_check_insurance_renewals, hour=5, minute=0),
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     max_jobs = 10

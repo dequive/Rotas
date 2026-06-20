@@ -28,7 +28,6 @@ from app.modules.tenants.models import Tenant
 from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-"""Analytics service — fleet KPI queries for RPT-01 and RPT-02."""
+"""Analytics service — fleet KPI queries for RPT-01, RPT-02, and ANA-01."""
 
 from datetime import UTC, datetime
 from uuid import UUID

@@ -16,3 +16,51 @@ export async function updateUserProfile(
     return { ok: false, error: err instanceof Error ? err.message : "Erro desconhecido ao guardar alterações." };
   }
 }
+
+export async function inviteUser(data: {
+  email: string;
+  full_name: string;
+  role: string;
+  phone?: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await apiFetch("/api/v1/users", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Erro ao convidar utilizador." };
+  }
+}
+
+export async function changeUserRole(
+  userId: string,
+  role: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await apiFetch(`/api/v1/users/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Erro ao alterar role." };
+  }
+}
+
+export async function updateTenantSettings(data: {
+  timezone?: string;
+  currency?: string;
+  whatsapp_number?: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await apiFetch("/api/v1/tenants/me", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Erro ao guardar configurações." };
+  }
+}

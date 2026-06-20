@@ -123,13 +123,22 @@ export default async function ViaturasPage() {
                         </a>
                       </td>
                       <td>
-                        <Link
-                          href={`/viaturas/${v.id}/historico`}
-                          className="text-xs font-semibold"
-                          style={{ color: "var(--blue)" }}
-                        >
-                          Ver Histórico
-                        </Link>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          <Link
+                            href={`/viaturas/${v.id}`}
+                            className="text-xs font-semibold"
+                            style={{ color: "var(--amber)" }}
+                          >
+                            Ver Detalhe
+                          </Link>
+                          <Link
+                            href={`/viaturas/${v.id}/historico`}
+                            className="text-xs font-semibold"
+                            style={{ color: "var(--blue)" }}
+                          >
+                            Ver Histórico
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );

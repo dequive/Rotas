@@ -42,6 +42,23 @@ def _driver_payload(driver: Driver) -> dict:
     return {"id": driver.id, "tenant_id": driver.tenant_id, "full_name": driver.full_name}
 
 
+async def _load_user_permissions(db: AsyncSession, user: User) -> frozenset[str]:
+    """Return the effective permission set for a user.
+
+    If the user has a custom_role_id, load permissions from that TenantRole row.
+    Fall back to the standard ROLE_PERMISSIONS map if the custom role is missing
+    or belongs to a different tenant (defensive guard against stale FKs).
+    """
+    from app.modules.users.models import TenantRole
+
+    if user.custom_role_id is None:
+        return ROLE_PERMISSIONS.get(user.role, frozenset())
+    role = await db.get(TenantRole, user.custom_role_id)
+    if role is None or role.tenant_id != user.tenant_id:
+        return ROLE_PERMISSIONS.get(user.role, frozenset())
+    return frozenset(role.permissions)
+
+
 async def _create_user_tokens(
     db: AsyncSession,
     user: User,
@@ -61,9 +78,8 @@ async def _create_user_tokens(
             user_agent=user_agent,
         )
     )
-    # Phase 22: embed effective permissions in JWT so require_permission() works without DB hit.
-    # Plan 22-03 will extend this to load custom_role_id permissions from DB.
-    permissions = ROLE_PERMISSIONS.get(user.role, frozenset())
+    # Phase 22: embed effective permissions in JWT. Custom roles override ROLE_PERMISSIONS.
+    permissions = await _load_user_permissions(db, user)
     access_token, expires_in = create_access_token(
         tenant_id=user.tenant_id,
         user_id=user.id,

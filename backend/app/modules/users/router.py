@@ -9,6 +9,7 @@ from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import ADMIN_USERS, require_permission
 from app.modules.users import schemas, service
+from app.modules.users.models import TenantRole  # noqa: F401 — ensure ORM registered
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -58,5 +59,55 @@ async def patch_user(
         principal.tenant_id,
         user_id,
         payload,
+        actor_id=principal.user_id,
+    )
+
+
+# ── Tenant role endpoints ─────────────────────────────────────────────────────
+
+
+@router.get("/tenant-roles")
+async def list_tenant_roles_endpoint(
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict]:
+    return await service.list_tenant_roles(db, principal.tenant_id)
+
+
+@router.post("/tenant-roles", status_code=201)
+async def create_tenant_role_endpoint(
+    payload: schemas.TenantRoleCreate,
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> dict:
+    return await service.create_tenant_role(
+        db, principal.tenant_id, payload, actor_id=principal.user_id
+    )
+
+
+@router.patch("/tenant-roles/{role_id}")
+async def update_tenant_role_endpoint(
+    role_id: UUID,
+    payload: schemas.TenantRoleUpdate,
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> dict:
+    return await service.update_tenant_role(
+        db, principal.tenant_id, role_id, payload
+    )
+
+
+@router.post("/{user_id}/role")
+async def assign_custom_role_endpoint(
+    user_id: UUID,
+    payload: schemas.AssignCustomRoleRequest,
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> dict:
+    return await service.assign_custom_role_to_user(
+        db,
+        principal.tenant_id,
+        user_id,
+        custom_role_id=payload.custom_role_id,
         actor_id=principal.user_id,
     )

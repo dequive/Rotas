@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 24-04-PLAN.md
+stopped_at: Completed 24-05-PLAN.md
 last_updated: "2026-06-20T11:52:58.969Z"
 last_activity: 2026-06-20
 progress:
@@ -22,8 +22,8 @@ _Last updated: 2026-06-06_
 ## Current Phase
 
 Phase: 24
-Plan: 24-04 complete — next: 24-05
-Status: Phase 24 in execution — 24-01 (migrations) DONE; 24-02 (backend API) DONE; 24-03 (frontend /terceiros) DONE 2026-06-20; 24-04 (supplier/service-provider pickers) DONE 2026-06-20; remaining: 24-05, 24-06
+Plan: 24-05 complete — next: 24-06
+Status: Phase 24 in execution — 24-01 (migrations) DONE; 24-02 (backend API) DONE; 24-03 (frontend /terceiros) DONE 2026-06-20; 24-04 (supplier/service-provider pickers) DONE 2026-06-20; 24-05 (operational documents UI + assignments) DONE 2026-06-20; remaining: 24-06
 Last activity: 2026-06-20
 Stopped at: Completed 24-04-PLAN.md
 
@@ -235,7 +235,7 @@ _None — v3.0 roadmap criado; nenhum bloqueio activo._
 
 ## Session Continuity
 
-_Last session: 2026-06-20 — Phase 24 plans 01+02+03 complete: tp07/tp08/tp09 migrations, backend contacts/ledger/evaluations API, frontend /terceiros list + detail (5 tabs: Info, Contactos, Documentos, Conta Corrente, Avaliações), ThirdPartyCombobox, TenantRole model/schemas/service (Track D RBAC), FuelPurchaseModal, WorkOrderFormModal. Next: 24-04 OperationalDocumentsList UI._
+_Last session: 2026-06-20 — Phase 24 plans 01-05 complete. 24-05: OperationalDocumentsList + DocumentUploadModal components; Documentos tab live in /terceiros/[id]; new /viaturas/[id] page with Motoristas Atribuidos + Documentos sections; new /motoristas/[id] page with Viaturas Atribuidas + Documentos sections. tsc clean (0 errors). Next: 24-06._
 
 ---
 

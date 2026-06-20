@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated
 from uuid import UUID
@@ -417,9 +417,28 @@ async def create_receipt(
 async def get_ar_summary(
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
+    as_of: date | None = Query(None, description="Reference date YYYY-MM-DD. Defaults to today."),  # noqa: B008
 ):
-    """AR aging summary — outstanding invoice totals per bucket in MZN."""
-    return await service.get_ar_summary(db, principal.tenant_id)
+    """AR aging summary — outstanding invoice totals per bucket in MZN.
+
+    as_of: optional date to compute historical aging (useful for reports and testing).
+    Response includes as_of field showing the reference date used.
+    """
+    return await service.get_ar_summary(db, principal.tenant_id, as_of=as_of)
+
+
+@router.get("/ar/top-debtors")
+async def get_top_debtors(
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    as_of: date | None = Query(None, description="Reference date YYYY-MM-DD. Defaults to today."),  # noqa: B008
+    limit: int = Query(5, ge=1, le=20),  # noqa: B008
+):
+    """Return clients ranked by outstanding balance descending.
+
+    Returns top N clients with largest AR balance (issued/overdue invoices minus payments).
+    """
+    return await service.get_top_debtors(db, principal.tenant_id, as_of=as_of, limit=limit)
 
 
 @router.get("/clients/{client_id}/statement")
@@ -427,9 +446,39 @@ async def get_client_statement(
     client_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
+    as_of: date | None = Query(None, description="Reference date YYYY-MM-DD. Defaults to today."),  # noqa: B008
 ):
-    """Client AR statement — total invoiced, paid, balance and recent documents."""
-    return await service.get_client_statement(db, principal.tenant_id, client_id)
+    """Client AR statement — total invoiced, paid, balance and recent documents.
+
+    Each document in the list includes amount_paid and outstanding fields.
+    as_of: optional date to compute historical statement.
+    """
+    return await service.get_client_statement(db, principal.tenant_id, client_id, as_of=as_of)
+
+
+@router.get("/clients/{client_id}/statement/pdf")
+async def get_client_statement_pdf(
+    client_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    as_of: date | None = Query(None, description="Reference date YYYY-MM-DD. Defaults to today."),  # noqa: B008
+):
+    """Generate and stream a PDF client statement.
+
+    Returns application/pdf bytes. Filename in Content-Disposition header.
+    Uses fpdf2 + DejaVuSans (same font stack as billing document PDFs).
+    """
+    from fastapi.responses import Response as FastAPIResponse
+
+    pdf_bytes = await service.generate_client_statement_pdf(
+        db, principal.tenant_id, client_id, as_of=as_of
+    )
+    filename = f"extrato_{client_id}.pdf"
+    return FastAPIResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── PAY-01/02/03: Client Payments ────────────────────────────────────────────

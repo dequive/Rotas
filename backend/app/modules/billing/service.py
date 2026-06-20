@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -1550,18 +1550,29 @@ async def list_ar_documents(
 async def get_ar_summary(
     db: AsyncSession,
     tenant_id: UUID,
+    as_of: "date | None" = None,
 ) -> dict:
-    """GET /billing/ar/summary — totals per aging bucket in MZN."""
+    """GET /billing/ar/summary — totals per aging bucket in MZN.
+
+    as_of: optional date to compute historical aging. When provided, only invoices
+    with issued_at <= as_of are included and bucket assignment uses that date as
+    the reference point. Defaults to today.
+    """
+    _as_of = as_of or datetime.now(UTC).date()
+    today = datetime(
+        _as_of.year, _as_of.month, _as_of.day, 23, 59, 59, tzinfo=UTC
+    )
+
     stmt = select(BillingDocument).where(
         BillingDocument.tenant_id == tenant_id,
         BillingDocument.status.in_(("issued", "overdue")),
         BillingDocument.due_date.isnot(None),
         BillingDocument.document_type == "invoice",
+        BillingDocument.issued_at <= today,
     )
     result = await db.execute(stmt)
     docs = list(result.scalars())
 
-    today = datetime.now(UTC)
     buckets: dict[str, Decimal] = {
         "current": Decimal("0"),
         "1_30": Decimal("0"),
@@ -1585,6 +1596,7 @@ async def get_ar_summary(
         "over_90": buckets["over_90"],
         "total_ar": total_ar,
         "currency": "MZN",
+        "as_of": _as_of.isoformat(),
     }
 
 
@@ -1592,13 +1604,25 @@ async def get_client_statement(
     db: AsyncSession,
     tenant_id: UUID,
     client_id: UUID,
+    as_of: "date | None" = None,
 ) -> dict:
-    """GET /billing/clients/{client_id}/statement — balance and recent documents."""
+    """GET /billing/clients/{client_id}/statement — balance and recent documents.
+
+    as_of: optional date to filter documents. When provided, only documents with
+    issued_at <= as_of are included. Each document includes amount_paid and outstanding
+    computed from confirmed PaymentAllocation rows (voided payments excluded).
+    """
     from app.modules.clients.models import Client  # avoid circular import at module level
 
     client = await db.get(Client, client_id)
     if not client or client.tenant_id != tenant_id:
         raise ApiError("client_not_found", "Client not found", status_code=404)
+
+    _as_of_dt = (
+        datetime(as_of.year, as_of.month, as_of.day, 23, 59, 59, tzinfo=UTC)
+        if as_of
+        else datetime.now(UTC)
+    )
 
     # Total invoiced = sum of issued/paid/overdue invoice totals for this client
     invoiced_result = await db.execute(
@@ -1607,6 +1631,7 @@ async def get_client_statement(
             BillingDocument.client_id == client_id,
             BillingDocument.document_type == "invoice",
             BillingDocument.status.in_(("issued", "paid", "overdue")),
+            BillingDocument.issued_at <= _as_of_dt,
         )
     )
     total_invoiced = Decimal(str(invoiced_result.scalar_one())).quantize(Decimal("0.01"))
@@ -1619,6 +1644,7 @@ async def get_client_statement(
         .where(
             BillingDocument.tenant_id == tenant_id,
             BillingDocument.client_id == client_id,
+            BillingDocument.issued_at <= _as_of_dt,
             ClientPayment.status == "confirmed",
         )
     )
@@ -1626,28 +1652,57 @@ async def get_client_statement(
     balance = (total_invoiced - total_paid).quantize(Decimal("0.01"))
 
     # Recent documents (last 50)
-    docs_result = await db.execute(
+    docs_query_result = await db.execute(
         select(BillingDocument)
         .where(
             BillingDocument.tenant_id == tenant_id,
             BillingDocument.client_id == client_id,
+            BillingDocument.issued_at <= _as_of_dt,
         )
         .order_by(BillingDocument.created_at.desc())
         .limit(50)
     )
-    documents = [
-        {
-            "id": d.id,
-            "invoice_number": d.invoice_number,
-            "document_type": d.document_type,
-            "status": d.status,
-            "total_amount": d.total_amount,
-            "currency": d.currency,
-            "issued_at": d.issued_at,
-            "due_date": d.due_date,
+    docs_list = list(docs_query_result.scalars())
+
+    # Bulk-fetch per-document confirmed payment allocations (single query, no N+1)
+    doc_ids = [d.id for d in docs_list]
+    paid_by_doc: dict[UUID, Decimal] = {}
+    if doc_ids:
+        alloc_result = await db.execute(
+            select(
+                PaymentAllocation.billing_document_id,
+                func.coalesce(func.sum(PaymentAllocation.amount_applied), 0).label("paid"),
+            )
+            .join(ClientPayment, ClientPayment.id == PaymentAllocation.payment_id)
+            .where(
+                PaymentAllocation.billing_document_id.in_(doc_ids),
+                ClientPayment.status == "confirmed",
+            )
+            .group_by(PaymentAllocation.billing_document_id)
+        )
+        paid_by_doc = {
+            row.billing_document_id: Decimal(str(row.paid)).quantize(Decimal("0.01"))
+            for row in alloc_result
         }
-        for d in docs_result.scalars()
-    ]
+
+    documents = []
+    for d in docs_list:
+        doc_paid = paid_by_doc.get(d.id, Decimal("0.00"))
+        doc_outstanding = ((d.total_amount or Decimal("0")) - doc_paid).quantize(Decimal("0.01"))
+        documents.append(
+            {
+                "id": d.id,
+                "invoice_number": d.invoice_number,
+                "document_type": d.document_type,
+                "status": d.status,
+                "total_amount": d.total_amount,
+                "currency": d.currency,
+                "issued_at": d.issued_at,
+                "due_date": d.due_date,
+                "amount_paid": doc_paid,
+                "outstanding": doc_outstanding,
+            }
+        )
 
     return {
         "client_id": client_id,
@@ -1657,7 +1712,333 @@ async def get_client_statement(
         "balance": balance,
         "currency": "MZN",
         "documents": documents,
+        "as_of": as_of.isoformat() if as_of else None,
     }
+
+
+async def get_top_debtors(
+    db: AsyncSession,
+    tenant_id: UUID,
+    as_of: "date | None" = None,
+    limit: int = 5,
+) -> list[dict]:
+    """Return clients ranked by outstanding balance descending.
+
+    Outstanding = total_amount of issued/overdue invoices - confirmed allocations.
+    Only status='issued' or 'overdue' docs with due_date set, document_type='invoice'.
+    """
+    from app.modules.clients.models import Client  # avoid circular import
+
+    _as_of_dt = (
+        datetime(as_of.year, as_of.month, as_of.day, 23, 59, 59, tzinfo=UTC)
+        if as_of
+        else datetime.now(UTC)
+    )
+
+    # Fetch all relevant issued invoices for this tenant
+    stmt = select(BillingDocument).where(
+        BillingDocument.tenant_id == tenant_id,
+        BillingDocument.status.in_(("issued", "overdue")),
+        BillingDocument.due_date.isnot(None),
+        BillingDocument.document_type == "invoice",
+        BillingDocument.client_id.isnot(None),
+        BillingDocument.issued_at <= _as_of_dt,
+    )
+    result = await db.execute(stmt)
+    docs = list(result.scalars())
+    if not docs:
+        return []
+
+    doc_ids = [d.id for d in docs]
+    alloc_result = await db.execute(
+        select(
+            PaymentAllocation.billing_document_id,
+            func.coalesce(func.sum(PaymentAllocation.amount_applied), 0).label("paid"),
+        )
+        .join(ClientPayment, ClientPayment.id == PaymentAllocation.payment_id)
+        .where(
+            PaymentAllocation.billing_document_id.in_(doc_ids),
+            ClientPayment.status == "confirmed",
+        )
+        .group_by(PaymentAllocation.billing_document_id)
+    )
+    paid_by_doc: dict = {row.billing_document_id: Decimal(str(row.paid)) for row in alloc_result}
+
+    # Aggregate by client_id
+    client_outstanding: dict = {}
+    client_worst_bucket: dict = {}
+    today_for_aging = _as_of_dt
+
+    for doc in docs:
+        cid = doc.client_id
+        paid = paid_by_doc.get(doc.id, Decimal("0"))
+        outstanding = (doc.total_amount or Decimal("0")) - paid
+        if outstanding <= Decimal("0"):
+            continue
+        client_outstanding[cid] = client_outstanding.get(cid, Decimal("0")) + outstanding
+        aging = _compute_aging(doc, today_for_aging)
+        existing = client_worst_bucket.get(cid, "current")
+        # bucket severity order: current < 1_30 < 31_60 < 61_90 < over_90
+        _order = {"current": 0, "1_30": 1, "31_60": 2, "61_90": 3, "over_90": 4}
+        if _order.get(aging["aging_bucket"], 0) > _order.get(existing, 0):
+            client_worst_bucket[cid] = aging["aging_bucket"]
+
+    # Sort by outstanding desc, take top N
+    ranked = sorted(client_outstanding.items(), key=lambda x: x[1], reverse=True)[:limit]
+
+    # Bulk-fetch client names
+    client_ids = [cid for cid, _ in ranked]
+    clients_result = await db.execute(
+        select(Client).where(Client.id.in_(client_ids), Client.tenant_id == tenant_id)
+    )
+    clients_map = {c.id: c for c in clients_result.scalars()}
+
+    return [
+        {
+            "client_id": str(cid),
+            "client_name": clients_map[cid].trading_name if cid in clients_map else "—",
+            "outstanding": outstanding.quantize(Decimal("0.01")),
+            "worst_bucket": client_worst_bucket.get(cid, "current"),
+        }
+        for cid, outstanding in ranked
+        if cid in clients_map
+    ]
+
+
+async def generate_client_statement_pdf(
+    db: AsyncSession,
+    tenant_id: UUID,
+    client_id: UUID,
+    as_of: "date | None" = None,
+) -> bytes:
+    """Generate a PDF client statement using fpdf2 + DejaVuSans (same pattern as exporters.py).
+
+    Header: tenant issuer_name + issuer_nuit (fallback tenant.name)
+    Client block: name, NUIT if available
+    Table: invoice_number | issue_date | due_date | total | paid | outstanding | status
+    Footer: total outstanding balance, currency MZN
+    """
+    from fpdf import FPDF
+    from fpdf.enums import XPos, YPos
+
+    from app.modules.billing.exporters import FONTS_DIR
+    from app.modules.clients.models import Client
+
+    # Fetch client
+    client = await db.get(Client, client_id)
+    if not client or client.tenant_id != tenant_id:
+        raise ApiError("client_not_found", "Client not found", status_code=404)
+
+    # Get statement data (reuses the extended get_client_statement)
+    stmt_data = await get_client_statement(db, tenant_id, client_id, as_of=as_of)
+
+    # Determine issuer info from most recent issued document or tenant fallback
+    tenant = await db.get(Tenant, tenant_id)
+    issuer_name = tenant.name if tenant else "ROTAS"
+    issuer_nuit = getattr(tenant, "nuit", None)
+
+    # Try to find issuer_name/issuer_nuit from an issued billing document
+    from sqlalchemy import select as sa_select
+
+    doc_row = await db.execute(
+        sa_select(BillingDocument)
+        .where(
+            BillingDocument.tenant_id == tenant_id,
+            BillingDocument.status.in_(("issued", "paid", "overdue")),
+            BillingDocument.issuer_name.isnot(None),
+        )
+        .order_by(BillingDocument.issued_at.desc())
+        .limit(1)
+    )
+    doc_sample = doc_row.scalar_one_or_none()
+    if doc_sample and doc_sample.issuer_name:
+        issuer_name = doc_sample.issuer_name
+        issuer_nuit = doc_sample.issuer_nuit
+
+    _as_of_label = as_of.isoformat() if as_of else datetime.now(UTC).date().isoformat()
+
+    # Build PDF — brand palette (same constants as exporters.py)
+    _NAV = (16, 32, 51)
+    _SOFT = (245, 247, 250)
+    _LINE = (216, 222, 232)
+    _INK = (23, 32, 51)
+    _MUTED = (102, 112, 133)
+    _WHITE = (255, 255, 255)
+
+    class _StatementPDF(FPDF):
+        def header(self):
+            self.set_fill_color(*_NAV)
+            self.rect(0, 0, 210, 22, "F")
+            self.set_y(4)
+            self.set_text_color(*_WHITE)
+            self.set_font("DejaVu", "B", 16)
+            self.cell(0, 8, issuer_name, align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            if issuer_nuit:
+                self.set_font("DejaVu", "", 7)
+                self.set_y(12)
+                self.cell(0, 4, f"NUIT {issuer_nuit}", align="L")
+            self.set_fill_color(*_SOFT)
+            self.set_draw_color(*_LINE)
+            self.rect(0, 22, 210, 12, "FD")
+            self.set_y(25)
+            self.set_text_color(*_INK)
+            self.set_font("DejaVu", "B", 11)
+            self.cell(0, 6, "EXTRATO DE CONTA CORRENTE", align="C")
+            self.set_font("DejaVu", "", 7)
+            self.set_text_color(*_MUTED)
+            self.set_y(25)
+            self.cell(0, 3, f"Referência: {_as_of_label}", align="R")
+            self.set_y(36)
+            self.set_text_color(*_INK)
+
+        def footer(self):
+            self.set_y(-14)
+            self.set_draw_color(*_LINE)
+            self.set_line_width(0.3)
+            self.line(15, self.get_y(), 195, self.get_y())
+            self.set_y(-12)
+            self.set_font("DejaVu", "", 7)
+            self.set_text_color(*_MUTED)
+            self.cell(0, 5, issuer_name, align="L")
+            self.cell(0, 5, f"Página {self.page_no()}", align="R")
+
+    pdf = _StatementPDF(orientation="P", unit="mm", format="A4")
+    pdf.add_font("DejaVu", "", str(FONTS_DIR / "DejaVuSans.ttf"))
+    pdf.add_font("DejaVu", "B", str(FONTS_DIR / "DejaVuSans-Bold.ttf"))
+    pdf.set_auto_page_break(auto=True, margin=18)
+    pdf.set_margins(left=15, top=15, right=15)
+    pdf.add_page()
+
+    # Client block
+    def _row(label: str, value: str):
+        pdf.set_font("DejaVu", "B", 8)
+        pdf.set_text_color(*_MUTED)
+        pdf.cell(35, 5, label.upper(), new_x=XPos.RIGHT, new_y=YPos.TOP)
+        pdf.set_font("DejaVu", "", 9)
+        pdf.set_text_color(*_INK)
+        pdf.cell(0, 5, value or "—", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    _row("Cliente", stmt_data["client_name"] or "—")
+    if client.nuit:
+        _row("NUIT", client.nuit)
+    _row("Referência", _as_of_label)
+    pdf.ln(4)
+
+    # Table columns: Fatura | Emissão | Vencimento | Total | Pago | Em Aberto | Estado
+    COL_W = [28, 22, 22, 30, 30, 30, 18]  # = 180mm usable
+    HEADERS = [
+        "Fatura", "Emissão", "Vencimento", "Total MZN", "Pago MZN", "Em Aberto MZN", "Estado"
+    ]
+    ALIGN = ["L", "C", "C", "R", "R", "R", "C"]
+
+    pdf.set_fill_color(*_NAV)
+    pdf.set_text_color(*_WHITE)
+    pdf.set_font("DejaVu", "B", 7.5)
+    for w, label, align in zip(COL_W, HEADERS, ALIGN, strict=False):
+        pdf.cell(w, 7, label, border=0, fill=True, align=align, new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.ln()
+
+    # Data rows
+    pdf.set_font("DejaVu", "", 7.5)
+    _status_pt = {
+        "issued": "Emitido",
+        "overdue": "Vencido",
+        "paid": "Pago",
+        "draft": "Rascunho",
+        "cancelled": "Cancelado",
+    }
+
+    for idx, doc in enumerate(stmt_data["documents"]):
+        fill = idx % 2 == 0
+        pdf.set_fill_color(*(_SOFT if fill else _WHITE))
+        pdf.set_text_color(*_INK)
+
+        inv_num = doc.get("invoice_number") or "—"
+        issued = doc.get("issued_at")
+        due = doc.get("due_date")
+        total = Decimal(str(doc.get("total_amount") or 0))
+        paid = Decimal(str(doc.get("amount_paid") or 0))
+        outstanding = Decimal(str(doc.get("outstanding") or 0))
+        status_label = _status_pt.get(doc.get("status", ""), doc.get("status", ""))
+
+        def _fmt_date(d) -> str:
+            if not d:
+                return "—"
+            if hasattr(d, "strftime"):
+                return d.strftime("%d/%m/%Y")
+            try:
+                return str(d)[:10]
+            except Exception:
+                return "—"
+
+        values = [
+            (inv_num[:16], "L"),
+            (_fmt_date(issued), "C"),
+            (_fmt_date(due), "C"),
+            (f"{total:,.2f}", "R"),
+            (f"{paid:,.2f}", "R"),
+            (f"{outstanding:,.2f}", "R"),
+            (status_label[:10], "C"),
+        ]
+        for w, (cell_text, align) in zip(COL_W, values, strict=False):
+            pdf.cell(  # noqa: E501
+                w, 6, cell_text, border=0, fill=fill, align=align,
+                new_x=XPos.RIGHT, new_y=YPos.TOP,
+            )
+        pdf.ln()
+
+    # Summary totals
+    pdf.ln(4)
+    pdf.set_draw_color(*_LINE)
+    pdf.set_line_width(0.4)
+    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+    pdf.ln(4)
+
+    total_outstanding = Decimal(str(stmt_data["balance"] or 0))
+    label_w = sum(COL_W[:4])
+    val_w = sum(COL_W[4:])
+
+    pdf.set_fill_color(*_SOFT)
+    pdf.set_text_color(*_INK)
+    pdf.set_font("DejaVu", "", 9)
+    pdf.cell(label_w, 7, "Total Emitido", fill=True, align="R", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(
+        val_w,
+        7,
+        f"{Decimal(str(stmt_data['total_invoiced'])):,.2f} MZN",
+        fill=True,
+        align="R",
+        new_x=XPos.LMARGIN,
+        new_y=YPos.NEXT,
+    )
+
+    pdf.set_fill_color(*_SOFT)
+    pdf.cell(label_w, 7, "Total Recebido", fill=True, align="R", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(
+        val_w,
+        7,
+        f"{Decimal(str(stmt_data['total_paid'])):,.2f} MZN",
+        fill=True,
+        align="R",
+        new_x=XPos.LMARGIN,
+        new_y=YPos.NEXT,
+    )
+
+    pdf.set_fill_color(*_NAV)
+    pdf.set_text_color(*_WHITE)
+    pdf.set_font("DejaVu", "B", 9)
+    pdf.cell(label_w, 7, "SALDO EM ABERTO", fill=True, align="R", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(
+        val_w,
+        7,
+        f"{total_outstanding:,.2f} MZN",
+        fill=True,
+        align="R",
+        new_x=XPos.LMARGIN,
+        new_y=YPos.NEXT,
+    )
+
+    return bytes(pdf.output())
 
 
 async def list_payments(

@@ -24,7 +24,7 @@ from app.modules.files.models import File
 from app.modules.files.service import save_generated_file
 from app.modules.operations.models import OperationalWaiver
 from app.modules.operations.service import has_active_waiver
-from app.modules.tenants.models import Tenant  # noqa: F401  — used in create_document (Wave B)
+from app.modules.tenants.models import Tenant
 from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
 
@@ -362,18 +362,30 @@ async def list_billable_trips(
         query = query.where(DeliveryProof.delivered_at < period_end)
 
     rows = await db.execute(query.order_by(Trip.actual_arrival.desc()).limit(limit).offset(offset))
-    results = []
-    for trip, proof, contract, vehicle in rows:
-        waiver = await db.scalar(
+    rows_list = list(rows)
+
+    # Bulk-fetch all waivers for the result set in one query (eliminates N+1)
+    trip_ids = [row[0].id for row in rows_list]
+    waiver_map: dict = {}
+    if trip_ids:
+        waiver_rows = await db.execute(
             select(OperationalWaiver)
             .where(
                 OperationalWaiver.tenant_id == tenant_id,
                 OperationalWaiver.entity_type == "trip",
-                OperationalWaiver.entity_id == trip.id,
+                OperationalWaiver.entity_id.in_(trip_ids),
                 OperationalWaiver.waiver_type == NEGATIVE_MARGIN_APPROVAL_WAIVER,
             )
             .order_by(OperationalWaiver.created_at.desc())
         )
+        for w in waiver_rows.scalars():
+            # Keep first (most-recent) waiver per trip
+            if w.entity_id not in waiver_map:
+                waiver_map[w.entity_id] = w
+
+    results = []
+    for trip, proof, contract, vehicle in rows_list:
+        waiver = waiver_map.get(trip.id)
         results.append(serialize_billable_trip(trip, proof, contract, vehicle, waiver))
     return results
 
@@ -422,6 +434,10 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
     if not contract or contract.tenant_id != tenant_id:
         raise ApiError("contract_not_found", "Contract not found.", status_code=404)
 
+    tenant = await db.get(Tenant, tenant_id)
+    issuer_name = tenant.name if tenant else "ROTAS"
+    issuer_nuit = tenant.nuit if tenant else None
+
     document = BillingDocument(
         tenant_id=tenant_id,
         contract_id=contract.id,
@@ -432,6 +448,8 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
         currency=payload.currency,
         status="draft",
         client_nuit=payload.client_nuit,
+        issuer_name=issuer_name,
+        issuer_nuit=issuer_nuit,
     )
     db.add(document)
     await db.flush()
@@ -533,6 +551,7 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
 
     document.subtotal = total
     document.total_amount = total
+    # invoice_number intentionally not assigned here — assigned only in issue_document (FISC-01)
     await db.flush()
     await record_audit_log(
         db,
@@ -641,6 +660,13 @@ async def issue_document(
 
     issued_at = payload.issued_at or datetime.now(UTC)
     old_document_values = {"status": document.status, "issued_at": document.issued_at}
+
+    # Compute due_date from contract.payment_terms_days (default 30 days)
+    from datetime import timedelta
+
+    contract = await db.get(Contract, document.contract_id) if document.contract_id else None
+    payment_terms = (contract.payment_terms_days if contract else 30) or 30
+    document.due_date = issued_at + timedelta(days=payment_terms)
     trip_old_values: dict[UUID, dict] = {}
 
     # FISC-01: Assign sequential invoice number from PostgreSQL SEQUENCE
@@ -654,6 +680,15 @@ async def issue_document(
     document.total_amount = (document.subtotal + document.tax_amount).quantize(Decimal("0.01"))
     rates = {item.iva_rate for item in items if item.iva_rate is not None}
     document.iva_rate = rates.pop() if len(rates) == 1 else None
+
+    # INVARIANT: verify subtotal + tax_amount == total_amount after recomputation
+    if abs(document.subtotal + document.tax_amount - document.total_amount) > Decimal("0.01"):
+        raise ApiError(
+            "billing_total_inconsistency",
+            f"subtotal ({document.subtotal}) + tax ({document.tax_amount}) "
+            f"!= total ({document.total_amount})",
+            status_code=422,
+        )
 
     document.status = "issued"
     document.issued_at = issued_at
@@ -946,7 +981,7 @@ def _serialize_export(document: BillingDocument, stored_file: File, export_forma
 
 _BILLING_VALID_TRANSITIONS: dict[str, set[str]] = {
     "draft": {"issued", "cancelled"},
-    "issued": {"paid", "overdue", "cancelled"},
+    "issued": {"paid", "overdue"},  # "cancelled" removed — issued docs cannot be cancelled (FISC)
     "overdue": {"paid", "cancelled"},
     "paid": set(),  # terminal
     "cancelled": set(),  # terminal
@@ -1102,6 +1137,9 @@ async def create_debit_note(
         iva_rate=iva_rate,
         document_type="debit_note",
         parent_document_id=parent_id,
+        parent_invoice_number=parent.invoice_number,
+        issuer_name=parent.issuer_name,
+        issuer_nuit=parent.issuer_nuit,
         status="issued",
         issued_at=datetime.now(UTC),
     )
@@ -1186,6 +1224,9 @@ async def create_credit_note(
         iva_rate=iva_rate,
         document_type="credit_note",
         parent_document_id=parent_id,
+        parent_invoice_number=parent.invoice_number,
+        issuer_name=parent.issuer_name,
+        issuer_nuit=parent.issuer_nuit,
         status="issued",
         issued_at=datetime.now(UTC),
     )
@@ -1265,6 +1306,9 @@ async def create_invoice_receipt(
         iva_rate=parent.iva_rate,
         document_type="invoice_receipt",
         parent_document_id=parent_id,
+        parent_invoice_number=parent.invoice_number,
+        issuer_name=parent.issuer_name,
+        issuer_nuit=parent.issuer_nuit,
         status="issued",
         issued_at=now,
     )
@@ -1274,6 +1318,21 @@ async def create_invoice_receipt(
 
     parent.status = "paid"
     parent.paid_at = now
+
+    await record_audit_log(
+        db=db,
+        tenant_id=tenant_id,
+        action="billing.invoice_receipt_created",
+        entity_type="billing_document",
+        entity_id=note.id,
+        new_values={
+            "invoice_number": note.invoice_number,
+            "parent_id": str(parent_id),
+            "parent_invoice_number": parent.invoice_number,
+            "total_amount": str(note.total_amount),
+            "document_type": "invoice_receipt",
+        },
+    )
 
     await db.commit()
     await db.refresh(note)
@@ -1330,12 +1389,31 @@ async def create_receipt(
         total_amount=amount_paid,
         document_type="receipt",
         parent_document_id=parent_id,
+        parent_invoice_number=parent.invoice_number,
+        issuer_name=parent.issuer_name,
+        issuer_nuit=parent.issuer_nuit,
         status="issued",
         issued_at=now,
     )
     db.add(note)
     await db.flush()
     await _assign_invoice_number(db, note, tenant_id)
+
+    await record_audit_log(
+        db=db,
+        tenant_id=tenant_id,
+        action="billing.receipt_created",
+        entity_type="billing_document",
+        entity_id=note.id,
+        new_values={
+            "invoice_number": note.invoice_number,
+            "parent_id": str(parent_id),
+            "parent_invoice_number": parent.invoice_number,
+            "amount_paid": str(note.total_amount),
+            "document_type": "receipt",
+        },
+    )
+
     await db.commit()
     await db.refresh(note)
 
@@ -1696,7 +1774,7 @@ async def void_payment(
     )
     await db.commit()
     await db.refresh(payment)
-    return serialize_payment(payment, [])
+    return serialize_payment(payment, allocations)
 
 
 async def apply_advance_to_invoice(

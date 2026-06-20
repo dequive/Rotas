@@ -39,19 +39,27 @@ const config: Config = {
         success: {
           DEFAULT: 'var(--success)',
           bg: 'var(--success-bg)',
+          border: 'var(--success-border)',
         },
         warning: {
           DEFAULT: 'var(--warning)',
           bg: 'var(--warning-bg)',
+          border: 'var(--warning-border)',
         },
         error: {
           DEFAULT: 'var(--error)',
           bg: 'var(--error-bg)',
+          border: 'var(--error-border)',
         },
         info: {
           DEFAULT: 'var(--info)',
           bg: 'var(--info-bg)',
+          border: 'var(--info-border)',
         },
+        // ── Semantic border tokens ─────────────────────────────
+        'blue-border': 'var(--blue-border)',
+        // ── Track / fill ──────────────────────────────────────
+        track: 'var(--track)',
         // ── Surface tokens ────────────────────────────────────
         bg: 'var(--bg)',
         surface: 'var(--surface)',

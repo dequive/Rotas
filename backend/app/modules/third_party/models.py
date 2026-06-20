@@ -1,8 +1,10 @@
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -59,6 +61,8 @@ class ThirdParty(Base):
     verified_by: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
+    activity_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    sector: Mapped[str | None] = mapped_column(String(80), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -254,4 +258,98 @@ class OperationalDocument(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+
+
+class ThirdPartyContact(Base):
+    __tablename__ = "third_party_contacts"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid(),
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False
+    )
+    third_party_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("third_parties.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    role: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    is_primary: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class SupplierLedgerEntry(Base):
+    __tablename__ = "supplier_ledger_entries"
+    __table_args__ = (
+        CheckConstraint("entry_type IN ('debit', 'credit')", name="ck_sle_entry_type"),
+        CheckConstraint("amount > 0", name="ck_sle_amount_positive"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid(),
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False
+    )
+    third_party_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("third_parties.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    entry_type: Mapped[str] = mapped_column(String(10), nullable=False)  # 'debit' | 'credit'
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    # source_type values: manual_payment | fuel_purchase | work_order | invoice | adjustment
+    source_id: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    entry_date: Mapped[date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class SupplierEvaluation(Base):
+    __tablename__ = "supplier_evaluations"
+    __table_args__ = (
+        CheckConstraint("score >= 0 AND score <= 10", name="ck_se_score_range"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid(),
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False
+    )
+    third_party_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("third_parties.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    evaluated_by: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    evaluation_date: Mapped[date] = mapped_column(Date, nullable=False)
+    criteria: Mapped[list] = mapped_column(JSONB, nullable=False)
+    # criteria shape: [{"name": "prazo_entrega", "weight": 0.4, "score": 8.0}, ...]
+    # weight values must sum to 1.0; score is 0-10 scale
+    score: Mapped[Decimal] = mapped_column(Numeric(4, 2), nullable=False)
+    # score = sum(criterion.weight * criterion.score) for all criteria
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )

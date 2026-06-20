@@ -24,10 +24,16 @@ from app.modules.files.models import File
 from app.modules.files.service import save_generated_file
 from app.modules.operations.models import OperationalWaiver
 from app.modules.operations.service import has_active_waiver
+from app.modules.tenants.models import Tenant  # noqa: F401  — used in create_document (Wave B)
 from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
 
 NEGATIVE_MARGIN_APPROVAL_WAIVER = "negative_margin_approved"
+
+# FISC-IVA: Single source-of-truth for current IVA rate. Pre-2023 historical documents
+# use 0.1700; all new documents default to this constant. Never use literal 0.1700 in
+# code — backfill existing rows via scripts/billing_iva_backfill.sql.
+DEFAULT_IVA_RATE = Decimal("0.1600")
 
 
 async def _assign_invoice_number(
@@ -491,7 +497,7 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
         )
 
         amount = Decimal(str(contract.default_unit_price or 0))
-        iva_rate = Decimal("0.1700")
+        iva_rate = DEFAULT_IVA_RATE
         iva_amount = (amount * iva_rate).quantize(Decimal("0.01"))
         item = BillingItem(
             tenant_id=tenant_id,
@@ -1059,7 +1065,7 @@ async def create_debit_note(
     parent_id: UUID,
     amount: Decimal,
     reason: str,
-    iva_rate: Decimal = Decimal("0.1700"),
+    iva_rate: Decimal = DEFAULT_IVA_RATE,
 ) -> dict:
     """Create a Nota de Débito child document referencing an issued/paid invoice.
 
@@ -1142,7 +1148,7 @@ async def create_credit_note(
     parent_id: UUID,
     amount: Decimal,
     reason: str,
-    iva_rate: Decimal = Decimal("0.1700"),
+    iva_rate: Decimal = DEFAULT_IVA_RATE,
 ) -> dict:
     """Create a Nota de Crédito child document referencing an issued/paid invoice.
 

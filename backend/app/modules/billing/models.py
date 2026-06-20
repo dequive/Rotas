@@ -56,6 +56,11 @@ class BillingDocument(Base):
         ForeignKey("billing_documents.id"), nullable=True, index=True
     )
     client_nuit: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # CME: issuer identity copied from Tenant at document creation — no JOIN needed on export
+    issuer_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    issuer_nuit: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # CME: human-readable parent invoice number for child documents (debit/credit notes, receipts)
+    parent_invoice_number: Mapped[str | None] = mapped_column(String(12), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

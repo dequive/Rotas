@@ -274,7 +274,9 @@ def _render_pdf(
         _money_val(document.total_amount) if document.total_amount else subtotal + tax_amount
     )
 
-    iva_pct = int(float(document.iva_rate) * 100) if document.iva_rate else 17
+    if document.iva_rate is None:
+        raise ValueError("iva_rate is NULL on issued document — cannot render export")
+    iva_pct = int(float(document.iva_rate) * 100)
     iva_label = f"IVA ({iva_pct}%)"
 
     def _totals_row(label: str, value: Decimal, bold: bool = False, fill_color=_SOFT):
@@ -459,7 +461,9 @@ def _render_xlsx(
         if document.total_amount
         else subtotal_val + tax_val
     )
-    iva_pct = int(float(document.iva_rate) * 100) if document.iva_rate else 17
+    if document.iva_rate is None:
+        raise ValueError("iva_rate is NULL on issued document — cannot render export")
+    iva_pct = int(float(document.iva_rate) * 100)
 
     def _totals_xlsx_row(
         row: int, label: str, value: float, bold: bool = False, dark: bool = False

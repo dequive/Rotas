@@ -49,14 +49,14 @@ class BillingDocumentCancelRequest(BaseModel):
 class CreateDebitNoteRequest(BaseModel):
     amount: Decimal = Field(..., gt=0, description="Additional charge amount (pre-IVA)")
     reason: str = Field(..., min_length=5, max_length=500)
-    iva_rate: Decimal = Field(Decimal("0.1700"), ge=0, le=1)
+    iva_rate: Decimal = Field(Decimal("0.1600"), ge=0, le=1)
 
 
 # FDOC-03: Nota de Crédito
 class CreateCreditNoteRequest(BaseModel):
     amount: Decimal = Field(..., gt=0, description="Credit amount (pre-IVA)")
     reason: str = Field(..., min_length=5, max_length=500)
-    iva_rate: Decimal = Field(Decimal("0.1700"), ge=0, le=1)
+    iva_rate: Decimal = Field(Decimal("0.1600"), ge=0, le=1)
 
 
 # FDOC-04: Recibo (standalone)

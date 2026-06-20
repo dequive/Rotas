@@ -854,7 +854,7 @@ async def delete_contact(
     )
     contact = result.scalar_one_or_none()
     if not contact:
-        raise ApiError("contact_not_found", "Contacto não encontrado", 404)
+        raise ApiError("contact_not_found", "Contacto não encontrado", status_code=404)
     await record_audit_log(
         db,
         tenant_id=tenant_id,
@@ -1024,26 +1024,28 @@ async def create_evaluation(
 ) -> dict:
     await _require_third_party(db, tenant_id, third_party_id)
     if not payload.criteria:
-        raise ApiError("empty_criteria", "Critérios de avaliação não podem estar vazios", 422)
+        raise ApiError(
+            "empty_criteria", "Critérios de avaliação não podem estar vazios", status_code=422
+        )
     for c in payload.criteria:
         if not (0 < c["weight"] <= 1):
             raise ApiError(
                 "invalid_criterion_weight",
                 f"Peso do critério '{c['name']}' deve estar em (0, 1]: recebido {c['weight']}",
-                422,
+                status_code=422,
             )
         if not (0 <= c["score"] <= 10):
             raise ApiError(
                 "invalid_criterion_score",
                 f"Score do critério '{c['name']}' deve estar em [0, 10]: recebido {c['score']}",
-                422,
+                status_code=422,
             )
     total_weight = sum(c["weight"] for c in payload.criteria)
     if abs(total_weight - 1.0) > 0.01:
         raise ApiError(
             "invalid_weights",
             f"Pesos devem somar 1.0 (soma actual: {total_weight:.2f})",
-            422,
+            status_code=422,
         )
     score = Decimal(
         str(sum(c["weight"] * c["score"] for c in payload.criteria))

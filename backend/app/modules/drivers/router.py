@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import ADMIN_ROLES, DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import DRIVERS_PAIRING, DRIVERS_READ, DRIVERS_WRITE, require_permission
 from app.modules.availability import service as availability_service
 from app.modules.drivers import schemas, service
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/drivers", tags=["drivers"])
 
 @router.get("")
 async def list_drivers(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(DRIVERS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
     search: str | None = None,
@@ -37,7 +37,7 @@ async def list_drivers(
 async def create_driver(
     request: Request,
     payload: schemas.DriverCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(DRIVERS_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -63,7 +63,7 @@ async def create_driver(
 @router.get("/{driver_id}")
 async def get_driver(
     driver_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(DRIVERS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_driver(db, principal.tenant_id, driver_id)
@@ -72,14 +72,14 @@ async def get_driver(
 @router.get("/{driver_id}/scorecard")
 async def get_driver_scorecard(
     driver_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(DRIVERS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     days: int = Query(30, ge=7, le=90),
 ):
     """D-11: Driver scorecard — composite 0-100 score for rolling window.
 
     Accessible to dashboard roles only (owner/admin/manager/viewer).
-    Driver tokens are rejected by require_roles at the dependency level.
+    Driver tokens are rejected by require_permission at the dependency level.
     """
     return await service.get_driver_scorecard(db, principal.tenant_id, driver_id, days=days)
 
@@ -87,7 +87,7 @@ async def get_driver_scorecard(
 @router.get("/{driver_id}/history")
 async def list_driver_history(
     driver_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(DRIVERS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -104,7 +104,7 @@ async def list_driver_history(
 @router.get("/{driver_id}/availability")
 async def get_driver_availability(
     driver_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(DRIVERS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     exclude_trip_id: UUID | None = None,
 ):
@@ -120,7 +120,7 @@ async def get_driver_availability(
 async def patch_driver(
     driver_id: UUID,
     payload: schemas.DriverPatch,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(DRIVERS_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.patch_driver(
@@ -135,7 +135,7 @@ async def patch_driver(
 @router.post("/{driver_id}/pairing-code")
 async def issue_driver_pairing_code(
     driver_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(DRIVERS_PAIRING))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -161,7 +161,7 @@ async def renew_driver_document(
     driver_id: UUID,
     document_type: str,
     payload: schemas.DriverDocumentRenewalRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(DRIVERS_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):

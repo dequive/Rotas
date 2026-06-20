@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
 from app.core.deps import get_session
-from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
 from app.database import AsyncSessionLocal
 from app.modules.third_party import service
 from app.modules.third_party.schemas import (
@@ -47,7 +47,7 @@ async def list_provinces(
 @router.post("", status_code=201)
 async def create_third_party(
     payload: ThirdPartyCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.create_third_party(
@@ -57,7 +57,7 @@ async def create_third_party(
 
 @router.get("")
 async def list_third_parties(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
@@ -73,7 +73,7 @@ async def list_third_parties(
 
 @router.get("/party-directory", response_model=list[PartyDirectoryEntry])
 async def party_directory(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     q: str | None = Query(None, description="Name search string (ILIKE)"),
     subject_type: str | None = Query(
@@ -100,7 +100,7 @@ async def party_directory(
 @router.post("/documents", status_code=201)
 async def create_document(
     payload: DocumentCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.create_document(
@@ -110,7 +110,7 @@ async def create_document(
 
 @router.get("/documents/expiring")
 async def get_expiring_documents(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     days_ahead: int = Query(30, ge=1, le=365),
 ):
@@ -119,7 +119,7 @@ async def get_expiring_documents(
 
 @router.get("/documents")
 async def list_documents(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     subject_type: Annotated[str | None, Query()] = None,
     subject_id: Annotated[UUID | None, Query()] = None,
@@ -142,7 +142,7 @@ async def list_documents(
 async def verify_document(
     doc_id: UUID,
     payload: DocumentVerify,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.verify_document(
@@ -156,7 +156,7 @@ async def verify_document(
 @router.get("/{tp_id}/roles")
 async def list_roles(
     tp_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.list_roles(db, principal.tenant_id, tp_id)
@@ -166,7 +166,7 @@ async def list_roles(
 async def create_role(
     tp_id: UUID,
     payload: RoleCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.create_role(
@@ -178,7 +178,7 @@ async def create_role(
 async def upsert_supplier_profile(
     tp_id: UUID,
     payload: SupplierProfileCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.upsert_supplier_profile(
@@ -190,7 +190,7 @@ async def upsert_supplier_profile(
 async def upsert_service_provider_profile(
     tp_id: UUID,
     payload: ServiceProviderProfileCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.upsert_service_provider_profile(
@@ -204,7 +204,7 @@ async def upsert_service_provider_profile(
 @router.get("/{tp_id}")
 async def get_third_party(
     tp_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_third_party(db, principal.tenant_id, tp_id)
@@ -214,7 +214,7 @@ async def get_third_party(
 async def update_third_party(
     tp_id: UUID,
     payload: ThirdPartyUpdate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.update_third_party(
@@ -228,7 +228,7 @@ async def update_third_party(
 @router.post("/driver-vehicle-assignments", status_code=201)
 async def assign_driver_to_vehicle(
     payload: AssignmentCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.assign_driver_to_vehicle(
@@ -238,7 +238,7 @@ async def assign_driver_to_vehicle(
 
 @router.get("/driver-vehicle-assignments")
 async def list_assignments(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     driver_id: Annotated[UUID | None, Query()] = None,
     vehicle_id: Annotated[UUID | None, Query()] = None,
@@ -260,7 +260,7 @@ async def list_assignments(
 @router.delete("/driver-vehicle-assignments/{assignment_id}", status_code=200)
 async def unassign_driver_from_vehicle(
     assignment_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.unassign_driver_from_vehicle(

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.core.auth import Principal
 from app.core.deps import get_session
-from app.core.permissions import ADMIN_ROLES, DASHBOARD_ROLES, require_roles
+from app.core.rbac import ADMIN_USERS, require_permission
 from app.modules.tenants import schemas, service
 from app.modules.tenants.models import Tenant
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/tenants", tags=["tenants"])
 
 @router.get("/me")
 async def get_my_tenant(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_current_tenant(db, principal.tenant_id)
@@ -25,7 +25,7 @@ async def get_my_tenant(
 @router.patch("/me")
 async def patch_my_tenant(
     payload: schemas.TenantPatch,
-    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.patch_current_tenant(
@@ -38,7 +38,7 @@ async def patch_my_tenant(
 
 @router.get("/me/driver-despacho-table")
 async def get_my_driver_despacho_table(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_driver_despacho_table(db, principal.tenant_id)
@@ -47,7 +47,7 @@ async def get_my_driver_despacho_table(
 @router.put("/me/driver-despacho-table")
 async def put_my_driver_despacho_table(
     payload: schemas.DriverDespachoTableUpdate,
-    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.put_driver_despacho_table(
@@ -61,7 +61,7 @@ async def put_my_driver_despacho_table(
 @router.get("/me/limits")
 async def get_tenant_limits(
     request: Request,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
     """GET /api/v1/tenants/me/limits — returns usage vs plan limits for the authenticated tenant.

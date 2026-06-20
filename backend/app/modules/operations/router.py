@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import ADMIN_ROLES, DASHBOARD_ROLES, require_roles
+from app.core.rbac import ADMIN_USERS, TRIPS_READ, require_permission
 from app.modules.operations import schemas, service
 
 router = APIRouter(prefix="/operations", tags=["operations"])
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/operations", tags=["operations"])
 @router.post("/waivers")
 async def create_waiver(
     payload: schemas.OperationalWaiverCreate,
-    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -39,7 +39,7 @@ async def create_waiver(
 
 @router.get("/waivers")
 async def list_waivers(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     entity_type: str | None = None,
     entity_id: UUID | None = None,
@@ -60,7 +60,7 @@ async def list_waivers(
 async def revoke_waiver(
     waiver_id: UUID,
     payload: schemas.OperationalWaiverRevokeRequest,
-    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.revoke_waiver(

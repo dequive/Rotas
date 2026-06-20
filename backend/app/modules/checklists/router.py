@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
 from app.modules.checklists import schemas, service
 
 router = APIRouter(tags=["checklists"])
@@ -15,7 +15,7 @@ router = APIRouter(tags=["checklists"])
 
 @router.get("/checklist-templates")
 async def list_templates(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     type: str | None = None,
     is_active: bool | None = True,
@@ -31,7 +31,7 @@ async def list_templates(
 @router.post("/checklist-templates")
 async def create_template(
     payload: schemas.ChecklistTemplateCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -54,7 +54,7 @@ async def create_template(
 
 @router.get("/checklists")
 async def list_checklists(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
     vehicle_id: UUID | None = None,
@@ -76,7 +76,7 @@ async def list_checklists(
 @router.post("/checklists")
 async def create_checklist(
     payload: schemas.ChecklistCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -104,7 +104,7 @@ async def create_checklist(
 async def patch_checklist(
     checklist_id: UUID,
     payload: schemas.ChecklistPatch,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.patch_checklist(
@@ -121,7 +121,7 @@ async def patch_checklist(
 async def complete_checklist(
     checklist_id: UUID,
     payload: schemas.CompleteChecklistRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.complete_checklist(
@@ -138,7 +138,7 @@ async def complete_checklist(
 async def resolve_checklist_failure(
     checklist_id: UUID,
     payload: schemas.ResolveChecklistFailureRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.resolve_checklist_failure(

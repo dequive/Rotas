@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
 from app.core.deps import get_session
-from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
 from app.modules.alerts import schemas, service
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
 
 @router.get("")
 async def list_alerts(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
     priority: str | None = None,
@@ -36,7 +36,7 @@ async def list_alerts(
 @router.post("")
 async def create_alert(
     payload: schemas.AlertCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.create_alert(db, principal.tenant_id, payload, actor_id=principal.user_id)
@@ -46,7 +46,7 @@ async def create_alert(
 async def patch_alert_status(
     alert_id: UUID,
     payload: schemas.AlertStatusPatch,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.patch_alert_status(

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
 from app.core.deps import get_session
-from app.core.permissions import DASHBOARD_ROLES, require_roles
+from app.core.rbac import FLEET_READ, require_permission
 from app.modules.analytics import service
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 @router.get("/kpis")
 async def get_kpis(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     period_start: Annotated[datetime, Query(description="Period start (ISO 8601)")],
     period_end: Annotated[datetime, Query(description="Period end (ISO 8601)")],
@@ -37,7 +37,7 @@ async def get_kpis(
 
 @router.get("/document-expiry")
 async def get_document_expiry(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     horizon_days: int = Query(30, ge=7, le=90),
 ) -> list:

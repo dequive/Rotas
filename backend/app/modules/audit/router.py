@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
 from app.core.deps import get_session
-from app.core.permissions import ADMIN_ROLES, require_roles
+from app.core.rbac import AUDIT_READ, require_permission
 from app.modules.audit import service
 
 router = APIRouter(prefix="/audit-logs", tags=["audit"])
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/audit-logs", tags=["audit"])
 
 @router.get("")
 async def list_audit_logs(
-    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(AUDIT_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     entity_type: str | None = None,
     entity_id: UUID | None = None,

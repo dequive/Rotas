@@ -8,7 +8,7 @@ from app.core.auth import Principal
 from app.core.deps import get_session as get_rls_session
 from app.core.errors import ApiError
 from app.core.limiter import limiter
-from app.core.permissions import DASHBOARD_ROLES, require_roles
+from app.core.rbac import FLEET_READ, require_permission
 from app.database import get_session_raw as get_session
 from app.modules.auth import schemas, service
 
@@ -102,7 +102,7 @@ async def complete_password_reset(
 
 @router.get("/sessions")
 async def list_sessions(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_rls_session)],
     user_id: UUID | None = None,
 ):
@@ -120,7 +120,7 @@ async def list_sessions(
 @router.delete("/sessions/{session_id}", response_model=schemas.SessionRevokeResponse)
 async def revoke_session(
     session_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_rls_session)],
 ):
     if principal.user_id is None:
@@ -136,7 +136,7 @@ async def revoke_session(
 
 @router.get("/mfa")
 async def get_mfa_status(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_rls_session)],
 ):
     if principal.user_id is None:
@@ -150,7 +150,7 @@ async def get_mfa_status(
 
 @router.post("/mfa/setup")
 async def setup_mfa(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_rls_session)],
 ):
     if principal.user_id is None:
@@ -165,7 +165,7 @@ async def setup_mfa(
 @router.post("/mfa/confirm")
 async def confirm_mfa(
     payload: schemas.MfaCodeRequest,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_rls_session)],
 ):
     if principal.user_id is None:
@@ -181,7 +181,7 @@ async def confirm_mfa(
 @router.delete("/mfa")
 async def disable_mfa(
     payload: schemas.MfaCodeRequest,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_rls_session)],
 ):
     if principal.user_id is None:

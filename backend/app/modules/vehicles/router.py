@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
 from app.modules.availability import service as availability_service
 from app.modules.vehicles import schemas, service
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 
 @router.get("")
 async def list_vehicles(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
     search: str | None = None,
@@ -37,7 +37,7 @@ async def list_vehicles(
 async def create_vehicle(
     request: Request,
     payload: schemas.VehicleCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -63,7 +63,7 @@ async def create_vehicle(
 @router.get("/{vehicle_id}")
 async def get_vehicle(
     vehicle_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_vehicle(db, principal.tenant_id, vehicle_id)
@@ -72,7 +72,7 @@ async def get_vehicle(
 @router.get("/{vehicle_id}/history")
 async def list_vehicle_history(
     vehicle_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -118,7 +118,7 @@ async def list_vehicle_history(
 @router.get("/{vehicle_id}/availability")
 async def get_vehicle_availability(
     vehicle_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     exclude_trip_id: UUID | None = None,
 ):
@@ -134,7 +134,7 @@ async def get_vehicle_availability(
 async def patch_vehicle(
     vehicle_id: UUID,
     payload: schemas.VehiclePatch,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.patch_vehicle(
@@ -149,7 +149,7 @@ async def patch_vehicle(
 @router.get("/{vehicle_id}/qr-code")
 async def get_vehicle_qr_code(
     vehicle_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_vehicle_qr_code(db, principal.tenant_id, vehicle_id)
@@ -160,7 +160,7 @@ async def renew_vehicle_document(
     vehicle_id: UUID,
     document_type: str,
     payload: schemas.VehicleDocumentRenewalRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):

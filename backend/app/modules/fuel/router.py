@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import FUEL_READ, FUEL_WRITE, require_permission
 from app.modules.fuel import schemas, service
 
 router = APIRouter(prefix="/fuel", tags=["fuel"])
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/fuel", tags=["fuel"])
 
 @router.get("")
 async def list_fuel_logs(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     vehicle_id: UUID | None = None,
     driver_id: UUID | None = None,
@@ -40,7 +40,7 @@ async def list_fuel_logs(
 @router.post("")
 async def create_fuel_log(
     payload: schemas.FuelLogCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -66,7 +66,7 @@ async def create_fuel_log(
 
 @router.get("/stats")
 async def get_fuel_stats(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     vehicle_id: UUID | None = None,
     date_from: datetime | None = None,
@@ -83,7 +83,7 @@ async def get_fuel_stats(
 
 @router.get("/anomalies")
 async def list_anomalies(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -95,7 +95,7 @@ async def list_anomalies(
 async def verify_fuel_log(
     fuel_log_id: UUID,
     payload: schemas.VerifyFuelLogRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.verify_fuel_log(

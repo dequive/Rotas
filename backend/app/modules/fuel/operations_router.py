@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import ADMIN_ROLES, DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import FUEL_APPROVE, FUEL_READ, FUEL_WRITE, require_permission
 from app.modules.fuel import operations
 from app.modules.fuel.operations_schemas import (
     FuelPurchaseCreate,
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/fuel-operations", tags=["fuel-operations"])
 
 @router.get("/board")
 async def get_fuel_control_board(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await operations.get_fuel_control_board(db, principal.tenant_id)
@@ -31,7 +31,7 @@ async def get_fuel_control_board(
 
 @router.get("/tanks")
 async def list_tanks(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await operations.list_tanks(db, principal.tenant_id)
@@ -40,7 +40,7 @@ async def list_tanks(
 @router.post("/tanks")
 async def create_tank(
     payload: FuelTankCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -61,7 +61,7 @@ async def create_tank(
 @router.post("/purchases")
 async def create_purchase(
     payload: FuelPurchaseCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -82,7 +82,7 @@ async def create_purchase(
 @router.post("/purchases/{purchase_id}/approve")
 async def approve_purchase(
     purchase_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await operations.approve_purchase(
@@ -93,7 +93,7 @@ async def approve_purchase(
 @router.post("/receipts")
 async def create_verified_receipt(
     payload: FuelReceiptCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -114,7 +114,7 @@ async def create_verified_receipt(
 @router.post("/vehicle-refuels")
 async def create_vehicle_refuel(
     payload: VehicleRefuelCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -135,7 +135,7 @@ async def create_vehicle_refuel(
 @router.post("/stock-counts")
 async def create_stock_count(
     payload: FuelStockCountCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -157,7 +157,7 @@ async def create_stock_count(
 async def approve_stock_adjustment(
     stock_count_id: UUID,
     payload: FuelStockAdjustmentApprove,
-    principal: Annotated[Principal, Depends(require_roles(*ADMIN_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_APPROVE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await operations.approve_stock_adjustment(
@@ -171,7 +171,7 @@ async def approve_stock_adjustment(
 
 @router.get("/movements")
 async def list_movements(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FUEL_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     tank_id: UUID | None = None,
     limit: int = Query(100, ge=1, le=500),

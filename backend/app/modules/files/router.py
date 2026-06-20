@@ -10,7 +10,7 @@ from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
 from app.modules.files import schemas, service
 
 router = APIRouter(prefix="/files", tags=["files"])
@@ -38,7 +38,7 @@ async def _read_limited_upload(upload: UploadFile) -> bytes:
 @router.post("/presign")
 async def presign_upload(
     payload: schemas.PresignRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -64,7 +64,7 @@ async def presign_upload(
 
 @router.post("/upload")
 async def upload_file(
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     upload: Annotated[UploadFile, File()],
     file_type: Annotated[str, Form()],
@@ -106,7 +106,7 @@ async def upload_file(
 @router.post("/confirm")
 async def confirm_upload(
     payload: schemas.ConfirmUploadRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.confirm_upload(
@@ -121,7 +121,7 @@ async def confirm_upload(
 @router.get("/{file_id}")
 async def get_file(
     file_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_file(db, principal.tenant_id, file_id)
@@ -130,7 +130,7 @@ async def get_file(
 @router.get("/{file_id}/download")
 async def download_file(
     file_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     file, path = await service.get_file_path(db, principal.tenant_id, file_id)

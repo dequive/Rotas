@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
 from app.core.deps import get_session
-from app.core.permissions import DASHBOARD_ROLES, require_roles
+from app.core.rbac import FLEET_READ, require_permission
 from app.modules.control_tower import service
 
 router = APIRouter(prefix="/control-tower", tags=["control-tower"])
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/control-tower", tags=["control-tower"])
 @router.get("")
 async def get_control_tower(
     request: Request,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     date_: Annotated[date | None, Query(alias="date")] = None,
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),

@@ -1,61 +1,139 @@
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.auth import Principal
 from app.core.deps import get_session
-from app.core.rbac import ADMIN_USERS, require_permission
+from app.core.errors import ApiError
+from app.core.rbac import ADMIN_USERS, require_own_tenant_or_platform, require_permission
+from app.database import AsyncSessionLocal, set_rls_tenant
 from app.modules.tenants import schemas, service
 from app.modules.tenants.models import Tenant
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
 
+# Reusable Query annotation for the optional ?tenant_id= param used by platform_admin.
+_TargetTenantId = Annotated[UUID | None, Query(alias="tenant_id")]
+
+# Singleton guard instance — reused across all combined-guard routes so FastAPI's dependency
+# deduplication cache treats them as the same dependency within a single request.
+_combined_guard = require_own_tenant_or_platform()
+
+
+async def _open_session_for_principal(principal: Principal) -> AsyncSession:
+    """Open an AsyncSession with the appropriate RLS context for the principal.
+
+    - platform scope: no RLS injection (tenant_id is None on the principal; the effective
+      tenant is resolved in the route handler via ?tenant_id= query param).
+    - dashboard scope: sets RLS context using principal.tenant_id, matching the behaviour
+      of app.core.deps.get_session without calling get_current_principal() a second time.
+
+    This is a helper, not a FastAPI Depends — it is called directly by each route after
+    receiving the principal from the shared _combined_guard dependency.
+    """
+    if principal.scope == "platform":
+        return AsyncSessionLocal()
+    set_rls_tenant(str(principal.tenant_id))
+    return AsyncSessionLocal()
+
+
+def _resolve_tenant_id(principal: Principal, target_tenant_id: UUID | None) -> UUID:
+    """Return the effective tenant_id for a combined-guard endpoint.
+
+    - platform scope: uses the ?tenant_id= query param (required).
+    - dashboard scope: uses principal.tenant_id (own tenant only).
+    """
+    if principal.scope == "platform":
+        if target_tenant_id is None:
+            raise ApiError(
+                "tenant_id_required",
+                "Platform admin must provide ?tenant_id= query param for this endpoint.",
+                status_code=400,
+            )
+        return target_tenant_id
+    return principal.tenant_id  # type: ignore[return-value]
+
 
 @router.get("/me")
 async def get_my_tenant(
-    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: Annotated[Principal, Depends(_combined_guard)],
+    target_tenant_id: _TargetTenantId = None,
 ):
-    return await service.get_current_tenant(db, principal.tenant_id)
+    effective_tenant_id = _resolve_tenant_id(principal, target_tenant_id)
+    if principal.scope != "platform":
+        set_rls_tenant(str(effective_tenant_id))
+    try:
+        async with AsyncSessionLocal() as db:
+            return await service.get_current_tenant(db, effective_tenant_id)
+    finally:
+        if principal.scope != "platform":
+            set_rls_tenant(None)
 
 
 @router.patch("/me")
 async def patch_my_tenant(
     payload: schemas.TenantPatch,
-    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: Annotated[Principal, Depends(_combined_guard)],
+    target_tenant_id: _TargetTenantId = None,
 ):
-    return await service.patch_current_tenant(
-        db,
-        principal.tenant_id,
-        payload,
-        actor_id=principal.user_id,
-    )
+    effective_tenant_id = _resolve_tenant_id(principal, target_tenant_id)
+    actor_id = principal.user_id if principal.scope != "platform" else None
+    if principal.scope != "platform":
+        set_rls_tenant(str(effective_tenant_id))
+    try:
+        async with AsyncSessionLocal() as db:
+            return await service.patch_current_tenant(
+                db,
+                effective_tenant_id,
+                payload,
+                actor_id=actor_id,
+            )
+    finally:
+        if principal.scope != "platform":
+            set_rls_tenant(None)
 
 
 @router.get("/me/driver-despacho-table")
 async def get_my_driver_despacho_table(
-    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: Annotated[Principal, Depends(_combined_guard)],
+    target_tenant_id: _TargetTenantId = None,
 ):
-    return await service.get_driver_despacho_table(db, principal.tenant_id)
+    effective_tenant_id = _resolve_tenant_id(principal, target_tenant_id)
+    if principal.scope != "platform":
+        set_rls_tenant(str(effective_tenant_id))
+    try:
+        async with AsyncSessionLocal() as db:
+            return await service.get_driver_despacho_table(db, effective_tenant_id)
+    finally:
+        if principal.scope != "platform":
+            set_rls_tenant(None)
 
 
 @router.put("/me/driver-despacho-table")
 async def put_my_driver_despacho_table(
     payload: schemas.DriverDespachoTableUpdate,
-    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: Annotated[Principal, Depends(_combined_guard)],
+    target_tenant_id: _TargetTenantId = None,
 ):
-    return await service.put_driver_despacho_table(
-        db,
-        principal.tenant_id,
-        payload,
-        actor_id=principal.user_id,
-    )
+    effective_tenant_id = _resolve_tenant_id(principal, target_tenant_id)
+    actor_id = principal.user_id if principal.scope != "platform" else None
+    if principal.scope != "platform":
+        set_rls_tenant(str(effective_tenant_id))
+    try:
+        async with AsyncSessionLocal() as db:
+            return await service.put_driver_despacho_table(
+                db,
+                effective_tenant_id,
+                payload,
+                actor_id=actor_id,
+            )
+    finally:
+        if principal.scope != "platform":
+            set_rls_tenant(None)
 
 
 @router.get("/me/limits")

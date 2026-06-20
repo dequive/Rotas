@@ -52,6 +52,26 @@
     --transition-base:  100ms ease-out;
     --transition-modal: 150ms ease-out;
 
+    /* ── Spacing scale ───────────────────────────────── */
+    --s1: 4px;
+    --s2: 8px;
+    --s3: 12px;
+    --s4: 16px;
+    --s5: 20px;
+    --s6: 24px;
+    --s7: 32px;
+    --s8: 48px;
+
+    /* ── Border radius ───────────────────────────────── */
+    --r-sm: 4px;
+    --r-md: 6px;
+    --r-lg: 8px;
+    --r-xl: 12px;
+
+    /* ── Elevation ───────────────────────────────────── */
+    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.10), 0 2px 4px rgba(15, 23, 42, 0.06);
+
     /* ── Legacy aliases (for unmigrated components) ───── */
     --muted: #64748b;
     --line: #e2e8f0;
@@ -206,7 +226,7 @@
 }
 
 .eyebrow {
-  color: var(--blue);
+  color: var(--amber);
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
@@ -756,9 +776,15 @@
 }
 
 .tool-btn.primary {
-  background: var(--blue);
-  border-color: var(--blue);
-  color: #ffffff;
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--ink);
+  transition: background var(--transition-base), border-color var(--transition-base);
+}
+
+.tool-btn.primary:hover:not(:disabled) {
+  background: var(--amber-dark);
+  border-color: var(--amber-dark);
 }
 
 .tool-btn.primary:disabled {
@@ -1340,31 +1366,42 @@
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
+  gap: 6px;
+}
+
+.badge::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
 }
 
 .badge.green {
-  background: #e7f6ee;
-  color: var(--green);
+  background: var(--success-bg);
+  color: var(--success);
 }
 
 .badge.orange {
-  background: #fff4df;
-  color: var(--orange);
+  background: var(--warning-bg);
+  color: var(--warning);
 }
 
 .badge.red {
-  background: #fee4e2;
-  color: var(--red);
+  background: var(--error-bg);
+  color: var(--error);
 }
 
 .badge.blue {
-  background: #dbeafe;
+  background: var(--blue-light);
   color: var(--blue);
 }
 
 .badge.cyan {
-  background: #cffafe;
-  color: var(--cyan);
+  background: var(--info-bg);
+  color: var(--info);
 }
 
 .documents-panel {
@@ -1475,13 +1512,18 @@
 
 .login-btn {
   min-height: 44px;
-  background: var(--blue);
-  color: #ffffff;
+  background: var(--amber);
+  color: var(--ink);
   border: 0;
   border-radius: 8px;
   font-size: 15px;
   font-weight: 700;
   margin-top: 4px;
+  transition: background var(--transition-base);
+}
+
+.login-btn:hover:not(:disabled) {
+  background: var(--amber-dark);
 }
 
 .login-btn:disabled {
@@ -1526,13 +1568,18 @@
   gap: 6px;
   min-height: 38px;
   padding: 0 14px;
-  background: var(--blue);
-  color: #ffffff;
+  background: var(--amber);
+  color: var(--ink);
   border: 0;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
+  transition: background var(--transition-base);
+}
+
+.primary-btn:hover:not(:disabled) {
+  background: var(--amber-dark);
 }
 
 .primary-btn:disabled {
@@ -1805,10 +1852,7 @@
   align-items: end;
   padding: 24px;
   color: #ffffff;
-  background:
-    linear-gradient(135deg, rgba(15, 22, 35, 0.96), rgba(29, 78, 216, 0.88)),
-    repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 54px),
-    repeating-linear-gradient(0deg, rgba(255,255,255,0.06) 0 1px, transparent 1px 44px);
+  background: var(--sidebar-bg);
   border-radius: 8px;
   overflow: hidden;
   position: relative;
@@ -1920,10 +1964,10 @@
   flex: 0 0 auto;
 }
 
-.tms-metric-icon.blue { background: #dbeafe; color: var(--blue); }
-.tms-metric-icon.green { background: #e7f6ee; color: var(--green); }
-.tms-metric-icon.purple { background: #f3e8ff; color: #7e22ce; }
-.tms-metric-icon.amber { background: #fff4df; color: var(--orange); }
+.tms-metric-icon.blue  { background: var(--blue-light);  color: var(--blue); }
+.tms-metric-icon.green { background: var(--success-bg);  color: var(--success); }
+.tms-metric-icon.info  { background: var(--info-bg);     color: var(--info); }
+.tms-metric-icon.amber { background: var(--amber-light); color: var(--amber-dark); }
 
 .tms-metric span,
 .tms-metric small,
@@ -1993,7 +2037,7 @@
 .tms-line-chart span {
   display: block;
   min-height: 18px;
-  background: linear-gradient(180deg, #2563eb, #93c5fd);
+  background: var(--blue);
   border-radius: 5px 5px 2px 2px;
 }
 

@@ -7,12 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import (
-    DASHBOARD_ROLES,
-    WORKSHOP_READ_ROLES,
-    WORKSHOP_WRITE_ROLES,
-    require_roles,
-)
+from app.core.rbac import WORKSHOP_READ, WORKSHOP_RELEASE, WORKSHOP_WRITE, require_permission
 from app.modules.workshop import schemas, service
 
 router = APIRouter(prefix="/workshop", tags=["workshop"])
@@ -20,7 +15,7 @@ router = APIRouter(prefix="/workshop", tags=["workshop"])
 
 @router.get("/maintenance-requests")
 async def list_maintenance_requests(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
     vehicle_id: UUID | None = None,
@@ -38,7 +33,7 @@ async def list_maintenance_requests(
 @router.post("/maintenance-requests")
 async def create_maintenance_request(
     payload: schemas.MaintenanceRequestCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -58,7 +53,7 @@ async def create_maintenance_request(
 
 @router.get("/work-orders")
 async def list_work_orders(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
     vehicle_id: UUID | None = None,
@@ -76,7 +71,7 @@ async def list_work_orders(
 @router.post("/work-orders")
 async def create_work_order(
     payload: schemas.WorkOrderCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -98,7 +93,7 @@ async def create_work_order(
 async def approve_work_order(
     work_order_id: UUID,
     payload: schemas.WorkOrderApproveRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.approve_work_order(
@@ -114,7 +109,7 @@ async def approve_work_order(
 async def close_work_order(
     work_order_id: UUID,
     payload: schemas.WorkOrderCloseRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.close_work_order(
@@ -130,7 +125,7 @@ async def close_work_order(
 async def start_work_order(
     work_order_id: UUID,
     payload: schemas.WorkOrderTransitionRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.start_work_order(
@@ -142,7 +137,7 @@ async def start_work_order(
 async def send_work_order_to_quality_check(
     work_order_id: UUID,
     payload: schemas.WorkOrderTransitionRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.send_work_order_to_quality_check(
@@ -153,7 +148,7 @@ async def send_work_order_to_quality_check(
 @router.get("/work-orders/{work_order_id}/tasks")
 async def list_work_order_tasks(
     work_order_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.list_work_order_tasks(db, principal.tenant_id, work_order_id)
@@ -163,7 +158,7 @@ async def list_work_order_tasks(
 async def create_work_order_task(
     work_order_id: UUID,
     payload: schemas.WorkOrderTaskCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -186,7 +181,7 @@ async def complete_work_order_task(
     work_order_id: UUID,
     task_id: UUID,
     payload: schemas.WorkOrderTaskCompleteRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.complete_work_order_task(
@@ -201,7 +196,7 @@ async def complete_work_order_task(
 
 @router.get("/spare-parts")
 async def list_spare_parts(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.list_spare_parts(db, principal.tenant_id)
@@ -210,7 +205,7 @@ async def list_spare_parts(
 @router.post("/spare-parts")
 async def create_spare_part(
     payload: schemas.SparePartInventoryCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -231,7 +226,7 @@ async def create_spare_part(
 @router.post("/spare-parts/receipts")
 async def receive_spare_part(
     payload: schemas.SparePartReceiptCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.receive_spare_part(
@@ -241,7 +236,7 @@ async def receive_spare_part(
 
 @router.get("/spare-part-movements")
 async def list_spare_part_movements(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     inventory_id: UUID | None = None,
     limit: int = Query(100, ge=1, le=500),
@@ -255,7 +250,7 @@ async def list_spare_part_movements(
 async def issue_spare_part_to_work_order(
     work_order_id: UUID,
     payload: schemas.MaintenancePartIssueCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.issue_spare_part_to_work_order(
@@ -269,7 +264,7 @@ async def issue_spare_part_to_work_order(
 
 @router.get("/tools")
 async def list_tools(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.list_tools(db, principal.tenant_id)
@@ -278,7 +273,7 @@ async def list_tools(
 @router.post("/tools")
 async def create_tool(
     payload: schemas.WorkshopToolCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -298,7 +293,7 @@ async def create_tool(
 
 @router.get("/tool-checkouts")
 async def list_tool_checkouts(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
     limit: int = Query(100, ge=1, le=500),
@@ -312,7 +307,7 @@ async def list_tool_checkouts(
 async def checkout_tool(
     work_order_id: UUID,
     payload: schemas.ToolCheckoutCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.checkout_tool(
@@ -328,7 +323,7 @@ async def checkout_tool(
 async def return_tool(
     checkout_id: UUID,
     payload: schemas.ToolReturnCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.return_tool(
@@ -338,7 +333,7 @@ async def return_tool(
 
 @router.get("/maintenance-plans")
 async def list_maintenance_plans(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.list_maintenance_plans(db, principal.tenant_id)
@@ -347,7 +342,7 @@ async def list_maintenance_plans(
 @router.post("/maintenance-plans")
 async def create_maintenance_plan(
     payload: schemas.MaintenancePlanCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.create_maintenance_plan(
@@ -357,7 +352,7 @@ async def create_maintenance_plan(
 
 @router.get("/maintenance-schedule")
 async def list_maintenance_schedule(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
 ):
@@ -366,7 +361,7 @@ async def list_maintenance_schedule(
 
 @router.post("/maintenance-schedule/evaluate")
 async def evaluate_maintenance_schedule(
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.evaluate_maintenance_schedule(
@@ -376,7 +371,7 @@ async def evaluate_maintenance_schedule(
 
 @router.get("/imminent-alerts")
 async def get_imminent_maintenance_alerts(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     days_ahead: int = Query(30, ge=1, le=365),
     km_ahead: int = Query(500, ge=0, le=100000),
@@ -388,15 +383,15 @@ async def get_imminent_maintenance_alerts(
 
 # ---------------------------------------------------------------------------
 # New endpoints — Task 2A (Wave 3)
-# All mutations use WORKSHOP_WRITE_ROLES (includes mechanic).
-# Reads use WORKSHOP_READ_ROLES (includes viewer + mechanic).
+# All mutations use WORKSHOP_WRITE (includes mechanic).
+# Reads use WORKSHOP_READ (includes viewer + mechanic).
 # Existing 18 endpoints above are unchanged.
 # ---------------------------------------------------------------------------
 
 
 @router.get("/kpis")
 async def get_workshop_kpis(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_workshop_kpis(principal.tenant_id, db)
@@ -407,7 +402,7 @@ async def assign_task(
     work_order_id: UUID,
     task_id: UUID,
     payload: schemas.TaskAssignRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.assign_task_to_mechanic(task_id, payload, principal.tenant_id, db)
@@ -415,7 +410,7 @@ async def assign_task(
 
 @router.get("/staff-rates")
 async def list_staff_rates(
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_READ_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_workshop_staff_rates(principal.tenant_id, db)
@@ -424,7 +419,7 @@ async def list_staff_rates(
 @router.post("/staff-rates", status_code=201)
 async def create_staff_rate(
     payload: schemas.WorkshopStaffRateCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.create_staff_rate(payload, principal.tenant_id, db)
@@ -434,7 +429,7 @@ async def create_staff_rate(
 async def record_calibration(
     tool_id: UUID,
     payload: schemas.ToolCalibrationCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.record_tool_calibration(tool_id, payload, principal.tenant_id, db)
@@ -443,7 +438,7 @@ async def record_calibration(
 @router.get("/tools/{tool_id}/calibration-history")
 async def get_calibration_history(
     tool_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_READ_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.list_tool_calibration_history(tool_id, principal.tenant_id, db)
@@ -453,7 +448,7 @@ async def get_calibration_history(
 async def patch_tool(
     tool_id: UUID,
     payload: schemas.ToolUpdateRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.update_tool(tool_id, payload, principal.tenant_id, db)
@@ -463,7 +458,7 @@ async def patch_tool(
 # so FastAPI does not attempt to parse "low-stock" as a UUID path parameter.
 @router.get("/spare-parts/low-stock")
 async def get_low_stock(
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_READ_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.list_low_stock_parts(principal.tenant_id, db)
@@ -473,7 +468,7 @@ async def get_low_stock(
 async def register_serial(
     part_id: UUID,
     payload: schemas.SerialItemCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.register_serial_item(part_id, payload, principal.tenant_id, db)
@@ -483,7 +478,7 @@ async def register_serial(
 async def install_serial(
     serial_id: UUID,
     payload: schemas.SerialItemInstallRequest,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.install_serial_item(serial_id, payload.vehicle_id, principal.tenant_id, db)
@@ -492,7 +487,14 @@ async def install_serial(
 @router.get("/vehicles/{vehicle_id}/installed-parts")
 async def get_installed_parts(
     vehicle_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*WORKSHOP_READ_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_installed_parts_for_vehicle(vehicle_id, principal.tenant_id, db)
+
+
+# ── WORKSHOP_RELEASE: vehicle release after maintenance ───────────────────────
+# Note: No explicit release-vehicle endpoint exists in current router.
+# WORKSHOP_RELEASE is reserved for future use when such an endpoint is added.
+# The constant is imported and available via app.core.rbac.
+_ = WORKSHOP_RELEASE  # keep import live for future endpoint

@@ -8,7 +8,7 @@ from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.core.idempotency import execute_http_idempotent
-from app.core.permissions import DASHBOARD_ROLES, WRITE_ROLES, require_roles
+from app.core.rbac import BILLING_ISSUE, BILLING_READ, BILLING_WRITE, require_permission
 from app.modules.contracts import schemas, service
 from app.modules.contracts.models import Contract
 
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/contracts", tags=["contracts"])
 
 @router.get("/")
 async def list_contracts(
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     client_id: UUID | None = None,
     client_name: str | None = None,
@@ -39,7 +39,7 @@ async def list_contracts(
 @router.post("/")
 async def create_contract(
     payload: schemas.ContractCreate,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
@@ -63,7 +63,7 @@ async def create_contract(
 @router.get("/{contract_id}")
 async def get_contract(
     contract_id: UUID,
-    principal: Annotated[Principal, Depends(require_roles(*DASHBOARD_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_contract(db, principal.tenant_id, contract_id)
@@ -73,7 +73,7 @@ async def get_contract(
 async def patch_contract(
     contract_id: UUID,
     payload: schemas.ContractPatch,
-    principal: Annotated[Principal, Depends(require_roles(*WRITE_ROLES))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.patch_contract(
@@ -92,7 +92,7 @@ async def patch_contract(
 async def transition_contract_status(
     contract_id: UUID,
     payload: schemas.ContractTransitionRequest,
-    principal: Annotated[Principal, Depends(require_roles("owner", "admin"))],
+    principal: Annotated[Principal, Depends(require_permission(BILLING_ISSUE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """SM-02: Transition Contract between allowed states.

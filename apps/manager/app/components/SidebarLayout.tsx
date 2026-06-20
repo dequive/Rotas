@@ -6,6 +6,7 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  DollarSign,
   FileText,
   LogOut,
   Map,
@@ -59,8 +60,9 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "clientes",  label: "Clientes",  href: "/clientes",   icon: Building2   },
       { key: "contratos", label: "Contratos", href: "/contratos",  icon: FileText    },
-      { key: "cobranca",  label: "Cobrança",  href: "/cobranca",   icon: ReceiptText },
-      { key: "analytics", label: "Análise",   href: "/analytics",  icon: BarChart2   },
+      { key: "cobranca",  label: "Cobrança",        href: "/cobranca",   icon: ReceiptText },
+      { key: "ar",        label: "Contas a Receber", href: "/ar",         icon: DollarSign  },
+      { key: "analytics", label: "Análise",          href: "/analytics",  icon: BarChart2   },
     ],
   },
   {

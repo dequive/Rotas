@@ -34,6 +34,21 @@ def _make_mock_document():
     doc.tax_amount = Decimal("510.17")
     doc.total_amount = Decimal("3511.17")
     doc.iva_rate = Decimal("0.1700")
+    doc.commercial_discount = None
+    doc.financial_discount = None
+    doc.issuer_name = None
+    doc.issuer_nuit = None
+    doc.issuer_address = None
+    doc.issuer_phone = None
+    doc.issuer_email = None
+    doc.issuer_bank_details = None
+    doc.client_nuit = None
+    doc.due_date = None
+    doc.issued_at = None
+    doc.created_at = None
+    doc.invoice_number = "FAT-2026/001"
+    doc.document_type = "invoice"
+    doc.payment_conditions = None
     return doc
 
 
@@ -133,9 +148,12 @@ def test_pdf_contains_iva_section():
         doc = _make_mock_document()
         render_billing_export(doc, [_make_mock_item()], "pdf")
 
-    assert "SUBTOTAL" in captured, f"SUBTOTAL not rendered. Got: {captured}"
+    # Exporter uses redesigned PHC-style labels (Phase 24 PDF overhaul)
+    assert any("Total" in t and "descontos" in t for t in captured), (
+        f"Subtotal row not rendered. Got: {captured}"
+    )
     assert any("IVA" in t for t in captured), f"IVA label not rendered. Got: {captured}"
-    assert "TOTAL COM IVA" in captured, f"TOTAL COM IVA not rendered. Got: {captured}"
+    assert any("TOTAL" in t for t in captured), f"Total row not rendered. Got: {captured}"
 
 
 def test_xlsx_iva_rows():

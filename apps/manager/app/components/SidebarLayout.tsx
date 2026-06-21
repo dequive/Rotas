@@ -68,6 +68,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     section: "Config",
     items: [
+      { key: "empresa",      label: "Empresa",    href: "/empresa",      icon: Building2   },
       { key: "rotas-config", label: "Destinos",   href: "/rotas-config", icon: MapPin      },
       { key: "alertas",      label: "Alertas",    href: "/alertas",      icon: AlertTriangle },
       { key: "security",     label: "Segurança",  href: "/security",     icon: ShieldCheck },

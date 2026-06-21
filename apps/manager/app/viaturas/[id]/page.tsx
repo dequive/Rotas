@@ -8,6 +8,7 @@ import { DocumentUploadModal } from "@/app/components/DocumentUploadModal";
 import type { OperationalDocument } from "@/app/components/OperationalDocumentsList";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/app/components/ui/PageHeader";
+import InsuranceTab from "./InsuranceTab";
 
 interface Assignment {
   id: string;
@@ -289,6 +290,19 @@ export default async function VehicleDetailPage({ params }: PageProps) {
             <DocumentUploadModal subjectType="vehicle" subjectId={id} />
           </div>
           <OperationalDocumentsList documents={documents} />
+        </div>
+
+        {/* Seguros */}
+        <div
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--r-lg, 10px)",
+            padding: 24,
+            marginTop: 20,
+          }}
+        >
+          <InsuranceTab vehicleId={id} />
         </div>
       </div>
     </SidebarLayout>

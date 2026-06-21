@@ -207,6 +207,7 @@ Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
 | 260620-r9k | Design system overhaul: fix token layer + create reusable components | 2026-06-20 | 07df112 | [260620-r9k](./quick/260620-r9k-design-system-overhaul-fix-token-layer-c/) |
 | 260620-sik | tenant_document_profiles + redesenho exporters PDF fatura modelo PHC | 2026-06-21 | 2351845 | [260620-sik](./quick/260620-sik-tenant-document-profiles-redesenho-expor/) |
 | 260621-a7e | UI empresa: perfil documento tenant (dados empresa, bancários, numeração) | 2026-06-21 | 502783c | [260621-a7e](./quick/260621-a7e-ui-manager-configura-o-perfil-documento-/) |
+| 260620-vlw | Design system wave 1: Input + IconButton + sweep secondary-btn/badge/icon-btn + PaymentModal + PageHeader | 2026-06-21 | e33adc6 | [260620-vlw](./quick/260620-vlw-design-system-migration-wave-1-quick-win/) |
 
 ### Blockers
 

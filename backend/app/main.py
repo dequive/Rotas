@@ -23,7 +23,6 @@ from app.core.request_context import RequestContextMiddleware
 from app.database import engine as _engine
 from app.database import import_all_models
 from app.modules.alerts.router import router as alerts_router
-from app.modules.notifications.router import router as notifications_router
 from app.modules.analytics.router import router as analytics_router
 from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import driver_router
@@ -40,6 +39,7 @@ from app.modules.drivers.router import router as drivers_router
 from app.modules.files.router import router as files_router
 from app.modules.fuel.operations_router import router as fuel_operations_router
 from app.modules.fuel.router import router as fuel_router
+from app.modules.notifications.router import router as notifications_router
 from app.modules.onboarding.router import router as onboarding_router
 from app.modules.operational_exceptions.router import router as operational_exceptions_router
 from app.modules.operations.router import router as operations_router

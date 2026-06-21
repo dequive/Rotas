@@ -19,7 +19,9 @@ async def enqueue_email_endpoint(
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    result = await service.enqueue_email(db, principal.tenant_id, payload, actor_id=principal.user_id)
+    result = await service.enqueue_email(
+        db, principal.tenant_id, payload, actor_id=principal.user_id
+    )
     await db.commit()
     return result
 

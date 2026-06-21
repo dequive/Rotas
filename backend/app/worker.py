@@ -463,6 +463,256 @@ async def task_check_insurance_renewals(ctx: dict) -> str:
     return f"Insurance renewal alerts created: {alert_count}"
 
 
+# ── NOTIF-01: Notification outbox flush cron ─────────────────────────────────
+
+
+async def task_process_notification_outbox(ctx: dict) -> str:
+    """NOTIF-01: Process queued email notifications from notification_outbox.
+
+    Runs every 5 minutes. Skips SMTP when email_provider=none (dev mode) but
+    still marks items as sent so the outbox stays clean in local dev.
+    Max 3 attempts per notification before marking failed.
+    Uses BYPASSRLS admin session — cross-tenant outbox flush.
+    """
+    from datetime import datetime
+
+    import structlog
+    from sqlalchemy import and_, select
+
+    from app.config import get_settings as _get_settings
+    from app.modules.notifications.models import NotificationOutbox
+
+    logger = structlog.get_logger("worker")
+    _settings = _get_settings()
+    sent_count = 0
+    failed_count = 0
+    now = datetime.now(UTC)
+
+    async with ctx["db_factory"]() as db:
+        result = await db.execute(
+            select(NotificationOutbox)
+            .where(
+                and_(
+                    NotificationOutbox.status == "queued",
+                    NotificationOutbox.scheduled_at <= now,
+                )
+            )
+            .order_by(NotificationOutbox.created_at)
+            .limit(50)
+        )
+        items = result.scalars().all()
+
+        for item in items:
+            item.attempts += 1
+            if _settings.email_provider.lower() == "none":
+                # Dev mode — mark sent without SMTP
+                item.status = "sent"
+                item.sent_at = now
+                sent_count += 1
+                continue
+            try:
+                import aiosmtplib
+
+                await aiosmtplib.send(
+                    message=item.body_text,
+                    hostname=_settings.smtp_host,
+                    port=_settings.smtp_port,
+                    username=_settings.smtp_username or None,
+                    password=_settings.smtp_password.get_secret_value() or None,
+                    use_tls=_settings.smtp_use_tls,
+                    sender=_settings.email_from_address,
+                    recipients=[item.recipient],
+                    subject=item.subject,
+                )
+                item.status = "sent"
+                item.sent_at = now
+                sent_count += 1
+            except Exception as exc:
+                item.last_error = str(exc)[:500]
+                if item.attempts >= 3:
+                    item.status = "failed"
+                    failed_count += 1
+                logger.warning(
+                    "notification_send_failed",
+                    notification_id=str(item.id),
+                    attempt=item.attempts,
+                    error=str(exc)[:200],
+                )
+
+        await db.commit()
+
+    logger.info("task_process_notification_outbox", sent=sent_count, failed=failed_count)
+    return f"Notifications: {sent_count} sent, {failed_count} failed"
+
+
+# ── NOTIF-02: Dispatch rejected notification (on-demand) ─────────────────────
+
+
+async def task_notify_dispatch_rejected(ctx: dict, order_id: str, tenant_id: str) -> str:
+    """NOTIF-02: Notify tenant admins when a dispatch clearance is rejected.
+
+    Triggered on-demand by trip_orders/router.py on clearance rejection.
+    Enqueues email notification to all active owner/admin users of the tenant.
+    Idempotent via enqueue_email request_reference — safe to retry.
+    Not a cron — registered in functions only.
+    """
+    from uuid import UUID
+
+    import structlog
+    from sqlalchemy import and_, select
+
+    from app.modules.notifications.schemas import EmailNotificationCreate
+    from app.modules.notifications.service import enqueue_email
+    from app.modules.trip_orders.models import TripOrder
+    from app.modules.users.models import User
+
+    logger = structlog.get_logger("worker")
+    _tenant_id = UUID(tenant_id)
+    _order_id = UUID(order_id)
+
+    async with ctx["db_factory"]() as db:
+        order = await db.scalar(
+            select(TripOrder).where(
+                TripOrder.id == _order_id,
+                TripOrder.tenant_id == _tenant_id,
+            )
+        )
+        if not order:
+            logger.warning("task_notify_dispatch_rejected_order_not_found", order_id=order_id)
+            return f"Order {order_id} not found"
+
+        result = await db.execute(
+            select(User).where(
+                and_(
+                    User.tenant_id == _tenant_id,
+                    User.role.in_(["owner", "admin"]),
+                    User.email.isnot(None),
+                    User.is_active.is_(True),
+                )
+            )
+        )
+        users = result.scalars().all()
+
+        order_ref = order.customer_reference or str(order.id)[:8].upper()
+        reason = order.rejection_reason or "Sem motivo indicado."
+        notified = 0
+
+        for user in users:
+            ref = f"dispatch_rejected:{order.id}:{user.id}"
+            body = (
+                f"O despacho da ordem #{order_ref} "
+                f"({order.origin} -> {order.destination}) foi rejeitado.\n\n"
+                f"Motivo: {reason}\n\n"
+                "Aceda ao painel de gestao para rever e reencaminhar a ordem."
+            )
+            try:
+                await enqueue_email(
+                    db,
+                    _tenant_id,
+                    EmailNotificationCreate(
+                        request_reference=ref,
+                        recipient=user.email,
+                        subject=f"Despacho rejeitado — Ordem #{order_ref}",
+                        body_text=body,
+                    ),
+                    actor_id=None,
+                )
+                notified += 1
+            except Exception as exc:
+                logger.warning(
+                    "task_notify_dispatch_rejected_enqueue_error",
+                    user_id=str(user.id),
+                    error=str(exc)[:200],
+                )
+
+        await db.commit()
+
+    logger.info("task_notify_dispatch_rejected", order_id=order_id, notified=notified)
+    return f"Dispatch rejected notification: {notified} user(s) notified"
+
+
+# ── NOTIF-03: Vehicle document expiry alert cron ──────────────────────────────
+
+
+async def task_check_vehicle_document_expiry(ctx: dict) -> str:
+    """NOTIF-03: Daily cron — generate alerts for vehicle documents expiring within 30 days.
+
+    Reads Vehicle.documents JSON column (shape: {doc_type: {expiry_date: "YYYY-MM-DD", ...}}).
+    Deduplication: create_alert() is idempotent on request_reference.
+    request_reference format: 'vehicle_doc:{vehicle.id}:{doc_type}:{expiry_date}'
+    Insurance is separately covered by task_check_insurance_renewals (INS-02).
+    Runs daily at 06:30 Africa/Maputo = 04:30 UTC.
+    """
+    from datetime import date, timedelta
+
+    import structlog
+    from sqlalchemy import select
+
+    from app.modules.alerts.schemas import AlertCreate
+    from app.modules.alerts.service import create_alert
+    from app.modules.vehicles.models import Vehicle
+
+    logger = structlog.get_logger("worker")
+    today = date.today()
+    cutoff = today + timedelta(days=30)
+    alert_count = 0
+
+    async with ctx["db_factory"]() as db:
+        result = await db.execute(select(Vehicle).where(Vehicle.documents.isnot(None)))
+        vehicles = result.scalars().all()
+
+        for vehicle in vehicles:
+            docs = vehicle.documents or {}
+            for doc_type, doc_data in docs.items():
+                if not isinstance(doc_data, dict):
+                    continue
+                expiry_str = doc_data.get("expiry_date")
+                if not expiry_str:
+                    continue
+                try:
+                    expiry_date = date.fromisoformat(expiry_str)
+                except ValueError:
+                    continue
+                if expiry_date < today or expiry_date > cutoff:
+                    continue
+
+                days_remaining = (expiry_date - today).days
+                priority = "critical" if days_remaining <= 7 else "high"
+                request_reference = (
+                    f"vehicle_doc:{vehicle.id}:{doc_type}:{expiry_date.isoformat()}"
+                )
+
+                try:
+                    await create_alert(
+                        db,
+                        vehicle.tenant_id,
+                        AlertCreate(
+                            request_reference=request_reference,
+                            alert_type="vehicle_document_expiring_soon",
+                            priority=priority,
+                            entity_type="vehicle",
+                            entity_id=vehicle.id,
+                            title=f"Documento de viatura a expirar: {doc_type}",
+                            message=(
+                                f"Documento '{doc_type}' da viatura {vehicle.plate} "
+                                f"expira em {days_remaining} dia(s) ({expiry_date.isoformat()})."
+                            ),
+                            channel="dashboard",
+                        ),
+                    )
+                    alert_count += 1
+                except Exception as exc:
+                    logger.warning(
+                        "task_check_vehicle_document_expiry_alert_error",
+                        vehicle_id=str(vehicle.id),
+                        doc_type=doc_type,
+                        error=str(exc),
+                    )
+
+    logger.info("task_check_vehicle_document_expiry", alerts_generated=alert_count)
+    return f"Generated {alert_count} vehicle document expiry alerts"
+
+
 class WorkerSettings:
     functions = [
         generate_billing_export,
@@ -473,6 +723,9 @@ class WorkerSettings:
         task_worker_heartbeat,
         task_check_document_expiry,
         task_check_insurance_renewals,
+        task_process_notification_outbox,
+        task_notify_dispatch_rejected,
+        task_check_vehicle_document_expiry,
     ]
     cron_jobs = [
         # SM-01: Mark overdue billing documents — 01:00 Africa/Maputo = 23:00 UTC
@@ -491,6 +744,13 @@ class WorkerSettings:
         cron(task_check_document_expiry, hour=4, minute=0),
         # INS-02: Insurance renewal alerts — 07:00 Africa/Maputo = 05:00 UTC
         cron(task_check_insurance_renewals, hour=5, minute=0),
+        # NOTIF-01: Flush notification outbox every 5 minutes
+        cron(
+            task_process_notification_outbox,
+            minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
+        ),
+        # NOTIF-03: Vehicle document expiry alerts — 06:30 Africa/Maputo = 04:30 UTC
+        cron(task_check_vehicle_document_expiry, hour=4, minute=30),
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     max_jobs = 10

@@ -3,6 +3,7 @@
 import {
   AlertTriangle,
   BarChart2,
+  Bell,
   Building2,
   ChevronLeft,
   ChevronRight,
@@ -70,8 +71,9 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "empresa",      label: "Empresa",    href: "/empresa",      icon: Building2   },
       { key: "rotas-config", label: "Destinos",   href: "/rotas-config", icon: MapPin      },
-      { key: "alertas",      label: "Alertas",    href: "/alertas",      icon: AlertTriangle },
-      { key: "security",     label: "Segurança",  href: "/security",     icon: ShieldCheck },
+      { key: "alertas",        label: "Alertas",        href: "/alertas",        icon: AlertTriangle },
+      { key: "notificacoes",   label: "Notificações",   href: "/notificacoes",   icon: Bell          },
+      { key: "security",       label: "Segurança",      href: "/security",       icon: ShieldCheck   },
       { key: "settings",     label: "Definições", href: "/settings",     icon: Settings    },
     ],
   },

@@ -560,6 +560,193 @@ async def task_notify_dispatch_rejected(ctx: dict, order_id: str, tenant_id: str
     return f"Dispatch rejected notification: {notified} user(s) notified"
 
 
+# ── NOTIF-04: Driver document expiry alert cron ──────────────────────────────
+
+
+async def task_check_driver_document_expiry(ctx: dict) -> str:
+    """NOTIF-04: Daily cron — generate alerts for driver documents expiring within 30 days.
+
+    Reads Driver.documents JSON column (same shape as Vehicle.documents):
+      {doc_type: {"expiry_date": "YYYY-MM-DD", ...}, ...}
+
+    Mirrors task_check_vehicle_document_expiry pattern exactly.
+    Licence and identity document types covered here; HOS is separate (task_check_hos_violations).
+    Deduplication: create_alert() is idempotent on request_reference.
+    request_reference format: 'driver_doc:{driver.id}:{doc_type}:{expiry_date}'
+    Runs daily at 05:00 UTC (07:00 Africa/Maputo).
+    """
+    from datetime import date, timedelta
+
+    import structlog
+    from sqlalchemy import select
+
+    from app.modules.alerts.schemas import AlertCreate
+    from app.modules.alerts.service import create_alert
+    from app.modules.drivers.models import Driver
+
+    logger = structlog.get_logger("worker")
+    today = date.today()
+    cutoff = today + timedelta(days=30)
+    alert_count = 0
+
+    async with ctx["db_factory"]() as db:
+        result = await db.execute(select(Driver).where(Driver.documents.isnot(None)))
+        drivers = result.scalars().all()
+
+        for driver in drivers:
+            docs = driver.documents or {}
+            if not isinstance(docs, dict):
+                continue
+            for doc_type, doc_data in docs.items():
+                if not isinstance(doc_data, dict):
+                    continue
+                raw_expiry = doc_data.get("expiry_date")
+                if not raw_expiry:
+                    continue
+                try:
+                    expiry_date = date.fromisoformat(str(raw_expiry))
+                except (ValueError, TypeError):
+                    continue
+                if not (today <= expiry_date <= cutoff):
+                    continue
+
+                days_remaining = (expiry_date - today).days
+                priority = "critical" if days_remaining <= 7 else "high"
+                request_reference = (
+                    f"driver_doc:{driver.id}:{doc_type}:{expiry_date.isoformat()}"
+                )
+
+                try:
+                    await create_alert(
+                        db,
+                        driver.tenant_id,
+                        AlertCreate(
+                            request_reference=request_reference,
+                            alert_type="driver_document_expiring_soon",
+                            priority=priority,
+                            entity_type="driver",
+                            entity_id=driver.id,
+                            title=f"Documento a vencer — {doc_type}",
+                            message=(
+                                f"Documento '{doc_type}' do motorista vence em "
+                                f"{days_remaining} dia(s) ({expiry_date.isoformat()})."
+                            ),
+                            channel="dashboard",
+                        ),
+                    )
+                    alert_count += 1
+                except Exception as exc:
+                    logger.warning(
+                        "task_check_driver_document_expiry_error",
+                        driver_id=str(driver.id),
+                        doc_type=doc_type,
+                        error=str(exc),
+                    )
+
+    logger.info("task_check_driver_document_expiry", alerts_generated=alert_count)
+    return f"Generated {alert_count} driver document expiry alerts"
+
+
+# ── HOS-01: HOS violation scan cron ──────────────────────────────────────────
+
+
+async def task_check_hos_violations(ctx: dict) -> str:
+    """HOS-01: Every 30 min — detect drivers on active trips exceeding HOS limits.
+
+    Scans all drivers with trips currently in active statuses. Calls
+    calculate_driving_hours() per driver. Generates:
+      - alert_type="driver_hos_warning"   when status=="warning"   (>= 8h today)
+      - alert_type="driver_hos_violation" when status=="violation"  (>= 9h today or >= 48h week)
+
+    Deduplication: request_reference includes the ISO date to generate at most
+    one alert per driver per day per severity level.
+
+    Uses BYPASSRLS admin session — cross-tenant scan.
+    """
+    from datetime import UTC, datetime
+
+    import structlog
+    from sqlalchemy import select
+
+    from app.modules.alerts.schemas import AlertCreate
+    from app.modules.alerts.service import create_alert
+    from app.modules.drivers.hos_service import (
+        HOS_VIOLATION_HOURS_DAY,
+        HOS_VIOLATION_HOURS_WEEK,
+        HOS_WARNING_HOURS_DAY,
+        calculate_driving_hours,
+    )
+    from app.modules.trips.models import Trip
+
+    logger = structlog.get_logger("worker")
+    today = datetime.now(UTC).date()
+    today_iso = today.isoformat()
+    warnings = 0
+    violations = 0
+
+    ACTIVE_STATUSES = ("in_progress", "delayed", "incident")
+
+    async with ctx["db_factory"]() as db:
+        # Find distinct drivers currently on active trips (cross-tenant)
+        result = await db.execute(
+            select(Trip.driver_id, Trip.tenant_id)
+            .where(Trip.status.in_(ACTIVE_STATUSES), Trip.driver_id.isnot(None))
+            .distinct()
+        )
+        active_drivers = result.all()
+
+        for driver_id, tenant_id in active_drivers:
+            hos = await calculate_driving_hours(driver_id, tenant_id, db, target_date=today)
+            status = hos["status"]
+            if status == "ok":
+                continue
+
+            alert_type = "driver_hos_warning" if status == "warning" else "driver_hos_violation"
+            priority = "high" if status == "warning" else "critical"
+            violation_reason = hos.get("violation_reason")
+
+            if violation_reason == "daily_limit":
+                detail = f"{hos['hours_today']:.1f}h hoje (limite: {HOS_VIOLATION_HOURS_DAY}h)"
+            elif violation_reason == "weekly_limit":
+                detail = (
+                    f"{hos['hours_this_week']:.1f}h esta semana "
+                    f"(limite: {HOS_VIOLATION_HOURS_WEEK}h)"
+                )
+            else:
+                # warning branch: no violation_reason set
+                detail = f"{hos['hours_today']:.1f}h hoje (limite: {HOS_WARNING_HOURS_DAY}h)"
+
+            request_reference = f"hos:{driver_id}:{today_iso}:{status}"
+            try:
+                await create_alert(
+                    db,
+                    tenant_id,
+                    AlertCreate(
+                        request_reference=request_reference,
+                        alert_type=alert_type,
+                        priority=priority,
+                        entity_type="driver",
+                        entity_id=driver_id,
+                        title=f"HOS {'alerta' if status == 'warning' else 'violação'} — motorista",
+                        message=f"Motorista acumulou {detail} de condução.",
+                        channel="dashboard",
+                    ),
+                )
+                if status == "warning":
+                    warnings += 1
+                else:
+                    violations += 1
+            except Exception as exc:
+                logger.warning(
+                    "task_check_hos_violations_alert_error",
+                    driver_id=str(driver_id),
+                    error=str(exc),
+                )
+
+    logger.info("task_check_hos_violations", warnings=warnings, violations=violations)
+    return f"HOS: {warnings} warnings, {violations} violations"
+
+
 # ── NOTIF-03: Vehicle document expiry alert cron ──────────────────────────────
 
 
@@ -659,6 +846,8 @@ class WorkerSettings:
         task_check_document_expiry,          # OperationalDocument (third-party docs)
         scan_expiring_documents,             # Driver + vehicle docs via analytics
         task_check_vehicle_document_expiry,  # Vehicle.documents JSON column
+        task_check_driver_document_expiry,   # Driver.documents JSON column (NOTIF-04)
+        task_check_hos_violations,           # HOS violation scan (HOS-01)
         # Insurance
         task_check_insurance_renewals,
         # Notifications
@@ -691,8 +880,12 @@ class WorkerSettings:
         cron(task_check_vehicle_document_expiry, hour=4, minute=30),
         # Housekeeping: idempotency key + audit log cleanup — 04:15 UTC
         cron(run_housekeeping, hour=4, minute=15),
-        # INS-02: Insurance renewal alerts — 07:00 Africa/Maputo = 05:00 UTC
-        cron(task_check_insurance_renewals, hour=5, minute=0),
+        # NOTIF-04: Driver document expiry alerts — 05:00 UTC (07:00 Africa/Maputo)
+        cron(task_check_driver_document_expiry, hour=5, minute=0),
+        # HOS-01: HOS violation scan — every 30 minutes
+        cron(task_check_hos_violations, minute={0, 30}),
+        # INS-02: Insurance renewal alerts — 07:30 Africa/Maputo = 05:30 UTC
+        cron(task_check_insurance_renewals, hour=5, minute=30),
         # NOTIF-01: Flush notification outbox every 5 minutes (exponential backoff, dead-letter)
         cron(
             deliver_queued_notifications,

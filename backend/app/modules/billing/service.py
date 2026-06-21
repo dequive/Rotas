@@ -4,8 +4,8 @@ from uuid import UUID
 
 from arq.connections import ArqRedis
 from fastapi import status
-from sqlalchemy import func, select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
@@ -15,6 +15,7 @@ from app.modules.billing.models import (
     BillingDocument,
     BillingItem,
     ClientPayment,
+    FiscalCounter,
     PaymentAllocation,
 )
 from app.modules.billing.schemas import BillingDocumentCreate, IssueBillingDocumentRequest
@@ -41,46 +42,64 @@ async def _assign_invoice_number(
     document: "BillingDocument",
     tenant_id: UUID,
 ) -> str:
-    """Assign a sequential invoice number using per-tenant profile settings.
+    """Assign a gap-free sequential invoice number using a transactional row lock.
 
-    Falls back to YYYY/NNNN (prefix="", padding=4) when no profile exists —
-    preserving the format used by all existing documents. Idempotent.
+    Uses FiscalCounter with SELECT FOR UPDATE so that a rollback undoes the
+    increment — no gaps in the fiscal sequence (FISC-01 AT Mozambique requirement).
+    Idempotent: returns existing value if already set.
     """
+    import uuid as _uuid
+
     if document.invoice_number:
         return document.invoice_number
-
-    year = datetime.now(UTC).year
-    tid_clean = str(tenant_id).replace("-", "")
 
     profile = await db.scalar(
         select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == tenant_id)
     )
     prefix = (profile.invoice_prefix or "").strip() if profile else ""
     padding = profile.invoice_seq_padding if profile else 4
-    start_seq = profile.invoice_start_seq if profile else 1
     per_type = profile.per_type_sequences if profile else False
 
-    if per_type and document.document_type:
-        seq_name = f"invoice_seq_{tid_clean}_{year}_{document.document_type}"
-    else:
-        seq_name = f"invoice_seq_{tid_clean}_{year}"
-
-    await db.execute(
-        text(
-            f'CREATE SEQUENCE IF NOT EXISTS "{seq_name}" '
-            f"START {start_seq} INCREMENT 1 NO MINVALUE NO MAXVALUE CACHE 1"
-        )
+    fiscal_year = (
+        document.billing_period_start.year
+        if document.billing_period_start
+        else datetime.now(UTC).year
     )
-    result = await db.execute(text(f"SELECT nextval('{seq_name}')"))
-    seq_val = result.scalar_one()
+    doc_type = (document.document_type or "") if per_type else ""
+
+    # Ensure counter row exists (race-safe: concurrent inserts → ON CONFLICT DO NOTHING)
+    await db.execute(
+        pg_insert(FiscalCounter)
+        .values(
+            id=_uuid.uuid4(),
+            tenant_id=tenant_id,
+            fiscal_year=fiscal_year,
+            doc_type=doc_type,
+            last_number=0,
+        )
+        .on_conflict_do_nothing(constraint="uq_fiscal_counter_key")
+    )
+    await db.flush()  # row must exist before SELECT FOR UPDATE
+
+    # Lock counter row — rollback undoes the increment, guaranteeing no gaps
+    counter = await db.scalar(
+        select(FiscalCounter)
+        .where(
+            FiscalCounter.tenant_id == tenant_id,
+            FiscalCounter.fiscal_year == fiscal_year,
+            FiscalCounter.doc_type == doc_type,
+        )
+        .with_for_update()
+    )
+    counter.last_number += 1
+    seq_str = str(counter.last_number).zfill(padding)
 
     if prefix:
-        invoice_number = f"{prefix} {year}/{seq_val:0{padding}d}"
+        document.invoice_number = f"{prefix} {fiscal_year}/{seq_str}"
     else:
-        invoice_number = f"{year}/{seq_val:0{padding}d}"
+        document.invoice_number = f"{fiscal_year}/{seq_str}"
 
-    document.invoice_number = invoice_number
-    return invoice_number
+    return document.invoice_number
 
 
 def _format_address(profile: "TenantDocumentProfile") -> str:
@@ -785,17 +804,7 @@ async def issue_document(
             trip.billed_at = issued_at
             trip.billing_document_id = document.id
 
-    for _attempt in range(2):
-        try:
-            await db.flush()
-            break
-        except IntegrityError:
-            if _attempt == 0:
-                await db.rollback()
-                document.invoice_number = None
-                await _assign_invoice_number(db, document, tenant_id)
-            else:
-                raise
+    await db.flush()
     await record_audit_log(
         db,
         tenant_id=tenant_id,

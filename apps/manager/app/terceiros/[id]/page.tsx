@@ -2,7 +2,6 @@ import { requireSession } from "@/app/lib/auth";
 import {
   loadThirdParty,
   loadContacts,
-  loadSupplierAccount,
   loadEvaluations,
   loadOperationalDocuments,
   type OperationalDocument,
@@ -14,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OperationalDocumentsList } from "@/app/components/OperationalDocumentsList";
 import { DocumentUploadModal } from "@/app/components/DocumentUploadModal";
 import { notFound } from "next/navigation";
+import ContaCorrenteTab from "./ContaCorrenteTab";
 
 export default async function TerceiroDetailPage({
   params,
@@ -23,18 +23,14 @@ export default async function TerceiroDetailPage({
   await requireSession();
   const { id } = await params;
 
-  const [party, contacts, account, evalsResult, documents] = await Promise.all([
+  const [party, contacts, evalsResult, documents] = await Promise.all([
     loadThirdParty(id).catch(() => null),
     loadContacts(id).catch(() => []),
-    loadSupplierAccount(id).catch(() => null),
     loadEvaluations(id).catch(() => ({ average_score: null, evaluations: [] })),
     loadOperationalDocuments("third_party", id).catch(() => [] as OperationalDocument[]),
   ]);
 
   if (!party) notFound();
-
-  const balance = account?.balance ?? "0.00";
-  const balanceNum = parseFloat(balance);
 
   return (
     <SidebarLayout active="terceiros">
@@ -392,266 +388,7 @@ export default async function TerceiroDetailPage({
 
           {/* Tab: Conta Corrente */}
           <TabsContent value="conta">
-            <div
-              style={{
-                marginTop: 16,
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--r-lg, 10px)",
-                padding: 24,
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: "16px",
-                  fontWeight: 600,
-                  fontFamily: "Manrope, sans-serif",
-                  color: "var(--ink)",
-                  marginBottom: 16,
-                }}
-              >
-                Conta Corrente
-              </h2>
-              {account ? (
-                <>
-                  {/* Balance hero */}
-                  <div
-                    style={{
-                      textAlign: "center",
-                      padding: "24px 16px",
-                      marginBottom: 24,
-                      borderRadius: "var(--r-lg, 10px)",
-                      background:
-                        balanceNum >= 0
-                          ? "rgba(34,197,94,0.08)"
-                          : "rgba(239,68,68,0.08)",
-                    }}
-                  >
-                    <p
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                        color: "var(--muted)",
-                        marginBottom: 4,
-                        fontFamily: "Manrope, sans-serif",
-                      }}
-                    >
-                      SALDO
-                    </p>
-                    <p
-                      style={{
-                        fontFamily: "IBM Plex Mono, monospace",
-                        fontSize: "36px",
-                        fontWeight: 500,
-                        color: balanceNum >= 0 ? "var(--success, #22c55e)" : "var(--error, #ef4444)",
-                        margin: 0,
-                      }}
-                    >
-                      {balanceNum >= 0 ? "+" : ""}
-                      {balanceNum.toLocaleString("pt-MZ", {
-                        style: "currency",
-                        currency: "MZN",
-                      })}
-                    </p>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        gap: 32,
-                        marginTop: 12,
-                        fontSize: "13px",
-                        color: "var(--muted)",
-                        fontFamily: "Manrope, sans-serif",
-                      }}
-                    >
-                      <span>
-                        D&#233;bitos:{" "}
-                        <span
-                          style={{
-                            fontFamily: "IBM Plex Mono, monospace",
-                            color: "var(--ink)",
-                          }}
-                        >
-                          {parseFloat(account.total_debits).toLocaleString("pt-MZ", {
-                            style: "currency",
-                            currency: "MZN",
-                          })}
-                        </span>
-                      </span>
-                      <span>
-                        Cr&#233;ditos:{" "}
-                        <span
-                          style={{
-                            fontFamily: "IBM Plex Mono, monospace",
-                            color: "var(--ink)",
-                          }}
-                        >
-                          {parseFloat(account.total_credits).toLocaleString("pt-MZ", {
-                            style: "currency",
-                            currency: "MZN",
-                          })}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Movements table */}
-                  <div style={{ overflowX: "auto" }}>
-                    <table
-                      style={{
-                        width: "100%",
-                        borderCollapse: "collapse",
-                        fontSize: "13px",
-                        fontFamily: "Manrope, sans-serif",
-                      }}
-                    >
-                      <thead>
-                        <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                          {["Data", "Tipo", "Origem", "Descrição", "Valor"].map(
-                            (h, i) => (
-                              <th
-                                key={h}
-                                style={{
-                                  padding: "8px 12px",
-                                  textAlign: i === 4 ? "right" : "left",
-                                  fontSize: "11px",
-                                  fontWeight: 600,
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.05em",
-                                  color: "var(--muted)",
-                                }}
-                              >
-                                {h}
-                              </th>
-                            ),
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {account.entries.map((e) => (
-                          <tr
-                            key={e.id}
-                            style={{ borderBottom: "1px solid var(--border)" }}
-                          >
-                            <td
-                              style={{
-                                padding: "10px 12px",
-                                fontFamily: "IBM Plex Mono, monospace",
-                                fontSize: "12px",
-                                color: "var(--ink)",
-                              }}
-                            >
-                              {e.entry_date}
-                            </td>
-                            <td style={{ padding: "10px 12px" }}>
-                              <span
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 4,
-                                  padding: "2px 8px",
-                                  borderRadius: 999,
-                                  fontSize: "11px",
-                                  fontWeight: 600,
-                                  background:
-                                    e.entry_type === "credit"
-                                      ? "rgba(34,197,94,0.10)"
-                                      : "rgba(239,68,68,0.10)",
-                                  color:
-                                    e.entry_type === "credit"
-                                      ? "var(--success, #22c55e)"
-                                      : "var(--error, #ef4444)",
-                                  fontFamily: "Manrope, sans-serif",
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: "50%",
-                                    background:
-                                      e.entry_type === "credit"
-                                        ? "var(--success, #22c55e)"
-                                        : "var(--error, #ef4444)",
-                                    flexShrink: 0,
-                                  }}
-                                />
-                                {e.entry_type === "credit" ? "Crédito" : "Débito"}
-                              </span>
-                            </td>
-                            <td
-                              style={{
-                                padding: "10px 12px",
-                                color: "var(--muted)",
-                                fontSize: "12px",
-                              }}
-                            >
-                              {e.source_type}
-                            </td>
-                            <td
-                              style={{
-                                padding: "10px 12px",
-                                fontSize: "13px",
-                                color: "var(--ink)",
-                              }}
-                            >
-                              {e.description ?? "—"}
-                            </td>
-                            <td
-                              style={{
-                                padding: "10px 12px",
-                                textAlign: "right",
-                                fontFamily: "IBM Plex Mono, monospace",
-                                fontWeight: 600,
-                                fontSize: "13px",
-                                color:
-                                  e.entry_type === "credit"
-                                    ? "var(--success, #22c55e)"
-                                    : "var(--error, #ef4444)",
-                              }}
-                            >
-                              {e.entry_type === "credit" ? "+" : "-"}
-                              {parseFloat(e.amount).toLocaleString("pt-MZ", {
-                                style: "currency",
-                                currency: "MZN",
-                              })}
-                            </td>
-                          </tr>
-                        ))}
-                        {account.entries.length === 0 && (
-                          <tr>
-                            <td
-                              colSpan={5}
-                              style={{
-                                padding: "32px 12px",
-                                textAlign: "center",
-                                color: "var(--muted)",
-                                fontSize: "13px",
-                                fontFamily: "Manrope, sans-serif",
-                              }}
-                            >
-                              Sem movimentos registados
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              ) : (
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "var(--muted)",
-                    fontFamily: "Manrope, sans-serif",
-                  }}
-                >
-                  Conta corrente n&#227;o dispon&#237;vel
-                </p>
-              )}
-            </div>
+            <ContaCorrenteTab thirdPartyId={id} />
           </TabsContent>
 
           {/* Tab: Avaliações */}

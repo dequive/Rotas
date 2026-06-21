@@ -888,8 +888,49 @@ async def get_supplier_account(
     db: AsyncSession,
     tenant_id: UUID,
     third_party_id: UUID,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ) -> dict:
     await _require_third_party(db, tenant_id, third_party_id)
+
+    base_where = [
+        SupplierLedgerEntry.tenant_id == tenant_id,
+        SupplierLedgerEntry.third_party_id == third_party_id,
+    ]
+
+    # Opening balance: sum of all entries strictly before date_from (MZN only)
+    opening_balance: str | None = None
+    if date_from is not None:
+        ob_result = await db.execute(
+            select(
+                func.coalesce(
+                    func.sum(SupplierLedgerEntry.amount).filter(
+                        SupplierLedgerEntry.entry_type == "credit"
+                    ),
+                    Decimal("0.00"),
+                ).label("credits"),
+                func.coalesce(
+                    func.sum(SupplierLedgerEntry.amount).filter(
+                        SupplierLedgerEntry.entry_type == "debit"
+                    ),
+                    Decimal("0.00"),
+                ).label("debits"),
+            ).where(
+                *base_where,
+                SupplierLedgerEntry.currency == "MZN",
+                SupplierLedgerEntry.entry_date < date_from,
+            )
+        )
+        ob_row = ob_result.one()
+        opening_balance = str(ob_row.credits - ob_row.debits)
+
+    # Period filter for aggregates and entries
+    period_where = list(base_where)
+    if date_from is not None:
+        period_where.append(SupplierLedgerEntry.entry_date >= date_from)
+    if date_to is not None:
+        period_where.append(SupplierLedgerEntry.entry_date <= date_to)
+
     # Group by currency so MZN + USD amounts are never summed together
     agg_result = await db.execute(
         select(
@@ -907,10 +948,7 @@ async def get_supplier_account(
                 Decimal("0.00"),
             ).label("total_debits"),
         )
-        .where(
-            SupplierLedgerEntry.tenant_id == tenant_id,
-            SupplierLedgerEntry.third_party_id == third_party_id,
-        )
+        .where(*period_where)
         .group_by(SupplierLedgerEntry.currency)
     )
     rows = agg_result.fetchall()
@@ -930,18 +968,16 @@ async def get_supplier_account(
 
     entries_result = await db.execute(
         select(SupplierLedgerEntry)
-        .where(
-            SupplierLedgerEntry.tenant_id == tenant_id,
-            SupplierLedgerEntry.third_party_id == third_party_id,
-        )
+        .where(*period_where)
         .order_by(
-            SupplierLedgerEntry.entry_date.desc(),
-            SupplierLedgerEntry.created_at.desc(),
+            SupplierLedgerEntry.entry_date.asc(),
+            SupplierLedgerEntry.created_at.asc(),
         )
-        .limit(200)
+        .limit(500)
     )
     entries = [serialize_ledger_entry(e) for e in entries_result.scalars().all()]
-    return {
+
+    result: dict = {
         "third_party_id": str(third_party_id),
         # Legacy scalar fields use MZN totals for backward compat
         "total_debits": mzn["total_debits"],
@@ -950,6 +986,12 @@ async def get_supplier_account(
         "balances": balances,
         "entries": entries,
     }
+    if date_from is not None:
+        result["date_from"] = date_from.isoformat()
+        result["opening_balance"] = opening_balance
+    if date_to is not None:
+        result["date_to"] = date_to.isoformat()
+    return result
 
 
 async def create_payment(

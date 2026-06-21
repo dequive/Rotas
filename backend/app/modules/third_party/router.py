@@ -1,8 +1,9 @@
 from collections.abc import AsyncIterator
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
@@ -334,8 +335,80 @@ async def get_supplier_account(
     third_party_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
+    date_from: Annotated[date | None, Query(alias="date_from")] = None,
+    date_to: Annotated[date | None, Query(alias="date_to")] = None,
 ):
-    return await service.get_supplier_account(db, principal.tenant_id, third_party_id)
+    return await service.get_supplier_account(
+        db, principal.tenant_id, third_party_id, date_from=date_from, date_to=date_to
+    )
+
+
+@router.get("/{third_party_id}/account/statement.pdf")
+async def get_supplier_statement_pdf(
+    third_party_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    date_from: Annotated[date | None, Query(alias="date_from")] = None,
+    date_to: Annotated[date | None, Query(alias="date_to")] = None,
+):
+    from sqlalchemy import select
+
+    from app.modules.tenants.models import TenantDocumentProfile
+    from app.modules.third_party.exporters import render_supplier_statement
+    from app.modules.third_party.models import ThirdParty
+
+    tp_row = await db.execute(
+        select(ThirdParty).where(
+            ThirdParty.id == third_party_id,
+            ThirdParty.tenant_id == principal.tenant_id,
+        )
+    )
+    tp = tp_row.scalar_one_or_none()
+    if tp is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Third party not found")
+
+    prof_row = await db.execute(
+        select(TenantDocumentProfile).where(
+            TenantDocumentProfile.tenant_id == principal.tenant_id
+        )
+    )
+    prof_obj = prof_row.scalar_one_or_none()
+    profile = (
+        {
+            "legal_name": prof_obj.legal_name,
+            "address_line1": prof_obj.address_line1,
+            "address_line2": prof_obj.address_line2,
+            "city": prof_obj.city,
+            "phone": prof_obj.phone,
+            "email": prof_obj.email,
+        }
+        if prof_obj
+        else None
+    )
+
+    account = await service.get_supplier_account(
+        db, principal.tenant_id, third_party_id, date_from=date_from, date_to=date_to
+    )
+
+    pdf_bytes = render_supplier_statement(
+        tp,
+        account["entries"],
+        date_from=date_from,
+        date_to=date_to,
+        opening_balance=account.get("opening_balance"),
+        total_debits=account["total_debits"],
+        total_credits=account["total_credits"],
+        balance=account["balance"],
+        profile=profile,
+    )
+    tp_slug = (tp.name or "fornecedor").lower().replace(" ", "-")[:40]
+    filename = f"extrato-{tp_slug}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @router.post("/{third_party_id}/payments", status_code=201)

@@ -34,6 +34,7 @@ from app.modules.checklists.router import router as checklists_router
 from app.modules.clients.router import router as clients_router
 from app.modules.contracts.router import router as contracts_router
 from app.modules.control_tower.router import router as control_tower_router
+from app.modules.documents.router import router as documents_router
 from app.modules.driver_app.router import router as driver_app_router
 from app.modules.drivers.router import router as drivers_router
 from app.modules.files.router import router as files_router
@@ -275,6 +276,7 @@ app.include_router(billing_router, prefix=api)
 app.include_router(operations_router, prefix=api)
 app.include_router(operational_exceptions_router, prefix=api)
 app.include_router(workshop_router, prefix=api)
+app.include_router(documents_router, prefix=api)
 app.include_router(third_party_router, prefix=api)
 app.include_router(control_tower_router, prefix=api)
 app.include_router(alerts_router, prefix=api)

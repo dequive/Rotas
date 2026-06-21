@@ -12,7 +12,7 @@ from app.core.rbac import WORKSHOP_READ, WORKSHOP_RELEASE, WORKSHOP_WRITE, requi
 from app.modules.tenants.models import TenantDocumentProfile
 from app.modules.vehicles.models import Vehicle
 from app.modules.workshop import schemas, service
-from app.modules.workshop.exporters import render_work_order
+from app.modules.workshop.exporters import render_spare_part_movement, render_work_order
 from app.modules.workshop.models import WorkOrder, WorkOrderTask
 
 router = APIRouter(prefix="/workshop", tags=["workshop"])
@@ -248,6 +248,60 @@ async def list_spare_part_movements(
 ):
     return await service.list_spare_part_movements(
         db, principal.tenant_id, inventory_id=inventory_id, limit=limit
+    )
+
+
+@router.get("/spare-part-movements/{movement_id}/pdf")
+async def download_spare_part_movement_pdf(
+    movement_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    from app.modules.workshop.models import SparePartInventory, SparePartMovement
+
+    movement = await db.scalar(
+        select(SparePartMovement).where(
+            SparePartMovement.id == movement_id,
+            SparePartMovement.tenant_id == principal.tenant_id,
+        )
+    )
+    if movement is None:
+        raise HTTPException(status_code=404, detail="Movement not found")
+
+    part = await db.scalar(
+        select(SparePartInventory).where(
+            SparePartInventory.id == movement.inventory_id,
+            SparePartInventory.tenant_id == principal.tenant_id,
+        )
+    )
+
+    prof_row = await db.scalar(
+        select(TenantDocumentProfile).where(
+            TenantDocumentProfile.tenant_id == principal.tenant_id
+        )
+    )
+    profile = (
+        {
+            "legal_name": prof_row.legal_name,
+            "address_line1": prof_row.address_line1,
+            "address_line2": prof_row.address_line2,
+            "city": prof_row.city,
+            "phone": prof_row.phone,
+            "email": prof_row.email,
+        }
+        if prof_row
+        else None
+    )
+
+    pdf_bytes = render_spare_part_movement(movement, part, profile=profile)
+
+    mov_type = movement.movement_type or "movement"
+    prefix = "req-interna" if mov_type == "work_order_issue" else "req-externa"
+    ref = (movement.request_reference or str(movement_id))[:30].replace(" ", "-")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={prefix}-{ref}.pdf"},
     )
 
 

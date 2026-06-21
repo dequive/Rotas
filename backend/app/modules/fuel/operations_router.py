@@ -1,7 +1,8 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
@@ -166,6 +167,52 @@ async def approve_stock_adjustment(
         stock_count_id,
         actor_id=principal.user_id,
         notes=payload.notes,
+    )
+
+
+@router.get("/purchases/{purchase_id}/pdf")
+async def download_purchase_order_pdf(
+    purchase_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(FUEL_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    from app.modules.fuel.exporters import render_purchase_order
+    from app.modules.fuel.models import FuelPurchase
+    from app.modules.tenants.models import TenantDocumentProfile
+
+    purchase = await db.scalar(
+        select(FuelPurchase).where(
+            FuelPurchase.id == purchase_id,
+            FuelPurchase.tenant_id == principal.tenant_id,
+        )
+    )
+    if purchase is None:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+
+    prof_row = await db.scalar(
+        select(TenantDocumentProfile).where(
+            TenantDocumentProfile.tenant_id == principal.tenant_id
+        )
+    )
+    profile = (
+        {
+            "legal_name": prof_row.legal_name,
+            "address_line1": prof_row.address_line1,
+            "address_line2": prof_row.address_line2,
+            "city": prof_row.city,
+            "phone": prof_row.phone,
+            "email": prof_row.email,
+        }
+        if prof_row
+        else None
+    )
+
+    pdf_bytes = render_purchase_order(purchase, profile=profile)
+    ref = (purchase.purchase_reference or str(purchase_id))[:40].replace(" ", "-")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=ordem-compra-{ref}.pdf"},
     )
 
 

@@ -324,3 +324,210 @@ def render_work_order(
     buf = BytesIO()
     pdf.output(buf)
     return buf.getvalue()
+
+
+# ── Spare-part movement PDF (Requisição Interna / Requisição Externa) ─────────
+
+_MOVEMENT_TITLES: dict[str, str] = {
+    "receipt": "REQUISIÇÃO EXTERNA DE PEÇAS",
+    "work_order_issue": "REQUISIÇÃO INTERNA DE PEÇAS",
+    "adjustment": "AJUSTE DE INVENTÁRIO",
+    "serial_install": "INSTALAÇÃO DE PEÇA SÉRIE",
+    "serial_remove": "REMOÇÃO DE PEÇA SÉRIE",
+}
+
+_MOVEMENT_DIRECTION_LABELS = {
+    "in": "Entrada",
+    "out": "Saída",
+}
+
+_MOVEMENT_TYPE_LABELS = {
+    "receipt": "Receção de Fornecedor",
+    "work_order_issue": "Emissão para Ordem de Serviço",
+    "adjustment": "Ajuste Manual",
+    "serial_install": "Instalação de Série",
+    "serial_remove": "Remoção de Série",
+}
+
+
+def render_spare_part_movement(
+    movement: object,
+    part: object | None = None,
+    *,
+    profile: dict | None = None,
+) -> bytes:
+    """Generate Requisição Interna or Requisição Externa PDF (PHC layout, A4 portrait).
+
+    movement: SparePartMovement ORM object or dict.
+    part:     SparePartInventory ORM object or dict (for SKU/name/category).
+    profile:  TenantDocumentProfile dict for issuer header.
+    Returns raw PDF bytes.
+    """
+    mov_type = _get(movement, "movement_type") or "receipt"
+    title = _MOVEMENT_TITLES.get(str(mov_type), "MOVIMENTAÇÃO DE PEÇAS")
+
+    total_pages_ref: list[int] = [1]
+    pdf = _WorkOrderPDF(total_pages_ref)
+    pdf.add_page()
+
+    PW = 180.0
+    LM = 15.0
+
+    # ── Nav bar ───────────────────────────────────────────────────────────────
+    pdf.set_fill_color(*_NAV)
+    pdf.rect(LM, pdf.get_y(), PW, 9, style="F")
+    pdf.set_xy(LM + 3, pdf.get_y() + 1)
+    pdf.set_font("DejaVu", "B", 10)
+    pdf.set_text_color(*_WHITE)
+    pdf.cell(PW - 6, 7, title, align="L")
+    pdf.ln(11)
+
+    # ── Two-column header: issuer (left) | part box (right) ──────────────────
+    y0 = pdf.get_y()
+    LEFT_W = 95.0
+    RIGHT_W = 80.0
+
+    # Left: issuer
+    p = profile or {}
+    pdf.set_xy(LM, y0)
+    pdf.set_font("DejaVu", "B", 9)
+    pdf.set_text_color(*_INK)
+    pdf.cell(LEFT_W, 6, p.get("legal_name") or "—", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    for field in ("address_line1", "address_line2", "city", "phone", "email"):
+        val = p.get(field)
+        if val:
+            pdf.set_xy(LM, pdf.get_y())
+            pdf.set_font("DejaVu", "", 8)
+            pdf.set_text_color(*_MUTED)
+            pdf.cell(LEFT_W, 4, val, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    issuer_bottom = pdf.get_y()
+
+    # Right: part box
+    bx = LM + LEFT_W + 5
+    by = y0
+    bw = RIGHT_W
+    bh = 34.0
+    pdf.set_draw_color(*_LINE)
+    pdf.set_fill_color(*_SOFT)
+    pdf.rect(bx, by, bw, bh, style="FD")
+
+    pdf.set_xy(bx + 3, by + 3)
+    pdf.set_font("DejaVu", "B", 7)
+    pdf.set_text_color(*_MUTED)
+    pdf.cell(bw - 6, 4, "PEÇA / ARTIGO", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    sku = _get(part, "sku") if part else "—"
+    name = _get(part, "name") if part else "—"
+    category = _get(part, "category") if part else ""
+
+    pdf.set_xy(bx + 3, pdf.get_y())
+    pdf.set_font("DejaVu", "B", 9)
+    pdf.set_text_color(*_INK)
+    pdf.cell(bw - 6, 6, str(name)[:35], new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    pdf.set_xy(bx + 3, pdf.get_y())
+    pdf.set_font("DejaVu", "", 8)
+    pdf.set_text_color(*_MUTED)
+    pdf.cell(bw - 6, 4, f"SKU: {sku}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    if category and str(category) != "None":
+        pdf.set_xy(bx + 3, pdf.get_y())
+        pdf.set_font("DejaVu", "", 7)
+        pdf.cell(bw - 6, 4, str(category), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    # ── Metadata bar ──────────────────────────────────────────────────────────
+    meta_y = max(issuer_bottom, by + bh) + 4
+    pdf.set_fill_color(*_SOFT)
+    pdf.set_draw_color(*_LINE)
+    pdf.rect(LM, meta_y, PW, 8, style="FD")
+    pdf.set_xy(LM + 2, meta_y + 2)
+
+    ref_val = _get(movement, "request_reference") or "—"
+    occurred = _get(movement, "occurred_at") or ""
+    direction_raw = str(_get(movement, "direction") or "")
+    direction_label = _MOVEMENT_DIRECTION_LABELS.get(direction_raw, direction_raw.title())
+    type_label = _MOVEMENT_TYPE_LABELS.get(str(mov_type), str(mov_type).replace("_", " ").title())
+
+    meta = [
+        ("Referência", str(ref_val)[:28]),
+        ("Data", _date(occurred)),
+        ("Tipo", type_label[:22]),
+    ]
+    cw = PW / len(meta)
+    for label, val in meta:
+        pdf.set_font("DejaVu", "B", 7)
+        pdf.set_text_color(*_MUTED)
+        pdf.cell(cw / 2, 4, f"{label}:", align="L")
+        pdf.set_font("DejaVu", "", 8)
+        pdf.set_text_color(*_INK)
+        pdf.cell(cw / 2, 4, val, align="L")
+
+    # ── Details section ───────────────────────────────────────────────────────
+    pdf.set_y(meta_y + 10)
+
+    pdf.section_header("DETALHES DA MOVIMENTAÇÃO")
+
+    qty = _get(movement, "quantity") or 0
+    try:
+        qty_fmt = f"{Decimal(str(qty)):,.4f}"
+    except Exception:
+        qty_fmt = str(qty)
+
+    bal = _get(movement, "balance_after_quantity") or 0
+    try:
+        bal_fmt = f"{Decimal(str(bal)):,.4f}"
+    except Exception:
+        bal_fmt = str(bal)
+
+    unit = _get(part, "unit") if part else "unid."
+    unit_str = str(unit) if unit and str(unit) != "None" else "unid."
+
+    pdf.kv_row("Direcção", direction_label)
+    pdf.kv_row("Quantidade", f"{qty_fmt} {unit_str}")
+    pdf.kv_row("Saldo Após Movimentação", f"{bal_fmt} {unit_str}")
+
+    unit_cost = _get(movement, "unit_cost")
+    total_cost = _get(movement, "total_cost")
+    if unit_cost and str(unit_cost) not in ("None", "0", "0.00"):
+        pdf.kv_row("Custo Unitário", _money(unit_cost))
+    if total_cost and str(total_cost) not in ("None", "0", "0.00"):
+        pdf.kv_row("Custo Total", _money(total_cost))
+
+    source_type = _get(movement, "source_type") or ""
+    source_id = _get(movement, "source_id") or ""
+    if source_type and str(source_type) not in ("None", "—"):
+        label = "Origem" if direction_raw == "in" else "Destino (OS)"
+        pdf.kv_row(label, str(source_type).replace("_", " ").title())
+    if source_id and str(source_id) not in ("None", "—"):
+        pdf.kv_row("ID Referência", str(source_id)[:40])
+
+    notes = _get(movement, "notes") or ""
+    if notes and str(notes) not in ("None", "—", ""):
+        pdf.ln(2)
+        pdf.section_header("OBSERVAÇÕES")
+        pdf.set_font("DejaVu", "", 8)
+        pdf.multi_cell(0, 5, str(notes), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    # ── Signature block ───────────────────────────────────────────────────────
+    pdf.ln(10)
+    sig_y = pdf.get_y()
+    half = PW / 2 - 5
+    pdf.set_draw_color(*_LINE)
+    pdf.set_line_width(0.3)
+    pdf.line(LM, sig_y + 18, LM + half, sig_y + 18)
+    pdf.line(LM + half + 10, sig_y + 18, LM + PW, sig_y + 18)
+
+    left_sig = "Responsável pelo Pedido" if direction_raw == "out" else "Responsável pela Receção"
+    right_sig = "Aprovação / Armazenista"
+
+    pdf.set_xy(LM, sig_y + 20)
+    pdf.set_font("DejaVu", "", 7)
+    pdf.set_text_color(*_MUTED)
+    pdf.cell(half, 4, left_sig, align="C")
+    pdf.set_x(LM + half + 10)
+    pdf.cell(half, 4, right_sig, align="C")
+
+    total_pages_ref[0] = pdf.pages
+    buf = BytesIO()
+    pdf.output(buf)
+    return buf.getvalue()

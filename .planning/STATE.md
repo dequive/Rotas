@@ -227,6 +227,7 @@ Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
 | 260621-pbc | Fix silent photo sync bug (delivery_proof/load_permit dropped), consolidate dual ARQ workers into app.worker, remove duplicate root railway.toml | 2026-06-21 | dd28089 | [260621-pbc](./quick/260621-pbc-fix-photo-sync-and-consolidate-arq-worke/) |
 | 260621-ext | Extrato conta corrente fornecedores: filtro período + opening_balance + PDF PHC landscape | 2026-06-21 | 233c7d8 | inline |
 | 260621-p2c | Notifications module: router (3 endpoints), 3 ARQ tasks (outbox flush, dispatch rejected, vehicle doc expiry), 6 tests | 2026-06-21 | 31a6c32 | [260621-p2c](./quick/260621-p2c-notifications-module-router-py-registo-e/) |
+| 260621-pvf | HOS violation alerts (30-min cron) + driver document expiry alerts (daily cron) + 5 tests | 2026-06-21 | 232355b | [260621-pvf](./quick/260621-pvf-task-check-hos-violations-cron-cada-30-m/) |
 
 ### Blockers
 

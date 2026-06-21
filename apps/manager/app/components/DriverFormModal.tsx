@@ -97,7 +97,7 @@ export function DriverFormModal({ driver }: { driver?: Driver }) {
               </label>
               {error && <p className="form-error">{error}</p>}
               <div className="modal-actions">
-                <button type="button" className="secondary-btn" onClick={() => setOpen(false)}>Cancelar</button>
+                <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
                 <Button type="submit" variant="primary" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</Button>
               </div>
             </form>

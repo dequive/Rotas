@@ -172,7 +172,7 @@ export function ContractFormModal({ contract }: { contract?: Contract }) {
               <label>Notas<textarea name="notes" rows={2} placeholder="Observações sobre o contrato..." /></label>
               {error && <p className="form-error">{error}</p>}
               <div className="modal-actions">
-                <button type="button" className="secondary-btn" onClick={() => setOpen(false)}>Cancelar</button>
+                <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
                 <Button type="submit" variant="primary" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</Button>
               </div>
             </form>

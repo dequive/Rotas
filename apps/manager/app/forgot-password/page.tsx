@@ -80,7 +80,10 @@ export default function ForgotPasswordPage() {
             </p>
           )}
           {resetUrl && (
-            <Link className="secondary-btn" href={resetUrl}>
+            <Link
+              className="inline-flex items-center justify-center gap-2 font-bold rounded-lg h-[38px] px-[14px] text-sm bg-surface text-ink border border-border hover:bg-surface-2 transition-colors duration-100 whitespace-nowrap"
+              href={resetUrl}
+            >
               <KeyRound size={16} />
               Abrir link local de recuperação
             </Link>

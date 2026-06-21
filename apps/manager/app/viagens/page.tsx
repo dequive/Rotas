@@ -9,20 +9,28 @@ import { loadDriverDespachoTable } from "../lib/operations-admin-api";
 import { SidebarLayout } from "../components/SidebarLayout";
 import { TripFormModal } from "../components/TripFormModal";
 import { TripActionButton } from "../components/TripActionButton";
+import { StatusBadge } from "../components/ui/StatusBadge";
 
-const STATUS_LABEL: Record<string, { label: string; tone: string }> = {
-  planned: { label: "Planeada", tone: "blue" },
-  dispatched: { label: "Despachada", tone: "orange" },
-  in_progress: { label: "Em curso", tone: "cyan" },
-  completed: { label: "Concluída", tone: "green" },
-  cancelled: { label: "Cancelada", tone: "red" },
+// Map API trip status to StatusBadge status key
+const TRIP_STATUS_MAP: Record<string, string> = {
+  planned: "planeada",
+  dispatched: "aguarda",
+  in_progress: "in_progress",
+  completed: "concluida",
+  cancelled: "cancelada",
 };
 
-const BILLING_LABEL: Record<string, { label: string; tone: string }> = {
-  not_billable: { label: "N/A", tone: "blue" },
-  pending_delivery_proof: { label: "Sem descarga", tone: "red" },
-  billable: { label: "A cobrar", tone: "cyan" },
-  billed: { label: "Cobrado", tone: "green" },
+// Map billing status to StatusBadge status key
+const BILLING_STATUS_MAP: Record<string, string> = {
+  not_billable: "not_billable",
+  pending_delivery_proof: "blocked",
+  billable: "billable",
+  billed: "billed",
+};
+
+// Labels for statuses not in StatusBadge defaults
+const BILLING_LABEL_MAP: Record<string, string> = {
+  pending_delivery_proof: "Sem descarga",
 };
 
 function formatDate(value: string | null) {
@@ -79,8 +87,6 @@ export default async function ViagensPage() {
                 </tr>
               ) : (
                 trips.map((t) => {
-                  const statusMeta = STATUS_LABEL[t.status] ?? { label: t.status, tone: "blue" };
-                  const billingMeta = BILLING_LABEL[t.billing_status] ?? { label: t.billing_status, tone: "blue" };
                   return (
                     <tr key={t.id}>
                       <td>
@@ -99,10 +105,13 @@ export default async function ViagensPage() {
                       </td>
                       <td>{formatDate(t.actual_departure)}</td>
                       <td>
-                        <span className={`badge ${statusMeta.tone}`}>{statusMeta.label}</span>
+                        <StatusBadge status={TRIP_STATUS_MAP[t.status] ?? t.status} />
                       </td>
                       <td>
-                        <span className={`badge ${billingMeta.tone}`}>{billingMeta.label}</span>
+                        <StatusBadge
+                          status={BILLING_STATUS_MAP[t.billing_status] ?? t.billing_status}
+                          label={BILLING_LABEL_MAP[t.billing_status]}
+                        />
                       </td>
                       <td className="action-cell">
                         <TripActionButton trip={t} />

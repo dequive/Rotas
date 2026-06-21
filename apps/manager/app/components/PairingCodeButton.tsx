@@ -2,6 +2,7 @@
 
 import { Copy, Smartphone, X } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/app/components/ui/Button";
 
 export function PairingCodeButton({ driverId, driverName }: { driverId: string; driverName: string }) {
   const [open, setOpen] = useState(false);
@@ -75,7 +76,7 @@ export function PairingCodeButton({ driverId, driverName }: { driverId: string; 
               {expiresAt && (
                 <p className="muted">Expira às {new Date(expiresAt).toLocaleTimeString("pt-MZ")}</p>
               )}
-              <button className="secondary-btn" onClick={() => void generate()}>Novo código</button>
+              <Button variant="secondary" onClick={() => void generate()}>Novo código</Button>
             </>
           )}
         </div>

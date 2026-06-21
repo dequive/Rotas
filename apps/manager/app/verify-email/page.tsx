@@ -50,7 +50,10 @@ function VerifyEmailContent() {
             <CheckCircle2 size={16} />
             Email confirmado com sucesso.
           </p>
-          <Link className="login-btn" href="/">
+          <Link
+            className="inline-flex items-center justify-center font-bold rounded-lg h-[38px] px-[14px] text-sm bg-amber text-ink border border-amber hover:bg-amber-dark hover:border-amber-dark transition-colors duration-100 whitespace-nowrap"
+            href="/"
+          >
             Continuar
           </Link>
         </>
@@ -58,7 +61,10 @@ function VerifyEmailContent() {
       {status === "error" && (
         <>
           <p className="login-error">{error}</p>
-          <Link className="secondary-btn" href="/login">
+          <Link
+            className="inline-flex items-center justify-center font-bold rounded-lg h-[38px] px-[14px] text-sm bg-surface text-ink border border-border hover:bg-surface-2 transition-colors duration-100 whitespace-nowrap"
+            href="/login"
+          >
             Voltar ao login
           </Link>
         </>

@@ -317,14 +317,14 @@ export function ClientFormModal({
                 Desactivar cliente
               </button>
             )}
-            <button
+            <Button
               type="button"
-              className="secondary-btn"
+              variant="secondary"
               onClick={() => onOpenChange(false)}
               disabled={loading}
             >
               Cancelar
-            </button>
+            </Button>
             <Button type="submit" variant="primary" disabled={loading}>
               {loading ? (
                 <>

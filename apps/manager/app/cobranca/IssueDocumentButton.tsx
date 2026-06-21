@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { issueBillingDocument } from "./actions";
+import { Button } from "@/app/components/ui/Button";
 
 export function IssueDocumentButton({ documentId }: { documentId: string }) {
   const router = useRouter();
@@ -23,14 +24,9 @@ export function IssueDocumentButton({ documentId }: { documentId: string }) {
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <button
-        onClick={handleIssue}
-        disabled={loading}
-        style={{ backgroundColor: loading ? "#d97706" : "#f59e0b" }}
-        className="text-xs font-semibold text-[#0f1623] rounded px-3 py-1 whitespace-nowrap transition-colors duration-75 disabled:opacity-60 hover:opacity-90"
-      >
+      <Button size="sm" disabled={loading} onClick={handleIssue}>
         {loading ? "A emitir..." : "Emitir"}
-      </button>
+      </Button>
       {error && (
         <span className="text-[11px] text-error max-w-[160px] text-right leading-tight">
           {error}

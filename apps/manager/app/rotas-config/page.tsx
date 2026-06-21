@@ -7,6 +7,7 @@ import { KnownRouteFormModal } from "../components/KnownRouteFormModal";
 import { KnownRouteDeleteButton } from "../components/KnownRouteDeleteButton";
 import { DriverDespachoTableAdmin } from "../components/DriverDespachoTableAdmin";
 import { getApiConfig } from "../lib/billing-api";
+import { StatusBadge } from "../components/ui/StatusBadge";
 
 function money(v: number | null) {
   if (v === null) return "-";
@@ -72,20 +73,20 @@ export default async function RotasConfigPage() {
                       <td>{r.avg_fuel_liters !== null ? `${r.avg_fuel_liters} L` : <span className="muted-line">Auto</span>}</td>
                       <td>
                         {r.despacho_vazio !== null ? (
-                          <span className="badge cyan">{money(r.despacho_vazio)}</span>
+                          <StatusBadge status="aguarda" label={money(r.despacho_vazio)} />
                         ) : tier ? (
                           <span className="muted-line">{money(tier.amount)} (faixa)</span>
                         ) : (
-                          <span className="badge red">Fora das faixas</span>
+                          <StatusBadge status="alerta" label="Fora das faixas" />
                         )}
                       </td>
                       <td>
                         {r.despacho_carregado !== null ? (
-                          <span className="badge cyan">{money(r.despacho_carregado)}</span>
+                          <StatusBadge status="aguarda" label={money(r.despacho_carregado)} />
                         ) : tier ? (
                           <span className="muted-line">{money(tier.amount)} (faixa)</span>
                         ) : (
-                          <span className="badge red">Fora das faixas</span>
+                          <StatusBadge status="alerta" label="Fora das faixas" />
                         )}
                       </td>
                       <td><span className="muted-line">{r.notes ?? "-"}</span></td>

@@ -1,5 +1,6 @@
 import { Wrench } from "lucide-react";
 import type { ImminentAlert } from "../lib/control-tower-api";
+import { StatusBadge } from "./ui/StatusBadge";
 
 interface Props {
   alerts: ImminentAlert[];
@@ -39,9 +40,7 @@ export function MaintenanceImminentPanel({ alerts }: Props) {
           </p>
         </div>
         {alerts.length > 0 && (
-          <span className="badge red" style={{ marginLeft: "auto" }}>
-            {alerts.length}
-          </span>
+          <StatusBadge status="alerta" label={String(alerts.length)} className="ml-auto" />
         )}
       </div>
 
@@ -64,15 +63,13 @@ export function MaintenanceImminentPanel({ alerts }: Props) {
                 </span>
                 <span style={{ fontSize: 12, color: "var(--muted)" }}>
                   {alert.trigger_type === "overdue" ? (
-                    <span className="badge red">Vencida</span>
+                    <StatusBadge status="expired" />
                   ) : alert.trigger_type === "calendar" && alert.next_due_at ? (
                     formatDueDate(alert.next_due_at)
                   ) : alert.next_due_km !== null ? (
                     formatDueKm(alert.next_due_km)
                   ) : null}{" "}
-                  <span className="badge" style={{ fontSize: 11 }}>
-                    {TRIGGER_LABEL[alert.trigger_type]}
-                  </span>
+                  <StatusBadge status="pending" label={TRIGGER_LABEL[alert.trigger_type]} />
                 </span>
               </div>
             </li>

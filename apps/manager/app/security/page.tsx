@@ -4,6 +4,7 @@ import { RefreshCw, ShieldCheck, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SidebarLayout } from "@/app/components/SidebarLayout";
 import { Button } from "@/app/components/ui/Button";
+import { StatusBadge } from "@/app/components/ui/StatusBadge";
 
 type SessionItem = {
   id: string;
@@ -159,10 +160,10 @@ export default function SecurityPage() {
           <h1>Segurança</h1>
           <p>Sessões e acessos da conta</p>
         </div>
-        <button className="secondary-btn" onClick={loadSessions} disabled={loading}>
+        <Button variant="secondary" onClick={loadSessions} disabled={loading}>
           <RefreshCw size={16} />
           Atualizar
-        </button>
+        </Button>
       </div>
 
       <section className="panel">
@@ -180,9 +181,9 @@ export default function SecurityPage() {
                 placeholder="Código MFA"
                 required
               />
-              <button className="secondary-btn" disabled={mfaBusy}>
+              <Button variant="secondary" disabled={mfaBusy}>
                 Desativar MFA
-              </button>
+              </Button>
             </form>
           ) : mfa?.secret ? (
             <form onSubmit={confirmMfa} className="modal-form">
@@ -242,9 +243,10 @@ export default function SecurityPage() {
                 {sessions.map((session) => (
                   <tr key={session.id}>
                     <td>
-                      <span className={`badge ${session.active ? "green" : "red"}`}>
-                        {session.active ? "Ativa" : "Inativa"}
-                      </span>
+                      <StatusBadge
+                        status={session.active ? "activo" : "inactivo"}
+                        label={session.active ? "Ativa" : "Inativa"}
+                      />
                     </td>
                     <td className="driver-name">
                       <ShieldCheck size={15} />

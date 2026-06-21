@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TMS Enterprise Completo
 status: in_progress
-stopped_at: Completed quick task 260621-pbc
-last_updated: "2026-06-21T16:15:00.000Z"
+stopped_at: Completed quick task 260621-p2c
+last_updated: "2026-06-21T16:28:37.000Z"
 last_activity: 2026-06-21
 progress:
   total_phases: 13
@@ -15,7 +15,7 @@ progress:
 
 # ROTAS — Project State
 
-_Last updated: 2026-06-21 — Completed quick task 260621-pbc: Fix silent photo sync bug + consolidate ARQ workers + remove duplicate railway.toml_
+_Last updated: 2026-06-21 — Completed quick task 260621-p2c: notifications module router + 3 ARQ tasks (outbox flush, dispatch rejected, vehicle doc expiry) + 6 tests_
 
 ---
 
@@ -217,6 +217,7 @@ Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
 | 260621-p0i | Design system wave 2: ModalDialog + FormField + migração de 7 form modals + eliminação de inline styles em detail pages | 2026-06-21 | ffabe83 | [260621-p0i](./quick/260621-p0i-design-system-wave-2-modal-wrapper-formf/) |
 | 260621-pbc | Fix silent photo sync bug (delivery_proof/load_permit dropped), consolidate dual ARQ workers into app.worker, remove duplicate root railway.toml | 2026-06-21 | dd28089 | [260621-pbc](./quick/260621-pbc-fix-photo-sync-and-consolidate-arq-worke/) |
 | 260621-ext | Extrato conta corrente fornecedores: filtro período + opening_balance + PDF PHC landscape | 2026-06-21 | 233c7d8 | inline |
+| 260621-p2c | Notifications module: router (3 endpoints), 3 ARQ tasks (outbox flush, dispatch rejected, vehicle doc expiry), 6 tests | 2026-06-21 | 31a6c32 | [260621-p2c](./quick/260621-p2c-notifications-module-router-py-registo-e/) |
 
 ### Blockers
 

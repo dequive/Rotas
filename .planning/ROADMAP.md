@@ -1048,6 +1048,40 @@ Plans:
 
 ---
 
+### Phase 21: Frontend E2E Tests
+
+**Goal**: O manager app tem uma suite Playwright que cobre os fluxos críticos de negócio — autenticação, gestão de viaturas, motoristas, viagens e faturação — prevenindo regressões visuais e funcionais antes de cada deploy.
+
+**Depends on**: Phase 13 (frontend funcional e completo), Phase 22 (RBAC — login usa permissões), Phase 23 (third-party pickers em páginas de viatura)
+
+**Requirements**: QA-E2E-01, QA-E2E-02, QA-E2E-03, QA-E2E-04, QA-E2E-05
+
+**Success Criteria** (what must be TRUE):
+  1. `npx playwright test` executa em `apps/manager/` e todos os testes passam com servidor backend disponível
+  2. O fluxo de login com credenciais válidas chega ao dashboard; credenciais inválidas mostram mensagem de erro
+  3. Um utilizador consegue navegar para /viaturas, ver a lista, abrir uma viatura e ver o tab de Seguros sem erros JS
+  4. Um utilizador consegue navegar para /motoristas, ver a lista e abrir um perfil de motorista
+  5. Um utilizador consegue navegar para /faturacao e ver a lista de documentos com paginação
+  6. O test runner integra no CI (GitHub Actions ou equivalente) com `--reporter=html` e artefacto de relatório gerado
+
+**Architecture constraints**:
+- Playwright configurado em `apps/manager/playwright.config.ts` com `baseURL` lido de variável de ambiente `PLAYWRIGHT_BASE_URL` (default `http://localhost:3030`)
+- Testes em `apps/manager/e2e/` — nunca em `apps/manager/app/` (não misturar com código de produção)
+- Fixtures: `auth.setup.ts` que faz login e guarda `storageState` em `playwright/.auth/user.json` — todos os outros testes reusam este estado
+- Backend API mockado via `page.route()` para testes que não precisam de dados reais — testes de autenticação usam backend real (ou MSW)
+- `@playwright/test ^1.44` como `devDependency` em `apps/manager/package.json`
+- Configurar `webServer` em `playwright.config.ts` para arrancar `next dev` automaticamente nos testes locais
+
+**Plans**: 2 plans
+
+Plans:
+- [ ] 21-01-PLAN.md — Wave 1: Playwright install + playwright.config.ts + e2e/auth.setup.ts + backend seed script + .gitignore
+- [ ] 21-02-PLAN.md — Wave 2: E2E spec files (auth, navigation, vehicles, drivers, billing) + CI e2e job in ci.yml
+
+**UI hint**: no (testes — sem UI nova)
+
+---
+
 ---
 
 ### Phase 24: Third Party Completion — UI, Conta Corrente & Avaliação

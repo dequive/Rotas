@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     JSON,
@@ -9,7 +10,10 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    Numeric,
     String,
+    Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -79,3 +83,60 @@ class DriverSession(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class DriverAdvance(Base):
+    """Cash advance issued to a driver before a trip (despacho)."""
+
+    __tablename__ = "driver_advances"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "request_reference",
+            name="uq_driver_advances_tenant_ref",
+        ),
+        CheckConstraint("amount_mzn > 0", name="chk_driver_advances_amount_positive"),
+        CheckConstraint(
+            "status IN ('issued', 'settled', 'voided')",
+            name="chk_driver_advances_status",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    trip_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("trips.id"), index=True)
+    driver_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("drivers.id"), index=True)
+    amount_mzn: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), default="MZN")
+    status: Mapped[str] = mapped_column(String(20), default="issued")
+    issued_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    request_reference: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+
+
+class TripSettlement(Base):
+    """Post-trip financial settlement: advance vs actual costs."""
+
+    __tablename__ = "trip_settlements"
+    __table_args__ = (
+        UniqueConstraint("trip_id", name="uq_trip_settlements_trip_id"),
+        CheckConstraint(
+            "status IN ('pending', 'approved', 'rejected')",
+            name="chk_trip_settlements_status",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    trip_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("trips.id"))
+    advance_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("driver_advances.id"), nullable=True)
+    total_costs_mzn: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    advance_amount_mzn: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0"))
+    balance_mzn: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    approved_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejection_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    pdf_file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"), nullable=True)
+    settled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

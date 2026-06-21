@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: milestone
-status: completed
-stopped_at: Completed 16-03-PLAN.md
-last_updated: "2026-06-20T17:46:28Z"
-last_activity: 2026-06-20
+milestone: v3.0
+milestone_name: TMS Enterprise Completo
+status: in_progress
+stopped_at: Phase 18 complete
+last_updated: "2026-06-21T00:00:00Z"
+last_activity: 2026-06-21
 progress:
   total_phases: 13
   completed_phases: 8
@@ -209,6 +209,7 @@ Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
 | 260621-a7e | UI empresa: perfil documento tenant (dados empresa, bancários, numeração) | 2026-06-21 | 502783c | [260621-a7e](./quick/260621-a7e-ui-manager-configura-o-perfil-documento-/) |
 | 260620-vlw | Design system wave 1: Input + IconButton + sweep secondary-btn/badge/icon-btn + PaymentModal + PageHeader | 2026-06-21 | e33adc6 | [260620-vlw](./quick/260620-vlw-design-system-migration-wave-1-quick-win/) |
 | 260621-ei3 | P0.3 numeração fiscal gap-free: FiscalCounter + SELECT FOR UPDATE, migração fisc01 RLS, reescrita _assign_invoice_number, 5 testes concorrência | 2026-06-21 | 4c20890 | [260621-ei3](./quick/260621-ei3-p0-3-numeracao-fiscal-gap-free-substitui/) |
+| 260621-b3f | Redesenho 5 documentos operacionais PHC: Guia Remessa + CPI + Relatório Viagem + Ordem Serviço + Inspecção Viatura | 2026-06-21 | 96b70ed | [260621-b3f](./quick/260621-b3f-documentos-operacionais-redesenho-phc/) |
 
 ### Blockers
 

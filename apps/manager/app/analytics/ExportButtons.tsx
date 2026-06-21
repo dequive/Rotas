@@ -101,7 +101,7 @@ export default function ExportButtons({ currentMonth }: ExportButtonsProps) {
         onClick={triggerFuelReport}
         disabled={fuelState === "pending"}
         className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md
-          bg-panel border border-line text-ink hover:bg-surface-2 disabled:opacity-60
+          bg-surface border border-border text-ink hover:bg-surface-2 disabled:opacity-60
           disabled:cursor-not-allowed transition-colors"
       >
         {fuelState === "pending" ? (
@@ -125,7 +125,7 @@ export default function ExportButtons({ currentMonth }: ExportButtonsProps) {
         onClick={triggerComplianceReport}
         disabled={complianceState === "pending"}
         className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md
-          bg-panel border border-line text-ink hover:bg-surface-2 disabled:opacity-60
+          bg-surface border border-border text-ink hover:bg-surface-2 disabled:opacity-60
           disabled:cursor-not-allowed transition-colors"
       >
         {complianceState === "pending" ? (

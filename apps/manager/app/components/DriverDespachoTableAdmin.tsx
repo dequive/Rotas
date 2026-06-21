@@ -215,10 +215,10 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
         </article>
 
         <article className="despacho-admin-panel">
-          <div className="section-header">
-            <h3 className="section-title">Faixas de distancia</h3>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h3 className="text-base font-semibold m-0">Faixas de distancia</h3>
             <Button
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-line rounded-md bg-panel hover:bg-soft"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-border rounded-md bg-surface hover:bg-surface-2"
               onClick={addTier}
               type="button"
               variant="outline"
@@ -296,7 +296,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
 
           <div className="despacho-save-row">
             <Button
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-line rounded-md bg-panel hover:bg-soft"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-border rounded-md bg-surface hover:bg-surface-2"
               disabled={busy || !canUseApi}
               onClick={saveTable}
               type="button"

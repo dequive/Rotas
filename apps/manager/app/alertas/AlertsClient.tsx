@@ -176,15 +176,6 @@ export function AlertsClient({ expiryAlerts, systemAlerts, systemAlertsError }: 
                     ? "bg-amber-light border-amber text-amber-dark"
                     : "bg-surface border-border text-muted hover:text-ink"
                 }`}
-                style={
-                  systemView === view
-                    ? {
-                        backgroundColor: "var(--amber-light)",
-                        borderColor: "var(--amber)",
-                        color: "var(--amber-dark)",
-                      }
-                    : undefined
-                }
               >
                 {systemViewLabels[view]}
               </button>

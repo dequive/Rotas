@@ -157,9 +157,9 @@ export function EmpresaFormClient({ initialProfile }: { initialProfile: Document
       )}
 
       {/* ── Dados da Empresa ─────────────────────────────────────────── */}
-      <section className="panel">
-        <div className="section-header">
-          <h2 className="section-title">Dados da Empresa</h2>
+      <section className="bg-surface border border-border rounded-lg p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="text-base font-semibold m-0">Dados da Empresa</h2>
         </div>
         <div className="flex flex-col gap-4 mt-4">
           <div className="flex flex-col gap-1">
@@ -258,9 +258,9 @@ export function EmpresaFormClient({ initialProfile }: { initialProfile: Document
       </section>
 
       {/* ── Dados Bancários ──────────────────────────────────────────── */}
-      <section className="panel">
-        <div className="section-header">
-          <h2 className="section-title">Dados Bancários</h2>
+      <section className="bg-surface border border-border rounded-lg p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="text-base font-semibold m-0">Dados Bancários</h2>
         </div>
         <div className="flex flex-col gap-4 mt-4">
           <div className="flex flex-col gap-1">
@@ -310,9 +310,9 @@ export function EmpresaFormClient({ initialProfile }: { initialProfile: Document
       </section>
 
       {/* ── Numeração de Documentos ───────────────────────────────────── */}
-      <section className="panel">
-        <div className="section-header">
-          <h2 className="section-title">Numeração de Documentos</h2>
+      <section className="bg-surface border border-border rounded-lg p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="text-base font-semibold m-0">Numeração de Documentos</h2>
         </div>
         <div className="flex flex-col gap-4 mt-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -373,9 +373,9 @@ export function EmpresaFormClient({ initialProfile }: { initialProfile: Document
       </section>
 
       {/* ── Configurações de Exibição ────────────────────────────────── */}
-      <section className="panel">
-        <div className="section-header">
-          <h2 className="section-title">Documentos — Exibição</h2>
+      <section className="bg-surface border border-border rounded-lg p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="text-base font-semibold m-0">Documentos — Exibição</h2>
         </div>
         <div className="flex flex-col gap-4 mt-4">
           <label className="flex items-center gap-3 cursor-pointer">

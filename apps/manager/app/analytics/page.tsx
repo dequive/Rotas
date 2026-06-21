@@ -121,14 +121,14 @@ export default function AnalyticsPage() {
               <input
                 type="date"
                 aria-label="De"
-                className="border border-line rounded-md px-3 py-2 text-sm bg-panel text-ink"
+                className="border border-border rounded-md px-3 py-2 text-sm bg-surface text-ink"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
               />
               <input
                 type="date"
                 aria-label="Até"
-                className="border border-line rounded-md px-3 py-2 text-sm bg-panel text-ink"
+                className="border border-border rounded-md px-3 py-2 text-sm bg-surface text-ink"
                 value={customEnd}
                 onChange={(e) => setCustomEnd(e.target.value)}
               />
@@ -138,7 +138,7 @@ export default function AnalyticsPage() {
         <ExportButtons currentMonth={currentMonth} />
       </div>
 
-      {error && <p className="text-red text-sm mb-4">{error}</p>}
+      {error && <p className="text-error text-sm mb-4">{error}</p>}
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -171,7 +171,7 @@ export default function AnalyticsPage() {
       {/* Driver summary table */}
       <section className="mb-8">
         <h2 className="text-[21px] font-extrabold text-ink mb-4">Resumo por Motorista</h2>
-        <div className="bg-panel border border-line rounded-lg overflow-hidden">
+        <div className="bg-surface border border-border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -222,7 +222,7 @@ export default function AnalyticsPage() {
       {/* Route Profitability */}
       <section className="mb-8">
         <h2 className="text-[21px] font-extrabold text-ink mb-4">Rotas mais Rentáveis</h2>
-        <div className="bg-panel border border-line rounded-lg overflow-hidden">
+        <div className="bg-surface border border-border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -265,11 +265,11 @@ export default function AnalyticsPage() {
       {/* Contract Margins */}
       <section className="mb-8">
         <h2 className="text-[21px] font-extrabold text-ink mb-4">Margens por Contrato</h2>
-        <div className="bg-panel border border-line rounded-lg overflow-hidden">
+        <div className="bg-surface border border-border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Doc ID</TableHead>
+                <TableHead>Documento</TableHead>
                 <TableHead className="text-right">Receita (MZN)</TableHead>
                 <TableHead className="text-right">Custo (MZN)</TableHead>
                 <TableHead className="text-right">Margem (MZN)</TableHead>
@@ -283,10 +283,10 @@ export default function AnalyticsPage() {
                   </TableCell>
                 </TableRow>
               ) : dashboard && dashboard.contract_margins.length > 0 ? (
-                dashboard.contract_margins.map((r) => (
+                dashboard.contract_margins.map((r, i) => (
                   <TableRow key={r.billing_document_id}>
                     <TableCell className="font-mono text-sm">
-                      {r.billing_document_id.slice(0, 8)}…
+                      {r.invoice_number ?? `#${i + 1}`}
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {r.total_revenue.toLocaleString("pt-MZ", { minimumFractionDigits: 2 })}
@@ -316,7 +316,7 @@ export default function AnalyticsPage() {
       {/* Delivery NPS */}
       <section className="mb-8">
         <h2 className="text-[21px] font-extrabold text-ink mb-4">NPS de Entrega</h2>
-        <div className="bg-panel border border-line rounded-lg p-6 flex items-center gap-6">
+        <div className="bg-surface border border-border rounded-lg p-6 flex items-center gap-6">
           {loading ? (
             <Skeleton className="h-16 w-32" />
           ) : (
@@ -349,7 +349,7 @@ export default function AnalyticsPage() {
       {/* Top Drivers */}
       <section className="mb-8">
         <h2 className="text-[21px] font-extrabold text-ink mb-4">Top Motoristas</h2>
-        <div className="bg-panel border border-line rounded-lg overflow-hidden">
+        <div className="bg-surface border border-border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -369,7 +369,7 @@ export default function AnalyticsPage() {
                 dashboard.top_drivers.map((d, i) => (
                   <TableRow key={d.driver_id}>
                     <TableCell className="font-medium">
-                      #{i + 1} {d.driver_id.slice(0, 8)}
+                      #{i + 1} {d.driver_name ?? "—"}
                     </TableCell>
                     <TableCell className="text-right">{d.trip_count}</TableCell>
                     <TableCell className="text-right font-mono">
@@ -435,7 +435,7 @@ function ExpiryPanel({
 
   function severityClass(severity: DocumentExpiryItem["severity"]) {
     if (severity === "critical") return "bg-red text-white";
-    if (severity === "urgent") return "bg-[#fee4e2] text-red border border-red/20";
+    if (severity === "urgent") return "bg-error-bg text-error border border-error-border";
     return "bg-orange/10 text-orange border border-orange/30";
   }
 
@@ -445,14 +445,14 @@ function ExpiryPanel({
       {loading ? (
         <Skeleton className="h-32 w-full" />
       ) : sorted.length === 0 ? (
-        <div className="bg-panel border border-line rounded-lg p-8 text-center">
+        <div className="bg-surface border border-border rounded-lg p-8 text-center">
           <p className="font-bold text-ink mb-1">Sem documentos a vencer</p>
           <p className="text-muted text-sm">
             Todos os documentos de viaturas e motoristas estão válidos por mais de 30 dias.
           </p>
         </div>
       ) : (
-        <div className="bg-panel border border-line rounded-lg overflow-hidden">
+        <div className="bg-surface border border-border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>

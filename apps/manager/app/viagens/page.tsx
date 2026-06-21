@@ -16,9 +16,16 @@ import { PageHeader } from "../components/ui/PageHeader";
 const TRIP_STATUS_MAP: Record<string, string> = {
   planned: "planeada",
   dispatched: "aguarda",
-  in_progress: "in_progress",
+  in_progress: "em_viagem",
   completed: "concluida",
   cancelled: "cancelada",
+};
+
+const LOAD_STATE_MAP: Record<string, string> = {
+  full: "Completo",
+  partial: "Parcial",
+  empty: "Vazio",
+  loaded_empty: "Carregado/Vazio",
 };
 
 // Map billing status to StatusBadge status key
@@ -67,7 +74,7 @@ export default async function ViagensPage() {
         }
       />
 
-      <section className="panel">
+      <section className="bg-surface border border-border rounded-lg p-4">
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -85,7 +92,7 @@ export default async function ViagensPage() {
             <tbody>
               {trips.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="empty-row">Sem viagens registadas.</td>
+                  <td colSpan={8} className="text-muted text-center py-6">Sem viagens registadas.</td>
                 </tr>
               ) : (
                 trips.map((t) => {
@@ -96,14 +103,16 @@ export default async function ViagensPage() {
                       </td>
                       <td>{t.driver_name ?? "-"}</td>
                       <td>
-                        <span className="route">
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                           <Route size={14} />
                           {t.origin} → {t.destination}
                         </span>
                       </td>
                       <td>
                         {t.cargo_type ?? "-"}
-                        <span className="muted-line">{t.load_state ?? ""}</span>
+                        {t.load_state && (
+                          <span className="block mt-0.5 text-muted text-xs">{LOAD_STATE_MAP[t.load_state] ?? t.load_state}</span>
+                        )}
                       </td>
                       <td>{formatDate(t.actual_departure)}</td>
                       <td>
@@ -115,7 +124,7 @@ export default async function ViagensPage() {
                           label={BILLING_LABEL_MAP[t.billing_status]}
                         />
                       </td>
-                      <td className="action-cell">
+                      <td className="flex items-center gap-1.5 whitespace-nowrap">
                         <TripActionButton trip={t} />
                       </td>
                     </tr>

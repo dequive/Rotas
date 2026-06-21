@@ -51,7 +51,7 @@ export default async function ViaturasPage() {
         actions={<VehicleFormModal />}
       />
 
-      <section className="panel">
+      <section className="bg-surface border border-border rounded-lg p-4">
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -71,7 +71,7 @@ export default async function ViaturasPage() {
             <tbody>
               {vehicles.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="empty-row">Sem viaturas registadas.</td>
+                  <td colSpan={9} className="text-muted text-center py-6">Sem viaturas registadas.</td>
                 </tr>
               ) : (
                 vehicles.map((v) => {
@@ -79,14 +79,14 @@ export default async function ViaturasPage() {
                   return (
                     <tr key={v.id}>
                       <td>
-                        <span className="plate">
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                           <Truck size={14} />
                           {v.plate}
                         </span>
                       </td>
                       <td>
                         <strong>{v.brand}</strong>
-                        <span className="muted-line">{v.model}</span>
+                        <span className="block mt-0.5 text-muted text-xs">{v.model}</span>
                       </td>
                       <td>{v.year}</td>
                       <td>{v.category}</td>
@@ -94,7 +94,7 @@ export default async function ViaturasPage() {
                       <td>{v.fuel_type}</td>
                       <td>
                         <StatusBadge
-                          status={v.status === "active" ? "activo" : v.status === "maintenance" ? "in_progress" : "inactivo"}
+                          status={v.status === "active" ? "activo" : v.status === "maintenance" ? "manutencao" : "inactivo"}
                           label={meta.label}
                         />
                       </td>
@@ -114,7 +114,7 @@ export default async function ViaturasPage() {
                           })}
                         </div>
                       </td>
-                      <td className="action-cell">
+                      <td className="flex items-center gap-1.5 whitespace-nowrap">
                         <VehicleFormModal vehicle={v} />
                         <a
                           href={`/api/v1/vehicles/${v.id}/qr-code`}

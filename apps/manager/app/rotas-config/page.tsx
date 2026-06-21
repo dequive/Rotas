@@ -33,9 +33,9 @@ export default async function RotasConfigPage() {
       />
 
       {/* Catálogo de destinos */}
-      <section className="panel mb-6">
-        <div className="section-header">
-          <h2 className="section-title">Catálogo de destinos</h2>
+      <section className="bg-surface border border-border rounded-lg p-4 mb-6">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="text-base font-semibold m-0">Catálogo de destinos</h2>
           <span>{routes.length} rotas</span>
         </div>
         <div className="table-wrap">
@@ -54,7 +54,7 @@ export default async function RotasConfigPage() {
             </thead>
             <tbody>
               {routes.length === 0 ? (
-                <tr><td colSpan={7} className="empty-row">Sem rotas registadas. Adicione a primeira rota.</td></tr>
+                <tr><td colSpan={7} className="text-muted text-center py-6">Sem rotas registadas. Adicione a primeira rota.</td></tr>
               ) : (
                 routes.map((r) => {
                   const tier = despachoResult.table.tiers.find(
@@ -64,18 +64,18 @@ export default async function RotasConfigPage() {
                     <tr key={r.id}>
                       <td><strong>{r.origin}</strong></td>
                       <td>
-                        <span className="route">
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                           <Route size={14} />
                           {r.destination}
                         </span>
                       </td>
                       <td>{r.distance_km.toLocaleString("pt-MZ")} km</td>
-                      <td>{r.avg_fuel_liters !== null ? `${r.avg_fuel_liters} L` : <span className="muted-line">Auto</span>}</td>
+                      <td>{r.avg_fuel_liters !== null ? `${r.avg_fuel_liters} L` : <span className="block mt-0.5 text-muted text-xs">Auto</span>}</td>
                       <td>
                         {r.despacho_vazio !== null ? (
                           <StatusBadge status="aguarda" label={money(r.despacho_vazio)} />
                         ) : tier ? (
-                          <span className="muted-line"><span className="font-mono tabular-nums">{money(tier.amount)}</span> (faixa)</span>
+                          <span className="block mt-0.5 text-muted text-xs"><span className="font-mono tabular-nums">{money(tier.amount)}</span> (faixa)</span>
                         ) : (
                           <StatusBadge status="alerta" label="Fora das faixas" />
                         )}
@@ -84,13 +84,13 @@ export default async function RotasConfigPage() {
                         {r.despacho_carregado !== null ? (
                           <StatusBadge status="aguarda" label={money(r.despacho_carregado)} />
                         ) : tier ? (
-                          <span className="muted-line"><span className="font-mono tabular-nums">{money(tier.amount)}</span> (faixa)</span>
+                          <span className="block mt-0.5 text-muted text-xs"><span className="font-mono tabular-nums">{money(tier.amount)}</span> (faixa)</span>
                         ) : (
                           <StatusBadge status="alerta" label="Fora das faixas" />
                         )}
                       </td>
-                      <td><span className="muted-line">{r.notes ?? "-"}</span></td>
-                      <td className="action-cell">
+                      <td><span className="block mt-0.5 text-muted text-xs">{r.notes ?? "-"}</span></td>
+                      <td className="flex items-center gap-1.5 whitespace-nowrap">
                         <KnownRouteFormModal route={r} />
                         <KnownRouteDeleteButton routeId={r.id} routeLabel={`${r.origin} → ${r.destination}`} />
                       </td>

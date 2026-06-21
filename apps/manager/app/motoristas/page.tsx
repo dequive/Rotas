@@ -33,7 +33,7 @@ export default async function MotoristasPage() {
         actions={<DriverFormModal />}
       />
 
-      <section className="panel">
+      <section className="bg-surface border border-border rounded-lg p-4">
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -54,7 +54,7 @@ export default async function MotoristasPage() {
             <tbody>
               {drivers.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="empty-row">Sem motoristas registados.</td>
+                  <td colSpan={11} className="text-muted text-center py-6">Sem motoristas registados.</td>
                 </tr>
               ) : (
                 drivers.map((d) => {
@@ -63,7 +63,7 @@ export default async function MotoristasPage() {
                     <tr key={d.id}>
                       <td>
                         <Link href={`/motoristas/${d.id}`} className="no-underline text-inherit">
-                          <span className="driver-name">
+                          <span className="inline-flex items-center gap-1.5">
                             <User size={14} />
                             {d.full_name}
                           </span>
@@ -72,13 +72,13 @@ export default async function MotoristasPage() {
                       <td>{d.phone}</td>
                       <td>
                         <strong>{d.license_number}</strong>
-                        <span className="muted-line">Cat. {d.license_category}</span>
+                        <span className="block mt-0.5 text-muted text-xs">Cat. {d.license_category}</span>
                       </td>
                       <td>{formatDate(d.license_valid_until)}</td>
-                      <td>{d.passport_number ?? <span className="muted-line">—</span>}</td>
-                      <td>{d.passport_valid_until ? formatDate(d.passport_valid_until) : <span className="muted-line">—</span>}</td>
-                      <td>{d.bi_number ?? <span className="muted-line">—</span>}</td>
-                      <td>{d.bi_valid_until ? formatDate(d.bi_valid_until) : <span className="muted-line">—</span>}</td>
+                      <td>{d.passport_number ?? <span className="block mt-0.5 text-muted text-xs">—</span>}</td>
+                      <td>{d.passport_valid_until ? formatDate(d.passport_valid_until) : <span className="block mt-0.5 text-muted text-xs">—</span>}</td>
+                      <td>{d.bi_number ?? <span className="block mt-0.5 text-muted text-xs">—</span>}</td>
+                      <td>{d.bi_valid_until ? formatDate(d.bi_valid_until) : <span className="block mt-0.5 text-muted text-xs">—</span>}</td>
                       <td>
                         <StatusBadge
                           status={d.score >= 80 ? "concluida" : d.score >= 50 ? "pending" : "alerta"}
@@ -91,7 +91,7 @@ export default async function MotoristasPage() {
                           label={meta.label}
                         />
                       </td>
-                      <td className="action-cell">
+                      <td className="flex items-center gap-1.5 whitespace-nowrap">
                         <DriverFormModal driver={d} />
                         <PairingCodeButton driverId={d.id} driverName={d.full_name} />
                       </td>

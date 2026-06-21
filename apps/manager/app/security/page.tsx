@@ -168,9 +168,9 @@ export default function SecurityPage() {
         }
       />
 
-      <section className="panel">
-        <div className="section-header">
-          <h2 className="section-title">Autenticação multifator</h2>
+      <section className="bg-surface border border-border rounded-lg p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="text-base font-semibold m-0">Autenticação multifator</h2>
           <span>{mfa?.enabled ? "Ativa" : "Inativa"}</span>
         </div>
         <div className="modal-form">
@@ -219,9 +219,9 @@ export default function SecurityPage() {
         </div>
       </section>
 
-      <section className="panel section-divider">
-        <div className="section-header">
-          <h2 className="section-title">Sessões</h2>
+      <section className="bg-surface border border-border rounded-lg p-4 mt-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="text-base font-semibold m-0">Sessões</h2>
           <span>{sessions.filter((session) => session.active).length} ativas</span>
         </div>
         {error && <p className="form-error">{error}</p>}
@@ -250,7 +250,7 @@ export default function SecurityPage() {
                         label={session.active ? "Ativa" : "Inativa"}
                       />
                     </td>
-                    <td className="driver-name">
+                    <td className="inline-flex items-center gap-1.5">
                       <ShieldCheck size={15} />
                       {browserLabel(session.user_agent)}
                     </td>
@@ -272,7 +272,7 @@ export default function SecurityPage() {
                 ))}
                 {sessions.length === 0 && (
                   <tr>
-                    <td className="empty-row" colSpan={7}>
+                    <td className="text-muted text-center py-6" colSpan={7}>
                       Sem sessões registadas.
                     </td>
                   </tr>

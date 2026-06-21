@@ -227,7 +227,7 @@ export function BillingTripActions({
         <a
           href={getJobDownloadUrl(state.jobId)}
           download
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-line bg-soft text-ink text-sm font-medium hover:bg-line transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-surface-2 text-ink text-sm font-medium hover:bg-surface-2 transition-colors"
         >
           <Download className="w-3.5 h-3.5" />
           Descarregar
@@ -446,7 +446,7 @@ export function BillingTripActions({
               <DialogTitle>Rever pedido de waiver</DialogTitle>
             </DialogHeader>
             <div className="space-y-3 py-2">
-              <div className="bg-soft rounded-md p-3 text-sm space-y-1">
+              <div className="bg-surface-2 rounded-md p-3 text-sm space-y-1">
                 <p><span className="font-semibold text-muted">Rota:</span> {trip.route}</p>
                 {trip.actualMargin !== null && trip.actualMargin !== undefined && (
                   <p>

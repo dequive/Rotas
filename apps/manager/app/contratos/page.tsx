@@ -3,6 +3,8 @@ import { requireSession } from "../lib/auth";
 import { loadContracts } from "../lib/contracts-api";
 import { SidebarLayout } from "../components/SidebarLayout";
 import { ContractFormModal } from "../components/ContractFormModal";
+import { PageHeader } from "../components/ui/PageHeader";
+import { StatusBadge } from "../components/ui/StatusBadge";
 
 const STATUS_LABEL: Record<string, { label: string; tone: string }> = {
   active: { label: "Activo", tone: "green" },
@@ -26,13 +28,12 @@ export default async function ContratosPage() {
 
   return (
     <SidebarLayout active="contratos">
-      <div className="page-header">
-        <div>
-          <h1>Contratos</h1>
-          <p>{contracts.length} contratos registados</p>
-        </div>
-        <ContractFormModal />
-      </div>
+      <PageHeader
+        eyebrow="Financeiro"
+        title="Contratos"
+        description={`${contracts.length} contratos registados`}
+        actions={<ContractFormModal />}
+      />
 
       <section className="panel">
         <div className="table-wrap">
@@ -70,11 +71,14 @@ export default async function ContratosPage() {
                         <strong>{c.title}</strong>
                         <span className="muted-line">{c.service_type} · {c.billing_basis}</span>
                       </td>
-                      <td>{formatMoney(c.default_unit_price, c.currency)}</td>
+                      <td className="font-mono tabular-nums">{formatMoney(c.default_unit_price, c.currency)}</td>
                       <td>{formatDate(c.starts_at)}</td>
                       <td>{formatDate(c.ends_at)}</td>
                       <td>
-                        <span className={`badge ${meta.tone}`}>{meta.label}</span>
+                        <StatusBadge
+                          status={c.status === "active" ? "activo" : c.status === "draft" ? "draft" : "inactivo"}
+                          label={meta.label}
+                        />
                       </td>
                       <td className="action-cell">
                         <ContractFormModal contract={c} />

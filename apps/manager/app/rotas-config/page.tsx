@@ -8,6 +8,7 @@ import { KnownRouteDeleteButton } from "../components/KnownRouteDeleteButton";
 import { DriverDespachoTableAdmin } from "../components/DriverDespachoTableAdmin";
 import { getApiConfig } from "../lib/billing-api";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { PageHeader } from "../components/ui/PageHeader";
 
 function money(v: number | null) {
   if (v === null) return "-";
@@ -24,13 +25,12 @@ export default async function RotasConfigPage() {
 
   return (
     <SidebarLayout active="rotas-config">
-      <div className="page-header">
-        <div>
-          <h1>Destinos e despacho</h1>
-          <p>Registe os destinos uma única vez. Ao criar uma viagem, a distância, o despacho e o combustível são preenchidos automaticamente.</p>
-        </div>
-        <KnownRouteFormModal />
-      </div>
+      <PageHeader
+        eyebrow="Config"
+        title="Configuração de Rotas"
+        description="Registe os destinos uma única vez. Ao criar uma viagem, a distância, o despacho e o combustível são preenchidos automaticamente."
+        actions={<KnownRouteFormModal />}
+      />
 
       {/* Catálogo de destinos */}
       <section className="panel" style={{ marginBottom: 24 }}>
@@ -75,7 +75,7 @@ export default async function RotasConfigPage() {
                         {r.despacho_vazio !== null ? (
                           <StatusBadge status="aguarda" label={money(r.despacho_vazio)} />
                         ) : tier ? (
-                          <span className="muted-line">{money(tier.amount)} (faixa)</span>
+                          <span className="muted-line"><span className="font-mono tabular-nums">{money(tier.amount)}</span> (faixa)</span>
                         ) : (
                           <StatusBadge status="alerta" label="Fora das faixas" />
                         )}
@@ -84,7 +84,7 @@ export default async function RotasConfigPage() {
                         {r.despacho_carregado !== null ? (
                           <StatusBadge status="aguarda" label={money(r.despacho_carregado)} />
                         ) : tier ? (
-                          <span className="muted-line">{money(tier.amount)} (faixa)</span>
+                          <span className="muted-line"><span className="font-mono tabular-nums">{money(tier.amount)}</span> (faixa)</span>
                         ) : (
                           <StatusBadge status="alerta" label="Fora das faixas" />
                         )}

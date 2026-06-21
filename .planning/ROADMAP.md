@@ -1075,7 +1075,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 21-01-PLAN.md — Wave 1: Playwright install + playwright.config.ts + e2e/auth.setup.ts + backend seed script + .gitignore
+- [x] 21-01-PLAN.md — Wave 1: Playwright install + playwright.config.ts + e2e/auth.setup.ts + backend seed script + .gitignore
 - [ ] 21-02-PLAN.md — Wave 2: E2E spec files (auth, navigation, vehicles, drivers, billing) + CI e2e job in ci.yml
 
 **UI hint**: no (testes — sem UI nova)

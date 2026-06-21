@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.0
-milestone_name: TMS Enterprise Completo
-status: in_progress
-stopped_at: Phase 18 complete
-last_updated: "2026-06-21T00:00:00Z"
-last_activity: 2026-06-21
+milestone: v2.0
+milestone_name: milestone
+status: executing
+stopped_at: Completed 21-frontend-e2e-tests-01-PLAN.md
+last_updated: "2026-06-21T15:13:43.298Z"
+last_activity: 2026-06-20
 progress:
   total_phases: 13
   completed_phases: 8
@@ -25,7 +25,7 @@ Phase: 24
 Plan: 16-03 complete
 Status: Phase 16 in progress — 16-01 DONE; 16-02 DONE; 16-03 (availability endpoints + Redis cache) DONE 2026-06-20
 Last activity: 2026-06-20
-Stopped at: Completed 16-03-PLAN.md
+Stopped at: Completed 21-frontend-e2e-tests-01-PLAN.md
 
 ### Completed v3.0 Phases
 

@@ -744,9 +744,21 @@ async def patch_delivery_proof(
     # Verify tenant isolation via parent trip
     await _require_trip(db, tenant_id, proof.trip_id)
     patchable = {"notes", "receiver_name", "receiver_contact"}
-    for field, value in update_data.items():
-        if field in patchable and value is not None:
-            setattr(proof, field, value)
+    applied = {f: v for f, v in update_data.items() if f in patchable and v is not None}
+    old_values = {f: getattr(proof, f, None) for f in applied}
+    for field, value in applied.items():
+        setattr(proof, field, value)
+    await db.flush()
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=None,
+        action="delivery_proof.patched",
+        entity_type="delivery_proof",
+        entity_id=proof.id,
+        old_values=old_values,
+        new_values=applied,
+    )
     await db.commit()
     await db.refresh(proof)
     return {

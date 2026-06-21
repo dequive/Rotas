@@ -1586,8 +1586,21 @@ async def patch_trip(
     patch: TripPatch,
 ) -> dict:
     trip = await _require_trip(db, tenant_id, trip_id)
-    for field, value in patch.model_dump(exclude_none=True).items():
+    patch_data = patch.model_dump(exclude_none=True)
+    old_values = {f: getattr(trip, f, None) for f in patch_data}
+    for field, value in patch_data.items():
         setattr(trip, field, value)
+    await db.flush()
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=None,
+        action="trip.patched",
+        entity_type="trip",
+        entity_id=trip.id,
+        old_values=old_values,
+        new_values=patch_data,
+    )
     await db.commit()
     await db.refresh(trip)
     return serialize_trip(trip)
@@ -1604,8 +1617,21 @@ async def patch_stop(
         raise ApiError("trip_stop_not_found", "Trip stop not found.", status_code=404)
     # Verify tenant isolation via the parent trip
     await _require_trip(db, tenant_id, stop.trip_id)
-    for field, value in patch.model_dump(exclude_none=True).items():
+    patch_data = patch.model_dump(exclude_none=True)
+    old_values = {f: getattr(stop, f, None) for f in patch_data}
+    for field, value in patch_data.items():
         setattr(stop, field, value)
+    await db.flush()
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=None,
+        action="trip_stop.patched",
+        entity_type="trip_stop",
+        entity_id=stop.id,
+        old_values=old_values,
+        new_values=patch_data,
+    )
     await db.commit()
     await db.refresh(stop)
     return {

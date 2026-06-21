@@ -22,12 +22,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  getFleetKpis,
+  getAnalyticsDashboard,
   getDocumentExpiry,
-  type FleetKpis,
+  type AnalyticsDashboard,
   type DocumentExpiryItem,
   type DocumentExpiryResponse,
 } from "../lib/analytics-api";
+import ExportButtons from "./ExportButtons";
 
 type PeriodPreset = "este_mes" | "ultimos_3_meses" | "personalizado";
 
@@ -59,10 +60,13 @@ export default function AnalyticsPage() {
   const [period, setPeriod] = useState<PeriodPreset>("este_mes");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
-  const [kpis, setKpis] = useState<FleetKpis | null>(null);
+  const [dashboard, setDashboard] = useState<AnalyticsDashboard | null>(null);
   const [expiry, setExpiry] = useState<DocumentExpiryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Derived current month for export buttons
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
   useEffect(() => {
     const bounds = getPeriodBounds(period, customStart, customEnd);
@@ -70,11 +74,11 @@ export default function AnalyticsPage() {
     setLoading(true);
     setError(null);
     Promise.all([
-      getFleetKpis({ periodStart: bounds.start, periodEnd: bounds.end }),
+      getAnalyticsDashboard({ periodStart: bounds.start, periodEnd: bounds.end }),
       getDocumentExpiry(),
     ])
-      .then(([kpiData, expiryData]) => {
-        setKpis(kpiData);
+      .then(([dashData, expiryData]) => {
+        setDashboard(dashData);
         setExpiry(expiryData);
       })
       .catch(() =>
@@ -86,9 +90,9 @@ export default function AnalyticsPage() {
   }, [period, customStart, customEnd]);
 
   const avgCostPerKm =
-    kpis && Object.keys(kpis.costPerKm).length > 0
-      ? Object.values(kpis.costPerKm).reduce((a, b) => a + b, 0) /
-        Object.values(kpis.costPerKm).length
+    dashboard && Object.keys(dashboard.costPerKm).length > 0
+      ? Object.values(dashboard.costPerKm).reduce((a, b) => a + b, 0) /
+        Object.values(dashboard.costPerKm).length
       : null;
 
   return (
@@ -99,36 +103,39 @@ export default function AnalyticsPage() {
         description="Indicadores de desempenho e alertas de documentação"
       />
 
-      {/* Filter bar */}
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <Select value={period} onValueChange={(v) => setPeriod(v as PeriodPreset)}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Período" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="este_mes">Este mês</SelectItem>
-            <SelectItem value="ultimos_3_meses">Últimos 3 meses</SelectItem>
-            <SelectItem value="personalizado">Personalizado</SelectItem>
-          </SelectContent>
-        </Select>
-        {period === "personalizado" && (
-          <>
-            <input
-              type="date"
-              aria-label="De"
-              className="border border-line rounded-md px-3 py-2 text-sm bg-panel text-ink"
-              value={customStart}
-              onChange={(e) => setCustomStart(e.target.value)}
-            />
-            <input
-              type="date"
-              aria-label="Até"
-              className="border border-line rounded-md px-3 py-2 text-sm bg-panel text-ink"
-              value={customEnd}
-              onChange={(e) => setCustomEnd(e.target.value)}
-            />
-          </>
-        )}
+      {/* Filter bar + Export buttons */}
+      <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={period} onValueChange={(v) => setPeriod(v as PeriodPreset)}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="este_mes">Este mês</SelectItem>
+              <SelectItem value="ultimos_3_meses">Últimos 3 meses</SelectItem>
+              <SelectItem value="personalizado">Personalizado</SelectItem>
+            </SelectContent>
+          </Select>
+          {period === "personalizado" && (
+            <>
+              <input
+                type="date"
+                aria-label="De"
+                className="border border-line rounded-md px-3 py-2 text-sm bg-panel text-ink"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+              />
+              <input
+                type="date"
+                aria-label="Até"
+                className="border border-line rounded-md px-3 py-2 text-sm bg-panel text-ink"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+              />
+            </>
+          )}
+        </div>
+        <ExportButtons currentMonth={currentMonth} />
       </div>
 
       {error && <p className="text-red text-sm mb-4">{error}</p>}
@@ -145,19 +152,19 @@ export default function AnalyticsPage() {
           title="Utilização de frota"
           icon={<Truck className="w-4 h-4 text-blue" />}
           loading={loading}
-          value={kpis ? `${kpis.fleetUtilization.toFixed(1)}%` : "—"}
+          value={dashboard ? `${dashboard.fleetUtilization.toFixed(1)}%` : "—"}
         />
         <KpiCard
           title="Consumo L/100 km"
           icon={<Fuel className="w-4 h-4 text-blue" />}
           loading={loading}
-          value={kpis ? `${kpis.lPer100Km.toFixed(1)} L` : "—"}
+          value={dashboard ? `${dashboard.lPer100Km.toFixed(1)} L` : "—"}
         />
         <KpiCard
           title="Viagens concluídas"
           icon={<BarChart2 className="w-4 h-4 text-blue" />}
           loading={loading}
-          value={kpis?.tripsCompleted?.toString() ?? "—"}
+          value={dashboard?.tripsCompleted?.toString() ?? "—"}
         />
       </div>
 
@@ -183,15 +190,15 @@ export default function AnalyticsPage() {
                     </TableCell>
                   </TableRow>
                 ))
-              ) : kpis && kpis.driverSummary.length > 0 ? (
-                kpis.driverSummary.map((row) => (
+              ) : dashboard && dashboard.driverSummary.length > 0 ? (
+                dashboard.driverSummary.map((row) => (
                   <TableRow key={row.driverId}>
                     <TableCell className="font-medium">{row.driverName}</TableCell>
                     <TableCell className="text-right">{row.tripsCount}</TableCell>
                     <TableCell className="text-right">
                       {row.totalKm.toLocaleString("pt-MZ")} km
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right font-mono">
                       {row.totalCost.toLocaleString("pt-MZ", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
@@ -203,6 +210,176 @@ export default function AnalyticsPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-8 text-muted text-sm">
+                    Sem dados para o período
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </section>
+
+      {/* Route Profitability */}
+      <section className="mb-8">
+        <h2 className="text-[21px] font-extrabold text-ink mb-4">Rotas mais Rentáveis</h2>
+        <div className="bg-panel border border-line rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Origem</TableHead>
+                <TableHead>Destino</TableHead>
+                <TableHead className="text-right">Viagens</TableHead>
+                <TableHead className="text-right">Custo Médio (MZN)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={4}>
+                    <Skeleton className="h-5 w-full" />
+                  </TableCell>
+                </TableRow>
+              ) : dashboard && dashboard.route_profitability.length > 0 ? (
+                dashboard.route_profitability.map((r, i) => (
+                  <TableRow key={i}>
+                    <TableCell>{r.origin}</TableCell>
+                    <TableCell>{r.destination}</TableCell>
+                    <TableCell className="text-right">{r.trip_count}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {r.avg_cost.toLocaleString("pt-MZ", { minimumFractionDigits: 2 })}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-6 text-muted text-sm">
+                    Sem dados para o período
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </section>
+
+      {/* Contract Margins */}
+      <section className="mb-8">
+        <h2 className="text-[21px] font-extrabold text-ink mb-4">Margens por Contrato</h2>
+        <div className="bg-panel border border-line rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Doc ID</TableHead>
+                <TableHead className="text-right">Receita (MZN)</TableHead>
+                <TableHead className="text-right">Custo (MZN)</TableHead>
+                <TableHead className="text-right">Margem (MZN)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={4}>
+                    <Skeleton className="h-5 w-full" />
+                  </TableCell>
+                </TableRow>
+              ) : dashboard && dashboard.contract_margins.length > 0 ? (
+                dashboard.contract_margins.map((r) => (
+                  <TableRow key={r.billing_document_id}>
+                    <TableCell className="font-mono text-sm">
+                      {r.billing_document_id.slice(0, 8)}…
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {r.total_revenue.toLocaleString("pt-MZ", { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {r.total_cost.toLocaleString("pt-MZ", { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell
+                      className={`text-right font-mono font-semibold ${r.gross_margin >= 0 ? "text-green-700" : "text-red-600"}`}
+                    >
+                      {r.gross_margin.toLocaleString("pt-MZ", { minimumFractionDigits: 2 })}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-6 text-muted text-sm">
+                    Sem dados para o período
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </section>
+
+      {/* Delivery NPS */}
+      <section className="mb-8">
+        <h2 className="text-[21px] font-extrabold text-ink mb-4">NPS de Entrega</h2>
+        <div className="bg-panel border border-line rounded-lg p-6 flex items-center gap-6">
+          {loading ? (
+            <Skeleton className="h-16 w-32" />
+          ) : (
+            <>
+              <p
+                className="font-mono text-[48px] font-extrabold leading-none"
+                style={{
+                  color:
+                    dashboard?.delivery_nps == null
+                      ? "var(--muted)"
+                      : dashboard.delivery_nps >= 70
+                        ? "var(--green, #16a34a)"
+                        : dashboard.delivery_nps < 50
+                          ? "var(--red, #dc2626)"
+                          : "var(--amber, #f59e0b)",
+                }}
+              >
+                {dashboard?.delivery_nps !== null && dashboard?.delivery_nps !== undefined
+                  ? `${dashboard.delivery_nps.toFixed(1)}%`
+                  : "—"}
+              </p>
+              <p className="text-sm text-muted max-w-xs">
+                Percentagem de entregas com carga intacta no período seleccionado.
+              </p>
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* Top Drivers */}
+      <section className="mb-8">
+        <h2 className="text-[21px] font-extrabold text-ink mb-4">Top Motoristas</h2>
+        <div className="bg-panel border border-line rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Motorista</TableHead>
+                <TableHead className="text-right">Viagens</TableHead>
+                <TableHead className="text-right">Km totais</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={3}>
+                    <Skeleton className="h-5 w-full" />
+                  </TableCell>
+                </TableRow>
+              ) : dashboard && dashboard.top_drivers.length > 0 ? (
+                dashboard.top_drivers.map((d, i) => (
+                  <TableRow key={d.driver_id}>
+                    <TableCell className="font-medium">
+                      #{i + 1} {d.driver_id.slice(0, 8)}
+                    </TableCell>
+                    <TableCell className="text-right">{d.trip_count}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {d.total_km.toLocaleString("pt-MZ")} km
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center py-6 text-muted text-sm">
                     Sem dados para o período
                   </TableCell>
                 </TableRow>
@@ -239,7 +416,7 @@ function KpiCard({
         {loading ? (
           <Skeleton className="h-8 w-24" />
         ) : (
-          <p className="text-[26px] font-extrabold text-ink">{value}</p>
+          <p className="text-[26px] font-extrabold text-ink font-mono">{value}</p>
         )}
       </CardContent>
     </Card>

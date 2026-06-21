@@ -124,3 +124,44 @@ def test_invalid_billing_period_is_rejected() -> None:
             dt("2026-06-01T00:00:00"),
             dt("2026-06-01T00:00:00"),
         )
+
+
+# ── resolve_iva tests (IVA-SEAM-01) ──────────────────────────────────────────
+
+from dataclasses import dataclass
+from decimal import Decimal
+
+from app.core.errors import ApiError
+from app.modules.billing.domain import resolve_iva
+
+
+@dataclass
+class _FakeTrip:
+    is_international: bool = False
+
+
+@dataclass
+class _FakeContract:
+    iva_rate: Decimal | None = None
+
+
+def test_resolve_iva_domestic_returns_standard_16() -> None:
+    rate, basis = resolve_iva(_FakeTrip(is_international=False), _FakeContract())
+    assert rate == Decimal("0.1600")
+    assert basis == "standard_16"
+
+
+def test_resolve_iva_international_raises_422() -> None:
+    with pytest.raises(ApiError) as exc_info:
+        resolve_iva(_FakeTrip(is_international=True), _FakeContract())
+    assert exc_info.value.code == "international_iva_rate_unconfirmed"
+    assert exc_info.value.status_code == 422
+
+
+def test_resolve_iva_contract_override_wins_for_international() -> None:
+    rate, basis = resolve_iva(
+        _FakeTrip(is_international=True),
+        _FakeContract(iva_rate=Decimal("0.00")),
+    )
+    assert rate == Decimal("0.00")
+    assert basis == "contract_override"

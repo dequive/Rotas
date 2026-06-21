@@ -1,6 +1,11 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID
+
+from app.core.errors import ApiError
+
+DEFAULT_IVA_RATE: Decimal = Decimal("0.1600")
 
 BILLING_PENDING_DELIVERY = "pending_delivery_proof"
 BILLING_PENDING_VALIDATION = "pending_delivery_validation"
@@ -75,3 +80,29 @@ def belongs_to_billing_period(
         delivered_at = delivered_at.replace(tzinfo=UTC)
 
     return period_start <= delivered_at < period_end
+
+
+def resolve_iva(trip, contract) -> tuple[Decimal, str]:
+    """Resolve the applicable IVA rate and legal basis for a billing item.
+
+    Returns (rate, basis) where:
+    - rate: Decimal between 0.00 and 1.00
+    - basis: short string for audit trail ('standard_16', 'contract_override')
+
+    Priority: contract override > international guard > domestic default.
+    Fail-closed: international trips without a contract override raise 422.
+    The operator must configure contract.iva_rate explicitly to proceed.
+    """
+    contract_iva = getattr(contract, "iva_rate", None) if contract is not None else None
+    if contract_iva is not None:
+        return Decimal(str(contract_iva)), "contract_override"
+
+    if trip is not None and getattr(trip, "is_international", False):
+        raise ApiError(
+            "international_iva_rate_unconfirmed",
+            "Taxa IVA para transporte internacional requer confirmação legal. "
+            "Configure a taxa no contrato para emitir este documento.",
+            status_code=422,
+        )
+
+    return DEFAULT_IVA_RATE, "standard_16"

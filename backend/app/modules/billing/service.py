@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
 from app.modules.audit.service import record_audit_log
+from app.modules.billing.domain import resolve_iva
 from app.modules.billing.exporters import render_billing_export
 from app.modules.billing.models import (
     BillingDocument,
@@ -31,11 +32,6 @@ from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
 
 NEGATIVE_MARGIN_APPROVAL_WAIVER = "negative_margin_approved"
-
-# FISC-IVA: Single source-of-truth for current IVA rate. Pre-2023 historical documents
-# use 0.1700; all new documents default to this constant. Never use literal 0.1700 in
-# code — backfill existing rows via scripts/billing_iva_backfill.sql.
-DEFAULT_IVA_RATE = Decimal("0.1600")
 
 
 async def _assign_invoice_number(
@@ -615,7 +611,7 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
         )
 
         amount = Decimal(str(contract.default_unit_price or 0))
-        iva_rate = DEFAULT_IVA_RATE
+        iva_rate, iva_basis = resolve_iva(trip, contract)
         iva_amount = (amount * iva_rate).quantize(Decimal("0.01"))
         item = BillingItem(
             tenant_id=tenant_id,
@@ -639,6 +635,7 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
             unit_price=contract.default_unit_price,
             amount=amount,
             iva_rate=iva_rate,
+            iva_basis=iva_basis,
             iva_amount=iva_amount,
             status="draft",
         )
@@ -1190,12 +1187,13 @@ async def create_debit_note(
     parent_id: UUID,
     amount: Decimal,
     reason: str,
-    iva_rate: Decimal = DEFAULT_IVA_RATE,
+    iva_rate: Decimal | None = None,
 ) -> dict:
     """Create a Nota de Débito child document referencing an issued/paid invoice.
 
     The debit note receives a sequential invoice_number from the same FISC-01 sequence.
     Parent status is not modified. amount must be positive (the additional charge).
+    iva_rate defaults to the domestic standard rate via resolve_iva (trip=None).
     """
     parent = await db.get(BillingDocument, parent_id)
     if not parent or parent.tenant_id != tenant_id:
@@ -1208,7 +1206,10 @@ async def create_debit_note(
             status_code=409,
         )
 
-    iva_amount = (amount * iva_rate).quantize(Decimal("0.01"))
+    _resolved_rate, _resolved_basis = resolve_iva(trip=None, contract=None)
+    effective_rate = iva_rate if iva_rate is not None else _resolved_rate
+    effective_basis = "contract_override" if iva_rate is not None else _resolved_basis
+    iva_amount = (amount * effective_rate).quantize(Decimal("0.01"))
     total = amount + iva_amount
 
     note = BillingDocument(
@@ -1224,7 +1225,8 @@ async def create_debit_note(
         subtotal=amount,
         tax_amount=iva_amount,
         total_amount=total,
-        iva_rate=iva_rate,
+        iva_rate=effective_rate,
+        iva_basis=effective_basis,
         document_type="debit_note",
         parent_document_id=parent_id,
         parent_invoice_number=parent.invoice_number,
@@ -1277,13 +1279,14 @@ async def create_credit_note(
     parent_id: UUID,
     amount: Decimal,
     reason: str,
-    iva_rate: Decimal = DEFAULT_IVA_RATE,
+    iva_rate: Decimal | None = None,
 ) -> dict:
     """Create a Nota de Crédito child document referencing an issued/paid invoice.
 
     The credit note receives a sequential invoice_number from the same FISC-01 sequence.
     amount is the credit amount (positive value — type signals direction).
     Parent status is not modified.
+    iva_rate defaults to the domestic standard rate via resolve_iva (trip=None).
     """
     parent = await db.get(BillingDocument, parent_id)
     if not parent or parent.tenant_id != tenant_id:
@@ -1296,7 +1299,10 @@ async def create_credit_note(
             status_code=409,
         )
 
-    iva_amount = (amount * iva_rate).quantize(Decimal("0.01"))
+    _resolved_rate, _resolved_basis = resolve_iva(trip=None, contract=None)
+    effective_rate = iva_rate if iva_rate is not None else _resolved_rate
+    effective_basis = "contract_override" if iva_rate is not None else _resolved_basis
+    iva_amount = (amount * effective_rate).quantize(Decimal("0.01"))
     total = amount + iva_amount
 
     note = BillingDocument(
@@ -1312,7 +1318,8 @@ async def create_credit_note(
         subtotal=amount,
         tax_amount=iva_amount,
         total_amount=total,
-        iva_rate=iva_rate,
+        iva_rate=effective_rate,
+        iva_basis=effective_basis,
         document_type="credit_note",
         parent_document_id=parent_id,
         parent_invoice_number=parent.invoice_number,

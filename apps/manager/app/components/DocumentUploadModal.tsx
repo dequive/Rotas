@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Upload } from "lucide-react";
+import { ModalDialog } from "@/app/components/ui/ModalDialog";
 
 interface DocumentUploadModalProps {
   subjectType: "driver" | "vehicle" | "third_party" | "client" | "contract";
@@ -21,6 +22,10 @@ const DOCUMENT_TYPES = [
   { value: "other", label: "Outro" },
 ];
 
+const inputCls =
+  "w-full px-2.5 py-1.5 border border-border-strong rounded-md bg-surface-2 text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-2 focus:ring-amber/20";
+const labelCls = "block text-[11px] font-semibold uppercase tracking-wide text-muted mb-1";
+
 export function DocumentUploadModal({ subjectType, subjectId, onSuccess }: DocumentUploadModalProps) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
@@ -33,6 +38,19 @@ export function DocumentUploadModal({ subjectType, subjectId, onSuccess }: Docum
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function handleClose() {
+    setOpen(false);
+    setForm({
+      document_type: "",
+      document_number: "",
+      issued_at: "",
+      expiry_date: "",
+      issuing_authority: "",
+      notes: "",
+    });
+    setError(null);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,15 +67,7 @@ export function DocumentUploadModal({ subjectType, subjectId, onSuccess }: Docum
         setError(body.detail ?? "Erro ao guardar documento");
         return;
       }
-      setOpen(false);
-      setForm({
-        document_type: "",
-        document_number: "",
-        issued_at: "",
-        expiry_date: "",
-        issuing_authority: "",
-        notes: "",
-      });
+      handleClose();
       onSuccess?.();
     } catch {
       setError("Erro de rede — tente novamente");
@@ -66,217 +76,116 @@ export function DocumentUploadModal({ subjectType, subjectId, onSuccess }: Docum
     }
   }
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button
         onClick={() => setOpen(true)}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "5px 12px",
-          background: "var(--amber)",
-          color: "#fff",
-          borderRadius: "var(--r-md, 6px)",
-          fontSize: "12px",
-          fontWeight: 600,
-          fontFamily: "Manrope, sans-serif",
-          border: "none",
-          cursor: "pointer",
-        }}
+        className="inline-flex items-center gap-1.5 h-[34px] px-3 border-none rounded-md bg-amber text-white text-xs font-bold cursor-pointer hover:bg-amber-dark transition-colors duration-100"
       >
         <Upload size={13} />
         Upload Documento
       </button>
-    );
-  }
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "7px 10px",
-    fontSize: "13px",
-    fontFamily: "Manrope, sans-serif",
-    border: "1px solid var(--border-strong)",
-    borderRadius: "var(--r-md, 6px)",
-    background: "var(--surface-2)",
-    color: "var(--ink)",
-    outline: "none",
-    boxSizing: "border-box",
-  };
+      <ModalDialog open={open} onClose={handleClose} title="Registar Documento">
+        <div className="px-6 pb-6 pt-4 flex flex-col gap-3">
+          {error && (
+            <div className="px-3 py-2 bg-error-bg border border-error-border rounded-md text-[13px] text-error">
+              {error}
+            </div>
+          )}
 
-  const labelStyle: React.CSSProperties = {
-    display: "block",
-    fontSize: "11px",
-    fontWeight: 600,
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    color: "var(--muted)",
-    fontFamily: "Manrope, sans-serif",
-    marginBottom: 4,
-  };
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 50,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(0,0,0,0.50)",
-      }}
-    >
-      <div
-        style={{
-          background: "var(--surface)",
-          borderRadius: "var(--r-xl, 12px)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-          width: "100%",
-          maxWidth: 520,
-          padding: 24,
-          margin: "0 16px",
-        }}
-      >
-        <h2
-          style={{
-            fontSize: "16px",
-            fontWeight: 600,
-            fontFamily: "Manrope, sans-serif",
-            color: "var(--ink)",
-            marginBottom: 16,
-          }}
-        >
-          Registar Documento
-        </h2>
-
-        {error && (
-          <p
-            style={{
-              fontSize: "13px",
-              color: "var(--error, #ef4444)",
-              fontFamily: "Manrope, sans-serif",
-              marginBottom: 12,
-              padding: "8px 12px",
-              background: "rgba(239,68,68,0.08)",
-              borderRadius: "var(--r-md, 6px)",
-            }}
-          >
-            {error}
-          </p>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>Tipo de Documento *</label>
-            <select
-              required
-              value={form.document_type}
-              onChange={(e) => setForm((f) => ({ ...f, document_type: e.target.value }))}
-              style={inputStyle}
-            >
-              <option value="">Seleccionar tipo</option>
-              {DOCUMENT_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div>
-              <label style={labelStyle}>Número do documento</label>
-              <input
-                type="text"
-                value={form.document_number}
-                onChange={(e) => setForm((f) => ({ ...f, document_number: e.target.value }))}
-                style={{ ...inputStyle, fontFamily: "IBM Plex Mono, monospace" }}
-                placeholder="Ex: 123456789"
+              <label className={labelCls}>Tipo de Documento *</label>
+              <select
+                required
+                value={form.document_type}
+                onChange={(e) => setForm((f) => ({ ...f, document_type: e.target.value }))}
+                className={inputCls}
+              >
+                <option value="">Seleccionar tipo</option>
+                {DOCUMENT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Número do documento</label>
+                <input
+                  type="text"
+                  value={form.document_number}
+                  onChange={(e) => setForm((f) => ({ ...f, document_number: e.target.value }))}
+                  className={`${inputCls} font-mono`}
+                  placeholder="Ex: 123456789"
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Entidade emissora</label>
+                <input
+                  type="text"
+                  value={form.issuing_authority}
+                  onChange={(e) => setForm((f) => ({ ...f, issuing_authority: e.target.value }))}
+                  className={inputCls}
+                  placeholder="Ex: INATTER"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Data de emissão</label>
+                <input
+                  type="date"
+                  value={form.issued_at}
+                  onChange={(e) => setForm((f) => ({ ...f, issued_at: e.target.value }))}
+                  className={`${inputCls} font-mono`}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Data de validade</label>
+                <input
+                  type="date"
+                  value={form.expiry_date}
+                  onChange={(e) => setForm((f) => ({ ...f, expiry_date: e.target.value }))}
+                  className={`${inputCls} font-mono`}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className={labelCls}>Notas</label>
+              <textarea
+                rows={2}
+                value={form.notes}
+                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                className={`${inputCls} resize-y`}
+                placeholder="Observações opcionais"
               />
             </div>
-            <div>
-              <label style={labelStyle}>Entidade emissora</label>
-              <input
-                type="text"
-                value={form.issuing_authority}
-                onChange={(e) => setForm((f) => ({ ...f, issuing_authority: e.target.value }))}
-                style={inputStyle}
-                placeholder="Ex: INATTER"
-              />
-            </div>
-          </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-            <div>
-              <label style={labelStyle}>Data de emissão</label>
-              <input
-                type="date"
-                value={form.issued_at}
-                onChange={(e) => setForm((f) => ({ ...f, issued_at: e.target.value }))}
-                style={{ ...inputStyle, fontFamily: "IBM Plex Mono, monospace" }}
-              />
+            <div className="flex justify-end gap-2 pt-3 border-t border-border mt-1">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="px-4 py-2 border border-border rounded-md bg-transparent text-muted text-[13px] font-semibold cursor-pointer hover:bg-surface-2 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-4 py-2 rounded-md bg-amber text-white border-none text-[13px] font-bold cursor-pointer hover:bg-amber-dark transition-colors disabled:bg-border disabled:cursor-not-allowed"
+              >
+                {submitting ? "A guardar..." : "Guardar"}
+              </button>
             </div>
-            <div>
-              <label style={labelStyle}>Data de validade</label>
-              <input
-                type="date"
-                value={form.expiry_date}
-                onChange={(e) => setForm((f) => ({ ...f, expiry_date: e.target.value }))}
-                style={{ ...inputStyle, fontFamily: "IBM Plex Mono, monospace" }}
-              />
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>Notas</label>
-            <textarea
-              rows={2}
-              value={form.notes}
-              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              style={{ ...inputStyle, resize: "vertical" as const }}
-              placeholder="Observações opcionais"
-            />
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              style={{
-                padding: "7px 14px",
-                border: "1px solid var(--border-strong)",
-                borderRadius: "var(--r-md, 6px)",
-                background: "var(--surface-2)",
-                color: "var(--ink)",
-                fontSize: "13px",
-                fontWeight: 600,
-                fontFamily: "Manrope, sans-serif",
-                cursor: "pointer",
-              }}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                padding: "7px 14px",
-                border: "none",
-                borderRadius: "var(--r-md, 6px)",
-                background: submitting ? "var(--border)" : "var(--amber)",
-                color: "#fff",
-                fontSize: "13px",
-                fontWeight: 600,
-                fontFamily: "Manrope, sans-serif",
-                cursor: submitting ? "not-allowed" : "pointer",
-              }}
-            >
-              {submitting ? "A guardar..." : "Guardar"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          </form>
+        </div>
+      </ModalDialog>
+    </>
   );
 }

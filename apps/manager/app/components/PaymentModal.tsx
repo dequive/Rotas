@@ -105,7 +105,7 @@ export function PaymentModal({
   return (
     <>
       {trigger ? (
-        <span onClick={handleOpen} style={{ cursor: "pointer" }}>
+        <span onClick={handleOpen} className="cursor-pointer">
           {trigger}
         </span>
       ) : (

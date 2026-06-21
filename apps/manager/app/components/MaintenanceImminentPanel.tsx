@@ -31,11 +31,11 @@ function formatDueKm(km: number): string {
 export function MaintenanceImminentPanel({ alerts }: Props) {
   return (
     <div className="fleet-compliance-panel">
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+      <div className="flex items-center gap-2 mb-1">
         <Wrench size={20} />
         <div>
-          <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>Manutenção Iminente</h3>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: 0 }}>
+          <h3 className="text-[14px] font-bold m-0">Manutenção Iminente</h3>
+          <p className="text-xs text-muted m-0">
             Viaturas próximas do prazo de intervenção
           </p>
         </div>
@@ -46,8 +46,8 @@ export function MaintenanceImminentPanel({ alerts }: Props) {
 
       {alerts.length === 0 ? (
         <div className="empty-state">
-          <p style={{ fontWeight: 700 }}>Sem manutenções iminentes</p>
-          <p style={{ color: "var(--muted)" }}>
+          <p className="font-bold">Sem manutenções iminentes</p>
+          <p className="text-muted">
             Todas as viaturas estão dentro dos limites de intervenção.
           </p>
         </div>
@@ -57,11 +57,11 @@ export function MaintenanceImminentPanel({ alerts }: Props) {
             <li className="fleet-compliance-item" key={alert.plan_id} role="listitem">
               <span className={TRIGGER_MARKER[alert.trigger_type] ?? "history-marker"} />
               <div>
-                <strong style={{ fontSize: 14 }}>{alert.vehicle_plate}</strong>
-                <span style={{ fontSize: 12, color: "var(--muted)", display: "block" }}>
+                <strong className="text-[14px]">{alert.vehicle_plate}</strong>
+                <span className="text-xs text-muted block">
                   {alert.plan_name}
                 </span>
-                <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                <span className="text-xs text-muted">
                   {alert.trigger_type === "overdue" ? (
                     <StatusBadge status="expired" />
                   ) : alert.trigger_type === "calendar" && alert.next_due_at ? (

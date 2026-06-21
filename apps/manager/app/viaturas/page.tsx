@@ -127,18 +127,16 @@ export default async function ViaturasPage() {
                         </a>
                       </td>
                       <td>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div className="flex flex-col gap-1">
                           <Link
                             href={`/viaturas/${v.id}`}
-                            className="text-xs font-semibold"
-                            style={{ color: "var(--amber)" }}
+                            className="text-xs font-semibold text-amber"
                           >
                             Ver Detalhe
                           </Link>
                           <Link
                             href={`/viaturas/${v.id}/historico`}
-                            className="text-xs font-semibold"
-                            style={{ color: "var(--blue)" }}
+                            className="text-xs font-semibold text-ink-2"
                           >
                             Ver Histórico
                           </Link>

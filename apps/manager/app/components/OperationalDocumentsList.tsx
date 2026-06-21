@@ -1,4 +1,5 @@
 import { FileText, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export interface OperationalDocument {
   id: string;
@@ -21,27 +22,24 @@ interface Props {
 
 const VERIFICATION_BADGE: Record<
   string,
-  { label: string; dotColor: string; textColor: string; bgColor: string; Icon: React.ElementType }
+  { label: string; wrapperClass: string; dotClass: string; Icon: React.ElementType }
 > = {
   pending: {
     label: "Pendente",
-    dotColor: "#f59e0b",
-    textColor: "var(--warning, #f59e0b)",
-    bgColor: "rgba(245,158,11,0.10)",
+    wrapperClass: "bg-warning-bg text-warning",
+    dotClass: "bg-amber",
     Icon: Clock,
   },
   verified: {
     label: "Verificado",
-    dotColor: "#22c55e",
-    textColor: "var(--success, #22c55e)",
-    bgColor: "rgba(34,197,94,0.10)",
+    wrapperClass: "bg-success-bg text-success",
+    dotClass: "bg-success",
     Icon: CheckCircle,
   },
   rejected: {
     label: "Rejeitado",
-    dotColor: "#ef4444",
-    textColor: "var(--error, #ef4444)",
-    bgColor: "rgba(239,68,68,0.10)",
+    wrapperClass: "bg-error-bg text-error",
+    dotClass: "bg-error",
     Icon: AlertTriangle,
   },
 };
@@ -67,43 +65,21 @@ export function OperationalDocumentsList({ documents }: Props) {
   return (
     <div>
       {documents.length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "32px 16px",
-            fontSize: "13px",
-            color: "var(--muted)",
-            fontFamily: "Manrope, sans-serif",
-          }}
-        >
+        <div className="text-center py-8 text-[13px] text-muted">
           Sem documentos registados
         </div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: "13px",
-              fontFamily: "Manrope, sans-serif",
-            }}
-          >
+        <div className="overflow-x-auto">
+          <table className="w-full text-[13px] border-collapse">
             <thead>
-              <tr style={{ borderBottom: "1px solid var(--border)" }}>
+              <tr className="border-b border-border">
                 {["Tipo", "Número", "Emissão", "Validade", "Entidade", "Estado"].map((h, i) => (
                   <th
                     key={h}
-                    style={{
-                      padding: "8px 12px",
-                      textAlign: "left",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      textTransform: "uppercase" as const,
-                      letterSpacing: "0.05em",
-                      color: "var(--muted)",
-                      whiteSpace: "nowrap" as const,
-                      minWidth: i === 0 ? 160 : undefined,
-                    }}
+                    className={cn(
+                      "px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-muted whitespace-nowrap",
+                      i === 0 && "min-w-[160px]",
+                    )}
                   >
                     {h}
                   </th>
@@ -120,92 +96,47 @@ export function OperationalDocumentsList({ documents }: Props) {
                 const BadgeIcon = badge.Icon;
 
                 return (
-                  <tr key={doc.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                    <td
-                      style={{
-                        padding: "10px 12px",
-                        fontWeight: 600,
-                        color: "var(--ink)",
-                        whiteSpace: "nowrap" as const,
-                      }}
-                    >
+                  <tr key={doc.id} className="border-b border-border">
+                    <td className="px-3 py-2.5 font-semibold text-ink whitespace-nowrap">
                       {DOCUMENT_TYPE_LABELS[doc.document_type] ?? doc.document_type}
                     </td>
-                    <td
-                      style={{
-                        padding: "10px 12px",
-                        fontFamily: "IBM Plex Mono, monospace",
-                        fontSize: "12px",
-                        color: "var(--ink)",
-                      }}
-                    >
+                    <td className="px-3 py-2.5 font-mono text-xs text-ink">
                       {doc.document_number ?? "—"}
                     </td>
-                    <td
-                      style={{
-                        padding: "10px 12px",
-                        fontFamily: "IBM Plex Mono, monospace",
-                        fontSize: "12px",
-                        color: "var(--muted)",
-                      }}
-                    >
+                    <td className="px-3 py-2.5 font-mono text-xs text-muted">
                       {doc.issued_at ?? "—"}
                     </td>
-                    <td style={{ padding: "10px 12px" }}>
+                    <td className="px-3 py-2.5">
                       {doc.expiry_date ? (
                         <span
-                          style={{
-                            fontFamily: "IBM Plex Mono, monospace",
-                            fontSize: "12px",
-                            fontWeight: isExpired || isExpiring ? 600 : 400,
-                            color: isExpired
-                              ? "var(--error, #ef4444)"
+                          className={cn(
+                            "font-mono text-xs tabular-nums",
+                            isExpired
+                              ? "text-error font-semibold"
                               : isExpiring
-                                ? "var(--warning, #f59e0b)"
-                                : "var(--ink)",
-                          }}
+                                ? "text-warning font-semibold"
+                                : "text-ink",
+                          )}
                         >
                           {doc.expiry_date}
                           {isExpired && " (vencido)"}
                           {isExpiring && !isExpired && ` (${days}d)`}
                         </span>
                       ) : (
-                        <span style={{ color: "var(--muted)", fontSize: "12px" }}>—</span>
+                        <span className="text-muted text-xs">—</span>
                       )}
                     </td>
-                    <td
-                      style={{
-                        padding: "10px 12px",
-                        fontSize: "12px",
-                        color: "var(--muted)",
-                      }}
-                    >
+                    <td className="px-3 py-2.5 text-xs text-muted">
                       {doc.issuing_authority ?? "—"}
                     </td>
-                    <td style={{ padding: "10px 12px" }}>
+                    <td className="px-3 py-2.5">
                       <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4,
-                          padding: "2px 8px",
-                          borderRadius: 999,
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          background: badge.bgColor,
-                          color: badge.textColor,
-                          fontFamily: "Manrope, sans-serif",
-                        }}
+                        className={cn(
+                          "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold",
+                          badge.wrapperClass,
+                        )}
                       >
-                        <span
-                          style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: "50%",
-                            background: badge.dotColor,
-                            flexShrink: 0,
-                          }}
-                        />
+                        <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", badge.dotClass)} />
                         <BadgeIcon size={10} />
                         {badge.label}
                       </span>

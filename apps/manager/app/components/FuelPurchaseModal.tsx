@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
+import { ModalDialog } from "@/app/components/ui/ModalDialog";
 import { ThirdPartyCombobox } from "./ThirdPartyCombobox";
 
 interface VehicleOption {
@@ -21,10 +22,13 @@ interface FuelPurchaseFormData {
 }
 
 interface FuelPurchaseModalProps {
-  /** Pre-loaded vehicle list. If omitted the modal fetches via /api/vehicles. */
   vehicleOptions?: VehicleOption[];
   onSuccess?: () => void;
 }
+
+const inputCls =
+  "w-full min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-2 focus:ring-amber/20";
+const labelCls = "block text-[11px] font-semibold uppercase tracking-wide text-muted mb-1";
 
 export function FuelPurchaseModal({ vehicleOptions: vehicleOptionsProp, onSuccess }: FuelPurchaseModalProps) {
   const [open, setOpen] = useState(false);
@@ -36,7 +40,6 @@ export function FuelPurchaseModal({ vehicleOptions: vehicleOptionsProp, onSucces
   const [error, setError] = useState<string | null>(null);
   const [vehicleOptions, setVehicleOptions] = useState<VehicleOption[]>(vehicleOptionsProp ?? []);
 
-  // Fetch vehicles when the modal opens (only if not pre-loaded)
   useEffect(() => {
     if (!open || vehicleOptionsProp) return;
     fetch("/api/vehicles?limit=200", { cache: "no-store" })
@@ -94,105 +97,38 @@ export function FuelPurchaseModal({ vehicleOptions: vehicleOptionsProp, onSucces
     }
   }
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button
         onClick={() => setOpen(true)}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "8px 14px",
-          background: "var(--amber)",
-          color: "#fff",
-          border: "none",
-          borderRadius: "var(--r-md, 6px)",
-          fontSize: "13px",
-          fontWeight: 600,
-          fontFamily: "Manrope, sans-serif",
-          cursor: "pointer",
-          transition: "background 80ms ease-out",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--amber-dark, #d97706)")}
-        onMouseLeave={(e) => (e.currentTarget.style.background = "var(--amber)")}
+        className="inline-flex items-center gap-1.5 h-[38px] px-3.5 border-none rounded-md bg-amber text-white text-[13px] font-bold cursor-pointer hover:bg-amber-dark transition-colors duration-100"
       >
         <Plus size={15} />
         Registar Abastecimento
       </button>
-    );
-  }
 
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 50,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(0,0,0,0.5)",
-        padding: 16,
-      }}
-    >
-      <div
-        style={{
-          background: "var(--surface)",
-          borderRadius: "var(--r-lg, 10px)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
-          width: "100%",
-          maxWidth: 520,
-          padding: 24,
-          fontFamily: "Manrope, sans-serif",
-        }}
+      <ModalDialog
+        open={open}
+        onClose={handleClose}
+        title="Registar Abastecimento Externo"
+        className="modal-wide"
       >
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-          <h2 style={{ fontSize: "16px", fontWeight: 700, color: "var(--ink)", margin: 0 }}>
-            Registar Abastecimento Externo
-          </h2>
-          <button
-            type="button"
-            onClick={handleClose}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: "var(--muted)",
-              display: "flex",
-              padding: 4,
-            }}
-          >
-            <X size={18} />
-          </button>
-        </div>
+        <div className="px-6 pb-6 pt-4 flex flex-col gap-4">
+          {error && (
+            <div className="px-3 py-2 bg-error-bg border border-error-border rounded-md text-[13px] text-error">
+              {error}
+            </div>
+          )}
 
-        {error && (
-          <div
-            style={{
-              background: "var(--error-bg, #fee2e2)",
-              border: "1px solid rgba(239,68,68,0.3)",
-              borderRadius: 6,
-              padding: "8px 12px",
-              fontSize: "13px",
-              color: "var(--error, #dc2626)",
-              marginBottom: 16,
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* Vehicle */}
             <div>
-              <label style={labelStyle}>Viatura *</label>
+              <label className={labelCls}>Viatura *</label>
               <select
                 required
                 value={form.vehicle_id ?? ""}
                 onChange={(e) => setForm((f) => ({ ...f, vehicle_id: e.target.value }))}
-                style={inputStyle}
+                className={inputCls}
               >
                 <option value="">Seleccionar viatura</option>
                 {vehicleOptions.map((v) => (
@@ -203,8 +139,8 @@ export function FuelPurchaseModal({ vehicleOptions: vehicleOptionsProp, onSucces
               </select>
             </div>
 
-            {/* Supplier — ThirdPartyCombobox + free-text fallback */}
-            <div>
+            {/* Supplier combobox + free-text fallback */}
+            <div className="flex flex-col gap-2">
               <ThirdPartyCombobox
                 roleType="supplier"
                 value={form.supplier_third_party_id ?? null}
@@ -219,70 +155,62 @@ export function FuelPurchaseModal({ vehicleOptions: vehicleOptionsProp, onSucces
                       supplier_name: sel.name,
                     }));
                   } else {
-                    setForm((f) => ({
-                      ...f,
-                      supplier_third_party_id: null,
-                    }));
+                    setForm((f) => ({ ...f, supplier_third_party_id: null }));
                   }
                 }}
               />
-              {/* Free-text fallback when no registered supplier selected */}
               {!form.supplier_third_party_id && (
                 <input
                   type="text"
                   placeholder="Ou escrever nome do posto (texto livre)"
                   value={form.supplier_name ?? ""}
                   onChange={(e) => setForm((f) => ({ ...f, supplier_name: e.target.value }))}
-                  style={{ ...inputStyle, marginTop: 8 }}
+                  className={inputCls}
                 />
               )}
             </div>
 
             {/* Liters + Unit cost */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label style={labelStyle}>Litros *</label>
+                <label className={labelCls}>Litros *</label>
                 <input
                   required
                   type="number"
                   step="0.01"
                   min="0"
                   value={form.liters ?? ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, liters: parseFloat(e.target.value) }))
-                  }
-                  style={inputStyle}
+                  onChange={(e) => setForm((f) => ({ ...f, liters: parseFloat(e.target.value) }))}
+                  className={inputCls}
                 />
               </div>
               <div>
-                <label style={labelStyle}>Custo unitário (MZN) *</label>
+                <label className={labelCls}>Custo unitário (MZN) *</label>
                 <input
                   required
                   type="number"
                   step="0.01"
                   min="0"
                   value={form.unit_cost ?? ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, unit_cost: parseFloat(e.target.value) }))
-                  }
-                  style={{ ...inputStyle, fontFamily: "IBM Plex Mono, monospace" }}
+                  onChange={(e) => setForm((f) => ({ ...f, unit_cost: parseFloat(e.target.value) }))}
+                  className={`${inputCls} font-mono`}
                 />
               </div>
             </div>
 
             {/* Station + Odometer */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label style={labelStyle}>Posto / Estação</label>
+                <label className={labelCls}>Posto / Estação</label>
                 <input
                   type="text"
                   value={form.station ?? ""}
                   onChange={(e) => setForm((f) => ({ ...f, station: e.target.value }))}
-                  style={inputStyle}
+                  className={inputCls}
                 />
               </div>
               <div>
-                <label style={labelStyle}>Odómetro (km)</label>
+                <label className={labelCls}>Odómetro (km)</label>
                 <input
                   type="number"
                   min="0"
@@ -293,96 +221,41 @@ export function FuelPurchaseModal({ vehicleOptions: vehicleOptionsProp, onSucces
                       odometer_km: e.target.value ? parseInt(e.target.value) : null,
                     }))
                   }
-                  style={{ ...inputStyle, fontFamily: "IBM Plex Mono, monospace" }}
+                  className={`${inputCls} font-mono`}
                 />
               </div>
             </div>
 
             {/* Notes */}
             <div>
-              <label style={labelStyle}>Observações</label>
+              <label className={labelCls}>Observações</label>
               <textarea
                 rows={2}
                 value={form.notes ?? ""}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                style={{ ...inputStyle, resize: "vertical", minHeight: 60 }}
+                className={`${inputCls} resize-y min-h-[60px]`}
               />
             </div>
-          </div>
 
-          {/* Actions */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 10,
-              marginTop: 20,
-              paddingTop: 16,
-              borderTop: "1px solid var(--border)",
-            }}
-          >
-            <button type="button" onClick={handleClose} style={ghostBtnStyle}>
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                padding: "8px 18px",
-                background: submitting ? "var(--muted)" : "var(--amber)",
-                color: "#fff",
-                border: "none",
-                borderRadius: "var(--r-md, 6px)",
-                fontSize: "13px",
-                fontWeight: 600,
-                fontFamily: "Manrope, sans-serif",
-                cursor: submitting ? "not-allowed" : "pointer",
-                transition: "background 80ms ease-out",
-              }}
-            >
-              {submitting ? "A guardar..." : "Registar"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+            <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="px-4 py-2 border border-border rounded-md bg-transparent text-muted text-[13px] font-semibold cursor-pointer hover:bg-surface-2 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-4 py-2 rounded-md bg-amber text-white border-none text-[13px] font-bold cursor-pointer hover:bg-amber-dark transition-colors disabled:bg-muted disabled:cursor-not-allowed"
+              >
+                {submitting ? "A guardar..." : "Registar"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </ModalDialog>
+    </>
   );
 }
-
-// ── Shared style tokens ───────────────────────────────────────────────────────
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: "11px",
-  fontWeight: 600,
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-  color: "var(--muted)",
-  marginBottom: 4,
-  fontFamily: "Manrope, sans-serif",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  minHeight: "38px",
-  padding: "0 10px",
-  border: "1px solid var(--border-strong)",
-  borderRadius: "var(--r-md, 6px)",
-  background: "var(--surface)",
-  color: "var(--ink)",
-  fontSize: "13px",
-  fontFamily: "Manrope, sans-serif",
-  boxSizing: "border-box",
-  outline: "none",
-};
-
-const ghostBtnStyle: React.CSSProperties = {
-  padding: "8px 16px",
-  background: "transparent",
-  color: "var(--muted)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--r-md, 6px)",
-  fontSize: "13px",
-  fontFamily: "Manrope, sans-serif",
-  cursor: "pointer",
-};

@@ -23,7 +23,7 @@ export function FuelControlBoard({ result }: FuelControlBoardProps) {
         title="Fuel Control Board"
         description="Stock teórico por movimento, compras pendentes e risco de autonomia."
         actions={
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex items-center gap-2.5">
             <DataSourceBadge source={result.source} message={result.message ?? undefined} />
             <FuelPurchaseModal />
           </div>

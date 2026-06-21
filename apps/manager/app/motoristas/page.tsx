@@ -62,7 +62,7 @@ export default async function MotoristasPage() {
                   return (
                     <tr key={d.id}>
                       <td>
-                        <Link href={`/motoristas/${d.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                        <Link href={`/motoristas/${d.id}`} className="no-underline text-inherit">
                           <span className="driver-name">
                             <User size={14} />
                             {d.full_name}

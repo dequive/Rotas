@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { ModalDialog } from "@/app/components/ui/ModalDialog";
+import { cn } from "@/lib/utils";
 
 interface VehicleInsurancePolicy {
   id: string;
@@ -40,43 +42,23 @@ const COVERAGE_LABELS: Record<string, string> = {
   cargo: "Cargo",
 };
 
-function insuranceStatus(
-  validUntil: string,
-): "vigente" | "a_renovar" | "expirado" {
-  const today = new Date();
-  const expiry = new Date(validUntil);
-  const days = Math.floor((expiry.getTime() - today.getTime()) / 86400000);
+function insuranceStatus(validUntil: string): "vigente" | "a_renovar" | "expirado" {
+  const days = Math.floor((new Date(validUntil).getTime() - Date.now()) / 86400000);
   if (days < 0) return "expirado";
   if (days <= 30) return "a_renovar";
   return "vigente";
 }
 
-function StatusDot({
-  status,
-}: {
-  status: "vigente" | "a_renovar" | "expirado";
-}) {
+function StatusDot({ status }: { status: "vigente" | "a_renovar" | "expirado" }) {
   const map = {
-    vigente: {
-      dot: "bg-green-500",
-      label: "Vigente",
-      text: "text-green-700",
-    },
-    a_renovar: {
-      dot: "bg-amber-400",
-      label: "A renovar",
-      text: "text-amber-700",
-    },
-    expirado: {
-      dot: "bg-red-500",
-      label: "Expirado",
-      text: "text-red-700",
-    },
+    vigente: { dot: "bg-success", label: "Vigente", text: "text-success" },
+    a_renovar: { dot: "bg-amber", label: "A renovar", text: "text-warning" },
+    expirado: { dot: "bg-error", label: "Expirado", text: "text-error" },
   };
   const { dot, label, text } = map[status];
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${text}`}>
-      <span className={`w-2 h-2 rounded-full ${dot}`} />
+    <span className={cn("inline-flex items-center gap-1.5 text-xs font-semibold", text)}>
+      <span className={cn("w-2 h-2 rounded-full", dot)} />
       {label}
     </span>
   );
@@ -100,6 +82,11 @@ function getApiBase(): string {
     (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "")
   );
 }
+
+const inputCls =
+  "w-full border border-border-strong rounded-md px-3 py-2 text-[13px] bg-surface text-ink focus:outline-none focus:border-amber focus:ring-2 focus:ring-amber/20 box-border";
+const labelCls =
+  "block text-[11px] font-semibold uppercase tracking-wide text-muted mb-1";
 
 export default function InsuranceTab({ vehicleId }: { vehicleId: string }) {
   const [insurances, setInsurances] = useState<VehicleInsurancePolicy[]>([]);
@@ -152,9 +139,7 @@ export default function InsuranceTab({ vehicleId }: { vehicleId: string }) {
           detail?: string;
           error?: { message?: string };
         };
-        throw new Error(
-          err.error?.message ?? err.detail ?? "Erro ao registar apólice",
-        );
+        throw new Error(err.error?.message ?? err.detail ?? "Erro ao registar apólice");
       }
       setShowModal(false);
       setForm(EMPTY_FORM);
@@ -169,127 +154,50 @@ export default function InsuranceTab({ vehicleId }: { vehicleId: string }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-[21px] font-extrabold text-ink">
-          Apólices de Seguro
-        </h2>
+        <h2 className="text-[21px] font-extrabold text-ink">Apólices de Seguro</h2>
         <button
           onClick={() => {
             setShowModal(true);
             setError(null);
           }}
-          className="px-4 py-2 text-sm font-semibold rounded-md text-white transition-colors"
-          style={{
-            background: "var(--amber, #f59e0b)",
-            borderRadius: "var(--r-md)",
-          }}
-          onMouseEnter={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.background =
-              "var(--amber-dark, #d97706)")
-          }
-          onMouseLeave={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.background =
-              "var(--amber, #f59e0b)")
-          }
+          className="h-[38px] px-4 rounded-md bg-amber text-white text-[13px] font-bold border-none cursor-pointer hover:bg-amber-dark transition-colors duration-100"
         >
           + Registar Apólice
         </button>
       </div>
 
-      {error && !showModal && (
-        <p className="text-red-600 text-sm mb-3">{error}</p>
-      )}
+      {error && !showModal && <p className="text-error text-sm mb-3">{error}</p>}
 
-      {/* Policy list */}
       {loading ? (
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border-color)",
-            borderRadius: "var(--r-lg, 8px)",
-            padding: "32px",
-            textAlign: "center",
-            fontSize: "13px",
-            color: "var(--muted-color)",
-            fontFamily: "Manrope, sans-serif",
-          }}
-        >
+        <div className="bg-surface border border-border rounded-lg px-8 py-8 text-center text-[13px] text-muted">
           A carregar...
         </div>
       ) : insurances.length === 0 ? (
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border-color)",
-            borderRadius: "var(--r-lg, 8px)",
-            padding: "32px",
-            textAlign: "center",
-          }}
-        >
-          <p
-            style={{
-              fontWeight: 700,
-              fontSize: "14px",
-              color: "var(--ink)",
-              marginBottom: 4,
-              fontFamily: "Manrope, sans-serif",
-            }}
-          >
-            Sem apólices registadas
-          </p>
-          <p
-            style={{
-              fontSize: "13px",
-              color: "var(--muted-color)",
-              fontFamily: "Manrope, sans-serif",
-            }}
-          >
-            Clique em &ldquo;Registar Apólice&rdquo; para adicionar a primeira
-            apólice.
+        <div className="bg-surface border border-border rounded-lg px-8 py-8 text-center">
+          <p className="font-bold text-[14px] text-ink mb-1">Sem apólices registadas</p>
+          <p className="text-[13px] text-muted">
+            Clique em &ldquo;Registar Apólice&rdquo; para adicionar a primeira apólice.
           </p>
         </div>
       ) : (
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border-color)",
-            borderRadius: "var(--r-lg, 8px)",
-            overflow: "hidden",
-          }}
-        >
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: "13px",
-              fontFamily: "Manrope, sans-serif",
-            }}
-          >
+        <div className="bg-surface border border-border rounded-lg overflow-hidden">
+          <table className="w-full border-collapse text-[13px]">
             <thead>
-              <tr
-                style={{
-                  borderBottom: "1px solid var(--border-color)",
-                  background: "var(--surface-2)",
-                }}
-              >
+              <tr className="border-b border-border bg-surface-2">
                 {[
-                  { label: "Apólice", align: "left" },
-                  { label: "Seguradora", align: "left" },
-                  { label: "Cobertura", align: "left" },
-                  { label: "Prémio (MZN)", align: "right" },
-                  { label: "Validade", align: "left" },
-                  { label: "Estado", align: "left" },
+                  { label: "Apólice", right: false },
+                  { label: "Seguradora", right: false },
+                  { label: "Cobertura", right: false },
+                  { label: "Prémio (MZN)", right: true },
+                  { label: "Validade", right: false },
+                  { label: "Estado", right: false },
                 ].map((h) => (
                   <th
                     key={h.label}
-                    style={{
-                      padding: "10px 14px",
-                      textAlign: h.align as "left" | "right",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      textTransform: "uppercase" as const,
-                      letterSpacing: "0.05em",
-                      color: "var(--muted-color)",
-                    }}
+                    className={cn(
+                      "px-3.5 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted",
+                      h.right ? "text-right" : "text-left",
+                    )}
                   >
                     {h.label}
                   </th>
@@ -300,62 +208,21 @@ export default function InsuranceTab({ vehicleId }: { vehicleId: string }) {
               {insurances.map((ins) => {
                 const status = insuranceStatus(ins.valid_until);
                 return (
-                  <tr
-                    key={ins.id}
-                    style={{ borderBottom: "1px solid var(--border-color)" }}
-                  >
-                    <td
-                      style={{
-                        padding: "10px 14px",
-                        fontFamily: "IBM Plex Mono, monospace",
-                        fontSize: "12px",
-                        color: "var(--ink)",
-                      }}
-                    >
+                  <tr key={ins.id} className="border-b border-border">
+                    <td className="px-3.5 py-2.5 font-mono text-xs text-ink">
                       {ins.policy_number}
                     </td>
-                    <td
-                      style={{
-                        padding: "10px 14px",
-                        fontSize: "13px",
-                        color: "var(--ink)",
-                      }}
-                    >
-                      {ins.insurer}
-                    </td>
-                    <td
-                      style={{
-                        padding: "10px 14px",
-                        fontSize: "13px",
-                        color: "var(--ink)",
-                      }}
-                    >
+                    <td className="px-3.5 py-2.5 text-ink">{ins.insurer}</td>
+                    <td className="px-3.5 py-2.5 text-ink">
                       {COVERAGE_LABELS[ins.coverage_type] ?? ins.coverage_type}
                     </td>
-                    <td
-                      style={{
-                        padding: "10px 14px",
-                        textAlign: "right",
-                        fontFamily: "IBM Plex Mono, monospace",
-                        fontSize: "12px",
-                        color: "var(--ink)",
-                      }}
-                    >
-                      {ins.premium_amount.toLocaleString("pt-MZ", {
-                        minimumFractionDigits: 2,
-                      })}
+                    <td className="px-3.5 py-2.5 text-right font-mono text-xs text-ink">
+                      {ins.premium_amount.toLocaleString("pt-MZ", { minimumFractionDigits: 2 })}
                     </td>
-                    <td
-                      style={{
-                        padding: "10px 14px",
-                        fontFamily: "IBM Plex Mono, monospace",
-                        fontSize: "12px",
-                        color: "var(--ink)",
-                      }}
-                    >
+                    <td className="px-3.5 py-2.5 font-mono text-xs text-ink">
                       {new Date(ins.valid_until).toLocaleDateString("pt-MZ")}
                     </td>
-                    <td style={{ padding: "10px 14px" }}>
+                    <td className="px-3.5 py-2.5">
                       <StatusDot status={status} />
                     </td>
                   </tr>
@@ -366,279 +233,123 @@ export default function InsuranceTab({ vehicleId }: { vehicleId: string }) {
         </div>
       )}
 
-      {/* Add Policy Modal */}
-      {showModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(15, 23, 42, 0.45)" }}
-        >
-          <div
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border-color)",
-              borderRadius: "var(--r-xl, 12px)",
-              boxShadow: "var(--shadow-md)",
-              width: "100%",
-              maxWidth: 560,
-            }}
-          >
-            {/* Modal header */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "16px 24px",
-                borderBottom: "1px solid var(--border-color)",
-              }}
-            >
-              <h3
-                style={{
-                  fontSize: "16px",
-                  fontWeight: 700,
-                  fontFamily: "Manrope, sans-serif",
-                  color: "var(--ink)",
-                }}
-              >
-                Registar Apólice
-              </h3>
-              <button
-                onClick={() => {
-                  setShowModal(false);
-                  setError(null);
-                }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: "20px",
-                  cursor: "pointer",
-                  color: "var(--muted-color)",
-                  lineHeight: 1,
-                }}
-              >
-                ×
-              </button>
+      <ModalDialog
+        open={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setError(null);
+          setForm(EMPTY_FORM);
+        }}
+        title="Registar Apólice"
+      >
+        <form onSubmit={(e) => void handleSubmit(e)} className="px-6 pb-6 pt-4 flex flex-col gap-4">
+          {error && (
+            <p className="text-error text-[13px]">{error}</p>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Número da Apólice</label>
+              <input
+                required
+                value={form.policy_number}
+                onChange={(e) => setForm((f) => ({ ...f, policy_number: e.target.value }))}
+                className={inputCls}
+              />
             </div>
-
-            {/* Modal form */}
-            <form
-              onSubmit={(e) => void handleSubmit(e)}
-              style={{ padding: "20px 24px" }}
-            >
-              {error && (
-                <p
-                  style={{
-                    color: "var(--error)",
-                    fontSize: "13px",
-                    marginBottom: 12,
-                  }}
-                >
-                  {error}
-                </p>
-              )}
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 16,
-                  marginBottom: 16,
-                }}
-              >
-                <div>
-                  <label style={labelStyle}>Número da Apólice</label>
-                  <input
-                    required
-                    value={form.policy_number}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, policy_number: e.target.value }))
-                    }
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Seguradora</label>
-                  <input
-                    required
-                    value={form.insurer}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, insurer: e.target.value }))
-                    }
-                    style={inputStyle}
-                  />
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 16,
-                  marginBottom: 16,
-                }}
-              >
-                <div>
-                  <label style={labelStyle}>Cobertura</label>
-                  <select
-                    value={form.coverage_type}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, coverage_type: e.target.value }))
-                    }
-                    style={inputStyle}
-                  >
-                    <option value="civil_liability">
-                      Responsabilidade Civil
-                    </option>
-                    <option value="comprehensive">Multirriscos</option>
-                    <option value="cargo">Cargo</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={labelStyle}>Prémio Anual (MZN)</label>
-                  <input
-                    required
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.premium_amount}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        premium_amount: e.target.value,
-                      }))
-                    }
-                    style={{
-                      ...inputStyle,
-                      fontFamily: "IBM Plex Mono, monospace",
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 16,
-                  marginBottom: 16,
-                }}
-              >
-                <div>
-                  <label style={labelStyle}>Válida De</label>
-                  <input
-                    required
-                    type="date"
-                    value={form.valid_from}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, valid_from: e.target.value }))
-                    }
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Válida Até</label>
-                  <input
-                    required
-                    type="date"
-                    value={form.valid_until}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, valid_until: e.target.value }))
-                    }
-                    style={inputStyle}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <label style={labelStyle}>Notas (opcional)</label>
-                <textarea
-                  rows={2}
-                  value={form.notes}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, notes: e.target.value }))
-                  }
-                  style={{ ...inputStyle, resize: "vertical" }}
-                />
-              </div>
-
-              {/* Footer actions */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 12,
-                  paddingTop: 12,
-                  borderTop: "1px solid var(--border-color)",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    setError(null);
-                    setForm(EMPTY_FORM);
-                  }}
-                  style={{
-                    padding: "8px 16px",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    fontFamily: "Manrope, sans-serif",
-                    border: "1px solid var(--border-strong)",
-                    borderRadius: "var(--r-md, 6px)",
-                    background: "transparent",
-                    color: "var(--muted-color)",
-                    cursor: "pointer",
-                  }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  style={{
-                    padding: "8px 16px",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    fontFamily: "Manrope, sans-serif",
-                    border: "none",
-                    borderRadius: "var(--r-md, 6px)",
-                    background: "var(--amber, #f59e0b)",
-                    color: "white",
-                    cursor: submitting ? "not-allowed" : "pointer",
-                    opacity: submitting ? 0.7 : 1,
-                  }}
-                >
-                  {submitting ? "A guardar..." : "Registar"}
-                </button>
-              </div>
-            </form>
+            <div>
+              <label className={labelCls}>Seguradora</label>
+              <input
+                required
+                value={form.insurer}
+                onChange={(e) => setForm((f) => ({ ...f, insurer: e.target.value }))}
+                className={inputCls}
+              />
+            </div>
           </div>
-        </div>
-      )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Cobertura</label>
+              <select
+                value={form.coverage_type}
+                onChange={(e) => setForm((f) => ({ ...f, coverage_type: e.target.value }))}
+                className={inputCls}
+              >
+                <option value="civil_liability">Responsabilidade Civil</option>
+                <option value="comprehensive">Multirriscos</option>
+                <option value="cargo">Cargo</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Prémio Anual (MZN)</label>
+              <input
+                required
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.premium_amount}
+                onChange={(e) => setForm((f) => ({ ...f, premium_amount: e.target.value }))}
+                className={`${inputCls} font-mono`}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Válida De</label>
+              <input
+                required
+                type="date"
+                value={form.valid_from}
+                onChange={(e) => setForm((f) => ({ ...f, valid_from: e.target.value }))}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Válida Até</label>
+              <input
+                required
+                type="date"
+                value={form.valid_until}
+                onChange={(e) => setForm((f) => ({ ...f, valid_until: e.target.value }))}
+                className={inputCls}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className={labelCls}>Notas (opcional)</label>
+            <textarea
+              rows={2}
+              value={form.notes}
+              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              className={`${inputCls} resize-y`}
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-border">
+            <button
+              type="button"
+              onClick={() => {
+                setShowModal(false);
+                setError(null);
+                setForm(EMPTY_FORM);
+              }}
+              className="px-4 py-2 text-[13px] font-semibold border border-border-strong rounded-md bg-transparent text-muted cursor-pointer hover:bg-surface-2 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-4 py-2 text-[13px] font-bold rounded-md bg-amber text-white border-none cursor-pointer hover:bg-amber-dark transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {submitting ? "A guardar..." : "Registar"}
+            </button>
+          </div>
+        </form>
+      </ModalDialog>
     </div>
   );
 }
-
-// Style constants (avoids repetition in JSX)
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: "11px",
-  fontWeight: 600,
-  color: "var(--muted-color)",
-  marginBottom: 4,
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-  fontFamily: "Manrope, sans-serif",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid var(--border-color)",
-  borderRadius: "var(--r-md, 6px)",
-  padding: "8px 12px",
-  fontSize: "13px",
-  background: "var(--surface)",
-  color: "var(--ink)",
-  boxSizing: "border-box",
-  fontFamily: "Manrope, sans-serif",
-};

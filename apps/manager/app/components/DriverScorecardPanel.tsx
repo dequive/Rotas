@@ -66,7 +66,7 @@ export function DriverScorecardPanel({ drivers }: Props) {
         <p>Últimos 30 dias · Score composto</p>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div className="mb-4">
         <select
           aria-label="Seleccionar motorista"
           className="form-select"
@@ -89,33 +89,9 @@ export function DriverScorecardPanel({ drivers }: Props) {
         <div className="transport-kpis">
           {[...Array(5)].map((_, i) => (
             <div className="transport-kpi" key={i}>
-              <span
-                style={{
-                  background: "var(--line)",
-                  height: 16,
-                  borderRadius: 4,
-                  display: "block",
-                  width: "80%",
-                }}
-              />
-              <span
-                style={{
-                  background: "var(--line)",
-                  height: 12,
-                  borderRadius: 4,
-                  display: "block",
-                  width: "60%",
-                }}
-              />
-              <span
-                style={{
-                  background: "var(--line)",
-                  height: 21,
-                  borderRadius: 4,
-                  display: "block",
-                  width: "40%",
-                }}
-              />
+              <span className="bg-surface-2 h-4 rounded block w-4/5 animate-pulse" />
+              <span className="bg-surface-2 h-3 rounded block w-3/5 animate-pulse" />
+              <span className="bg-surface-2 h-[21px] rounded block w-2/5 animate-pulse" />
             </div>
           ))}
         </div>
@@ -125,12 +101,12 @@ export function DriverScorecardPanel({ drivers }: Props) {
         <div className="transport-kpis">
           {/* Summary card — composite score */}
           <div className="transport-kpi">
-            <User color="var(--blue)" size={16} />
+            <User className="text-ink-2" size={16} />
             <span>Score composto</span>
             {isInsufficient ? (
               <>
                 <span className={tier?.cls ?? "badge"}>{tier?.label}</span>
-                <small style={{ fontSize: 12, color: "var(--muted)" }}>
+                <small className="text-xs text-muted">
                   {scorecard.message ?? "Mínimo 3 viagens em 30 dias para score válido"}
                 </small>
               </>
@@ -148,28 +124,28 @@ export function DriverScorecardPanel({ drivers }: Props) {
 
           {/* Proof de entrega */}
           <div className="transport-kpi">
-            <Package color="var(--blue)" size={16} />
+            <Package className="text-ink-2" size={16} />
             <span>Proof de entrega</span>
             <strong>{scorecard.metrics.delivery_rate.toFixed(1)}%</strong>
           </div>
 
           {/* Disciplina de sync */}
           <div className="transport-kpi">
-            <TrendingUp color="var(--blue)" size={16} />
+            <TrendingUp className="text-ink-2" size={16} />
             <span>Disciplina de sync</span>
             <strong>{scorecard.metrics.sync_score.toFixed(1)}</strong>
           </div>
 
           {/* Quilómetros */}
           <div className="transport-kpi">
-            <Truck color="var(--blue)" size={16} />
+            <Truck className="text-ink-2" size={16} />
             <span>Quilómetros</span>
             <strong>{formatKm(scorecard.metrics.total_km)}</strong>
           </div>
 
           {/* Eficiência de paradas */}
           <div className="transport-kpi">
-            <Clock color="var(--blue)" size={16} />
+            <Clock className="text-ink-2" size={16} />
             <span>Eficiência de paradas</span>
             <strong>{scorecard.metrics.stop_score.toFixed(1)}</strong>
           </div>

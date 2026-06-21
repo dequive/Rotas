@@ -33,7 +33,7 @@ export default async function RotasConfigPage() {
       />
 
       {/* Catálogo de destinos */}
-      <section className="panel" style={{ marginBottom: 24 }}>
+      <section className="panel mb-6">
         <div className="section-header">
           <h2 className="section-title">Catálogo de destinos</h2>
           <span>{routes.length} rotas</span>

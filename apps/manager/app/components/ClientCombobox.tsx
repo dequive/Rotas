@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface Client {
   id: string;
@@ -12,7 +13,7 @@ interface Client {
 }
 
 interface ClientComboboxProps {
-  value?: string;              // selected client_id UUID
+  value?: string;
   onChange: (clientId: string, tradingName: string) => void;
   disabled?: boolean;
 }
@@ -27,8 +28,6 @@ export function ClientCombobox({ value, onChange, disabled }: ClientComboboxProp
 
   const selectedClient = clients.find((c) => c.id === value);
 
-  // Fetch clients when popover opens. Fetches from the Next.js API proxy route
-  // (/api/clients) which reads httpOnly cookies server-side and forwards to backend.
   useEffect(() => {
     if (!open) return;
     setLoading(true);
@@ -45,7 +44,6 @@ export function ClientCombobox({ value, onChange, disabled }: ClientComboboxProp
       .finally(() => setLoading(false));
   }, [open]);
 
-  // Focus search input when popover opens
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -72,101 +70,51 @@ export function ClientCombobox({ value, onChange, disabled }: ClientComboboxProp
             aria-expanded={open}
             aria-haspopup="listbox"
             disabled={disabled}
-            style={{
-              width: "100%",
-              minHeight: "38px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "0 10px",
-              border: "1px solid var(--border-strong)",
-              borderRadius: "var(--r-md, 6px)",
-              background: "var(--surface)",
-              color: selectedClient ? "var(--ink)" : "var(--placeholder)",
-              fontSize: "13px",
-              fontFamily: "Manrope, sans-serif",
-              cursor: disabled ? "not-allowed" : "pointer",
-              opacity: disabled ? 0.6 : 1,
-              transition: "border-color 80ms ease-out",
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = "var(--amber)";
-              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(245,158,11,.12)";
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = "var(--border-strong)";
-              e.currentTarget.style.boxShadow = "none";
-            }}
+            className={cn(
+              "w-full min-h-[38px] flex items-center justify-between px-2.5 text-[13px]",
+              "border border-border-strong rounded-md bg-surface transition-colors duration-100",
+              "focus:outline-none focus:border-amber focus:ring-2 focus:ring-amber/20",
+              selectedClient ? "text-ink" : "text-placeholder",
+              disabled && "cursor-not-allowed opacity-60",
+            )}
           >
             <span>{selectedClient ? selectedClient.trading_name : "Pesquisar cliente…"}</span>
-            <ChevronsUpDown size={14} style={{ opacity: 0.5, flexShrink: 0, marginLeft: 8 }} />
+            <ChevronsUpDown size={14} className="opacity-50 flex-shrink-0 ml-2" />
           </button>
         </PopoverTrigger>
 
-        <PopoverContent
-          className="p-0"
-          style={{ width: "320px" }}
-          align="start"
-          sideOffset={4}
-        >
-          {/* Search input */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "8px 10px",
-              borderBottom: "1px solid var(--border)",
-            }}
-          >
-            <Search size={13} style={{ color: "var(--muted)", flexShrink: 0 }} />
+        <PopoverContent className="w-80 p-0" align="start" sideOffset={4}>
+          <div className="flex items-center gap-2 px-2.5 py-2 border-b border-border">
+            <Search size={13} className="text-muted flex-shrink-0" />
             <input
               ref={inputRef}
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Pesquisar cliente…"
-              style={{
-                flex: 1,
-                border: "none",
-                outline: "none",
-                background: "transparent",
-                fontSize: "13px",
-                fontFamily: "Manrope, sans-serif",
-                color: "var(--ink)",
-              }}
+              className="flex-1 border-none outline-none bg-transparent text-[13px] text-ink"
             />
           </div>
 
-          {/* List area */}
-          <div style={{ maxHeight: "240px", overflowY: "auto" }}>
-            {error && (
-              <p style={{ padding: "12px", fontSize: "12px", color: "var(--error)" }}>{error}</p>
-            )}
+          <div className="max-h-60 overflow-y-auto">
+            {error && <p className="p-3 text-xs text-error">{error}</p>}
 
             {loading && !error && (
-              <div style={{ padding: "8px" }}>
+              <div className="p-2 flex flex-col gap-1">
                 {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-8 w-full mb-1" />
+                  <Skeleton key={i} className="h-8 w-full" />
                 ))}
               </div>
             )}
 
             {!loading && !error && filtered.length === 0 && (
-              <p
-                style={{
-                  padding: "12px",
-                  fontSize: "12px",
-                  color: "var(--muted)",
-                  textAlign: "center",
-                }}
-              >
+              <p className="p-3 text-xs text-muted text-center">
                 Nenhum cliente encontrado. Crie um cliente primeiro.
               </p>
             )}
 
             {!loading && !error && filtered.length > 0 && (
-              <ul role="listbox" style={{ listStyle: "none", margin: 0, padding: "4px 0" }}>
+              <ul role="listbox" className="list-none m-0 py-1">
                 {filtered.map((client) => (
                   <li
                     key={client.id}
@@ -176,42 +124,20 @@ export function ClientCombobox({ value, onChange, disabled }: ClientComboboxProp
                       onChange(client.id, client.trading_name);
                       setOpen(false);
                     }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "8px 10px",
-                      cursor: "pointer",
-                      background: value === client.id ? "var(--surface-2)" : "transparent",
-                      transition: "background 80ms ease-out",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--surface-2)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        value === client.id ? "var(--surface-2)" : "transparent";
-                    }}
+                    className={cn(
+                      "flex items-center gap-2 px-2.5 py-2 cursor-pointer hover:bg-surface-2 transition-colors duration-75",
+                      value === client.id ? "bg-surface-2" : "",
+                    )}
                   >
                     <Check
                       size={13}
-                      style={{
-                        flexShrink: 0,
-                        color: "var(--amber)",
-                        opacity: value === client.id ? 1 : 0,
-                      }}
+                      className={cn(
+                        "flex-shrink-0 text-amber",
+                        value === client.id ? "opacity-100" : "opacity-0",
+                      )}
                     />
-                    <span style={{ flex: 1, fontSize: "13px", color: "var(--ink)" }}>
-                      {client.trading_name}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontFamily: "IBM Plex Mono, monospace",
-                        color: "var(--muted)",
-                        flexShrink: 0,
-                      }}
-                    >
+                    <span className="flex-1 text-[13px] text-ink">{client.trading_name}</span>
+                    <span className="text-[11px] font-mono text-muted flex-shrink-0">
                       {client.nuit}
                     </span>
                   </li>
@@ -222,18 +148,8 @@ export function ClientCombobox({ value, onChange, disabled }: ClientComboboxProp
         </PopoverContent>
       </Popover>
 
-      {/* NUIT confirmation below trigger when a client is selected */}
       {selectedClient && (
-        <p
-          style={{
-            fontSize: "11px",
-            fontFamily: "IBM Plex Mono, monospace",
-            color: "var(--muted)",
-            margin: 0,
-          }}
-        >
-          NUIT: {selectedClient.nuit}
-        </p>
+        <p className="text-[11px] font-mono text-muted m-0">NUIT: {selectedClient.nuit}</p>
       )}
     </div>
   );

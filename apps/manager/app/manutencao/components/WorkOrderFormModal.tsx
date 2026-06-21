@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
+import { ModalDialog } from "@/app/components/ui/ModalDialog";
 import { ThirdPartyCombobox } from "@/app/components/ThirdPartyCombobox";
 
 interface VehicleOption {
@@ -21,10 +22,13 @@ interface WorkOrderFormData {
 }
 
 interface WorkOrderFormModalProps {
-  /** Pre-loaded vehicle list. If omitted the modal fetches via /api/vehicles. */
   vehicleOptions?: VehicleOption[];
   onSuccess?: () => void;
 }
+
+const inputCls =
+  "w-full min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-2 focus:ring-amber/20";
+const labelCls = "block text-[11px] font-semibold uppercase tracking-wide text-muted mb-1";
 
 export function WorkOrderFormModal({ vehicleOptions: vehicleOptionsProp, onSuccess }: WorkOrderFormModalProps) {
   const [open, setOpen] = useState(false);
@@ -37,7 +41,6 @@ export function WorkOrderFormModal({ vehicleOptions: vehicleOptionsProp, onSucce
   const [error, setError] = useState<string | null>(null);
   const [vehicleOptions, setVehicleOptions] = useState<VehicleOption[]>(vehicleOptionsProp ?? []);
 
-  // Fetch vehicles when the modal opens (only if not pre-loaded)
   useEffect(() => {
     if (!open || vehicleOptionsProp) return;
     fetch("/api/vehicles?limit=200", { cache: "no-store" })
@@ -99,107 +102,38 @@ export function WorkOrderFormModal({ vehicleOptions: vehicleOptionsProp, onSucce
     }
   }
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button
         onClick={() => setOpen(true)}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "8px 14px",
-          background: "var(--amber)",
-          color: "#fff",
-          border: "none",
-          borderRadius: "var(--r-md, 6px)",
-          fontSize: "13px",
-          fontWeight: 600,
-          fontFamily: "Manrope, sans-serif",
-          cursor: "pointer",
-          transition: "background 80ms ease-out",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--amber-dark, #d97706)")}
-        onMouseLeave={(e) => (e.currentTarget.style.background = "var(--amber)")}
+        className="inline-flex items-center gap-1.5 h-[38px] px-3.5 border-none rounded-md bg-amber text-white text-[13px] font-bold cursor-pointer hover:bg-amber-dark transition-colors duration-100"
       >
         <Plus size={15} />
         Nova Ordem de Trabalho
       </button>
-    );
-  }
 
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 50,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(0,0,0,0.5)",
-        padding: 16,
-      }}
-    >
-      <div
-        style={{
-          background: "var(--surface)",
-          borderRadius: "var(--r-lg, 10px)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
-          width: "100%",
-          maxWidth: 540,
-          padding: 24,
-          fontFamily: "Manrope, sans-serif",
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
+      <ModalDialog
+        open={open}
+        onClose={handleClose}
+        title="Nova Ordem de Trabalho"
+        className="modal-wide"
       >
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-          <h2 style={{ fontSize: "16px", fontWeight: 700, color: "var(--ink)", margin: 0 }}>
-            Nova Ordem de Trabalho
-          </h2>
-          <button
-            type="button"
-            onClick={handleClose}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: "var(--muted)",
-              display: "flex",
-              padding: 4,
-            }}
-          >
-            <X size={18} />
-          </button>
-        </div>
+        <div className="px-6 pb-6 pt-4 overflow-y-auto max-h-[70vh]">
+          {error && (
+            <div className="mb-4 px-3 py-2 bg-error-bg border border-error-border rounded-md text-[13px] text-error">
+              {error}
+            </div>
+          )}
 
-        {error && (
-          <div
-            style={{
-              background: "var(--error-bg, #fee2e2)",
-              border: "1px solid rgba(239,68,68,0.3)",
-              borderRadius: 6,
-              padding: "8px 12px",
-              fontSize: "13px",
-              color: "var(--error, #dc2626)",
-              marginBottom: 16,
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* Vehicle */}
             <div>
-              <label style={labelStyle}>Viatura *</label>
+              <label className={labelCls}>Viatura *</label>
               <select
                 required
                 value={form.vehicle_id ?? ""}
                 onChange={(e) => setForm((f) => ({ ...f, vehicle_id: e.target.value }))}
-                style={inputStyle}
+                className={inputCls}
               >
                 <option value="">Seleccionar viatura</option>
                 {vehicleOptions.map((v) => (
@@ -212,33 +146,33 @@ export function WorkOrderFormModal({ vehicleOptions: vehicleOptionsProp, onSucce
 
             {/* Planned work */}
             <div>
-              <label style={labelStyle}>Trabalho Planeado *</label>
+              <label className={labelCls}>Trabalho Planeado *</label>
               <input
                 required
                 type="text"
                 placeholder="Ex: Substituição de filtro de óleo, pastilhas de travão..."
                 value={form.planned_work ?? ""}
                 onChange={(e) => setForm((f) => ({ ...f, planned_work: e.target.value }))}
-                style={inputStyle}
+                className={inputCls}
               />
             </div>
 
             {/* Diagnosis */}
             <div>
-              <label style={labelStyle}>Diagnóstico / Sintoma</label>
+              <label className={labelCls}>Diagnóstico / Sintoma</label>
               <textarea
                 rows={2}
                 placeholder="Descreva o problema observado..."
                 value={form.diagnosis ?? ""}
                 onChange={(e) => setForm((f) => ({ ...f, diagnosis: e.target.value }))}
-                style={{ ...inputStyle, resize: "vertical", minHeight: 60 }}
+                className={`${inputCls} resize-y min-h-[60px]`}
               />
             </div>
 
             {/* Priority + Estimated cost */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label style={labelStyle}>Prioridade</label>
+                <label className={labelCls}>Prioridade</label>
                 <select
                   value={form.priority ?? "normal"}
                   onChange={(e) =>
@@ -247,7 +181,7 @@ export function WorkOrderFormModal({ vehicleOptions: vehicleOptionsProp, onSucce
                       priority: e.target.value as WorkOrderFormData["priority"],
                     }))
                   }
-                  style={inputStyle}
+                  className={inputCls}
                 >
                   <option value="normal">Normal</option>
                   <option value="high">Alta</option>
@@ -255,7 +189,7 @@ export function WorkOrderFormModal({ vehicleOptions: vehicleOptionsProp, onSucce
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Custo Estimado (MZN)</label>
+                <label className={labelCls}>Custo Estimado (MZN)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -267,13 +201,13 @@ export function WorkOrderFormModal({ vehicleOptions: vehicleOptionsProp, onSucce
                       estimated_cost: e.target.value ? parseFloat(e.target.value) : null,
                     }))
                   }
-                  style={{ ...inputStyle, fontFamily: "IBM Plex Mono, monospace" }}
+                  className={`${inputCls} font-mono`}
                 />
               </div>
             </div>
 
-            {/* Service Provider — ThirdPartyCombobox */}
-            <div>
+            {/* Service Provider */}
+            <div className="flex flex-col gap-1.5">
               <ThirdPartyCombobox
                 roleType="service_provider"
                 value={form.service_provider_third_party_id ?? null}
@@ -296,17 +230,8 @@ export function WorkOrderFormModal({ vehicleOptions: vehicleOptionsProp, onSucce
                   }
                 }}
               />
-              {/* Confirmation of selected provider */}
               {form.service_provider_third_party_id && (
-                <p
-                  style={{
-                    fontSize: "11px",
-                    fontFamily: "IBM Plex Mono, monospace",
-                    color: "var(--muted)",
-                    marginTop: 4,
-                    margin: "4px 0 0",
-                  }}
-                >
+                <p className="text-[11px] font-mono text-muted m-0">
                   ID: {form.service_provider_third_party_id}
                 </p>
               )}
@@ -314,89 +239,34 @@ export function WorkOrderFormModal({ vehicleOptions: vehicleOptionsProp, onSucce
 
             {/* Notes */}
             <div>
-              <label style={labelStyle}>Notas Adicionais</label>
+              <label className={labelCls}>Notas Adicionais</label>
               <textarea
                 rows={2}
                 value={form.notes ?? ""}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                style={{ ...inputStyle, resize: "vertical", minHeight: 60 }}
+                className={`${inputCls} resize-y min-h-[60px]`}
               />
             </div>
-          </div>
 
-          {/* Actions */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 10,
-              marginTop: 20,
-              paddingTop: 16,
-              borderTop: "1px solid var(--border)",
-            }}
-          >
-            <button type="button" onClick={handleClose} style={ghostBtnStyle}>
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                padding: "8px 18px",
-                background: submitting ? "var(--muted)" : "var(--amber)",
-                color: "#fff",
-                border: "none",
-                borderRadius: "var(--r-md, 6px)",
-                fontSize: "13px",
-                fontWeight: 600,
-                fontFamily: "Manrope, sans-serif",
-                cursor: submitting ? "not-allowed" : "pointer",
-                transition: "background 80ms ease-out",
-              }}
-            >
-              {submitting ? "A criar..." : "Criar Ordem"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+            <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="px-4 py-2 border border-border rounded-md bg-transparent text-muted text-[13px] font-semibold cursor-pointer hover:bg-surface-2 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-4 py-2 rounded-md bg-amber text-white border-none text-[13px] font-bold cursor-pointer hover:bg-amber-dark transition-colors disabled:bg-muted disabled:cursor-not-allowed"
+              >
+                {submitting ? "A criar..." : "Criar Ordem"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </ModalDialog>
+    </>
   );
 }
-
-// ── Shared style tokens ───────────────────────────────────────────────────────
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: "11px",
-  fontWeight: 600,
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-  color: "var(--muted)",
-  marginBottom: 4,
-  fontFamily: "Manrope, sans-serif",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  minHeight: "38px",
-  padding: "0 10px",
-  border: "1px solid var(--border-strong)",
-  borderRadius: "var(--r-md, 6px)",
-  background: "var(--surface)",
-  color: "var(--ink)",
-  fontSize: "13px",
-  fontFamily: "Manrope, sans-serif",
-  boxSizing: "border-box",
-  outline: "none",
-};
-
-const ghostBtnStyle: React.CSSProperties = {
-  padding: "8px 16px",
-  background: "transparent",
-  color: "var(--muted)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--r-md, 6px)",
-  fontSize: "13px",
-  fontFamily: "Manrope, sans-serif",
-  cursor: "pointer",
-};

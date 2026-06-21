@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ThirdPartyOption {
   id: string;
@@ -11,8 +12,8 @@ interface ThirdPartyOption {
 
 interface ThirdPartyComboboxProps {
   roleType: "supplier" | "service_provider" | "client";
-  value: string | null; // currently selected third_party_id
-  displayValue: string | null; // free-text snapshot to show when no id selected
+  value: string | null;
+  displayValue: string | null;
   onChange: (selected: { id: string; name: string } | null) => void;
   placeholder?: string;
   label?: string;
@@ -36,7 +37,6 @@ export function ThirdPartyCombobox({
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch options from the Next.js proxy route (avoids httpOnly cookie issue)
   useEffect(() => {
     if (!open) return;
     setLoading(true);
@@ -49,7 +49,6 @@ export function ThirdPartyCombobox({
         return r.json();
       })
       .then((data) => {
-        // Backend returns array or { items: [] }
         const items = Array.isArray(data) ? data : (data.items ?? []);
         setOptions(items);
       })
@@ -60,7 +59,6 @@ export function ThirdPartyCombobox({
       .finally(() => setLoading(false));
   }, [open, search, roleType]);
 
-  // Focus search input when dropdown opens
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -69,7 +67,6 @@ export function ThirdPartyCombobox({
     }
   }, [open]);
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -95,198 +92,88 @@ export function ThirdPartyCombobox({
   return (
     <div className="relative" ref={ref}>
       {label && (
-        <label
-          style={{
-            display: "block",
-            fontSize: "11px",
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            color: "var(--muted)",
-            marginBottom: "4px",
-            fontFamily: "Manrope, sans-serif",
-          }}
-        >
+        <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted mb-1">
           {label}
         </label>
       )}
 
-      {/* Trigger button */}
       <button
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen((o) => !o)}
-        style={{
-          width: "100%",
-          minHeight: "38px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 10px",
-          border: "1px solid var(--border-strong)",
-          borderRadius: "var(--r-md, 6px)",
-          background: "var(--surface)",
-          color: displayText ? "var(--ink)" : "var(--placeholder)",
-          fontSize: "13px",
-          fontFamily: "Manrope, sans-serif",
-          cursor: disabled ? "not-allowed" : "pointer",
-          opacity: disabled ? 0.6 : 1,
-          transition: "border-color 80ms ease-out",
-          gap: 8,
-          textAlign: "left",
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = "var(--amber)";
-          e.currentTarget.style.boxShadow = "0 0 0 3px rgba(245,158,11,.12)";
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = "var(--border-strong)";
-          e.currentTarget.style.boxShadow = "none";
-        }}
+        className={cn(
+          "w-full min-h-[38px] flex items-center justify-between gap-2 px-2.5 text-left text-[13px]",
+          "border border-border-strong rounded-md bg-surface transition-colors duration-100",
+          "focus:outline-none focus:border-amber focus:ring-2 focus:ring-amber/20",
+          displayText ? "text-ink" : "text-placeholder",
+          disabled && "cursor-not-allowed opacity-60",
+        )}
       >
-        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
           {displayText || placeholder}
         </span>
-        <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+        <span className="flex items-center gap-1 flex-shrink-0">
           {value && (
             <span
               onClick={handleClear}
-              style={{ color: "var(--muted)", cursor: "pointer", display: "flex" }}
+              className="text-muted cursor-pointer flex"
               title="Limpar selecção"
             >
               <X size={12} />
             </span>
           )}
-          <ChevronDown size={14} style={{ color: "var(--muted)" }} />
+          <ChevronDown size={14} className="text-muted" />
         </span>
       </button>
 
-      {/* Dropdown */}
       {open && (
-        <div
-          style={{
-            position: "absolute",
-            zIndex: 50,
-            top: "100%",
-            marginTop: 4,
-            width: "100%",
-            minWidth: 240,
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--r-md, 6px)",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-            maxHeight: 280,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          {/* Search input */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "8px 10px",
-              borderBottom: "1px solid var(--border)",
-            }}
-          >
-            <Search size={13} style={{ color: "var(--muted)", flexShrink: 0 }} />
+        <div className="absolute z-50 top-full mt-1 w-full min-w-60 bg-surface border border-border rounded-md shadow-lg max-h-[280px] flex flex-col overflow-hidden">
+          <div className="flex items-center gap-2 px-2.5 py-2 border-b border-border">
+            <Search size={13} className="text-muted flex-shrink-0" />
             <input
               ref={inputRef}
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Pesquisar nome..."
-              style={{
-                flex: 1,
-                border: "none",
-                outline: "none",
-                background: "transparent",
-                fontSize: "13px",
-                fontFamily: "Manrope, sans-serif",
-                color: "var(--ink)",
-              }}
+              className="flex-1 border-none outline-none bg-transparent text-[13px] text-ink"
             />
           </div>
 
-          {/* Options list */}
-          <div style={{ overflowY: "auto", flex: 1 }}>
-            {error && (
-              <p style={{ padding: "12px", fontSize: "12px", color: "var(--error)" }}>{error}</p>
-            )}
+          <div className="overflow-y-auto flex-1">
+            {error && <p className="p-3 text-xs text-error">{error}</p>}
 
             {loading && !error && (
-              <p style={{ padding: "12px", fontSize: "12px", color: "var(--muted)" }}>
-                A carregar...
-              </p>
+              <p className="p-3 text-xs text-muted">A carregar...</p>
             )}
 
             {!loading && !error && options.length === 0 && (
-              <p
-                style={{
-                  padding: "12px",
-                  fontSize: "12px",
-                  color: "var(--muted)",
-                  textAlign: "center",
-                }}
-              >
-                Nenhum resultado
-              </p>
+              <p className="p-3 text-xs text-muted text-center">Nenhum resultado</p>
             )}
 
             {!loading && !error && options.length > 0 && (
-              <ul role="listbox" style={{ listStyle: "none", margin: 0, padding: "4px 0" }}>
+              <ul role="listbox" className="list-none m-0 py-1">
                 {options.map((opt) => (
                   <li
                     key={opt.id}
                     role="option"
                     aria-selected={opt.id === value}
                     onClick={() => handleSelect(opt)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "8px 10px",
-                      cursor: "pointer",
-                      background: opt.id === value ? "rgba(245,158,11,0.08)" : "transparent",
-                      transition: "background 80ms ease-out",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--surface-2)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        opt.id === value ? "rgba(245,158,11,0.08)" : "transparent";
-                    }}
+                    className={cn(
+                      "flex items-center gap-2 px-2.5 py-2 cursor-pointer hover:bg-surface-2 transition-colors duration-75",
+                      opt.id === value ? "bg-amber/10" : "",
+                    )}
                   >
                     <Check
                       size={13}
-                      style={{
-                        flexShrink: 0,
-                        color: "var(--amber)",
-                        opacity: opt.id === value ? 1 : 0,
-                      }}
+                      className={cn(
+                        "flex-shrink-0 text-amber",
+                        opt.id === value ? "opacity-100" : "opacity-0",
+                      )}
                     />
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: "13px",
-                        color: "var(--ink)",
-                        fontFamily: "Manrope, sans-serif",
-                      }}
-                    >
-                      {opt.name}
-                    </span>
+                    <span className="flex-1 text-[13px] text-ink">{opt.name}</span>
                     {opt.tax_id && (
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          fontFamily: "IBM Plex Mono, monospace",
-                          color: "var(--muted)",
-                          flexShrink: 0,
-                        }}
-                      >
+                      <span className="text-[11px] font-mono text-muted flex-shrink-0">
                         {opt.tax_id}
                       </span>
                     )}

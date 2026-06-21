@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { cn } from "@/lib/utils";
 
 interface LedgerEntry {
   id: string;
@@ -58,11 +59,10 @@ function fmt(v: string, currency = "MZN") {
   });
 }
 
-export default function ContaCorrenteTab({
-  thirdPartyId,
-}: {
-  thirdPartyId: string;
-}) {
+const dateCls =
+  "h-9 px-2.5 border border-border rounded-md text-[13px] font-mono text-ink bg-surface focus:outline-none focus:border-amber focus:ring-2 focus:ring-amber/20";
+
+export default function ContaCorrenteTab({ thirdPartyId }: { thirdPartyId: string }) {
   const [account, setAccount] = useState<AccountData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -141,55 +141,23 @@ export default function ContaCorrenteTab({
   const balanceNum = parseFloat(account?.balance ?? "0");
 
   return (
-    <div
-      style={{
-        marginTop: 16,
-        background: "var(--surface)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--r-lg, 10px)",
-        padding: 24,
-      }}
-    >
+    <div className="mt-4 bg-surface border border-border rounded-lg p-6">
       {/* Header row */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 16,
-        }}
-      >
-        <h2
-          style={{
-            fontSize: "16px",
-            fontWeight: 600,
-            fontFamily: "Manrope, sans-serif",
-            color: "var(--ink)",
-            margin: 0,
-          }}
-        >
-          Conta Corrente
-        </h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-base font-semibold text-ink m-0">Conta Corrente</h2>
         <button
           onClick={handleExportPdf}
           disabled={exporting || loading}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "6px 14px",
-            borderRadius: "var(--r-md, 6px)",
-            border: "1px solid var(--border)",
-            background: "var(--surface)",
-            color: "var(--ink)",
-            fontSize: "13px",
-            fontFamily: "Manrope, sans-serif",
-            fontWeight: 600,
-            cursor: exporting || loading ? "not-allowed" : "pointer",
-            opacity: exporting || loading ? 0.6 : 1,
-          }}
+          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md border border-border bg-surface text-ink text-[13px] font-semibold cursor-pointer hover:bg-surface-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
           </svg>
           {exporting ? "A gerar..." : "Exportar PDF"}
@@ -199,86 +167,29 @@ export default function ContaCorrenteTab({
       {/* Period filter */}
       <form
         onSubmit={handleFilter}
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          gap: 10,
-          marginBottom: 20,
-          padding: "12px 16px",
-          background: "var(--bg, #f9fafb)",
-          borderRadius: "var(--r-md, 6px)",
-          border: "1px solid var(--border)",
-        }}
+        className="flex items-end gap-2.5 mb-5 px-4 py-3 bg-surface-2 rounded-md border border-border"
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label
-            style={{
-              fontSize: "11px",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-              color: "var(--muted)",
-              fontFamily: "Manrope, sans-serif",
-            }}
-          >
-            De
-          </label>
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-semibold uppercase tracking-wide text-muted">De</label>
           <input
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            style={{
-              padding: "6px 10px",
-              borderRadius: "var(--r-sm, 4px)",
-              border: "1px solid var(--border)",
-              fontSize: "13px",
-              fontFamily: "IBM Plex Mono, monospace",
-              color: "var(--ink)",
-              background: "var(--surface)",
-            }}
+            className={dateCls}
           />
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label
-            style={{
-              fontSize: "11px",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-              color: "var(--muted)",
-              fontFamily: "Manrope, sans-serif",
-            }}
-          >
-            Até
-          </label>
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-semibold uppercase tracking-wide text-muted">Até</label>
           <input
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            style={{
-              padding: "6px 10px",
-              borderRadius: "var(--r-sm, 4px)",
-              border: "1px solid var(--border)",
-              fontSize: "13px",
-              fontFamily: "IBM Plex Mono, monospace",
-              color: "var(--ink)",
-              background: "var(--surface)",
-            }}
+            className={dateCls}
           />
         </div>
         <button
           type="submit"
-          style={{
-            padding: "7px 16px",
-            borderRadius: "var(--r-md, 6px)",
-            border: "none",
-            background: "var(--amber, #f59e0b)",
-            color: "#000",
-            fontSize: "13px",
-            fontFamily: "Manrope, sans-serif",
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
+          className="h-9 px-4 rounded-md border-none bg-amber text-ink text-[13px] font-bold cursor-pointer hover:bg-amber-dark transition-colors"
         >
           Filtrar
         </button>
@@ -286,226 +197,104 @@ export default function ContaCorrenteTab({
           <button
             type="button"
             onClick={handleClear}
-            style={{
-              padding: "7px 12px",
-              borderRadius: "var(--r-md, 6px)",
-              border: "1px solid var(--border)",
-              background: "transparent",
-              color: "var(--muted)",
-              fontSize: "13px",
-              fontFamily: "Manrope, sans-serif",
-              cursor: "pointer",
-            }}
+            className="h-9 px-3 rounded-md border border-border bg-transparent text-muted text-[13px] cursor-pointer hover:bg-surface transition-colors"
           >
             Limpar
           </button>
         )}
       </form>
 
-      {loading && (
-        <p style={{ fontSize: "13px", color: "var(--muted)", fontFamily: "Manrope, sans-serif" }}>
-          A carregar...
-        </p>
-      )}
-
-      {error && (
-        <p style={{ fontSize: "13px", color: "var(--error, #ef4444)", fontFamily: "Manrope, sans-serif" }}>
-          {error}
-        </p>
-      )}
+      {loading && <p className="text-[13px] text-muted">A carregar...</p>}
+      {error && <p className="text-[13px] text-error">{error}</p>}
 
       {!loading && !error && account && (
         <>
-          {/* Balance hero */}
+          {/* Balance hero — bg color is dynamic based on balance sign */}
           <div
+            className="text-center px-4 py-5 mb-5 rounded-lg"
             style={{
-              textAlign: "center",
-              padding: "20px 16px",
-              marginBottom: 20,
-              borderRadius: "var(--r-lg, 10px)",
-              background:
-                balanceNum >= 0
-                  ? "rgba(34,197,94,0.08)"
-                  : "rgba(239,68,68,0.08)",
+              background: balanceNum >= 0 ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)",
             }}
           >
             {account.opening_balance !== undefined && (
-              <p
-                style={{
-                  fontSize: "11px",
-                  color: "var(--muted)",
-                  fontFamily: "Manrope, sans-serif",
-                  marginBottom: 4,
-                }}
-              >
+              <p className="text-[11px] text-muted mb-1">
                 Saldo abertura:{" "}
-                <span style={{ fontFamily: "IBM Plex Mono, monospace", color: "var(--ink)" }}>
-                  {fmt(account.opening_balance ?? "0")}
-                </span>
+                <span className="font-mono text-ink">{fmt(account.opening_balance ?? "0")}</span>
               </p>
             )}
-            <p
-              style={{
-                fontSize: "11px",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                color: "var(--muted)",
-                marginBottom: 4,
-                fontFamily: "Manrope, sans-serif",
-              }}
-            >
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted mb-1">
               SALDO {account.date_from || account.date_to ? "DO PERÍODO" : "TOTAL"}
             </p>
             <p
-              style={{
-                fontFamily: "IBM Plex Mono, monospace",
-                fontSize: "36px",
-                fontWeight: 500,
-                color: balanceNum >= 0 ? "var(--success, #22c55e)" : "var(--error, #ef4444)",
-                margin: 0,
-              }}
+              className={cn(
+                "font-mono text-4xl font-medium m-0",
+                balanceNum >= 0 ? "text-success" : "text-error",
+              )}
             >
               {balanceNum >= 0 ? "+" : ""}
               {fmt(account.balance)}
             </p>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                gap: 32,
-                marginTop: 10,
-                fontSize: "13px",
-                color: "var(--muted)",
-                fontFamily: "Manrope, sans-serif",
-              }}
-            >
+            <div className="flex justify-center gap-8 mt-2.5 text-[13px] text-muted">
               <span>
                 Débitos:{" "}
-                <span style={{ fontFamily: "IBM Plex Mono, monospace", color: "var(--ink)" }}>
-                  {fmt(account.total_debits)}
-                </span>
+                <span className="font-mono text-ink">{fmt(account.total_debits)}</span>
               </span>
               <span>
                 Créditos:{" "}
-                <span style={{ fontFamily: "IBM Plex Mono, monospace", color: "var(--ink)" }}>
-                  {fmt(account.total_credits)}
-                </span>
+                <span className="font-mono text-ink">{fmt(account.total_credits)}</span>
               </span>
             </div>
           </div>
 
           {/* Movements table */}
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "13px",
-                fontFamily: "Manrope, sans-serif",
-              }}
-            >
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-[13px]">
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["Data", "Tipo", "Origem", "Descrição", "Valor"].map(
-                    (h, i) => (
-                      <th
-                        key={h}
-                        style={{
-                          padding: "8px 12px",
-                          textAlign: i === 4 ? "right" : "left",
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.05em",
-                          color: "var(--muted)",
-                        }}
-                      >
-                        {h}
-                      </th>
-                    ),
-                  )}
+                <tr className="border-b border-border">
+                  {["Data", "Tipo", "Origem", "Descrição", "Valor"].map((h, i) => (
+                    <th
+                      key={h}
+                      className={cn(
+                        "px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted",
+                        i === 4 ? "text-right" : "text-left",
+                      )}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {account.entries.map((e) => (
-                  <tr key={e.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                    <td
-                      style={{
-                        padding: "10px 12px",
-                        fontFamily: "IBM Plex Mono, monospace",
-                        fontSize: "12px",
-                        color: "var(--ink)",
-                      }}
-                    >
-                      {e.entry_date}
-                    </td>
-                    <td style={{ padding: "10px 12px" }}>
+                  <tr key={e.id} className="border-b border-border">
+                    <td className="px-3 py-2.5 font-mono text-xs text-ink">{e.entry_date}</td>
+                    <td className="px-3 py-2.5">
                       <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4,
-                          padding: "2px 8px",
-                          borderRadius: 999,
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          background:
-                            e.entry_type === "credit"
-                              ? "rgba(34,197,94,0.10)"
-                              : "rgba(239,68,68,0.10)",
-                          color:
-                            e.entry_type === "credit"
-                              ? "var(--success, #22c55e)"
-                              : "var(--error, #ef4444)",
-                          fontFamily: "Manrope, sans-serif",
-                        }}
+                        className={cn(
+                          "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold",
+                          e.entry_type === "credit"
+                            ? "bg-success-bg text-success"
+                            : "bg-error-bg text-error",
+                        )}
                       >
                         <span
-                          style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: "50%",
-                            background:
-                              e.entry_type === "credit"
-                                ? "var(--success, #22c55e)"
-                                : "var(--error, #ef4444)",
-                            flexShrink: 0,
-                          }}
+                          className={cn(
+                            "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                            e.entry_type === "credit" ? "bg-success" : "bg-error",
+                          )}
                         />
                         {e.entry_type === "credit" ? "Crédito" : "Débito"}
                       </span>
                     </td>
-                    <td
-                      style={{
-                        padding: "10px 12px",
-                        color: "var(--muted)",
-                        fontSize: "12px",
-                      }}
-                    >
+                    <td className="px-3 py-2.5 text-xs text-muted">
                       {SOURCE_LABELS[e.source_type] ?? e.source_type}
                     </td>
+                    <td className="px-3 py-2.5 text-ink">{e.description ?? "—"}</td>
                     <td
-                      style={{
-                        padding: "10px 12px",
-                        fontSize: "13px",
-                        color: "var(--ink)",
-                      }}
-                    >
-                      {e.description ?? "—"}
-                    </td>
-                    <td
-                      style={{
-                        padding: "10px 12px",
-                        textAlign: "right",
-                        fontFamily: "IBM Plex Mono, monospace",
-                        fontWeight: 600,
-                        fontSize: "13px",
-                        color:
-                          e.entry_type === "credit"
-                            ? "var(--success, #22c55e)"
-                            : "var(--error, #ef4444)",
-                      }}
+                      className={cn(
+                        "px-3 py-2.5 text-right font-mono font-semibold text-[13px]",
+                        e.entry_type === "credit" ? "text-success" : "text-error",
+                      )}
                     >
                       {e.entry_type === "credit" ? "+" : "-"}
                       {fmt(e.amount, e.currency || "MZN")}
@@ -514,16 +303,7 @@ export default function ContaCorrenteTab({
                 ))}
                 {account.entries.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={5}
-                      style={{
-                        padding: "32px 12px",
-                        textAlign: "center",
-                        color: "var(--muted)",
-                        fontSize: "13px",
-                        fontFamily: "Manrope, sans-serif",
-                      }}
-                    >
+                    <td colSpan={5} className="px-3 py-8 text-center text-muted text-[13px]">
                       Sem movimentos no período seleccionado
                     </td>
                   </tr>

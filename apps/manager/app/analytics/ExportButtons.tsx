@@ -107,8 +107,7 @@ export default function ExportButtons({ currentMonth }: ExportButtonsProps) {
         {fuelState === "pending" ? (
           <>
             <span
-              className="inline-block w-3 h-3 border-2 border-t-transparent rounded-full animate-spin"
-              style={{ borderColor: "var(--amber)", borderTopColor: "transparent" }}
+              className="inline-block w-3 h-3 border-2 border-amber border-t-transparent rounded-full animate-spin"
             />
             A gerar XLSX...
           </>
@@ -132,8 +131,7 @@ export default function ExportButtons({ currentMonth }: ExportButtonsProps) {
         {complianceState === "pending" ? (
           <>
             <span
-              className="inline-block w-3 h-3 border-2 border-t-transparent rounded-full animate-spin"
-              style={{ borderColor: "var(--amber)", borderTopColor: "transparent" }}
+              className="inline-block w-3 h-3 border-2 border-amber border-t-transparent rounded-full animate-spin"
             />
             A gerar PDF...
           </>

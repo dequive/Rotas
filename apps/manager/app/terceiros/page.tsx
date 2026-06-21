@@ -3,7 +3,6 @@ import { loadThirdParties } from "@/app/lib/third-party-api";
 import { SidebarLayout } from "@/app/components/SidebarLayout";
 import { StatusBadge } from "@/app/components/ui/StatusBadge";
 import { PageHeader } from "@/app/components/ui/PageHeader";
-import { Button } from "@/app/components/ui/Button";
 import Link from "next/link";
 import { Building2 } from "lucide-react";
 
@@ -21,6 +20,9 @@ export default async function TerceirosPage({
     offset,
   }).catch(() => []);
 
+  const selectCls = "h-9 px-2.5 border border-border-strong rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-2 focus:ring-amber/20 cursor-pointer";
+  const labelCls = "text-[11px] font-semibold uppercase tracking-wide text-muted";
+
   return (
     <SidebarLayout active="terceiros">
       <div className="w-full space-y-6">
@@ -37,46 +39,10 @@ export default async function TerceirosPage({
         />
 
         {/* Filter bar */}
-        <form
-          method="GET"
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--r-lg, 10px)",
-            padding: "16px",
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 12,
-            alignItems: "flex-end",
-          }}
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label
-              style={{
-                fontSize: "11px",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "var(--muted)",
-                fontFamily: "Manrope, sans-serif",
-              }}
-            >
-              Tipo
-            </label>
-            <select
-              name="role_type"
-              defaultValue={sp.role_type ?? ""}
-              style={{
-                padding: "6px 10px",
-                border: "1px solid var(--border-strong)",
-                borderRadius: "var(--r-md, 6px)",
-                background: "var(--surface)",
-                color: "var(--ink)",
-                fontSize: "13px",
-                fontFamily: "Manrope, sans-serif",
-                minWidth: 140,
-              }}
-            >
+        <form method="GET" className="bg-surface border border-border rounded-lg p-4 flex flex-wrap gap-3 items-end">
+          <div className="flex flex-col gap-1">
+            <label className={labelCls}>Tipo</label>
+            <select name="role_type" defaultValue={sp.role_type ?? ""} className={`${selectCls} min-w-[140px]`}>
               <option value="">Todos</option>
               <option value="supplier">Fornecedor</option>
               <option value="service_provider">Prestador</option>
@@ -84,33 +50,9 @@ export default async function TerceirosPage({
             </select>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label
-              style={{
-                fontSize: "11px",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "var(--muted)",
-                fontFamily: "Manrope, sans-serif",
-              }}
-            >
-              Estado
-            </label>
-            <select
-              name="status"
-              defaultValue={sp.status ?? ""}
-              style={{
-                padding: "6px 10px",
-                border: "1px solid var(--border-strong)",
-                borderRadius: "var(--r-md, 6px)",
-                background: "var(--surface)",
-                color: "var(--ink)",
-                fontSize: "13px",
-                fontFamily: "Manrope, sans-serif",
-                minWidth: 120,
-              }}
-            >
+          <div className="flex flex-col gap-1">
+            <label className={labelCls}>Estado</label>
+            <select name="status" defaultValue={sp.status ?? ""} className={`${selectCls} min-w-[120px]`}>
               <option value="">Todos</option>
               <option value="active">Activo</option>
               <option value="inactive">Inactivo</option>
@@ -118,94 +60,33 @@ export default async function TerceirosPage({
             </select>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label
-              style={{
-                fontSize: "11px",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "var(--muted)",
-                fontFamily: "Manrope, sans-serif",
-              }}
-            >
-              Sector
-            </label>
+          <div className="flex flex-col gap-1">
+            <label className={labelCls}>Sector</label>
             <input
               name="sector"
               type="text"
               defaultValue={sp.sector ?? ""}
               placeholder="Filtrar sector..."
-              style={{
-                padding: "6px 10px",
-                border: "1px solid var(--border-strong)",
-                borderRadius: "var(--r-md, 6px)",
-                background: "var(--surface)",
-                color: "var(--ink)",
-                fontSize: "13px",
-                fontFamily: "Manrope, sans-serif",
-                minWidth: 160,
-              }}
+              className={`${selectCls} min-w-[160px]`}
             />
           </div>
 
           <button
             type="submit"
-            style={{
-              padding: "7px 14px",
-              border: "1px solid var(--border-strong)",
-              borderRadius: "var(--r-md, 6px)",
-              background: "var(--surface-2)",
-              color: "var(--ink)",
-              fontSize: "13px",
-              fontWeight: 600,
-              fontFamily: "Manrope, sans-serif",
-              cursor: "pointer",
-            }}
+            className="h-9 px-3.5 border border-border-strong rounded-md bg-surface-2 text-ink text-[13px] font-semibold cursor-pointer hover:bg-surface transition-colors duration-100"
           >
             Filtrar
           </button>
         </form>
 
         {/* Table */}
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--r-lg, 10px)",
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "13px",
-                fontFamily: "Manrope, sans-serif",
-              }}
-            >
+        <div className="bg-surface border border-border rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-[13px] border-collapse">
               <thead>
-                <tr
-                  style={{
-                    background: "var(--surface-2)",
-                    borderBottom: "1px solid var(--border)",
-                  }}
-                >
+                <tr className="bg-surface-2 border-b border-border">
                   {["Nome", "Tipo", "Sector", "Estado", "Score médio", "Acções"].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        padding: "10px 16px",
-                        textAlign: "left",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                        color: "var(--muted)",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <th key={h} className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted whitespace-nowrap">
                       {h}
                     </th>
                   ))}
@@ -213,59 +94,23 @@ export default async function TerceirosPage({
               </thead>
               <tbody>
                 {items.map((tp) => (
-                  <tr
-                    key={tp.id}
-                    style={{ borderBottom: "1px solid var(--border)" }}
-                  >
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        fontWeight: 600,
-                        color: "var(--ink)",
-                      }}
-                    >
+                  <tr key={tp.id} className="border-b border-border">
+                    <td className="px-4 py-3 font-semibold text-ink">
                       {tp.name}
                       {tp.trade_name && (
-                        <span
-                          style={{
-                            display: "block",
-                            fontSize: "11px",
-                            fontWeight: 400,
-                            color: "var(--muted)",
-                            marginTop: 1,
-                          }}
-                        >
+                        <span className="block text-[11px] font-normal text-muted mt-0.5">
                           {tp.trade_name}
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
                         {tp.roles?.map((r) => (
                           <span
                             key={r}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 4,
-                              padding: "2px 8px",
-                              borderRadius: 999,
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              background: "var(--surface-2)",
-                              color: "var(--muted)",
-                              border: "1px solid var(--border)",
-                            }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-surface-2 text-muted border border-border"
                           >
-                            <span
-                              style={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: "50%",
-                                background: "var(--muted)",
-                                flexShrink: 0,
-                              }}
-                            />
+                            <span className="w-1.5 h-1.5 rounded-full bg-muted flex-shrink-0" />
                             {r === "supplier"
                               ? "Fornecedor"
                               : r === "service_provider"
@@ -277,16 +122,8 @@ export default async function TerceirosPage({
                         ))}
                       </div>
                     </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        color: "var(--muted)",
-                        fontSize: "13px",
-                      }}
-                    >
-                      {tp.sector ?? "—"}
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>
+                    <td className="px-4 py-3 text-muted">{tp.sector ?? "—"}</td>
+                    <td className="px-4 py-3">
                       <StatusBadge
                         status={
                           tp.status === "active"
@@ -304,31 +141,13 @@ export default async function TerceirosPage({
                         }
                       />
                     </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        fontFamily: "IBM Plex Mono, monospace",
-                        fontSize: "13px",
-                        color: "var(--ink)",
-                      }}
-                    >
+                    <td className="px-4 py-3 font-mono text-[13px] text-ink">
                       {tp.average_score ?? "—"}
                     </td>
-                    <td style={{ padding: "12px 16px" }}>
+                    <td className="px-4 py-3">
                       <Link
                         href={`/terceiros/${tp.id}`}
-                        style={{
-                          padding: "4px 10px",
-                          borderRadius: "var(--r-md, 6px)",
-                          fontSize: "12px",
-                          fontWeight: 600,
-                          fontFamily: "Manrope, sans-serif",
-                          color: "var(--ink)",
-                          background: "var(--surface-2)",
-                          border: "1px solid var(--border)",
-                          textDecoration: "none",
-                          display: "inline-block",
-                        }}
+                        className="inline-flex px-2.5 py-1 rounded-md text-xs font-semibold text-ink bg-surface-2 border border-border no-underline hover:bg-surface transition-colors duration-100"
                       >
                         Ver
                       </Link>
@@ -337,16 +156,7 @@ export default async function TerceirosPage({
                 ))}
                 {items.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={6}
-                      style={{
-                        padding: "48px 16px",
-                        textAlign: "center",
-                        color: "var(--muted)",
-                        fontSize: "13px",
-                        fontFamily: "Manrope, sans-serif",
-                      }}
-                    >
+                    <td colSpan={6} className="px-4 py-12 text-center text-muted text-[13px]">
                       Nenhum terceiro encontrado
                     </td>
                   </tr>

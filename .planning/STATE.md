@@ -34,6 +34,8 @@ Stopped at: Completed 21-02-PLAN.md
 - [x] **Phase 15.1** — Documentos Fiscais Completos (FDOC-01..05: Nota de Débito, Nota de Crédito, Fatura-Recibo, Recibo, AR aging; OPDOC-01..05: extra_fields DDL, Guia de Remessa PDF, CPI bilingual PDF, DAV digital record, checklist por tipo de viagem) — 238 passed, 3 skipped
 - [x] **Phase 17** — Infrastructure Enterprise v2 (INFRA2-01 distributed rate limiting, INFRA2-02 structured logging, INFRA2-03 Prometheus metrics, INFRA2-04 deep health check + worker heartbeat)
 - [x] **Phase 24** — Third Party Completion (24-01 tp07/08/09 migrations; 24-02 contacts/ledger/payments/evaluations API; 24-03 /terceiros UI; 24-04 ThirdPartyCombobox/ServiceProviderCombobox pickers; 24-05 OperationalDocuments + assignments UI; 24-06 alembic head + seed + 348 tests green + tsc clean) — completed 2026-06-20
+- [x] **Phase 18** — Analytics + Insurance (18-01..04: all plans complete, SUMMARYs present) — completed
+- [x] **Phase 21** — Frontend E2E Tests (21-01 Playwright scaffold; 21-02 5 spec files + CI e2e job; 10 tests passing) — completed 2026-06-21
 
 ---
 
@@ -212,6 +214,7 @@ Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
 | 260621-b3f | Redesenho 5 documentos operacionais PHC: Guia Remessa + CPI + Relatório Viagem + Ordem Serviço + Inspecção Viatura | 2026-06-21 | 96b70ed | [260621-b3f](./quick/260621-b3f-documentos-operacionais-redesenho-phc/) |
 | 260621-f5i | P0.6 audit log em mutações financeiras + P0.1 pipeline billable BILLABLE_PROOF_STATUSES | 2026-06-21 | 4c521ee | [260621-f5i](.planning/quick/260621-f5i-p0-6-audit-log-em-mutacoes-financeiras-a/) |
 | 260621-nuj | P0.5 IVA seam: resolve_iva fail-closed para internacionais + iva_basis audit columns | 2026-06-21 | 2db084a | [260621-nuj](.planning/quick/260621-nuj-p0-5-seam-iva-internacional-extrair-reso/) |
+| 260621-p0i | Design system wave 2: ModalDialog + FormField + migração de 7 form modals + eliminação de inline styles em detail pages | 2026-06-21 | ffabe83 | [260621-p0i](./quick/260621-p0i-design-system-wave-2-modal-wrapper-formf/) |
 
 ### Blockers
 

@@ -44,7 +44,7 @@ Added 4 new KPI sections below existing cards:
 
 ### InsuranceTab.tsx (Client Component)
 
-Fetches `GET /api/vehicles/{id}/insurance` via Next.js proxy; lists policies with status badge (Ativa/Expirada), policy_number, insurer, coverage_type, valid_from → valid_until, premium_amount (font-mono). Inline "Registar Apólice" expand/collapse form with fields: policy_number, insurer, coverage_type (select), premium_amount, valid_from, valid_until. POSTs via proxy; refetches list on success.
+Fetches `GET /api/v1/vehicles/{vehicleId}/insurance` directly with localStorage auth headers (rotas_access_token + rotas_tenant_id). Lists policies in a table: policy_number (IBM Plex Mono), insurer, coverage_type, premium_amount (IBM Plex Mono), valid_until, and status badge. Status dot badges: green (vigente >30d), amber (a_renovar ≤30d), red (expirado). Modal overlay form ("Registar Apólice"): policy_number, insurer, coverage_type (select), premium_amount, valid_from, valid_until, notes. POSTs to `POST /api/v1/vehicles/{vehicleId}/insurance` with auth headers; refetches list on success.
 
 ### Next.js proxy routes
 
@@ -64,4 +64,4 @@ New TypeScript interfaces: `RouteProfileItem`, `ContractMarginItem`, `TopDriverI
 
 - TypeScript: `npx tsc --noEmit` exits 0 — no errors
 - All key files present on disk
-- Commits: `41f53aa feat(18-04): analytics dashboard`, `3b41359 feat(18-04): InsuranceTab`
+- Commits: `41f53aa feat(18-04): analytics dashboard`, `3b41359 feat(18-04): InsuranceTab`, `3ff84de feat(18-04): fix InsuranceTab — modal form + correct API path + auth headers`

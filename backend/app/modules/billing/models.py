@@ -2,7 +2,18 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, Text, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -48,7 +59,7 @@ class BillingDocument(Base):
     )
     cancellation_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
     file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"))
-    invoice_number: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    invoice_number: Mapped[str | None] = mapped_column(String(30), nullable=True)
     iva_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
     # FDOC-01: fiscal document type discrimination
     document_type: Mapped[str] = mapped_column(String(30), default="invoice", index=True)
@@ -60,7 +71,7 @@ class BillingDocument(Base):
     issuer_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     issuer_nuit: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # CME: human-readable parent invoice number for child documents (debit/credit notes, receipts)
-    parent_invoice_number: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    parent_invoice_number: Mapped[str | None] = mapped_column(String(30), nullable=True)
     # Snapshot columns from TenantDocumentProfile — populated at document creation time
     issuer_address: Mapped[str | None] = mapped_column(Text, nullable=True)
     issuer_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
@@ -213,3 +224,30 @@ class PaymentAllocation(Base):
     )
     amount_applied: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FiscalCounter(Base):
+    """Gap-free fiscal sequence counter (FISC-01).
+
+    One row per (tenant_id, fiscal_year, doc_type) combination.
+    Incremented via SELECT FOR UPDATE inside the issuing transaction —
+    a rollback undoes the increment, preserving contiguity.
+    doc_type="" means the tenant uses a single shared series (per_type_sequences=False).
+    """
+
+    __tablename__ = "fiscal_counters"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "fiscal_year", "doc_type", name="uq_fiscal_counter_key"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    fiscal_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    doc_type: Mapped[str] = mapped_column(String(30), nullable=False, default="")
+    last_number: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

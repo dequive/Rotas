@@ -34,6 +34,10 @@ _DELIVERY_PROOF_VALID_TRANSITIONS: dict[str, set[str]] = {
     "resolved": set(),  # terminal
 }
 
+# Statuses that make a delivery proof eligible for billing.
+# Shared with billing/service.py to keep both sides in sync.
+BILLABLE_PROOF_STATUSES: frozenset[str] = frozenset({"validated", "verified", "accepted"})
+
 
 def now_utc() -> datetime:
     return datetime.now(UTC)

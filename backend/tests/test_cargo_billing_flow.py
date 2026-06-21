@@ -25,7 +25,12 @@ from app.modules.operational_exceptions.models import OperationalException
 from app.modules.tenants.models import Tenant
 from app.modules.trips import service as trips_service
 from app.modules.trips.models import Trip
-from app.modules.trips.schemas import AssociateContractRequest, StartTripRequest, TripCreate
+from app.modules.trips.schemas import (
+    AssociateContractRequest,
+    CompleteTripRequest,
+    StartTripRequest,
+    TripCreate,
+)
 from app.modules.vehicles.models import Vehicle
 
 import_all_models()
@@ -142,6 +147,13 @@ async def test_trip_first_flow_reaches_billing_document() -> None:
                 tenant.id,
                 trip["id"],
                 StartTripRequest(km_start=1000, actual_departure=dt("2026-06-01T08:00:00")),
+            )
+
+            await trips_service.complete_trip(
+                db,
+                tenant.id,
+                trip["id"],
+                CompleteTripRequest(km_end=1800, actual_arrival=dt("2026-06-03T14:00:00")),
             )
 
             proof = await cargo_service.create_delivery_proof(

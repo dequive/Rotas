@@ -20,6 +20,7 @@ from app.modules.billing.models import (
 )
 from app.modules.billing.schemas import BillingDocumentCreate, IssueBillingDocumentRequest
 from app.modules.cargo.models import CargoManifest, DeliveryProof, LoadPermit, TransportDocument
+from app.modules.cargo.service import BILLABLE_PROOF_STATUSES
 from app.modules.contracts.models import Contract
 from app.modules.files.models import File
 from app.modules.files.service import save_generated_file
@@ -418,6 +419,7 @@ async def list_billable_trips(
         .join(Vehicle, Vehicle.id == Trip.vehicle_id, isouter=True)
         .where(Trip.tenant_id == tenant_id)
         .where(Trip.status.in_(("delivered", "closed")))
+        .where(Trip.km_end.is_not(None))
     )
 
     if client_name:
@@ -578,7 +580,7 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
             .where(
                 DeliveryProof.tenant_id == tenant_id,
                 DeliveryProof.trip_id == trip.id,
-                DeliveryProof.status.in_(("validated", "verified")),
+                DeliveryProof.status.in_(BILLABLE_PROOF_STATUSES),
             )
             .order_by(DeliveryProof.delivered_at.desc())
         )

@@ -36,7 +36,9 @@ from app.modules.contracts.router import router as contracts_router
 from app.modules.control_tower.router import router as control_tower_router
 from app.modules.documents.router import router as documents_router
 from app.modules.driver_app.router import router as driver_app_router
+from app.modules.drivers.advance_router import router as advance_router
 from app.modules.drivers.router import router as drivers_router
+from app.modules.drivers.settlement_router import router as settlement_router
 from app.modules.files.router import router as files_router
 from app.modules.fuel.operations_router import router as fuel_operations_router
 from app.modules.fuel.router import router as fuel_router
@@ -270,6 +272,8 @@ app.include_router(fuel_router, prefix=api)
 app.include_router(fuel_operations_router, prefix=api)
 app.include_router(trip_orders_router, prefix=api)
 app.include_router(trips_router, prefix=api)
+app.include_router(advance_router, prefix=api)
+app.include_router(settlement_router, prefix=api)
 app.include_router(known_routes_router, prefix=api)
 app.include_router(cargo_router, prefix=api)
 app.include_router(billing_router, prefix=api)

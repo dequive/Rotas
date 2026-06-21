@@ -61,6 +61,7 @@ class BillingDocument(Base):
     file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"))
     invoice_number: Mapped[str | None] = mapped_column(String(30), nullable=True)
     iva_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    iva_basis: Mapped[str | None] = mapped_column(String(40), nullable=True)
     # FDOC-01: fiscal document type discrimination
     document_type: Mapped[str] = mapped_column(String(30), default="invoice", index=True)
     parent_document_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -136,6 +137,7 @@ class BillingItem(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     status: Mapped[str] = mapped_column(String(30), default="draft", index=True)
     iva_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    iva_basis: Mapped[str | None] = mapped_column(String(40), nullable=True)
     iva_amount: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

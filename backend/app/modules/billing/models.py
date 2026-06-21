@@ -61,6 +61,15 @@ class BillingDocument(Base):
     issuer_nuit: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # CME: human-readable parent invoice number for child documents (debit/credit notes, receipts)
     parent_invoice_number: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    # Snapshot columns from TenantDocumentProfile — populated at document creation time
+    issuer_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    issuer_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    issuer_email: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    issuer_city: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    issuer_bank_details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payment_conditions: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    commercial_discount: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    financial_discount: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

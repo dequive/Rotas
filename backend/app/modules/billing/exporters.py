@@ -117,59 +117,22 @@ def _status_label(status: str | None) -> str:
 
 
 class _RotasPDF(FPDF):
-    """FPDF subclass with tenant-branded header and footer."""
+    """FPDF2 subclass — PHC-style layout. Body rendered manually in _render_pdf."""
 
-    def __init__(
-        self,
-        doc_number: str,
-        issue_date: str,
-        issuer_name: str,
-        issuer_contact: str | None,
-        doc_type: str,
-    ):
+    def __init__(self, total_pages_ref: list[int]):
         super().__init__(orientation="P", unit="mm", format="A4")
-        self._doc_number = doc_number
-        self._issue_date = issue_date
-        self._issuer_name = issuer_name
-        self._issuer_contact = issuer_contact
-        self._doc_type = doc_type
+        self._total_pages_ref = total_pages_ref
         self.add_font("DejaVu", "", str(FONTS_DIR / "DejaVuSans.ttf"))
         self.add_font("DejaVu", "B", str(FONTS_DIR / "DejaVuSans-Bold.ttf"))
-        self.set_auto_page_break(auto=True, margin=18)
+        self.set_auto_page_break(auto=True, margin=20)
         self.set_margins(left=15, top=15, right=15)
 
     def header(self):
-        # ── Navy header band ────────────────────────────────────────────────
-        self.set_fill_color(*_NAV)
-        self.rect(0, 0, 210, 22, "F")
-
-        self.set_y(4)
-        self.set_text_color(*_WHITE)
-        self.set_font("DejaVu", "B", 16)
-        self.cell(0, 8, self._issuer_name, align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-
-        if self._issuer_contact:
-            self.set_font("DejaVu", "", 7)
-            self.set_y(12)
-            self.cell(0, 4, self._issuer_contact, align="L")
-
-        # ── Document title band (lighter) ────────────────────────────────────
-        self.set_fill_color(*_SOFT)
-        self.set_draw_color(*_LINE)
-        self.rect(0, 22, 210, 12, "FD")
-        self.set_y(25)
-        self.set_text_color(*_INK)
-        self.set_font("DejaVu", "B", 11)
-        self.cell(0, 6, self._doc_type, align="C")
-
-        # ── Doc number + issue date (top-right) ──────────────────────────────
-        self.set_font("DejaVu", "", 7)
-        self.set_text_color(*_MUTED)
-        self.set_y(25)
-        self.cell(0, 3, f"N.º {self._doc_number}   |   Emitido em {self._issue_date}", align="R")
-
-        self.set_y(36)
-        self.set_text_color(*_INK)
+        if self.page_no() > 1:
+            self.set_draw_color(*_LINE)
+            self.set_line_width(0.3)
+            self.line(15, 15, 195, 15)
+            self.set_y(19)
 
     def footer(self):
         self.set_y(-14)
@@ -179,11 +142,12 @@ class _RotasPDF(FPDF):
         self.set_y(-12)
         self.set_font("DejaVu", "", 7)
         self.set_text_color(*_MUTED)
-        footer_left = self._issuer_name
-        if self._issuer_contact:
-            footer_left += f"  |  {self._issuer_contact}"
-        self.cell(0, 5, footer_left, align="L")
-        self.cell(0, 5, f"Página {self.page_no()}", align="R")
+        self.cell(80, 5, "Documento Processado por Computador", align="L")
+        self.set_font("DejaVu", "B", 7)
+        self.cell(50, 5, "ROTAS", align="C")
+        self.set_font("DejaVu", "", 7)
+        total = self._total_pages_ref[0] if self._total_pages_ref else "?"
+        self.cell(0, 5, f"Página {self.page_no()} de {total}", align="R")
 
 
 def _render_pdf(
@@ -194,180 +158,286 @@ def _render_pdf(
     issuer_contact: str | None = None,
 ) -> ExportArtifact:
     currency = document.currency or "MZN"
-    # E1: use invoice_number for doc_number; fallback to UUID prefix only for drafts
     doc_number = document.invoice_number or str(document.id)[:8].upper()
     issue_date = _date(document.issued_at or document.created_at)
+    doc_label = _doc_type_label(document)
 
-    pdf = _RotasPDF(
-        doc_number=doc_number,
-        issue_date=issue_date,
-        issuer_name=issuer_name,
-        issuer_contact=issuer_contact,
-        doc_type=_doc_type_label(document),  # E2: correct type label / PROFORMA for draft
+    if document.iva_rate is None:
+        raise ValueError("iva_rate is NULL on issued document — cannot render export")
+    iva_rate_val = float(document.iva_rate)
+    iva_pct = int(iva_rate_val * 100)
+
+    subtotal = _money_val(document.subtotal)
+    tax_amount = _money_val(document.tax_amount)
+    total_amount = (
+        _money_val(document.total_amount) if document.total_amount else subtotal + tax_amount
     )
+    commercial_disc = _money_val(getattr(document, "commercial_discount", None) or 0)
+    financial_disc = _money_val(getattr(document, "financial_discount", None) or 0)
+
+    total_pages_ref: list[int] = [1]
+    pdf = _RotasPDF(total_pages_ref)
     pdf.add_page()
 
-    # ── Metadata block ────────────────────────────────────────────────────────
-    period = f"{_date(document.billing_period_start)} — {_date(document.billing_period_end)}"
+    # ── HEADER — 2 colunas ────────────────────────────────────────────────────
+    LEFT_W = 110.0
+    RIGHT_W = 65.0
+    header_y = pdf.get_y()
+    x_left = 15.0
+    x_right = x_left + LEFT_W + 5.0
 
-    def _meta_row(label: str, value: str):
-        pdf.set_font("DejaVu", "B", 8)
+    # Coluna esquerda: dados do emitente
+    pdf.set_xy(x_left, header_y)
+    pdf.set_font("DejaVu", "B", 12)
+    pdf.set_text_color(*_INK)
+    issuer_display = getattr(document, "issuer_name", None) or issuer_name
+    pdf.cell(LEFT_W, 6, issuer_display, align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    issuer_nuit_val = getattr(document, "issuer_nuit", None)
+    if issuer_nuit_val:
+        pdf.set_xy(x_left, pdf.get_y())
+        pdf.set_font("DejaVu", "", 8)
         pdf.set_text_color(*_MUTED)
-        pdf.cell(35, 5, label.upper(), new_x=XPos.RIGHT, new_y=YPos.TOP)
-        pdf.set_font("DejaVu", "", 9)
-        pdf.set_text_color(*_INK)
-        pdf.cell(0, 5, value or "—", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(
+            LEFT_W, 4, f"NUIT: {issuer_nuit_val}", align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT
+        )
 
-    _meta_row("Cliente", document.client_name or "—")
-    # E4: render client NUIT when present (isinstance guards against MagicMock in tests)
-    if isinstance(document.client_nuit, str) and document.client_nuit:
-        _meta_row("NUIT do Cliente", document.client_nuit)
-    _meta_row("Contrato", document.contract_reference or "—")
-    _meta_row("Período de faturação", period)
-    # E6: show due_date when present and is a real datetime
-    if isinstance(document.due_date, datetime):
-        _meta_row("Data de vencimento", _date(document.due_date))
-    # E3: "Estado do documento" row removed — status is shown via document type label
+    issuer_address = getattr(document, "issuer_address", None)
+    if issuer_address:
+        pdf.set_xy(x_left, pdf.get_y())
+        pdf.set_font("DejaVu", "", 8)
+        pdf.set_text_color(*_MUTED)
+        pdf.multi_cell(LEFT_W, 4, issuer_address, align="L")
 
-    # Horizontal divider
-    pdf.ln(3)
+    contact_parts = [
+        p for p in [
+            getattr(document, "issuer_phone", None),
+            getattr(document, "issuer_email", None),
+        ] if p
+    ]
+    if not contact_parts and issuer_contact:
+        contact_parts = [issuer_contact]
+    if contact_parts:
+        pdf.set_xy(x_left, pdf.get_y())
+        pdf.set_font("DejaVu", "", 8)
+        pdf.set_text_color(*_MUTED)
+        pdf.cell(
+            LEFT_W, 4, "  |  ".join(contact_parts), align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT
+        )
+
+    issuer_bottom = pdf.get_y()
+
+    # Coluna direita: box cliente com bordas
+    box_h = 32.0
     pdf.set_draw_color(*_LINE)
     pdf.set_line_width(0.4)
-    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
-    pdf.ln(4)
+    pdf.rect(x_right, header_y, RIGHT_W, box_h)
 
-    # ── Table ─────────────────────────────────────────────────────────────────
-    COL_W = [22, 36, 36, 44, 16, 10, 26, 26]  # total = 216 — fits A4 portrait 180mm
-    # Normalise to page width (180mm usable)
-    usable = 180
-    scale = usable / sum(COL_W)
-    COL_W = [round(w * scale, 1) for w in COL_W]
+    pdf.set_xy(x_right + 3, header_y + 3)
+    pdf.set_font("DejaVu", "B", 9)
+    pdf.set_text_color(*_INK)
+    pdf.cell(
+        RIGHT_W - 6, 5, (document.client_name or "—")[:38],
+        align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT,
+    )
 
-    HEADERS = [
-        "Data",
-        "Origem",
-        "Destino",
-        "Carga / Descrição",
-        "Estado",
-        "Qtd",
-        f"Unit. {currency}",
-        f"Total {currency}",
-    ]
+    client_nuit = getattr(document, "client_nuit", None)
+    if isinstance(client_nuit, str) and client_nuit:
+        pdf.set_xy(x_right + 3, pdf.get_y())
+        pdf.set_font("DejaVu", "", 8)
+        pdf.set_text_color(*_MUTED)
+        pdf.cell(
+            RIGHT_W - 6, 4, f"NUIT: {client_nuit}",
+            align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT,
+        )
 
-    # Header row
+    contract_ref = getattr(document, "contract_reference", None)
+    if contract_ref:
+        pdf.set_xy(x_right + 3, pdf.get_y())
+        pdf.set_font("DejaVu", "", 8)
+        pdf.set_text_color(*_MUTED)
+        pdf.cell(
+            RIGHT_W - 6, 4, f"Contrato: {contract_ref[:28]}",
+            align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT,
+        )
+
+    pdf.set_y(max(issuer_bottom, header_y + box_h) + 3)
+
+    # ── BARRA DE METADADOS ────────────────────────────────────────────────────
+    bar_y = pdf.get_y()
+    bar_h = 11.0
+    pdf.set_fill_color(240, 242, 245)
+    pdf.set_draw_color(*_LINE)
+    pdf.set_line_width(0.3)
+    pdf.rect(15, bar_y, 180, bar_h, "FD")
+
+    pdf.set_xy(17, bar_y + 2.5)
+    pdf.set_font("DejaVu", "", 7)
+    pdf.set_text_color(*_MUTED)
+    due = _date(document.due_date) if isinstance(document.due_date, datetime) else "—"
+    payment_conds = getattr(document, "payment_conditions", None) or "—"
+    meta_str = (
+        f"Data: {issue_date}  |  Vencimento: {due}"
+        f"  |  Condições: {payment_conds}  |  Moeda: {currency}"
+    )
+    pdf.cell(105, 6, meta_str, align="L")
+
+    # Número do documento em destaque
+    pdf.set_xy(120, bar_y + 1.5)
+    pdf.set_font("DejaVu", "B", 9)
+    pdf.set_text_color(*_INK)
+    pdf.cell(73, 8, f"{doc_label} N.º {doc_number}", align="R")
+
+    pdf.set_y(bar_y + bar_h + 4)
+
+    # ── TABELA DE ITENS ───────────────────────────────────────────────────────
+    COL_W_RAW = [20, 74, 14, 26, 14, 32]
+    scale = 180.0 / sum(COL_W_RAW)
+    COL_W = [round(w * scale, 1) for w in COL_W_RAW]
+    HEADERS_T = ["Referência", "Designação", "Quant.", "Pr. Unitário", "IVA%", f"Total {currency}"]
+    ALIGNS_T = ["C", "L", "C", "R", "C", "R"]
+
     pdf.set_fill_color(*_NAV)
     pdf.set_text_color(*_WHITE)
     pdf.set_font("DejaVu", "B", 7.5)
-    ALIGN = ["C", "L", "L", "L", "C", "C", "R", "R"]
-    for w, label, align in zip(COL_W, HEADERS, ALIGN, strict=False):
+    for w, label, align in zip(COL_W, HEADERS_T, ALIGNS_T, strict=False):
         pdf.cell(w, 7, label, border=0, fill=True, align=align, new_x=XPos.RIGHT, new_y=YPos.TOP)
     pdf.ln()
 
-    # Data rows
     pdf.set_font("DejaVu", "", 7.5)
     grand_total = Decimal(0)
 
     for idx, item in enumerate(items):
-        fill = idx % 2 == 0
-        pdf.set_fill_color(*(_SOFT if fill else _WHITE))
+        row_fill = idx % 2 == 0
+        pdf.set_fill_color(*(_SOFT if row_fill else _WHITE))
         pdf.set_text_color(*_INK)
 
         amount = _money_val(item.amount)
         grand_total += amount
+        iva_rate_item = float(item.iva_rate) if item.iva_rate is not None else iva_rate_val
+        iva_pct_item = int(iva_rate_item * 100)
 
-        values = [
-            (_date(item.delivered_at), "C"),
-            ((item.origin or "—")[:20], "L"),
-            ((item.destination or "—")[:20], "L"),
-            ((item.cargo_description or "—")[:26], "L"),
-            ((item.load_state or "—")[:8], "C"),
+        origin = item.origin or ""
+        dest = item.destination or ""
+        desig = f"{origin} → {dest}" if (origin or dest) else "—"
+        if getattr(item, "cargo_description", None):
+            desig = f"{desig} — {item.cargo_description[:30]}"
+
+        row_vals = [
+            ((getattr(item, "client_reference", None) or "—")[:14], "C"),
+            (desig[:50], "L"),
             (str(item.quantity or 1), "C"),
             (_money(item.unit_price, ""), "R"),
+            (f"{iva_pct_item}%", "C"),
             (_money(amount, ""), "R"),
         ]
-        row_h = 6
-        for w, (text, align) in zip(COL_W, values, strict=False):
+        for w, (txt, aln) in zip(COL_W, row_vals, strict=False):
             pdf.cell(
-                w, row_h, text, border=0, fill=fill, align=align, new_x=XPos.RIGHT, new_y=YPos.TOP
+                w, 6, txt, border=0, fill=row_fill, align=aln, new_x=XPos.RIGHT, new_y=YPos.TOP
             )
         pdf.ln()
 
-    # ── Totals block ─────────────────────────────────────────────────────────
     pdf.ln(3)
+
+    # ── DADOS BANCÁRIOS ───────────────────────────────────────────────────────
+    issuer_bank = getattr(document, "issuer_bank_details", None)
+    if issuer_bank:
+        pdf.set_draw_color(*_LINE)
+        pdf.set_line_width(0.3)
+        pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+        pdf.ln(2)
+        pdf.set_font("DejaVu", "", 7)
+        pdf.set_text_color(*_MUTED)
+        pdf.multi_cell(180, 4, f"Dados Bancários: {issuer_bank}", align="L")
+        pdf.ln(2)
+
+    # ── ZONA DE TOTAIS — 2 colunas ────────────────────────────────────────────
     pdf.set_draw_color(*_LINE)
-    pdf.set_line_width(0.4)
+    pdf.set_line_width(0.3)
     pdf.line(15, pdf.get_y(), 195, pdf.get_y())
-    pdf.ln(4)
+    pdf.ln(3)
 
-    # FISC-02: Three-line totals block — SUBTOTAL / IVA / TOTAL COM IVA
-    label_w = sum(COL_W[:6])
-    val_w = COL_W[6] + COL_W[7]
+    totals_y = pdf.get_y()
+    LEFT_TOT = 87.0
+    GAP = 6.0
+    RIGHT_TOT = 180.0 - LEFT_TOT - GAP
+    x_lt = 15.0
+    x_rt = x_lt + LEFT_TOT + GAP
 
-    subtotal = _money_val(document.subtotal) if document.subtotal else grand_total
-    tax_amount = _money_val(document.tax_amount) if document.tax_amount else Decimal(0)
-    total_amount = (
-        _money_val(document.total_amount) if document.total_amount else subtotal + tax_amount
-    )
-
-    # Wave A: iva_rate=None raises ValueError — no silent fallback to 17
-    if document.iva_rate is None:
-        raise ValueError("iva_rate is NULL on issued document — cannot render export")
-    iva_pct = int(float(document.iva_rate) * 100)
-    iva_label = f"IVA ({iva_pct}%)"
-
-    def _totals_row(label: str, value: Decimal, bold: bool = False, fill_color=_SOFT):
-        pdf.set_fill_color(*fill_color)
-        pdf.set_text_color(*_INK)
-        pdf.set_font("DejaVu", "B" if bold else "", 9)
-        pdf.cell(label_w, 7, label, fill=True, align="R", new_x=XPos.RIGHT, new_y=YPos.TOP)
-        pdf.cell(
-            val_w,
-            7,
-            f"{value:,.2f} {currency}",
-            fill=True,
-            align="R",
-            new_x=XPos.LMARGIN,
-            new_y=YPos.NEXT,
-        )
-
-    _totals_row("SUBTOTAL", subtotal)
-    _totals_row(iva_label, tax_amount)
-    pdf.ln(1)
-    pdf.set_draw_color(*_LINE)
-    pdf.set_line_width(0.2)
-    pdf.line(15 + label_w, pdf.get_y(), 195, pdf.get_y())
-    pdf.ln(1)
-    _totals_row("TOTAL COM IVA", total_amount, bold=True, fill_color=_NAV)
-    # Fix text colour for the nav-fill row (white on dark)
-    # Re-render with correct colours since _totals_row uses _INK
-    pdf.set_y(pdf.get_y() - 7)
-    pdf.set_fill_color(*_NAV)
+    # Coluna esquerda: tabela IVA por taxa
+    col3 = [LEFT_TOT * 0.28, LEFT_TOT * 0.38, LEFT_TOT * 0.34]
+    pdf.set_xy(x_lt, totals_y)
+    pdf.set_font("DejaVu", "B", 7.5)
     pdf.set_text_color(*_WHITE)
-    pdf.set_font("DejaVu", "B", 9)
-    pdf.cell(label_w, 7, "TOTAL COM IVA", fill=True, align="R", new_x=XPos.RIGHT, new_y=YPos.TOP)
-    pdf.cell(
-        val_w,
-        7,
-        f"{total_amount:,.2f} {currency}",
-        fill=True,
-        align="R",
-        new_x=XPos.LMARGIN,
-        new_y=YPos.NEXT,
-    )
+    pdf.set_fill_color(*_NAV)
+    for lbl, cw in zip(["Taxa", "Base de Incidência", "Valor do IVA"], col3, strict=False):
+        pdf.cell(cw, 6, lbl, fill=True, align="C", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.ln()
 
-    # ── Payment conditions note ───────────────────────────────────────────────
-    pdf.ln(6)
+    pdf.set_xy(x_lt, pdf.get_y())
     pdf.set_font("DejaVu", "", 7.5)
-    pdf.set_text_color(*_MUTED)
-    pdf.multi_cell(
-        0,
-        5,
-        "Este documento foi gerado automaticamente pelo sistema ROTAS. "
-        "Qualquer contestação deve ser comunicada no prazo de 10 dias úteis após a emissão.",
-        align="L",
+    pdf.set_text_color(*_INK)
+    pdf.set_fill_color(*_SOFT)
+    pdf.cell(col3[0], 5, f"{iva_pct}%", fill=True, align="C", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(col3[1], 5, f"{subtotal:,.2f}", fill=True, align="R", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(
+        col3[2], 5, f"{tax_amount:,.2f}", fill=True, align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT
     )
 
-    # E7: filename uses invoice_number
+    pdf.set_xy(x_lt, pdf.get_y())
+    pdf.set_font("DejaVu", "B", 7.5)
+    pdf.cell(col3[0], 6, "Total de IVA", fill=False, align="L", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(
+        col3[1], 6, f"{subtotal:,.2f}", fill=False, align="R", new_x=XPos.RIGHT, new_y=YPos.TOP
+    )
+    pdf.cell(
+        col3[2], 6, f"{tax_amount:,.2f}", fill=False, align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT
+    )
+    left_bottom = pdf.get_y()
+
+    # Coluna direita: Valores do Documento
+    pdf.set_xy(x_rt, totals_y)
+    pdf.set_font("DejaVu", "B", 7.5)
+    pdf.set_text_color(*_WHITE)
+    pdf.set_fill_color(*_NAV)
+    pdf.cell(
+        RIGHT_TOT, 6, "Valores do Documento", fill=True, align="C",
+        new_x=XPos.LMARGIN, new_y=YPos.NEXT,
+    )
+
+    lw = RIGHT_TOT * 0.64
+    vw = RIGHT_TOT * 0.36
+
+    def _right_row(label: str, value: Decimal, bold: bool = False) -> None:
+        pdf.set_xy(x_rt, pdf.get_y())
+        pdf.set_font("DejaVu", "B" if bold else "", 8)
+        pdf.set_text_color(*_INK)
+        pdf.cell(lw, 5, label, align="L", new_x=XPos.RIGHT, new_y=YPos.TOP)
+        pdf.cell(vw, 5, f"{value:,.2f}", align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    _right_row("Total antes de descontos:", subtotal + tax_amount)
+    disc_pct = (
+        int(float(commercial_disc / (subtotal or Decimal(1))) * 100) if commercial_disc else 0
+    )
+    _right_row(f"Desconto Comercial {disc_pct}%:", commercial_disc)
+    _right_row("Desconto Financeiro:", financial_disc)
+    _right_row("Total de IVA:", tax_amount)
+
+    # Separador + linha TOTAL
+    pdf.set_xy(x_rt, pdf.get_y() + 1)
+    pdf.set_draw_color(*_LINE)
+    pdf.line(x_rt, pdf.get_y(), x_rt + RIGHT_TOT, pdf.get_y())
+    pdf.ln(1)
+    pdf.set_xy(x_rt, pdf.get_y())
+    pdf.set_font("DejaVu", "B", 9)
+    pdf.set_text_color(*_INK)
+    pdf.cell(lw, 7, f"TOTAL ({currency}):", align="L", new_x=XPos.RIGHT, new_y=YPos.TOP)
+    pdf.cell(vw, 7, f"{total_amount:,.2f}", align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    right_bottom = pdf.get_y()
+
+    pdf.set_y(max(left_bottom, right_bottom))
+
+    total_pages_ref[0] = pdf.pages
     filename = f"fatura_{document.invoice_number or str(document.id)[:8]}.pdf"
     return ExportArtifact(filename=filename, content_type="application/pdf", content=pdf.output())
 

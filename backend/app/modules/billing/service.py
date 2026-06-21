@@ -24,7 +24,7 @@ from app.modules.files.models import File
 from app.modules.files.service import save_generated_file
 from app.modules.operations.models import OperationalWaiver
 from app.modules.operations.service import has_active_waiver
-from app.modules.tenants.models import Tenant
+from app.modules.tenants.models import Tenant, TenantDocumentProfile
 from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
 
@@ -41,29 +41,80 @@ async def _assign_invoice_number(
     document: "BillingDocument",
     tenant_id: UUID,
 ) -> str:
-    """Assign a sequential invoice number from a per-tenant per-year PostgreSQL SEQUENCE.
+    """Assign a sequential invoice number using per-tenant profile settings.
 
-    Format: YYYY/NNNN (e.g., 2026/0001). Idempotent — returns existing number unchanged.
-    New sequences are created lazily so tenants provisioned after the migration still work.
+    Falls back to YYYY/NNNN (prefix="", padding=4) when no profile exists —
+    preserving the format used by all existing documents. Idempotent.
     """
     if document.invoice_number:
         return document.invoice_number
 
     year = datetime.now(UTC).year
     tid_clean = str(tenant_id).replace("-", "")
-    seq_name = f"invoice_seq_{tid_clean}_{year}"
+
+    profile = await db.scalar(
+        select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == tenant_id)
+    )
+    prefix = (profile.invoice_prefix or "").strip() if profile else ""
+    padding = profile.invoice_seq_padding if profile else 4
+    start_seq = profile.invoice_start_seq if profile else 1
+    per_type = profile.per_type_sequences if profile else False
+
+    if per_type and document.document_type:
+        seq_name = f"invoice_seq_{tid_clean}_{year}_{document.document_type}"
+    else:
+        seq_name = f"invoice_seq_{tid_clean}_{year}"
 
     await db.execute(
         text(
             f'CREATE SEQUENCE IF NOT EXISTS "{seq_name}" '
-            f"START 1 INCREMENT 1 NO MINVALUE NO MAXVALUE CACHE 1"
+            f"START {start_seq} INCREMENT 1 NO MINVALUE NO MAXVALUE CACHE 1"
         )
     )
     result = await db.execute(text(f"SELECT nextval('{seq_name}')"))
     seq_val = result.scalar_one()
-    invoice_number = f"{year}/{seq_val:04d}"
+
+    if prefix:
+        invoice_number = f"{prefix} {year}/{seq_val:0{padding}d}"
+    else:
+        invoice_number = f"{year}/{seq_val:0{padding}d}"
+
     document.invoice_number = invoice_number
     return invoice_number
+
+
+def _format_address(profile: "TenantDocumentProfile") -> str:
+    parts = [p for p in [profile.address_line1, profile.address_line2] if p]
+    if profile.city:
+        city_part = profile.city
+        if profile.country:
+            city_part = f"{city_part} — {profile.country}"
+        parts.append(city_part)
+    return ", ".join(parts) if parts else ""
+
+
+async def _snapshot_profile(
+    db: AsyncSession,
+    document: "BillingDocument",
+    tenant_id: UUID,
+) -> None:
+    """Copy TenantDocumentProfile fields into BillingDocument snapshot columns at creation."""
+    profile = await db.scalar(
+        select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == tenant_id)
+    )
+    if not profile:
+        return
+    document.issuer_address = _format_address(profile) or None
+    document.issuer_phone = profile.phone
+    document.issuer_email = profile.email
+    document.issuer_city = profile.city
+    document.payment_conditions = profile.payment_conditions
+    if profile.show_bank_details and profile.bank_name:
+        legal = profile.legal_name or document.issuer_name or "—"
+        document.issuer_bank_details = (
+            f"Banco {profile.bank_name} | Titular: {legal} "
+            f"| Conta: {profile.bank_account or '—'} | NIB: {profile.bank_nib or '—'}"
+        )
 
 
 async def create_billing_waiver(
@@ -480,6 +531,7 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
     )
     db.add(document)
     await db.flush()
+    await _snapshot_profile(db, document, tenant_id)
 
     total = 0
     items: list[BillingItem] = []
@@ -1172,6 +1224,7 @@ async def create_debit_note(
     )
     db.add(note)
     await db.flush()
+    await _snapshot_profile(db, note, tenant_id)
     await _assign_invoice_number(db, note, tenant_id)
     await db.commit()
     await db.refresh(note)
@@ -1259,6 +1312,7 @@ async def create_credit_note(
     )
     db.add(note)
     await db.flush()
+    await _snapshot_profile(db, note, tenant_id)
     await _assign_invoice_number(db, note, tenant_id)
     await db.commit()
     await db.refresh(note)
@@ -1341,6 +1395,7 @@ async def create_invoice_receipt(
     )
     db.add(note)
     await db.flush()
+    await _snapshot_profile(db, note, tenant_id)
     await _assign_invoice_number(db, note, tenant_id)
 
     parent.status = "paid"
@@ -1424,6 +1479,7 @@ async def create_receipt(
     )
     db.add(note)
     await db.flush()
+    await _snapshot_profile(db, note, tenant_id)
     await _assign_invoice_number(db, note, tenant_id)
 
     await record_audit_log(

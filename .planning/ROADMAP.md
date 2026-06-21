@@ -14,9 +14,9 @@ Phases are ordered by hard dependency: a security bypass is active (SEC-05), the
 ## Phases
 
 - [x] **Phase 1: Security Hardening + Deploy Foundation** — Close the active CVE, harden auth, and deploy the backend to a production environment
-- [ ] **Phase 2: PWA Offline-First Completion** — Deliver the core product promise: driver app installs, works offline, syncs reliably
+- [x] **Phase 2: PWA Offline-First Completion** — Deliver the core product promise: driver app installs, works offline, syncs reliably
 - [x] **Phase 3: Manager Dashboard + Reporting Layer** — Turn ROTAS from a data-collection tool into an operational management platform
-- [ ] **Phase 4: Production Hardening + Scale Preparation** — Production-grade reliability for multi-tenant SaaS at scale
+- [x] **Phase 4: Production Hardening + Scale Preparation** — Production-grade reliability for multi-tenant SaaS at scale
 
 ---
 
@@ -110,8 +110,8 @@ Plans:
 - [x] 02-04-PLAN.md — Wave 1: D-08 driver access revocation (backend driver_access_revoked error code distinction)
 - [x] 02-05-PLAN.md — Wave 2: PWA-01 + PWA-03 Service Worker (vite-plugin-pwa injectManifest + sw.ts + main.tsx Workbox registration)
 - [x] 02-06-PLAN.md — Wave 2: PWA-02 Web App Manifest + placeholder icons
-- [ ] 02-07-PLAN.md — Wave 2: SyncStatusBanner UI (7-state banner, useNetworkStatus, useSyncStatus, D-01 through D-09)
-- [ ] 02-08-PLAN.md — Wave 3: Field testing checkpoint (Android device test + full suite verification)
+- [x] 02-07-PLAN.md — Wave 2: SyncStatusBanner UI (7-state banner, useNetworkStatus, useSyncStatus, D-01 through D-09)
+- [x] 02-08-PLAN.md — Wave 3: Field testing checkpoint (Android device test + full suite verification)
 
 **UI hint**: yes
 
@@ -208,7 +208,7 @@ Plans:
 - [x] 04-05-PLAN.md — Wave 2: Decimal type annotation cleanup (Mapped[float] → Mapped[Decimal] on Numeric columns)
 - [x] 04-06-PLAN.md — Wave 3: Composite indexes Alembic migration (10 indexes, CONCURRENTLY, D-14)
 - [x] 04-07-PLAN.md — Wave 3: Gunicorn railway.toml + pool tuning + checkpoint (D-12, D-13)
-- [ ] 04-08-PLAN.md — Wave 4: PostgreSQL RLS (event listener + Alembic migration + ALEMBIC_DATABASE_URL) (D-16–D-19)
+- [x] 04-08-PLAN.md — Wave 4: PostgreSQL RLS (event listener + Alembic migration + ALEMBIC_DATABASE_URL) (D-16–D-19)
 - [x] 04-09-PLAN.md — Wave 4: UI — DriverScorecardPanel + MaintenanceImminentPanel + page integration + checkpoint
 
 **UI hint**: yes
@@ -315,7 +315,7 @@ Plans:
 - [x] 04.1-05-PLAN.md — Wave 4: Migrate ControlTowerOverview + FleetComplianceBoard
 - [x] 04.1-06-PLAN.md — Wave 4: Migrate FuelControlBoard + FleetHistoryBoard + TransportCargoBoard + CostMarginBoard
 - [x] 04.1-07-PLAN.md — Wave 5: Migrate page.tsx billing section
-- [ ] 04.1-08-PLAN.md — Wave 6: Legacy CSS cleanup + visual checkpoint
+- [x] 04.1-08-PLAN.md — Wave 6: Legacy CSS cleanup + visual checkpoint
 
 ### Phase 5: Client Registry + Migration Foundation
 
@@ -414,11 +414,11 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 07-01-PLAN.md — Wave 1: Backend — as_of param for ar-summary, per-doc outstanding in client statement, generate_client_statement_pdf, get_top_debtors, new endpoints
-- [ ] 07-02-PLAN.md — Wave 1: 6 AR correctness tests (buckets, as_of exclusion, draft exclusion, outstanding calc, PDF bytes, cross-tenant)
-- [ ] 07-03-PLAN.md — Wave 2: /ar AR dashboard page (KPI cards, aging grid, top debtors) + Contas a Receber sidebar entry
-- [ ] 07-04-PLAN.md — Wave 2: /clientes/[id] statement section + Exportar PDF + Next.js PDF proxy route
-- [ ] 07-05-PLAN.md — Wave 3: Verification checkpoint (pytest + ruff + tsc + manual review)
+- [x] 07-01-PLAN.md — Wave 1: Backend — as_of param for ar-summary, per-doc outstanding in client statement, generate_client_statement_pdf, get_top_debtors, new endpoints
+- [x] 07-02-PLAN.md — Wave 1: 6 AR correctness tests (buckets, as_of exclusion, draft exclusion, outstanding calc, PDF bytes, cross-tenant)
+- [x] 07-03-PLAN.md — Wave 2: /ar AR dashboard page (KPI cards, aging grid, top debtors) + Contas a Receber sidebar entry
+- [x] 07-04-PLAN.md — Wave 2: /clientes/[id] statement section + Exportar PDF + Next.js PDF proxy route
+- [x] 07-05-PLAN.md — Wave 3: Verification checkpoint (pytest + ruff + tsc + manual review)
 
 **UI hint**: yes
 
@@ -445,14 +445,14 @@ Plans:
 **Plans**: 8 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — Wave 0: Test scaffolds for all three INFRA requirements (failing stubs)
-- [ ] 08-02-PLAN.md — Wave 1: Backend Sentry integration (FastAPI + ARQ worker) (INFRA-01)
-- [ ] 08-03-PLAN.md — Wave 1: storage.py dual-provider abstraction + files/service.py refactor (INFRA-02)
-- [ ] 08-04-PLAN.md — Wave 2: ARQ worker R2 routing + ExportJob.file_id + migration script (INFRA-02)
-- [ ] 08-05-PLAN.md — Wave 2: Tenant limit guards + Redis cache + GET /api/v1/tenant/limits (INFRA-03)
-- [ ] 08-06-PLAN.md — Wave 3: LimitWarningBanner component + layout.tsx integration (INFRA-03)
-- [ ] 08-07-PLAN.md — Wave 1: Frontend Sentry (Next.js manager + Vite driver PWA) (INFRA-01)
-- [ ] 08-08-PLAN.md — Wave 4: Human verification checkpoint (INFRA-01, INFRA-02, INFRA-03)
+- [x] 08-01-PLAN.md — Wave 0: Test scaffolds for all three INFRA requirements (failing stubs)
+- [x] 08-02-PLAN.md — Wave 1: Backend Sentry integration (FastAPI + ARQ worker) (INFRA-01)
+- [x] 08-03-PLAN.md — Wave 1: storage.py dual-provider abstraction + files/service.py refactor (INFRA-02)
+- [x] 08-04-PLAN.md — Wave 2: ARQ worker R2 routing + ExportJob.file_id + migration script (INFRA-02)
+- [x] 08-05-PLAN.md — Wave 2: Tenant limit guards + Redis cache + GET /api/v1/tenant/limits (INFRA-03)
+- [x] 08-06-PLAN.md — Wave 3: LimitWarningBanner component + layout.tsx integration (INFRA-03)
+- [x] 08-07-PLAN.md — Wave 1: Frontend Sentry (Next.js manager + Vite driver PWA) (INFRA-01)
+- [x] 08-08-PLAN.md — Wave 4: Human verification checkpoint (INFRA-01, INFRA-02, INFRA-03)
 
 **UI hint**: yes
 
@@ -813,12 +813,12 @@ Plans:
 **Plans**: 6 plans
 
 Plans:
-- [ ] 15-00-PLAN.md — Wave 0: Test stubs (17 functions in test_fiscal_compliance.py + 2 in test_billing_export.py)
-- [ ] 15-01-PLAN.md — Wave 1: Alembic DDL migration (all ADD COLUMN + per-tenant sequences) + ORM model updates
-- [ ] 15-02-PLAN.md — Wave 2: LOAD-01 payload guard (create_trip, start_trip) + LOAD-02 hazmat guard + hazmat alert
-- [ ] 15-03-PLAN.md — Wave 2: FISC-01 invoice sequence — _assign_invoice_number() + issue_document() integration
-- [ ] 15-04-PLAN.md — Wave 2: FISC-02 IVA calculation + exporters.py PDF/XLSX IVA section update
-- [ ] 15-05-PLAN.md — Wave 3: FISC-03 compliance report ARQ task + GET /billing/compliance-report endpoint
+- [x] 15-00-PLAN.md — Wave 0: Test stubs (17 functions in test_fiscal_compliance.py + 2 in test_billing_export.py)
+- [x] 15-01-PLAN.md — Wave 1: Alembic DDL migration (all ADD COLUMN + per-tenant sequences) + ORM model updates
+- [x] 15-02-PLAN.md — Wave 2: LOAD-01 payload guard (create_trip, start_trip) + LOAD-02 hazmat guard + hazmat alert
+- [x] 15-03-PLAN.md — Wave 2: FISC-01 invoice sequence — _assign_invoice_number() + issue_document() integration
+- [x] 15-04-PLAN.md — Wave 2: FISC-02 IVA calculation + exporters.py PDF/XLSX IVA section update
+- [x] 15-05-PLAN.md — Wave 3: FISC-03 compliance report ARQ task + GET /billing/compliance-report endpoint
 
 **UI hint**: yes (campos no formulário de viagem e veículo)
 
@@ -858,15 +858,15 @@ Plans:
 **Plans**: 9 plans
 
 Plans:
-- [ ] 15.1-01-PLAN.md — Wave 0: Test stubs for all FDOC/OPDOC requirements
-- [ ] 15.1-02-PLAN.md — Wave 1A: DDL — billing_documents extension (FDOC-01)
-- [ ] 15.1-03-PLAN.md — Wave 1B: DDL — transport_documents extension (OPDOC-01)
-- [ ] 15.1-04-PLAN.md — Wave 2A: Nota de Débito + Nota de Crédito (FDOC-02, FDOC-03)
-- [ ] 15.1-05-PLAN.md — Wave 2B: Fatura-Recibo, Recibo + AR endpoint (FDOC-04, FDOC-05)
-- [ ] 15.1-06-PLAN.md — Wave 3A: Guia de Remessa (OPDOC-02)
-- [ ] 15.1-07-PLAN.md — Wave 3B: Carta de Porte Internacional + DAV/INATTER (OPDOC-03, OPDOC-04)
-- [ ] 15.1-08-PLAN.md — Wave 3C: Document Checklist per Trip (OPDOC-05)
-- [ ] 15.1-09-PLAN.md — Wave 4: Implement tests + full suite validation
+- [x] 15.1-01-PLAN.md — Wave 0: Test stubs for all FDOC/OPDOC requirements
+- [x] 15.1-02-PLAN.md — Wave 1A: DDL — billing_documents extension (FDOC-01)
+- [x] 15.1-03-PLAN.md — Wave 1B: DDL — transport_documents extension (OPDOC-01)
+- [x] 15.1-04-PLAN.md — Wave 2A: Nota de Débito + Nota de Crédito (FDOC-02, FDOC-03)
+- [x] 15.1-05-PLAN.md — Wave 2B: Fatura-Recibo, Recibo + AR endpoint (FDOC-04, FDOC-05)
+- [x] 15.1-06-PLAN.md — Wave 3A: Guia de Remessa (OPDOC-02)
+- [x] 15.1-07-PLAN.md — Wave 3B: Carta de Porte Internacional + DAV/INATTER (OPDOC-03, OPDOC-04)
+- [x] 15.1-08-PLAN.md — Wave 3C: Document Checklist per Trip (OPDOC-05)
+- [x] 15.1-09-PLAN.md — Wave 4: Implement tests + full suite validation
 
 **UI hint**: no (backend + endpoints only; UI na fase seguinte de design)
 
@@ -952,10 +952,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 18-01-PLAN.md — Extended KPIs backend (ANA-01): get_analytics_dashboard + Redis cache
-- [ ] 18-02-PLAN.md — Async export reports (ANA-02 fuel XLSX, ANA-03 compliance PDF)
-- [ ] 18-03-PLAN.md — Insurance models, migration, CRUD API, renewal cron (INS-01, INS-02)
-- [ ] 18-04-PLAN.md — Frontend: analytics dashboard sections + vehicle insurance tab
+- [x] 18-01-PLAN.md — Extended KPIs backend (ANA-01): get_analytics_dashboard + Redis cache
+- [x] 18-02-PLAN.md — Async export reports (ANA-02 fuel XLSX, ANA-03 compliance PDF)
+- [x] 18-03-PLAN.md — Insurance models, migration, CRUD API, renewal cron (INS-01, INS-02)
+- [x] 18-04-PLAN.md — Frontend: analytics dashboard sections + vehicle insurance tab
 
 **UI hint**: yes
 

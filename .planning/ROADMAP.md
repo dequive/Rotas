@@ -662,9 +662,12 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 - [x] **Phase 13.5: Workshop Operations Expansion** — Staff de oficina (atribuição + custo mão de obra), ferramentas com histórico de calibrações, peças serializadas e timeline unificada de veículo
  (completed 2026-06-19)
 - [x] **Phase 13: Frontend Completeness** — As 4 páginas do manager referenciadas no sidebar mas sem implementação real: `/manutencao`, `/cobranca`, `/alertas`, `/settings` (completed 2026-06-20)
-- [ ] **Phase 14: Domain State Machines** — Fechar state machines incompletas de `BillingDocument`, `Contract`, `DeliveryProof` e `DispatchClearance` — o núcleo financeiro e documental fica coerente
-- [ ] **Phase 15: Fiscal Compliance + Segurança de Carga** — IVA Moçambique, numeração fiscal, validação de peso vs capacidade, suporte hazmat
-- [ ] **Phase 15.1: Documentos Fiscais Completos** — Estender billing_documents com document_type (invoice/debit_note/credit_note/invoice_receipt/receipt/proforma) e parent_document_id; criar Nota de Débito, Nota de Crédito, Fatura-Recibo e Recibo; AR básico com due_date e aging
+- [x] **Phase 14: Domain State Machines** — Fechar state machines incompletas de `BillingDocument`, `Contract`, `DeliveryProof` e `DispatchClearance` — o núcleo financeiro e documental fica coerente
+ (completed 2026-06-19)
+- [x] **Phase 15: Fiscal Compliance + Segurança de Carga** — IVA Moçambique, numeração fiscal, validação de peso vs capacidade, suporte hazmat
+ (completed 2026-06-19)
+- [x] **Phase 15.1: Documentos Fiscais Completos** — Estender billing_documents com document_type (invoice/debit_note/credit_note/invoice_receipt/receipt/proforma) e parent_document_id; criar Nota de Débito, Nota de Crédito, Fatura-Recibo e Recibo; AR básico com due_date e aging
+ (completed 2026-06-19)
 - [x] **Phase 16: HOS + Availability** — Driver Hours of Service and vehicle/driver availability calendar
  (completed 2026-06-21)
 - [x] **Phase 17: Enterprise Infrastructure v2** — Distributed rate limiting, structured logging, Prometheus metrics, advanced worker heartbeat (completed 2026-06-18)

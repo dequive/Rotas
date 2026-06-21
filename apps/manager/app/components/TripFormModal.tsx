@@ -4,6 +4,7 @@ import { Info, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/app/components/ui/Button";
+import { IconButton } from "@/app/components/ui/IconButton";
 import type { KnownRoute } from "../lib/known-routes-api";
 import { calcDespacho, calcFuel } from "../lib/known-routes-api";
 import type { Vehicle } from "../lib/vehicles-api";
@@ -143,7 +144,7 @@ export function TripFormModal({
           <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Nova viagem</h2>
-              <button className="icon-btn" onClick={() => setOpen(false)}><X size={18} /></button>
+              <IconButton onClick={() => setOpen(false)} label="Fechar"><X size={18} /></IconButton>
             </div>
 
             <form onSubmit={handleSubmit} className="modal-form">

@@ -3,6 +3,7 @@
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { IconButton } from "@/app/components/ui/IconButton";
 
 export function KnownRouteDeleteButton({ routeId, routeLabel }: { routeId: string; routeLabel: string }) {
   const router = useRouter();
@@ -21,8 +22,8 @@ export function KnownRouteDeleteButton({ routeId, routeLabel }: { routeId: strin
   }
 
   return (
-    <button className="icon-btn danger" onClick={handleDelete} disabled={loading} title="Eliminar rota">
+    <IconButton variant="danger" onClick={handleDelete} disabled={loading} label="Eliminar rota">
       <Trash2 size={15} />
-    </button>
+    </IconButton>
   );
 }

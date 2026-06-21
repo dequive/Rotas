@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { useState } from "react";
 import type { ClientResponse } from "@/app/lib/clients-api";
+import { IconButton } from "@/app/components/ui/IconButton";
 import {
   DataTable,
   RotasTableHeader,
@@ -129,16 +130,16 @@ export function ClientsTable({ clients }: ClientsTableProps) {
                   >
                     Ver
                   </Link>
-                  <button
-                    className="icon-btn"
-                    title="Editar cliente"
+                  <IconButton
+                    label="Editar cliente"
+                    className="w-auto px-2 text-[12px] font-semibold"
                     onClick={() => {
                       setEditClient(c);
                       setEditOpen(true);
                     }}
                   >
-                    <span className="text-[12px]">Editar</span>
-                  </button>
+                    Editar
+                  </IconButton>
                 </RotasTableActionsCell>
               </RotasTableRow>
             ))}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { ClientResponse } from "../lib/clients-api";
 import { Button } from "@/app/components/ui/Button";
+import { IconButton } from "@/app/components/ui/IconButton";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -161,14 +162,13 @@ export function ClientFormModal({
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{mode === "create" ? "Novo Cliente" : "Editar Cliente"}</h2>
-          <button
-            className="icon-btn"
+          <IconButton
             onClick={() => onOpenChange(false)}
             type="button"
-            aria-label="Fechar"
+            label="Fechar"
           >
             <X size={18} />
-          </button>
+          </IconButton>
         </div>
 
         <form onSubmit={handleSubmit} className="modal-form">

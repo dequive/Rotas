@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { Contract } from "../lib/contracts-api";
 import { ClientCombobox } from "./ClientCombobox";
 import { Button } from "@/app/components/ui/Button";
+import { IconButton } from "@/app/components/ui/IconButton";
 
 export function ContractFormModal({ contract }: { contract?: Contract }) {
   const router = useRouter();
@@ -81,16 +82,18 @@ export function ContractFormModal({ contract }: { contract?: Contract }) {
 
   return (
     <>
-      <button className={isEdit ? "icon-btn" : "primary-btn"} onClick={handleOpen}>
-        {isEdit ? <Edit2 size={15} /> : <><Plus size={16} /> Novo contrato</>}
-      </button>
+      {isEdit ? (
+        <IconButton onClick={handleOpen} label="Editar contrato"><Edit2 size={15} /></IconButton>
+      ) : (
+        <Button onClick={handleOpen}><Plus size={16} /> Novo contrato</Button>
+      )}
 
       {open && (
         <div className="modal-backdrop" onClick={() => setOpen(false)}>
           <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{isEdit ? "Editar contrato" : "Novo contrato"}</h2>
-              <button className="icon-btn" onClick={() => setOpen(false)}><X size={18} /></button>
+              <IconButton onClick={() => setOpen(false)} label="Fechar"><X size={18} /></IconButton>
             </div>
             <form onSubmit={handleSubmit} className="modal-form">
               <div className="form-row">

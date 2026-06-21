@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Vehicle } from "../lib/vehicles-api";
 import { Button } from "@/app/components/ui/Button";
+import { IconButton } from "@/app/components/ui/IconButton";
 
 export function VehicleFormModal({ vehicle }: { vehicle?: Vehicle }) {
   const router = useRouter();
@@ -51,16 +52,18 @@ export function VehicleFormModal({ vehicle }: { vehicle?: Vehicle }) {
 
   return (
     <>
-      <button className={isEdit ? "icon-btn" : "primary-btn"} onClick={() => setOpen(true)} title={isEdit ? "Editar viatura" : undefined}>
-        {isEdit ? <Edit2 size={15} /> : <><Plus size={16} /> Nova viatura</>}
-      </button>
+      {isEdit ? (
+        <IconButton onClick={() => setOpen(true)} label="Editar viatura"><Edit2 size={15} /></IconButton>
+      ) : (
+        <Button onClick={() => setOpen(true)}><Plus size={16} /> Nova viatura</Button>
+      )}
 
       {open && (
         <div className="modal-backdrop" onClick={() => setOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{isEdit ? "Editar viatura" : "Nova viatura"}</h2>
-              <button className="icon-btn" onClick={() => setOpen(false)}><X size={18} /></button>
+              <IconButton onClick={() => setOpen(false)} label="Fechar"><X size={18} /></IconButton>
             </div>
             <form onSubmit={handleSubmit} className="modal-form">
               <div className="form-row">

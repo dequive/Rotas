@@ -4,6 +4,7 @@ import { requireSession } from "../lib/auth";
 import { loadVehicles } from "../lib/vehicles-api";
 import { SidebarLayout } from "../components/SidebarLayout";
 import { VehicleFormModal } from "../components/VehicleFormModal";
+import { StatusBadge } from "../components/ui/StatusBadge";
 
 const VEHICLE_DOCS: { key: string; short: string }[] = [
   { key: "insurance",            short: "SEG" },
@@ -92,7 +93,10 @@ export default async function ViaturasPage() {
                       <td>{v.current_km.toLocaleString("pt-MZ")} km</td>
                       <td>{v.fuel_type}</td>
                       <td>
-                        <span className={`badge ${meta.tone}`}>{meta.label}</span>
+                        <StatusBadge
+                          status={v.status === "active" ? "activo" : v.status === "maintenance" ? "in_progress" : "inactivo"}
+                          label={meta.label}
+                        />
                       </td>
                       <td>
                         <div className="flex items-center gap-1 flex-wrap">
@@ -115,9 +119,9 @@ export default async function ViaturasPage() {
                         <a
                           href={`/api/v1/vehicles/${v.id}/qr-code`}
                           target="_blank"
-                          className="icon-btn"
                           title="Ver QR Code"
                           rel="noreferrer"
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-surface text-ink-2 border border-border hover:bg-surface-2 hover:text-ink transition-colors duration-100 flex-shrink-0"
                         >
                           <QrCode size={16} />
                         </a>

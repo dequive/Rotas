@@ -3,6 +3,7 @@
 import { Copy, Smartphone, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/app/components/ui/Button";
+import { IconButton } from "@/app/components/ui/IconButton";
 
 export function PairingCodeButton({ driverId, driverName }: { driverId: string; driverName: string }) {
   const [open, setOpen] = useState(false);
@@ -47,9 +48,9 @@ export function PairingCodeButton({ driverId, driverName }: { driverId: string; 
 
   if (!open) {
     return (
-      <button className="icon-btn" title="Gerar código de pareamento" onClick={handleOpen}>
+      <IconButton label="Gerar código de pareamento" onClick={handleOpen}>
         <Smartphone size={15} />
-      </button>
+      </IconButton>
     );
   }
 
@@ -58,7 +59,7 @@ export function PairingCodeButton({ driverId, driverName }: { driverId: string; 
       <div className="modal pairing-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Código de pareamento — {driverName}</h2>
-          <button className="icon-btn" onClick={() => setOpen(false)}><X size={18} /></button>
+          <IconButton onClick={() => setOpen(false)} label="Fechar"><X size={18} /></IconButton>
         </div>
         <div className="pairing-body">
           {loading && <p className="muted">A gerar código...</p>}
@@ -68,9 +69,9 @@ export function PairingCodeButton({ driverId, driverName }: { driverId: string; 
               <p className="muted">Código válido por 15 minutos. O motorista deve introduzir este código na app.</p>
               <div className="pairing-code">
                 <span>{code}</span>
-                <button className="icon-btn" onClick={copyCode} title="Copiar">
+                <IconButton onClick={copyCode} label="Copiar código">
                   <Copy size={16} />
-                </button>
+                </IconButton>
               </div>
               {copied && <p className="success-msg">Copiado!</p>}
               {expiresAt && (

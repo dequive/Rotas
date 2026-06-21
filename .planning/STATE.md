@@ -24,7 +24,7 @@ _Last updated: 2026-06-21 — Phase 16 (HOS + Availability) complete: 16-01 rout
 Phase: 16
 Plan: 16-05 complete — ALL PLANS DONE
 Status: Phase 16 complete — all 5 plans done (16-01 router; 16-02 HOS service; 16-03 availability endpoints + Redis; 16-04 status filter; 16-05 HOS integration test)
-Last activity: 2026-06-21
+Last activity: 2026-06-21 — Completed quick task 260621-uvf: Fase 0 auditoria dados clients→third_parties — risco Fase A classificado MÉDIO (2213 clients, 0 NUITs nulos, 0 duplicados, 0 sobreposição)
 Stopped at: Completed 16-02-SUMMARY.md
 
 ### Completed v2.0 Phases
@@ -228,6 +228,7 @@ Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
 | 260621-ext | Extrato conta corrente fornecedores: filtro período + opening_balance + PDF PHC landscape | 2026-06-21 | 233c7d8 | inline |
 | 260621-p2c | Notifications module: router (3 endpoints), 3 ARQ tasks (outbox flush, dispatch rejected, vehicle doc expiry), 6 tests | 2026-06-21 | 31a6c32 | [260621-p2c](./quick/260621-p2c-notifications-module-router-py-registo-e/) |
 | 260621-pvf | HOS violation alerts (30-min cron) + driver document expiry alerts (daily cron) + 5 tests | 2026-06-21 | 232355b | [260621-pvf](./quick/260621-pvf-task-check-hos-violations-cron-cada-30-m/) |
+| 260621-uvf | Fase 0 auditoria dados clients→third_parties (4 queries BD: volume, NUIT quality, duplicados, sobreposição) | 2026-06-21 | — | [260621-uvf](./quick/260621-uvf-fase-0-auditoria-dados-clients-third-par/) |
 
 ### Blockers
 

@@ -7,6 +7,7 @@ import { OperationalDocumentsList } from "@/app/components/OperationalDocumentsL
 import { DocumentUploadModal } from "@/app/components/DocumentUploadModal";
 import type { OperationalDocument } from "@/app/components/OperationalDocumentsList";
 import { notFound } from "next/navigation";
+import { PageHeader } from "@/app/components/ui/PageHeader";
 
 interface Assignment {
   id: string;
@@ -121,55 +122,21 @@ export default async function DriverDetailPage({ params }: PageProps) {
         </div>
 
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            marginBottom: 24,
-            flexWrap: "wrap",
-            gap: 12,
-          }}
-        >
-          <div>
-            <h1
-              style={{
-                fontFamily: "Manrope, sans-serif",
-                fontSize: "24px",
-                fontWeight: 700,
-                color: "var(--ink)",
-                margin: 0,
-              }}
-            >
-              {driver.full_name}
-            </h1>
-            <p
-              style={{
-                fontFamily: "Manrope, sans-serif",
-                fontSize: "13px",
-                color: "var(--muted)",
-                marginTop: 4,
-              }}
-            >
-              {driver.phone}
-              {driver.email ? ` · ${driver.email}` : ""}
-            </p>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <StatusBadge status={driverStatusKey} label={driverStatusLabel} />
-            {driver.score > 0 && (
-              <span
-                style={{
-                  fontFamily: "IBM Plex Mono, monospace",
-                  fontSize: "13px",
-                  color: "var(--muted)",
-                }}
-              >
-                Score: {driver.score}
-              </span>
-            )}
-          </div>
-        </div>
+        <PageHeader
+          eyebrow="Motoristas"
+          title={driver.full_name}
+          description={[driver.phone, driver.email].filter(Boolean).join(" · ")}
+          actions={
+            <div className="flex items-center gap-2">
+              <StatusBadge status={driverStatusKey} label={driverStatusLabel} />
+              {driver.score > 0 && (
+                <span className="font-mono text-[13px] text-muted">
+                  Score: {driver.score}
+                </span>
+              )}
+            </div>
+          }
+        />
 
         {/* Identity info */}
         <div

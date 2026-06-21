@@ -187,6 +187,10 @@ EXPECTED_RLS_TABLES = sorted(
         "supplier_evaluations",
         "supplier_ledger_entries",
         "third_party_contacts",
+        # Phase 18: vehicle insurance + tenant document profiles
+        "insurance_claims",
+        "vehicle_insurances",
+        "tenant_document_profiles",
     ]
 )
 # 63 tables: base RLS set + export_jobs + self-service token/outbox tables

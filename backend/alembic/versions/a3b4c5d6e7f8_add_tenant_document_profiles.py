@@ -59,8 +59,9 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
     )
-    op.create_index(
-        "ix_tenant_document_profiles_tenant_id", "tenant_document_profiles", ["tenant_id"]
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_tenant_document_profiles_tenant_id "
+        "ON tenant_document_profiles (tenant_id)"
     )
     # v2.0 Migration Rules — MANDATORY RLS + GRANT in same migration as CREATE TABLE
     op.execute("ALTER TABLE tenant_document_profiles ENABLE ROW LEVEL SECURITY")

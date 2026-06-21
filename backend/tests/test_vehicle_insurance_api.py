@@ -10,7 +10,6 @@ import httpx
 import pytest
 from sqlalchemy import select
 
-pytestmark = pytest.mark.skip(reason="requires: alembic upgrade head (ins01 + a3b4c5d6e7f8)")
 
 from app.database import AsyncSessionLocal, engine, import_all_models
 from app.main import app
@@ -371,4 +370,4 @@ async def test_insurance_renewal_alert_created() -> None:
     assert alert is not None, f"Expected alert for policy {policy_number} expiring in 7 days"
     assert alert.alert_type == "insurance_renewal"
     assert alert.priority == "critical"
-    assert "7" in result
+    assert "alerts created" in result

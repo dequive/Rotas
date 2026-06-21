@@ -43,7 +43,7 @@ export function DocumentExpiryBanner({ alerts }: DocumentExpiryBannerProps) {
     ? "bg-red-600 text-white"
     : "bg-amber-400 text-amber-950";
 
-  const dotClass = hasCritical ? "bg-white" : "bg-amber-700";
+  const dotClass = hasCritical ? "bg-white" : "bg-amber-dark";
 
   const linkClass = hasCritical
     ? "text-white underline font-semibold hover:opacity-80 transition-opacity flex-shrink-0"

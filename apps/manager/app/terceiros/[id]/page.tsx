@@ -9,6 +9,7 @@ import {
 } from "@/app/lib/third-party-api";
 import { SidebarLayout } from "@/app/components/SidebarLayout";
 import { StatusBadge } from "@/app/components/ui/StatusBadge";
+import { PageHeader } from "@/app/components/ui/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OperationalDocumentsList } from "@/app/components/OperationalDocumentsList";
 import { DocumentUploadModal } from "@/app/components/DocumentUploadModal";
@@ -39,30 +40,12 @@ export default async function TerceiroDetailPage({
     <SidebarLayout active="terceiros">
       <div className="w-full space-y-6">
         {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1
-              className="text-2xl font-bold"
-              style={{ fontFamily: "Manrope, sans-serif" }}
-            >
-              {party.name}
-            </h1>
-            {party.trade_name && (
-              <p
-                className="text-sm"
-                style={{ color: "var(--muted)", marginTop: 2 }}
-              >
-                {party.trade_name}
-              </p>
-            )}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                marginTop: 8,
-              }}
-            >
+        <PageHeader
+          eyebrow="Terceiros"
+          title={party.name}
+          description={party.trade_name ?? undefined}
+          actions={
+            <div className="flex items-center gap-3">
               <StatusBadge
                 status={
                   party.status === "active"
@@ -80,36 +63,19 @@ export default async function TerceiroDetailPage({
                 }
               />
               {evalsResult.average_score && (
-                <span
-                  style={{
-                    fontSize: "13px",
-                    color: "var(--muted)",
-                    fontFamily: "IBM Plex Mono, monospace",
-                  }}
-                >
+                <span className="font-mono text-[13px] text-muted">
                   Score: {evalsResult.average_score}/10
                 </span>
               )}
+              <a
+                href={`/terceiros/${id}/editar`}
+                className="inline-flex items-center px-3 py-1.5 text-xs font-semibold border border-border-strong rounded-md bg-surface-2 text-ink hover:bg-surface transition-colors duration-100 no-underline"
+              >
+                Editar
+              </a>
             </div>
-          </div>
-          <a
-            href={`/terceiros/${id}/editar`}
-            style={{
-              padding: "7px 14px",
-              border: "1px solid var(--border-strong)",
-              borderRadius: "var(--r-md, 6px)",
-              background: "var(--surface-2)",
-              color: "var(--ink)",
-              fontSize: "13px",
-              fontWeight: 600,
-              fontFamily: "Manrope, sans-serif",
-              textDecoration: "none",
-              display: "inline-block",
-            }}
-          >
-            Editar
-          </a>
-        </div>
+          }
+        />
 
         {/* Tabs */}
         <Tabs defaultValue="info">

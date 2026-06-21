@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { SidebarLayout } from "@/app/components/SidebarLayout";
 import { Button } from "@/app/components/ui/Button";
 import { StatusBadge } from "@/app/components/ui/StatusBadge";
+import { PageHeader } from "@/app/components/ui/PageHeader";
 
 type SessionItem = {
   id: string;
@@ -155,16 +156,17 @@ export default function SecurityPage() {
 
   return (
     <SidebarLayout active="security">
-      <div className="page-header">
-        <div>
-          <h1>Segurança</h1>
-          <p>Sessões e acessos da conta</p>
-        </div>
-        <Button variant="secondary" onClick={loadSessions} disabled={loading}>
-          <RefreshCw size={16} />
-          Atualizar
-        </Button>
-      </div>
+      <PageHeader
+        title="Segurança"
+        eyebrow="Config"
+        description="Sessões e acessos da conta"
+        actions={
+          <Button variant="secondary" onClick={loadSessions} disabled={loading}>
+            <RefreshCw size={16} />
+            Atualizar
+          </Button>
+        }
+      />
 
       <section className="panel">
         <div className="section-header">

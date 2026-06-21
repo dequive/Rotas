@@ -218,7 +218,17 @@ async def create_claim(
         **payload.model_dump(),
     )
     db.add(claim)
-    await db.flush()
+    try:
+        await db.flush()
+    except Exception as exc:
+        await db.rollback()
+        if "ForeignKeyViolation" in type(exc).__name__ or "foreign key" in str(exc).lower():
+            raise ApiError(
+                "invalid_incident_id",
+                "incident_id does not reference a valid trip incident.",
+                status_code=422,
+            ) from exc
+        raise
     await record_audit_log(
         db,
         tenant_id=tenant_id,

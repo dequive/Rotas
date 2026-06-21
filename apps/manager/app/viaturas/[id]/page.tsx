@@ -7,6 +7,7 @@ import { OperationalDocumentsList } from "@/app/components/OperationalDocumentsL
 import { DocumentUploadModal } from "@/app/components/DocumentUploadModal";
 import type { OperationalDocument } from "@/app/components/OperationalDocumentsList";
 import { notFound } from "next/navigation";
+import { PageHeader } from "@/app/components/ui/PageHeader";
 
 interface Assignment {
   id: string;
@@ -75,61 +76,26 @@ export default async function VehicleDetailPage({ params }: PageProps) {
         </div>
 
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            marginBottom: 24,
-            flexWrap: "wrap",
-            gap: 12,
-          }}
-        >
-          <div>
-            <h1
-              style={{
-                fontFamily: "IBM Plex Mono, monospace",
-                fontSize: "26px",
-                fontWeight: 500,
-                color: "var(--ink)",
-                margin: 0,
-              }}
-            >
-              {String(vehicle.plate ?? "")}
-            </h1>
-            <p
-              style={{
-                fontFamily: "Manrope, sans-serif",
-                fontSize: "13px",
-                color: "var(--muted)",
-                marginTop: 4,
-              }}
-            >
-              {String(vehicle.brand ?? "")} {String(vehicle.model ?? "")}
-              {vehicle.year ? ` · ${String(vehicle.year)}` : ""}
-            </p>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <StatusBadge status={vehicleStatusKey} label={vehicleStatusLabel} />
-            <Link
-              href={`/viaturas/${id}/historico`}
-              style={{
-                padding: "5px 12px",
-                border: "1px solid var(--border-strong)",
-                borderRadius: "var(--r-md, 6px)",
-                background: "var(--surface-2)",
-                color: "var(--ink)",
-                fontSize: "12px",
-                fontWeight: 600,
-                fontFamily: "Manrope, sans-serif",
-                textDecoration: "none",
-                display: "inline-block",
-              }}
-            >
-              Ver Histórico
-            </Link>
-          </div>
-        </div>
+        <PageHeader
+          eyebrow="Viaturas"
+          title={String(vehicle.plate ?? "")}
+          description={[
+            String(vehicle.brand ?? ""),
+            String(vehicle.model ?? ""),
+            vehicle.year ? String(vehicle.year) : "",
+          ].filter(Boolean).join(" · ")}
+          actions={
+            <div className="flex items-center gap-2">
+              <StatusBadge status={vehicleStatusKey} label={vehicleStatusLabel} />
+              <Link
+                href={`/viaturas/${id}/historico`}
+                className="inline-flex items-center px-3 py-1.5 text-xs font-semibold border border-border-strong rounded-md bg-surface-2 text-ink hover:bg-surface transition-colors duration-100"
+              >
+                Ver Histórico
+              </Link>
+            </div>
+          }
+        />
 
         {/* Motoristas Atribuídos */}
         <div

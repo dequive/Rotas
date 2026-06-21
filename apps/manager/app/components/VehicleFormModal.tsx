@@ -102,7 +102,7 @@ export function VehicleFormModal({ vehicle }: { vehicle?: Vehicle }) {
               <label>Limite diário combustível (MZN)<input name="fuel_limit_daily" type="number" step="0.01" defaultValue={vehicle?.fuel_limit_daily ?? ""} placeholder="350" /></label>
               {error && <p className="form-error">{error}</p>}
               <div className="modal-actions">
-                <button type="button" className="secondary-btn" onClick={() => setOpen(false)}>Cancelar</button>
+                <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
                 <Button type="submit" variant="primary" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</Button>
               </div>
             </form>

@@ -3,18 +3,16 @@
 import { useState } from "react";
 import type { ClientResponse } from "@/app/lib/clients-api";
 import { ClientFormModal } from "@/app/components/ClientFormModal";
+import { Button } from "@/app/components/ui/Button";
 
 export function EditarClienteButton({ client }: { client: ClientResponse }) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <button
-        className="secondary-btn"
-        onClick={() => setOpen(true)}
-      >
+      <Button variant="secondary" onClick={() => setOpen(true)}>
         Editar
-      </button>
+      </Button>
       <ClientFormModal
         mode="edit"
         client={client}

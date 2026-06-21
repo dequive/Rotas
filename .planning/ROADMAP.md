@@ -665,10 +665,12 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
 - [ ] **Phase 14: Domain State Machines** — Fechar state machines incompletas de `BillingDocument`, `Contract`, `DeliveryProof` e `DispatchClearance` — o núcleo financeiro e documental fica coerente
 - [ ] **Phase 15: Fiscal Compliance + Segurança de Carga** — IVA Moçambique, numeração fiscal, validação de peso vs capacidade, suporte hazmat
 - [ ] **Phase 15.1: Documentos Fiscais Completos** — Estender billing_documents com document_type (invoice/debit_note/credit_note/invoice_receipt/receipt/proforma) e parent_document_id; criar Nota de Débito, Nota de Crédito, Fatura-Recibo e Recibo; AR básico com due_date e aging
-- [ ] **Phase 16: HOS + Availability** — Driver Hours of Service and vehicle/driver availability calendar
+- [x] **Phase 16: HOS + Availability** — Driver Hours of Service and vehicle/driver availability calendar
+ (completed 2026-06-21)
 - [x] **Phase 17: Enterprise Infrastructure v2** — Distributed rate limiting, structured logging, Prometheus metrics, advanced worker heartbeat (completed 2026-06-18)
  (completed 2026-06-19)
-- [ ] **Phase 18: Analytics + Insurance** — Client profitability, insurance management, deep BI layer
+- [x] **Phase 18: Analytics + Insurance** — Client profitability, insurance management, deep BI layer
+ (completed 2026-06-21)
 - [ ] **Phase 19: Customs/Border Crossing** — Workflows for cross-border routes, documentation, and border dispatch
 - [ ] **Phase 20: Route Optimization** — Distance matrix, waypoint sequencing, integration with routing providers
 - [ ] **Phase 21: Frontend E2E Tests** — Playwright E2E testing suite to prevent visual and functional UI regressions

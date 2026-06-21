@@ -63,14 +63,14 @@ export function LimitWarningBanner({ limits }: LimitWarningBannerProps) {
 
   // Amber at 80–99% (--amber / amber-400 + amber-950 text), red at 100%+ (--error / red-600 + white)
   const bgClass = isAtLimit
-    ? "bg-red-600 text-white"
-    : "bg-amber-400 text-amber-950";
+    ? "bg-error text-white"
+    : "bg-amber text-ink";
 
   const dotClass = isAtLimit ? "bg-white" : "bg-amber-dark";
 
   const linkClass = isAtLimit
     ? "text-white underline font-semibold hover:opacity-80 transition-opacity flex-shrink-0"
-    : "text-amber-900 underline font-semibold hover:opacity-80 transition-opacity flex-shrink-0";
+    : "text-ink underline font-semibold hover:opacity-80 transition-opacity flex-shrink-0";
 
   return (
     <div

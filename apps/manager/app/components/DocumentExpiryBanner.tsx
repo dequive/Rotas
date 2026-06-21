@@ -40,14 +40,14 @@ export function DocumentExpiryBanner({ alerts }: DocumentExpiryBannerProps) {
 
   // Amber at 8–30 days (--amber / amber-400 + amber-950 text), red at ≤7 days (--error / red-600 + white)
   const bgClass = hasCritical
-    ? "bg-red-600 text-white"
-    : "bg-amber-400 text-amber-950";
+    ? "bg-error text-white"
+    : "bg-amber text-ink";
 
   const dotClass = hasCritical ? "bg-white" : "bg-amber-dark";
 
   const linkClass = hasCritical
     ? "text-white underline font-semibold hover:opacity-80 transition-opacity flex-shrink-0"
-    : "text-amber-900 underline font-semibold hover:opacity-80 transition-opacity flex-shrink-0";
+    : "text-ink underline font-semibold hover:opacity-80 transition-opacity flex-shrink-0";
 
   const urgencyLabel = hasCritical
     ? "crítico — renovar imediatamente"

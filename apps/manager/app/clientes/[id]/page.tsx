@@ -458,7 +458,7 @@ export default async function ClienteDetailPage({
                         invoiceTotal={inv.total_amount != null ? String(inv.total_amount) : null}
                         invoiceOutstanding={inv.outstanding_balance != null ? String(inv.outstanding_balance) : null}
                         trigger={
-                          <button className="text-xs font-semibold text-amber-600 hover:text-amber-700 border border-amber-200 rounded px-2 py-1">
+                          <button className="text-xs font-semibold text-amber hover:text-amber-dark border border-amber-light rounded-md px-2 py-1 transition-colors duration-100">
                             Registar Pagamento
                           </button>
                         }

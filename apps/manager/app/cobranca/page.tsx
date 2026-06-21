@@ -308,7 +308,7 @@ export default async function CobrancaPage() {
                       invoiceNumber={document.invoiceNumber}
                       invoiceTotal={document.amount != null ? String(document.amount) : null}
                       trigger={
-                        <button className="text-xs font-semibold text-amber-600 hover:text-amber-700 border border-amber-200 rounded px-2 py-1 whitespace-nowrap">
+                        <button className="text-xs font-semibold text-amber hover:text-amber-dark border border-amber-light rounded-md px-2 py-1 whitespace-nowrap transition-colors duration-100">
                           Registar Pagamento
                         </button>
                       }

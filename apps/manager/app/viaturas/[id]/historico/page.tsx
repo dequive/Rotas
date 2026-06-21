@@ -92,7 +92,7 @@ export default async function VehicleHistoricoPage({ params }: PageProps) {
                   >
                     {/* Icon circle */}
                     <div
-                      className="relative z-10 flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-amber-500"
+                      className="relative z-10 flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-amber"
                       style={{
                         background: "var(--surface)",
                         border: "2px solid var(--amber)",

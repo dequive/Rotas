@@ -85,6 +85,7 @@ export interface RouteProfitabilityRow {
 
 export interface ContractMarginRow {
   billing_document_id: string;
+  invoice_number: string | null;
   total_revenue: number;
   total_cost: number;
   gross_margin: number;
@@ -92,6 +93,7 @@ export interface ContractMarginRow {
 
 export interface TopDriverRow {
   driver_id: string;
+  driver_name: string | null;
   trip_count: number;
   total_km: number;
 }
@@ -151,6 +153,7 @@ export async function getAnalyticsDashboard(params: {
       (raw.contract_margins ?? []) as Record<string, unknown>[]
     ).map((r) => ({
       billing_document_id: r.billing_document_id as string,
+      invoice_number: (r.invoice_number as string | null) ?? null,
       total_revenue: r.total_revenue as number,
       total_cost: r.total_cost as number,
       gross_margin: r.gross_margin as number,
@@ -162,6 +165,7 @@ export async function getAnalyticsDashboard(params: {
     top_drivers: ((raw.top_drivers ?? []) as Record<string, unknown>[]).map(
       (d) => ({
         driver_id: d.driver_id as string,
+        driver_name: (d.driver_name as string | null) ?? null,
         trip_count: d.trip_count as number,
         total_km: d.total_km as number,
       }),

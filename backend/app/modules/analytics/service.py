@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.billing.models import BillingItem
+from app.modules.billing.models import BillingDocument, BillingItem
 from app.modules.cargo.models import DeliveryProof
 from app.modules.drivers.models import Driver
 from app.modules.fuel.models import FuelLog
@@ -359,6 +359,15 @@ async def get_contract_margins(
 
     cost_by_doc = {str(r.billing_document_id): float(r.total_cost) for r in cost_rows}
 
+    # Fetch invoice numbers for the documents
+    inv_rows = (
+        await db.execute(
+            select(BillingDocument.id, BillingDocument.invoice_number)
+            .where(BillingDocument.id.in_(doc_ids))
+        )
+    ).all()
+    invoice_by_doc = {str(r.id): r.invoice_number for r in inv_rows}
+
     result = []
     for r in rev_rows:
         doc_id = str(r.billing_document_id)
@@ -367,6 +376,7 @@ async def get_contract_margins(
         result.append(
             {
                 "billing_document_id": doc_id,
+                "invoice_number": invoice_by_doc.get(doc_id),
                 "total_revenue": total_revenue,
                 "total_cost": total_cost,
                 "gross_margin": total_revenue - total_cost,
@@ -415,16 +425,18 @@ async def get_top_drivers_by_score(
         await db.execute(
             select(
                 Trip.driver_id,
+                Driver.full_name.label("driver_name"),
                 func.count(Trip.id).label("trip_count"),
                 func.coalesce(func.sum(Trip.km_end - Trip.km_start), 0).label("total_km"),
             )
+            .join(Driver, Trip.driver_id == Driver.id, isouter=True)
             .where(
                 Trip.tenant_id == tenant_id,
                 Trip.status == "closed",
                 Trip.closed_at >= period_start,
                 Trip.closed_at <= period_end,
             )
-            .group_by(Trip.driver_id)
+            .group_by(Trip.driver_id, Driver.full_name)
             .order_by(func.count(Trip.id).desc())
             .limit(5)
         )
@@ -432,6 +444,7 @@ async def get_top_drivers_by_score(
     return [
         {
             "driver_id": str(r.driver_id),
+            "driver_name": r.driver_name,
             "trip_count": r.trip_count,
             "total_km": float(r.total_km or 0),
         }

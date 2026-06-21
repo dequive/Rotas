@@ -423,12 +423,19 @@ async def list_provinces(db: AsyncSession) -> list[dict]:
 # ── DriverVehicleAssignment ───────────────────────────────────────────────────
 
 
-def serialize_assignment(a: DriverVehicleAssignment) -> dict:
+def serialize_assignment(
+    a: DriverVehicleAssignment,
+    *,
+    driver_name: str | None = None,
+    vehicle_plate: str | None = None,
+) -> dict:
     return {
         "id": a.id,
         "tenant_id": a.tenant_id,
         "driver_id": a.driver_id,
+        "driver_name": driver_name,
         "vehicle_id": a.vehicle_id,
+        "vehicle_plate": vehicle_plate,
         "assigned_at": a.assigned_at,
         "unassigned_at": a.unassigned_at,
         "assignment_type": a.assignment_type,
@@ -527,7 +534,19 @@ async def list_assignments(
     offset: int = 0,
 ) -> list[dict]:
     """List assignments, optionally filtered to active rows (unassigned_at IS NULL)."""
-    query = select(DriverVehicleAssignment).where(DriverVehicleAssignment.tenant_id == tenant_id)
+    from app.modules.drivers.models import Driver
+    from app.modules.vehicles.models import Vehicle
+
+    query = (
+        select(
+            DriverVehicleAssignment,
+            Driver.full_name.label("driver_name"),
+            Vehicle.plate.label("vehicle_plate"),
+        )
+        .join(Driver, DriverVehicleAssignment.driver_id == Driver.id, isouter=True)
+        .join(Vehicle, DriverVehicleAssignment.vehicle_id == Vehicle.id, isouter=True)
+        .where(DriverVehicleAssignment.tenant_id == tenant_id)
+    )
     if driver_id:
         query = query.where(DriverVehicleAssignment.driver_id == driver_id)
     if vehicle_id:
@@ -536,7 +555,14 @@ async def list_assignments(
         query = query.where(DriverVehicleAssignment.unassigned_at.is_(None))
     query = query.order_by(DriverVehicleAssignment.assigned_at.desc()).limit(limit).offset(offset)
     result = await db.execute(query)
-    return [serialize_assignment(a) for a in result.scalars()]
+    return [
+        serialize_assignment(
+            row.DriverVehicleAssignment,
+            driver_name=row.driver_name,
+            vehicle_plate=row.vehicle_plate,
+        )
+        for row in result
+    ]
 
 
 # ── OperationalDocument ───────────────────────────────────────────────────────

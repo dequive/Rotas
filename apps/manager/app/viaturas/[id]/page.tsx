@@ -13,7 +13,9 @@ import InsuranceTab from "./InsuranceTab";
 interface Assignment {
   id: string;
   driver_id: string;
+  driver_name: string | null;
   vehicle_id: string;
+  vehicle_plate: string | null;
   assigned_at: string | null;
   unassigned_at: string | null;
   assignment_type: string | null;
@@ -116,7 +118,7 @@ export default async function VehicleDetailPage({ params }: PageProps) {
               <table className="w-full text-[13px] border-collapse">
                 <thead>
                   <tr className="border-b border-border">
-                    {["Motorista (ID)", "Tipo", "Atribuído em", "Encerrado em", "Estado"].map(
+                    {["Motorista", "Tipo", "Atribuído em", "Encerrado em", "Estado"].map(
                       (h) => (
                         <th
                           key={h}
@@ -133,8 +135,8 @@ export default async function VehicleDetailPage({ params }: PageProps) {
                     const isActive = !a.unassigned_at;
                     return (
                       <tr key={a.id} className="border-b border-border">
-                        <td className="px-3 py-2.5 font-mono text-[11px] text-ink">
-                          {a.driver_id}
+                        <td className="px-3 py-2.5 text-[13px] text-ink">
+                          {a.driver_name ?? a.driver_id.slice(0, 8)}
                         </td>
                         <td className="px-3 py-2.5 text-xs text-muted">
                           {a.assignment_type ?? "—"}

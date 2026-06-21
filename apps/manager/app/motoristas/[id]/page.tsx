@@ -12,7 +12,9 @@ import { PageHeader } from "@/app/components/ui/PageHeader";
 interface Assignment {
   id: string;
   driver_id: string;
+  driver_name: string | null;
   vehicle_id: string;
+  vehicle_plate: string | null;
   assigned_at: string | null;
   unassigned_at: string | null;
   assignment_type: string | null;
@@ -199,7 +201,7 @@ export default async function DriverDetailPage({ params }: PageProps) {
               <table className="w-full text-[13px] border-collapse">
                 <thead>
                   <tr className="border-b border-border">
-                    {["Viatura (ID)", "Tipo", "Atribuído em", "Encerrado em", "Estado"].map(
+                    {["Viatura", "Tipo", "Atribuído em", "Encerrado em", "Estado"].map(
                       (h) => (
                         <th
                           key={h}
@@ -216,12 +218,12 @@ export default async function DriverDetailPage({ params }: PageProps) {
                     const isActive = !a.unassigned_at;
                     return (
                       <tr key={a.id} className="border-b border-border">
-                        <td className="px-3 py-2.5 font-mono text-[11px] text-ink">
+                        <td className="px-3 py-2.5 text-[13px] text-ink">
                           <Link
                             href={`/viaturas/${a.vehicle_id}`}
                             className="text-amber no-underline hover:underline"
                           >
-                            {a.vehicle_id}
+                            {a.vehicle_plate ?? a.vehicle_id.slice(0, 8)}
                           </Link>
                         </td>
                         <td className="px-3 py-2.5 text-xs text-muted">

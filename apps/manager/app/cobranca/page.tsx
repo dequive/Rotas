@@ -271,7 +271,11 @@ export default async function CobrancaPage() {
                   <div className="flex items-center gap-2 mb-0.5">
                     <MonoCell size="sm" className="font-medium text-ink">{document.reference}</MonoCell>
                     <StatusBadge
-                      status={document.status === "Emitido" ? "issued" : "draft"}
+                      status={
+                        document.status === "Emitido" ? "issued"
+                        : document.status === "Pago" ? "billed"
+                        : "draft"
+                      }
                       label={document.status}
                     />
                   </div>

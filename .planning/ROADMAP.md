@@ -676,7 +676,7 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
  (completed 2026-06-21)
 - [ ] **Phase 19: Customs/Border Crossing** — Workflows for cross-border routes, documentation, and border dispatch
 - [ ] **Phase 20: Route Optimization** — Distance matrix, waypoint sequencing, integration with routing providers
-- [ ] **Phase 21: Frontend E2E Tests** — Playwright E2E testing suite to prevent visual and functional UI regressions
+- [x] **Phase 21: Frontend E2E Tests** — Playwright E2E testing suite to prevent visual and functional UI regressions (completed 2026-06-21)
 - [x] **Phase 22: RBAC Permission-Based** — Refactor do sistema de roles e permissões: dois planos (platform vs tenant), roles em português com agregados de gestão e operacional, `require_permission()` granular por domínio, `tenant_roles` custom para owner/director, migração dos 174 call sites de `require_roles`
  (completed 2026-06-20)
 - [x] **Phase 23: Third Party Registry** — Fornecedores e prestadores externos como entidades estruturadas; elegibilidade operacional de motoristas calculada em tempo real; atribuição motorista-viatura com histórico temporal; documentos com validade rastreada (completed 2026-06-20)
@@ -1076,7 +1076,7 @@ Plans:
 
 Plans:
 - [x] 21-01-PLAN.md — Wave 1: Playwright install + playwright.config.ts + e2e/auth.setup.ts + backend seed script + .gitignore
-- [ ] 21-02-PLAN.md — Wave 2: E2E spec files (auth, navigation, vehicles, drivers, billing) + CI e2e job in ci.yml
+- [x] 21-02-PLAN.md — Wave 2: E2E spec files (auth, navigation, vehicles, drivers, billing) + CI e2e job in ci.yml
 
 **UI hint**: no (testes — sem UI nova)
 

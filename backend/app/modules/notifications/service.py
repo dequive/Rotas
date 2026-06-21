@@ -79,3 +79,42 @@ async def enqueue_email(
         new_values=serialize_notification(item),
     )
     return serialize_notification(item)
+
+
+async def list_notifications(
+    db: AsyncSession,
+    tenant_id: UUID,
+    *,
+    status: str | None = None,
+    channel: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[dict]:
+    q = select(NotificationOutbox).where(NotificationOutbox.tenant_id == tenant_id)
+    if status:
+        q = q.where(NotificationOutbox.status == status)
+    if channel:
+        q = q.where(NotificationOutbox.channel == channel)
+    q = q.order_by(NotificationOutbox.created_at.desc()).limit(limit).offset(offset)
+    result = await db.execute(q)
+    return [serialize_notification(n) for n in result.scalars().all()]
+
+
+async def get_notification(
+    db: AsyncSession,
+    tenant_id: UUID,
+    notification_id: UUID,
+) -> dict:
+    item = await db.scalar(
+        select(NotificationOutbox).where(
+            NotificationOutbox.id == notification_id,
+            NotificationOutbox.tenant_id == tenant_id,
+        )
+    )
+    if not item:
+        raise ApiError(
+            "notification_not_found",
+            "Notification not found.",
+            status_code=404,
+        )
+    return serialize_notification(item)

@@ -23,6 +23,7 @@ from app.core.request_context import RequestContextMiddleware
 from app.database import engine as _engine
 from app.database import import_all_models
 from app.modules.alerts.router import router as alerts_router
+from app.modules.notifications.router import router as notifications_router
 from app.modules.analytics.router import router as analytics_router
 from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import driver_router
@@ -281,5 +282,6 @@ app.include_router(sync_router, prefix=api)
 app.include_router(audit_router, prefix=api)
 app.include_router(availability_router, prefix=api)
 app.include_router(analytics_router, prefix=api)
+app.include_router(notifications_router, prefix=api)
 app.include_router(platform_auth_router, prefix=api)
 app.include_router(platform_router, prefix=api)

@@ -1061,7 +1061,7 @@ Plans:
   2. O fluxo de login com credenciais válidas chega ao dashboard; credenciais inválidas mostram mensagem de erro
   3. Um utilizador consegue navegar para /viaturas, ver a lista, abrir uma viatura e ver o tab de Seguros sem erros JS
   4. Um utilizador consegue navegar para /motoristas, ver a lista e abrir um perfil de motorista
-  5. Um utilizador consegue navegar para /faturacao e ver a lista de documentos com paginação
+  5. Um utilizador consegue navegar para /cobranca e ver a lista de documentos com paginação
   6. O test runner integra no CI (GitHub Actions ou equivalente) com `--reporter=html` e artefacto de relatório gerado
 
 **Architecture constraints**:

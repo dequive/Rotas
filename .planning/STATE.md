@@ -15,7 +15,7 @@ progress:
 
 # ROTAS — Project State
 
-_Last updated: 2026-06-21 — Completed Phase 21 (21-01 Playwright scaffold + 21-02 5 E2E spec files + CI e2e job)_
+_Last updated: 2026-06-21 — Completed quick task 260621-nuj: P0.5 IVA seam resolve_iva fail-closed + iva_basis audit columns_
 
 ---
 
@@ -211,6 +211,7 @@ Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
 | 260621-ei3 | P0.3 numeração fiscal gap-free: FiscalCounter + SELECT FOR UPDATE, migração fisc01 RLS, reescrita _assign_invoice_number, 5 testes concorrência | 2026-06-21 | 4c20890 | [260621-ei3](./quick/260621-ei3-p0-3-numeracao-fiscal-gap-free-substitui/) |
 | 260621-b3f | Redesenho 5 documentos operacionais PHC: Guia Remessa + CPI + Relatório Viagem + Ordem Serviço + Inspecção Viatura | 2026-06-21 | 96b70ed | [260621-b3f](./quick/260621-b3f-documentos-operacionais-redesenho-phc/) |
 | 260621-f5i | P0.6 audit log em mutações financeiras + P0.1 pipeline billable BILLABLE_PROOF_STATUSES | 2026-06-21 | 4c521ee | [260621-f5i](.planning/quick/260621-f5i-p0-6-audit-log-em-mutacoes-financeiras-a/) |
+| 260621-nuj | P0.5 IVA seam: resolve_iva fail-closed para internacionais + iva_basis audit columns | 2026-06-21 | 2db084a | [260621-nuj](.planning/quick/260621-nuj-p0-5-seam-iva-internacional-extrair-reso/) |
 
 ### Blockers
 

@@ -2,14 +2,20 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import TRIPS_CLOSE, TRIPS_DISPATCH, TRIPS_READ, require_permission
+from app.modules.drivers.models import Driver
+from app.modules.tenants.models import TenantDocumentProfile
 from app.modules.trips import schemas, service
+from app.modules.trips.exporters import render_trip_report
+from app.modules.trips.models import Trip, TripStop
+from app.modules.vehicles.models import Vehicle
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
@@ -434,4 +440,63 @@ async def operational_close_trip(
             payload,
             actor_id=principal.user_id,
         ),
+    )
+
+
+@router.get("/{trip_id}/report/pdf")
+async def download_trip_report_pdf(
+    trip_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    trip_row = await db.execute(
+        select(Trip).where(Trip.id == trip_id, Trip.tenant_id == principal.tenant_id)
+    )
+    trip = trip_row.scalar_one_or_none()
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    vehicle = None
+    if trip.vehicle_id:
+        v_row = await db.execute(select(Vehicle).where(Vehicle.id == trip.vehicle_id))
+        vehicle = v_row.scalar_one_or_none()
+
+    driver = None
+    if trip.driver_id:
+        d_row = await db.execute(select(Driver).where(Driver.id == trip.driver_id))
+        driver = d_row.scalar_one_or_none()
+
+    stops_row = await db.execute(
+        select(TripStop)
+        .where(TripStop.trip_id == trip_id)
+        .order_by(TripStop.stopped_at)
+    )
+    stops = list(stops_row.scalars().all())
+
+    prof_row = await db.execute(
+        select(TenantDocumentProfile).where(
+            TenantDocumentProfile.tenant_id == principal.tenant_id
+        )
+    )
+    prof_obj = prof_row.scalar_one_or_none()
+    profile = (
+        {
+            "legal_name": prof_obj.legal_name,
+            "address_line1": prof_obj.address_line1,
+            "address_line2": prof_obj.address_line2,
+            "city": prof_obj.city,
+            "phone": prof_obj.phone,
+            "email": prof_obj.email,
+        }
+        if prof_obj
+        else None
+    )
+
+    pdf_bytes = render_trip_report(
+        trip, vehicle=vehicle, driver=driver, stops=stops, profile=profile
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=relatorio-viagem-{trip_id}.pdf"},
     )

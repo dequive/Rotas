@@ -1,14 +1,19 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import WORKSHOP_READ, WORKSHOP_RELEASE, WORKSHOP_WRITE, require_permission
+from app.modules.tenants.models import TenantDocumentProfile
+from app.modules.vehicles.models import Vehicle
 from app.modules.workshop import schemas, service
+from app.modules.workshop.exporters import render_work_order
+from app.modules.workshop.models import WorkOrder, WorkOrderTask
 
 router = APIRouter(prefix="/workshop", tags=["workshop"])
 
@@ -498,3 +503,70 @@ async def get_installed_parts(
 # WORKSHOP_RELEASE is reserved for future use when such an endpoint is added.
 # The constant is imported and available via app.core.rbac.
 _ = WORKSHOP_RELEASE  # keep import live for future endpoint
+
+
+@router.get("/work-orders/{work_order_id}/pdf")
+async def download_work_order_pdf(
+    work_order_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    wo_row = await db.execute(
+        select(WorkOrder).where(
+            WorkOrder.id == work_order_id, WorkOrder.tenant_id == principal.tenant_id
+        )
+    )
+    work_order = wo_row.scalar_one_or_none()
+    if work_order is None:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    vehicle = None
+    if work_order.vehicle_id:
+        v_row = await db.execute(select(Vehicle).where(Vehicle.id == work_order.vehicle_id))
+        vehicle = v_row.scalar_one_or_none()
+
+    tasks_row = await db.execute(
+        select(WorkOrderTask)
+        .where(WorkOrderTask.work_order_id == work_order_id)
+        .order_by(WorkOrderTask.created_at)
+    )
+    tasks = list(tasks_row.scalars().all())
+
+    prof_row = await db.execute(
+        select(TenantDocumentProfile).where(
+            TenantDocumentProfile.tenant_id == principal.tenant_id
+        )
+    )
+    prof_obj = prof_row.scalar_one_or_none()
+    profile = (
+        {
+            "legal_name": prof_obj.legal_name,
+            "address_line1": prof_obj.address_line1,
+            "address_line2": prof_obj.address_line2,
+            "city": prof_obj.city,
+            "phone": prof_obj.phone,
+            "email": prof_obj.email,
+        }
+        if prof_obj
+        else None
+    )
+
+    vehicle_dict = (
+        {
+            "plate": vehicle.plate,
+            "brand": vehicle.brand,
+            "model": vehicle.model,
+            "current_km": vehicle.current_km,
+        }
+        if vehicle
+        else None
+    )
+
+    pdf_bytes = render_work_order(work_order, tasks=tasks, vehicle=vehicle_dict, profile=profile)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=ordem-servico-{work_order_id}.pdf"
+        },
+    )

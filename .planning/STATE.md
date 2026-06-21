@@ -15,7 +15,7 @@ progress:
 
 # ROTAS — Project State
 
-_Last updated: 2026-06-21 — Completed quick task 260620-sik: tenant_document_profiles + redesenho exporters PDF fatura modelo PHC_
+_Last updated: 2026-06-21 — Completed quick task 260621-a7e: empresa page — tenant document profile configuration UI_
 
 ---
 
@@ -206,6 +206,7 @@ Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
 | 260620-cme | Billing module production hardening (IVA 16%, invoice_number no PDF, issuer snapshot, state machine, N+1 fix, 4 novos endpoints, invariantes) | 2026-06-20 | e8467c9 | [260620-cme](./quick/260620-cme-billing-module-production-hardening/) |
 | 260620-r9k | Design system overhaul: fix token layer + create reusable components | 2026-06-20 | 07df112 | [260620-r9k](./quick/260620-r9k-design-system-overhaul-fix-token-layer-c/) |
 | 260620-sik | tenant_document_profiles + redesenho exporters PDF fatura modelo PHC | 2026-06-21 | 2351845 | [260620-sik](./quick/260620-sik-tenant-document-profiles-redesenho-expor/) |
+| 260621-a7e | UI empresa: perfil documento tenant (dados empresa, bancários, numeração) | 2026-06-21 | 502783c | [260621-a7e](./quick/260621-a7e-ui-manager-configura-o-perfil-documento-/) |
 
 ### Blockers
 

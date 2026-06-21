@@ -30,7 +30,7 @@ function tenantId() {
 }
 
 async function uploadQueuedPhotos(item: SyncQueueItem, token: string) {
-  if (!["fuel_log", "checklist"].includes(item.entityType)) {
+  if (!["fuel_log", "checklist", "delivery_proof", "load_permit"].includes(item.entityType)) {
     return item.payload;
   }
 

@@ -6,6 +6,11 @@ from arq import cron
 from arq.connections import RedisSettings
 
 from app.config import get_settings
+from app.jobs.tasks.billing_export import task_export_compliance_report
+from app.jobs.tasks.document_expiry import scan_expiring_documents
+from app.jobs.tasks.housekeeping import run_housekeeping
+from app.jobs.tasks.maintenance import check_maintenance_schedules, check_vehicle_maintenance
+from app.jobs.tasks.notifications import deliver_queued_notifications
 
 settings = get_settings()
 
@@ -37,6 +42,7 @@ async def startup(ctx: dict) -> None:
         pool_pre_ping=True,
     )
     ctx["db_factory"] = async_sessionmaker(admin_engine, expire_on_commit=False)
+    ctx["session_factory"] = ctx["db_factory"]  # alias used by app.jobs.tasks.*
     ctx["admin_engine"] = admin_engine  # store for cleanup in shutdown
 
     import structlog
@@ -463,87 +469,10 @@ async def task_check_insurance_renewals(ctx: dict) -> str:
     return f"Insurance renewal alerts created: {alert_count}"
 
 
-# ── NOTIF-01: Notification outbox flush cron ─────────────────────────────────
-
-
-async def task_process_notification_outbox(ctx: dict) -> str:
-    """NOTIF-01: Process queued email notifications from notification_outbox.
-
-    Runs every 5 minutes. Skips SMTP when email_provider=none (dev mode) but
-    still marks items as sent so the outbox stays clean in local dev.
-    Max 3 attempts per notification before marking failed.
-    Uses BYPASSRLS admin session — cross-tenant outbox flush.
-    """
-    from datetime import datetime
-
-    import structlog
-    from sqlalchemy import and_, select
-
-    from app.config import get_settings as _get_settings
-    from app.modules.notifications.models import NotificationOutbox
-
-    logger = structlog.get_logger("worker")
-    _settings = _get_settings()
-    sent_count = 0
-    failed_count = 0
-    now = datetime.now(UTC)
-
-    async with ctx["db_factory"]() as db:
-        result = await db.execute(
-            select(NotificationOutbox)
-            .where(
-                and_(
-                    NotificationOutbox.status == "queued",
-                    NotificationOutbox.scheduled_at <= now,
-                )
-            )
-            .order_by(NotificationOutbox.created_at)
-            .limit(50)
-        )
-        items = result.scalars().all()
-
-        for item in items:
-            item.attempts += 1
-            if _settings.email_provider.lower() == "none":
-                # Dev mode — mark sent without SMTP
-                item.status = "sent"
-                item.sent_at = now
-                sent_count += 1
-                continue
-            try:
-                import aiosmtplib
-
-                await aiosmtplib.send(
-                    message=item.body_text,
-                    hostname=_settings.smtp_host,
-                    port=_settings.smtp_port,
-                    username=_settings.smtp_username or None,
-                    password=_settings.smtp_password.get_secret_value() or None,
-                    use_tls=_settings.smtp_use_tls,
-                    sender=_settings.email_from_address,
-                    recipients=[item.recipient],
-                    subject=item.subject,
-                )
-                item.status = "sent"
-                item.sent_at = now
-                sent_count += 1
-            except Exception as exc:
-                item.last_error = str(exc)[:500]
-                if item.attempts >= 3:
-                    item.status = "failed"
-                    failed_count += 1
-                logger.warning(
-                    "notification_send_failed",
-                    notification_id=str(item.id),
-                    attempt=item.attempts,
-                    error=str(exc)[:200],
-                )
-
-        await db.commit()
-
-    logger.info("task_process_notification_outbox", sent=sent_count, failed=failed_count)
-    return f"Notifications: {sent_count} sent, {failed_count} failed"
-
+# ── NOTIF-01: Notification outbox flush — see app.jobs.tasks.notifications ───
+# deliver_queued_notifications imported at top; registered in WorkerSettings below.
+# It supersedes the previous task_process_notification_outbox with exponential
+# backoff (5 attempts), dead-letter support, and HTML email body.
 
 # ── NOTIF-02: Dispatch rejected notification (on-demand) ─────────────────────
 
@@ -715,17 +644,29 @@ async def task_check_vehicle_document_expiry(ctx: dict) -> str:
 
 class WorkerSettings:
     functions = [
+        # Billing
         generate_billing_export,
+        task_export_compliance_report,
+        # State-machine crons
         task_mark_overdue_billing_documents,
         task_expire_contracts,
         task_escalate_pending_clearances,
+        # Infrastructure
         task_update_active_tenants_metric,
         task_worker_heartbeat,
-        task_check_document_expiry,
+        run_housekeeping,
+        # Document expiry alerts
+        task_check_document_expiry,          # OperationalDocument (third-party docs)
+        scan_expiring_documents,             # Driver + vehicle docs via analytics
+        task_check_vehicle_document_expiry,  # Vehicle.documents JSON column
+        # Insurance
         task_check_insurance_renewals,
-        task_process_notification_outbox,
+        # Notifications
+        deliver_queued_notifications,        # Replaces task_process_notification_outbox
         task_notify_dispatch_rejected,
-        task_check_vehicle_document_expiry,
+        # Maintenance
+        check_maintenance_schedules,
+        check_vehicle_maintenance,
     ]
     cron_jobs = [
         # SM-01: Mark overdue billing documents — 01:00 Africa/Maputo = 23:00 UTC
@@ -738,19 +679,25 @@ class WorkerSettings:
         cron(
             task_update_active_tenants_metric, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}
         ),
-        # INFRA2-04: Worker heartbeat (every minute in ARQ cron if second not supported)
+        # INFRA2-04: Worker heartbeat every minute
         cron(task_worker_heartbeat, minute=set(range(60))),
-        # TP-10: Document expiry alerts — 06:00 Africa/Maputo = 04:00 UTC
+        # MAINT-01: Daily maintenance schedule check — 02:00 UTC
+        cron(check_maintenance_schedules, hour=2, minute=0),
+        # Driver + vehicle document expiry — 03:00 UTC
+        cron(scan_expiring_documents, hour=3, minute=0),
+        # TP-10: Third-party operational document expiry alerts — 04:00 UTC
         cron(task_check_document_expiry, hour=4, minute=0),
+        # NOTIF-03: Vehicle document expiry alerts — 04:30 UTC
+        cron(task_check_vehicle_document_expiry, hour=4, minute=30),
+        # Housekeeping: idempotency key + audit log cleanup — 04:15 UTC
+        cron(run_housekeeping, hour=4, minute=15),
         # INS-02: Insurance renewal alerts — 07:00 Africa/Maputo = 05:00 UTC
         cron(task_check_insurance_renewals, hour=5, minute=0),
-        # NOTIF-01: Flush notification outbox every 5 minutes
+        # NOTIF-01: Flush notification outbox every 5 minutes (exponential backoff, dead-letter)
         cron(
-            task_process_notification_outbox,
+            deliver_queued_notifications,
             minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
         ),
-        # NOTIF-03: Vehicle document expiry alerts — 06:30 Africa/Maputo = 04:30 UTC
-        cron(task_check_vehicle_document_expiry, hour=4, minute=30),
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     max_jobs = 10

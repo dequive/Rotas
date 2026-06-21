@@ -24,6 +24,7 @@ from app.modules.drivers.models import Driver
 from app.modules.operational_exceptions.models import OperationalException
 from app.modules.tenants.models import Tenant
 from app.modules.trips import service as trips_service
+from app.modules.users.models import User
 from app.modules.trips.models import Trip
 from app.modules.trips.schemas import (
     AssociateContractRequest,
@@ -356,6 +357,20 @@ async def test_api_trip_first_flow_respects_billing_issue_boundary() -> None:
             )
             assert manifest_response.status_code == 200
 
+            start_response = await client.post(
+                f"/api/v1/trips/{trip['id']}/start",
+                headers=headers,
+                json={"km_start": 1000, "actual_departure": "2026-07-01T06:00:00+00:00"},
+            )
+            assert start_response.status_code == 200
+
+            complete_response = await client.post(
+                f"/api/v1/trips/{trip['id']}/complete",
+                headers=headers,
+                json={"km_end": 2400, "actual_arrival": "2026-07-02T09:00:00+00:00"},
+            )
+            assert complete_response.status_code == 200
+
             proof_response = await client.post(
                 f"/api/v1/trips/{trip['id']}/delivery-proof",
                 headers=headers,
@@ -620,6 +635,20 @@ async def test_delivery_proof_dispute_blocks_validation_and_billing() -> None:
             assert trip_response.status_code == 200
             trip = trip_response.json()
 
+            start_resp = await client.post(
+                f"/api/v1/trips/{trip['id']}/start",
+                headers=headers,
+                json={"km_start": 200, "actual_departure": "2026-09-01T06:00:00+00:00"},
+            )
+            assert start_resp.status_code == 200
+
+            complete_resp = await client.post(
+                f"/api/v1/trips/{trip['id']}/complete",
+                headers=headers,
+                json={"km_end": 500, "actual_arrival": "2026-09-02T09:00:00+00:00"},
+            )
+            assert complete_resp.status_code == 200
+
             proof_response = await client.post(
                 f"/api/v1/trips/{trip['id']}/delivery-proof",
                 headers=headers,
@@ -733,5 +762,280 @@ async def test_delivery_proof_dispute_blocks_validation_and_billing() -> None:
                 "operational_exception.created",
                 "operational_exception.resolved",
             }.issubset(set(audit_rows.scalars()))
+    except OperationalError as exc:
+        pytest.skip(f"Local Postgres is not available: {exc}")
+
+
+@pytest.mark.asyncio
+async def test_sm03_accept_delivery_proof_reaches_billing() -> None:
+    """accept_delivery_proof (SM-03) must not dead-end at create_document."""
+    try:
+        async with AsyncSessionLocal() as db:
+            tenant, vehicle, driver = await create_seed_entities(db)
+
+            contract = await contract_service.create_contract(
+                db,
+                tenant.id,
+                ContractCreate(
+                    client_name="Cliente SM03",
+                    contract_reference=f"SM03-{uuid4().hex[:8]}",
+                    default_unit_price=10000,
+                ),
+            )
+
+            trip = await trips_service.create_trip(
+                db,
+                tenant.id,
+                TripCreate(
+                    vehicle_id=vehicle.id,
+                    driver_id=driver.id,
+                    origin="Maputo",
+                    destination="Beira",
+                    cargo_type="Carga contratual",
+                    load_state="loaded_empty",
+                ),
+            )
+            trip = await trips_service.associate_contract(
+                db,
+                tenant.id,
+                trip["id"],
+                AssociateContractRequest(contract_id=contract["id"]),
+            )
+
+            await trips_service.start_trip(
+                db,
+                tenant.id,
+                trip["id"],
+                StartTripRequest(km_start=500, actual_departure=dt("2026-07-01T08:00:00")),
+            )
+            # complete_trip sets km_end — required by list_billable_trips guard
+            await trips_service.complete_trip(
+                db,
+                tenant.id,
+                trip["id"],
+                CompleteTripRequest(km_end=1200, actual_arrival=dt("2026-07-03T18:00:00")),
+            )
+
+            proof_data = await cargo_service.create_delivery_proof(
+                db,
+                tenant.id,
+                trip["id"],
+                DeliveryProofCreate(
+                    contract_id=contract["id"],
+                    document_number=f"GD-SM03-{uuid4().hex[:6]}",
+                    proof_type="client_discharge_note",
+                    client_type="company",
+                    delivered_at=dt("2026-07-03T15:00:00"),
+                    quantity_delivered=1,
+                ),
+            )
+
+            # Create a real user so the accepted_by FK constraint is satisfied
+            manager_user = User(
+                tenant_id=tenant.id,
+                email=f"manager-sm03-{uuid4().hex[:6]}@test.com",
+                password_hash="hashed",
+                full_name="Gestor SM03",
+                role="manager",
+            )
+            db.add(manager_user)
+            await db.flush()
+
+            # SM-03: accept (not validate) the proof
+            from app.modules.cargo.service import accept_delivery_proof
+
+            await accept_delivery_proof(
+                db, proof_id=proof_data["id"], tenant_id=tenant.id, user_id=manager_user.id
+            )
+            await db.commit()
+
+            # create_document must find the accepted proof — not raise delivery_proof_required
+            billing_document = await billing_service.create_document(
+                db,
+                tenant.id,
+                BillingDocumentCreate(
+                    contract_id=contract["id"],
+                    client_name="Cliente SM03",
+                    contract_reference=contract["contract_reference"],
+                    billing_period_start=dt("2026-07-01T00:00:00"),
+                    billing_period_end=dt("2026-08-01T00:00:00"),
+                    trip_ids=[trip["id"]],
+                    client_nuit="400000001",
+                ),
+            )
+            assert billing_document["status"] == "draft"
+            assert len(billing_document["items"]) == 1
+    except OperationalError as exc:
+        pytest.skip(f"Local Postgres is not available: {exc}")
+
+
+@pytest.mark.asyncio
+async def test_list_billable_trips_excludes_trips_without_km_end() -> None:
+    """Trips with billing_status='billable' but no km_end must not appear as candidates."""
+    try:
+        async with AsyncSessionLocal() as db:
+            tenant, vehicle, driver = await create_seed_entities(db)
+
+            contract = await contract_service.create_contract(
+                db,
+                tenant.id,
+                ContractCreate(
+                    client_name="Cliente KmEnd",
+                    contract_reference=f"KMEND-{uuid4().hex[:8]}",
+                    default_unit_price=9000,
+                ),
+            )
+
+            trip = await trips_service.create_trip(
+                db,
+                tenant.id,
+                TripCreate(
+                    vehicle_id=vehicle.id,
+                    driver_id=driver.id,
+                    origin="Matola",
+                    destination="Nacala",
+                    cargo_type="Carga geral",
+                    load_state="loaded_empty",
+                ),
+            )
+            trip = await trips_service.associate_contract(
+                db,
+                tenant.id,
+                trip["id"],
+                AssociateContractRequest(contract_id=contract["id"]),
+            )
+            await trips_service.start_trip(
+                db,
+                tenant.id,
+                trip["id"],
+                StartTripRequest(km_start=0, actual_departure=dt("2026-08-01T07:00:00")),
+            )
+
+            proof_data = await cargo_service.create_delivery_proof(
+                db,
+                tenant.id,
+                trip["id"],
+                DeliveryProofCreate(
+                    contract_id=contract["id"],
+                    document_number=f"GD-KMEND-{uuid4().hex[:6]}",
+                    proof_type="client_discharge_note",
+                    client_type="company",
+                    delivered_at=dt("2026-08-03T14:00:00"),
+                    quantity_delivered=1,
+                ),
+            )
+            # create_delivery_proof sets trip.status='delivered'; validate sets billing_status='billable'
+            await cargo_service.validate_delivery_proof(
+                db,
+                tenant.id,
+                trip["id"],
+                proof_data["id"],
+                None,
+                ValidateDeliveryProofRequest(validation_method="manual_review"),
+            )
+            # billing_status is now 'billable' but km_end is None (complete_trip never called)
+            from app.modules.trips.models import Trip as TripModel
+
+            row = await db.get(TripModel, trip["id"])
+            assert row is not None
+            assert row.billing_status == "billable"
+            assert row.km_end is None  # confirm pre-condition
+
+            candidates = await billing_service.list_billable_trips(
+                db,
+                tenant.id,
+                contract_reference=contract["contract_reference"],
+                period_start=dt("2026-08-01T00:00:00"),
+                period_end=dt("2026-09-01T00:00:00"),
+            )
+            assert candidates == [], "Trip without km_end must not appear as billing candidate"
+
+            # Set km_end directly on the ORM row (complete_trip would reject non-in_progress status)
+            row.km_end = 800
+            await db.commit()
+
+            candidates_after = await billing_service.list_billable_trips(
+                db,
+                tenant.id,
+                contract_reference=contract["contract_reference"],
+                period_start=dt("2026-08-01T00:00:00"),
+                period_end=dt("2026-09-01T00:00:00"),
+            )
+            assert len(candidates_after) == 1
+            assert candidates_after[0]["candidate_status"] == "billable"
+    except OperationalError as exc:
+        pytest.skip(f"Local Postgres is not available: {exc}")
+
+
+@pytest.mark.asyncio
+async def test_patch_trip_and_stop_produce_audit_logs() -> None:
+    """patch_trip and patch_stop must each produce an AuditLog with old/new values."""
+    try:
+        async with AsyncSessionLocal() as db:
+            tenant, vehicle, driver = await create_seed_entities(db)
+
+            from app.modules.trips.models import TripStop as TripStopModel
+            from app.modules.trips.schemas import TripPatch, TripStopPatch
+
+            trip = await trips_service.create_trip(
+                db,
+                tenant.id,
+                TripCreate(
+                    vehicle_id=vehicle.id,
+                    driver_id=driver.id,
+                    origin="Maputo",
+                    destination="Tete",
+                    cargo_type="Cimento",
+                    load_state="loaded_empty",
+                ),
+            )
+
+            await trips_service.patch_trip(
+                db,
+                tenant.id,
+                trip["id"],
+                TripPatch(destination="Chimoio"),
+            )
+
+            audit_trip = await db.scalar(
+                select(AuditLog).where(
+                    AuditLog.tenant_id == tenant.id,
+                    AuditLog.action == "trip.patched",
+                    AuditLog.entity_id == trip["id"],
+                )
+            )
+            assert audit_trip is not None
+            assert audit_trip.old_values["destination"] == "Tete"
+            assert audit_trip.new_values["destination"] == "Chimoio"
+
+            # Create a trip stop and patch it
+            stop = TripStopModel(
+                tenant_id=tenant.id,
+                trip_id=trip["id"],
+                stop_type="rest",
+                location={"name": "Inchope"},
+                stopped_at=dt("2026-06-15T10:00:00"),
+            )
+            db.add(stop)
+            await db.commit()
+            await db.refresh(stop)
+
+            await trips_service.patch_stop(
+                db,
+                tenant.id,
+                stop.id,
+                TripStopPatch(location={"name": "Gorongosa"}),
+            )
+
+            audit_stop = await db.scalar(
+                select(AuditLog).where(
+                    AuditLog.tenant_id == tenant.id,
+                    AuditLog.action == "trip_stop.patched",
+                    AuditLog.entity_id == stop.id,
+                )
+            )
+            assert audit_stop is not None
+            assert audit_stop.old_values["location"] == {"name": "Inchope"}
+            assert audit_stop.new_values["location"] == {"name": "Gorongosa"}
     except OperationalError as exc:
         pytest.skip(f"Local Postgres is not available: {exc}")

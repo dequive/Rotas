@@ -3,29 +3,29 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TMS Enterprise Completo
 status: in_progress
-stopped_at: Completed quick task 260621-p2c
-last_updated: "2026-06-21T16:28:37.000Z"
+stopped_at: Completed 16-02-SUMMARY.md
+last_updated: "2026-06-21T00:00:00.000Z"
 last_activity: 2026-06-21
 progress:
   total_phases: 13
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 69
-  completed_plans: 65
+  completed_plans: 69
 ---
 
 # ROTAS — Project State
 
-_Last updated: 2026-06-21 — Audited and confirmed complete: Phase 5 (Client Registry), Phase 6 (Payment), Phase 7 (AR Dashboard), Phase 8 (Infrastructure). ROADMAP updated. Phase 7: 07-01/02/03 SUMMARYs written; 6 AR tests GREEN._
+_Last updated: 2026-06-21 — Phase 16 (HOS + Availability) complete: 16-01 router registration, 16-02 HOS service + trip gate (8 tests GREEN, 434 total passing), 16-03/04/05 availability endpoints. All 5 plans have SUMMARYs._
 
 ---
 
 ## Current Phase
 
-Phase: 24
-Plan: 16-03 complete
-Status: Phase 16 in progress — 16-01 DONE; 16-02 DONE; 16-03 (availability endpoints + Redis cache) DONE 2026-06-20
-Last activity: 2026-06-20
-Stopped at: Completed 21-02-PLAN.md
+Phase: 16
+Plan: 16-05 complete — ALL PLANS DONE
+Status: Phase 16 complete — all 5 plans done (16-01 router; 16-02 HOS service; 16-03 availability endpoints + Redis; 16-04 status filter; 16-05 HOS integration test)
+Last activity: 2026-06-21
+Stopped at: Completed 16-02-SUMMARY.md
 
 ### Completed v2.0 Phases
 
@@ -44,6 +44,7 @@ Stopped at: Completed 21-02-PLAN.md
 - [x] **Phase 24** — Third Party Completion (24-01 tp07/08/09 migrations; 24-02 contacts/ledger/payments/evaluations API; 24-03 /terceiros UI; 24-04 ThirdPartyCombobox/ServiceProviderCombobox pickers; 24-05 OperationalDocuments + assignments UI; 24-06 alembic head + seed + 348 tests green + tsc clean) — completed 2026-06-20
 - [x] **Phase 18** — Analytics + Insurance (18-01..04: all plans complete, SUMMARYs present) — completed
 - [x] **Phase 21** — Frontend E2E Tests (21-01 Playwright scaffold; 21-02 5 spec files + CI e2e job; 10 tests passing) — completed 2026-06-21
+- [x] **Phase 16** — HOS + Availability (16-01 router registration; 16-02 HOS service + trip gate 8h/9h/48h thresholds + hos_override_reason bypass; 16-03 availability endpoints + Redis cache; 16-04 status filter; 16-05 integration; 434 tests GREEN) — completed 2026-06-21
 
 ---
 

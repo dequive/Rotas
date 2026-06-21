@@ -10,6 +10,7 @@ import { SidebarLayout } from "../components/SidebarLayout";
 import { TripFormModal } from "../components/TripFormModal";
 import { TripActionButton } from "../components/TripActionButton";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { PageHeader } from "../components/ui/PageHeader";
 
 // Map API trip status to StatusBadge status key
 const TRIP_STATUS_MAP: Record<string, string> = {
@@ -51,19 +52,20 @@ export default async function ViagensPage() {
 
   return (
     <SidebarLayout active="viagens">
-      <div className="page-header">
-        <div>
-          <h1>Viagens</h1>
-          <p>{trips.length} viagens registadas</p>
-        </div>
-        <TripFormModal
-          vehicles={vehicles}
-          drivers={drivers}
-          contracts={contracts}
-          knownRoutes={knownRoutes}
-          despacheTiers={despachoResult.table.tiers}
-        />
-      </div>
+      <PageHeader
+        eyebrow="Operações"
+        title="Viagens"
+        description={`${trips.length} viagens registadas`}
+        actions={
+          <TripFormModal
+            vehicles={vehicles}
+            drivers={drivers}
+            contracts={contracts}
+            knownRoutes={knownRoutes}
+            despacheTiers={despachoResult.table.tiers}
+          />
+        }
+      />
 
       <section className="panel">
         <div className="table-wrap">

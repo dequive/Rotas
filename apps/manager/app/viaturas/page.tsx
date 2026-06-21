@@ -5,6 +5,7 @@ import { loadVehicles } from "../lib/vehicles-api";
 import { SidebarLayout } from "../components/SidebarLayout";
 import { VehicleFormModal } from "../components/VehicleFormModal";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { PageHeader } from "../components/ui/PageHeader";
 
 const VEHICLE_DOCS: { key: string; short: string }[] = [
   { key: "insurance",            short: "SEG" },
@@ -43,13 +44,12 @@ export default async function ViaturasPage() {
 
   return (
     <SidebarLayout active="viaturas">
-      <div className="page-header">
-        <div>
-          <h1>Viaturas</h1>
-          <p>{vehicles.length} viaturas registadas</p>
-        </div>
-        <VehicleFormModal />
-      </div>
+      <PageHeader
+        eyebrow="Frota"
+        title="Viaturas"
+        description={`${vehicles.length} viaturas registadas`}
+        actions={<VehicleFormModal />}
+      />
 
       <section className="panel">
         <div className="table-wrap">

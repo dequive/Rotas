@@ -2,6 +2,8 @@ import { requireSession } from "@/app/lib/auth";
 import { loadThirdParties } from "@/app/lib/third-party-api";
 import { SidebarLayout } from "@/app/components/SidebarLayout";
 import { StatusBadge } from "@/app/components/ui/StatusBadge";
+import { PageHeader } from "@/app/components/ui/PageHeader";
+import { Button } from "@/app/components/ui/Button";
 import Link from "next/link";
 import { Building2 } from "lucide-react";
 
@@ -22,38 +24,17 @@ export default async function TerceirosPage({
   return (
     <SidebarLayout active="terceiros">
       <div className="w-full space-y-6">
-        {/* Page header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold" style={{ fontFamily: "Manrope, sans-serif" }}>
-              Terceiros
-            </h1>
-            <p className="text-sm" style={{ color: "var(--muted)", marginTop: 2 }}>
-              {items.length} terceiro{items.length !== 1 ? "s" : ""} registado{items.length !== 1 ? "s" : ""}
-            </p>
-          </div>
-          <a
-            href="/terceiros/novo"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 14px",
-              background: "var(--amber)",
-              color: "#fff",
-              borderRadius: "var(--r-md, 6px)",
-              fontSize: "13px",
-              fontWeight: 600,
-              fontFamily: "Manrope, sans-serif",
-              textDecoration: "none",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            <Building2 size={15} />
-            Novo Terceiro
-          </a>
-        </div>
+        <PageHeader
+          eyebrow="Frota"
+          title="Terceiros"
+          description={`${items.length} terceiro${items.length !== 1 ? "s" : ""} registado${items.length !== 1 ? "s" : ""}`}
+          actions={
+            <Link href="/terceiros/novo" className="inline-flex items-center gap-1.5 h-[38px] px-[14px] text-sm font-bold rounded-lg bg-amber text-ink border border-amber hover:bg-amber-dark hover:border-amber-dark transition-colors duration-100 whitespace-nowrap">
+              <Building2 size={15} />
+              Novo Terceiro
+            </Link>
+          }
+        />
 
         {/* Filter bar */}
         <form

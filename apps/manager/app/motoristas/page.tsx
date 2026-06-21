@@ -6,6 +6,8 @@ import { SidebarLayout } from "../components/SidebarLayout";
 import { DriverFormModal } from "../components/DriverFormModal";
 import { DriverScorecardPanel } from "../components/DriverScorecardPanel";
 import { PairingCodeButton } from "../components/PairingCodeButton";
+import { PageHeader } from "../components/ui/PageHeader";
+import { StatusBadge } from "../components/ui/StatusBadge";
 
 const STATUS_LABEL: Record<string, { label: string; tone: string }> = {
   active: { label: "Activo", tone: "green" },
@@ -24,13 +26,12 @@ export default async function MotoristasPage() {
 
   return (
     <SidebarLayout active="motoristas">
-      <div className="page-header">
-        <div>
-          <h1>Motoristas</h1>
-          <p>{drivers.length} motoristas registados</p>
-        </div>
-        <DriverFormModal />
-      </div>
+      <PageHeader
+        eyebrow="Frota"
+        title="Motoristas"
+        description={`${drivers.length} motoristas registados`}
+        actions={<DriverFormModal />}
+      />
 
       <section className="panel">
         <div className="table-wrap">
@@ -79,12 +80,16 @@ export default async function MotoristasPage() {
                       <td>{d.bi_number ?? <span className="muted-line">—</span>}</td>
                       <td>{d.bi_valid_until ? formatDate(d.bi_valid_until) : <span className="muted-line">—</span>}</td>
                       <td>
-                        <span className={`badge ${d.score >= 80 ? "green" : d.score >= 50 ? "orange" : "red"}`}>
-                          {d.score}
-                        </span>
+                        <StatusBadge
+                          status={d.score >= 80 ? "concluida" : d.score >= 50 ? "pending" : "alerta"}
+                          label={String(d.score)}
+                        />
                       </td>
                       <td>
-                        <span className={`badge ${meta.tone}`}>{meta.label}</span>
+                        <StatusBadge
+                          status={d.status === "active" ? "activo" : d.status === "suspended" ? "pending" : "inactivo"}
+                          label={meta.label}
+                        />
                       </td>
                       <td className="action-cell">
                         <DriverFormModal driver={d} />

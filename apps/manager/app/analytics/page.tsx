@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { BarChart2, Fuel, TrendingUp, Truck } from "lucide-react";
 import { SidebarLayout } from "../components/SidebarLayout";
+import { PageHeader } from "../components/ui/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -92,13 +93,11 @@ export default function AnalyticsPage() {
 
   return (
     <SidebarLayout active="analytics">
-      {/* Page header */}
-      <div className="mb-6">
-        <h1 className="text-[26px] font-extrabold text-ink">Análise de Frota</h1>
-        <p className="text-muted text-sm mt-1">
-          Indicadores de desempenho e alertas de documentação
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Financeiro"
+        title="Analytics"
+        description="Indicadores de desempenho e alertas de documentação"
+      />
 
       {/* Filter bar */}
       <div className="flex items-center gap-3 mb-6 flex-wrap">

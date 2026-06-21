@@ -15,7 +15,7 @@ progress:
 
 # ROTAS — Project State
 
-_Last updated: 2026-06-21 — Completed quick task 260621-a7e: empresa page — tenant document profile configuration UI_
+_Last updated: 2026-06-21 — Completed quick task 260621-ei3: P0.3 numeração fiscal gap-free — FiscalCounter + SELECT FOR UPDATE_
 
 ---
 
@@ -208,6 +208,7 @@ Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
 | 260620-sik | tenant_document_profiles + redesenho exporters PDF fatura modelo PHC | 2026-06-21 | 2351845 | [260620-sik](./quick/260620-sik-tenant-document-profiles-redesenho-expor/) |
 | 260621-a7e | UI empresa: perfil documento tenant (dados empresa, bancários, numeração) | 2026-06-21 | 502783c | [260621-a7e](./quick/260621-a7e-ui-manager-configura-o-perfil-documento-/) |
 | 260620-vlw | Design system wave 1: Input + IconButton + sweep secondary-btn/badge/icon-btn + PaymentModal + PageHeader | 2026-06-21 | e33adc6 | [260620-vlw](./quick/260620-vlw-design-system-migration-wave-1-quick-win/) |
+| 260621-ei3 | P0.3 numeração fiscal gap-free: FiscalCounter + SELECT FOR UPDATE, migração fisc01 RLS, reescrita _assign_invoice_number, 5 testes concorrência | 2026-06-21 | 4c20890 | [260621-ei3](./quick/260621-ei3-p0-3-numeracao-fiscal-gap-free-substitui/) |
 
 ### Blockers
 

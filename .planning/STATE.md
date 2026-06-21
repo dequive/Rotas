@@ -216,6 +216,7 @@ Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
 | 260621-nuj | P0.5 IVA seam: resolve_iva fail-closed para internacionais + iva_basis audit columns | 2026-06-21 | 2db084a | [260621-nuj](.planning/quick/260621-nuj-p0-5-seam-iva-internacional-extrair-reso/) |
 | 260621-p0i | Design system wave 2: ModalDialog + FormField + migração de 7 form modals + eliminação de inline styles em detail pages | 2026-06-21 | ffabe83 | [260621-p0i](./quick/260621-p0i-design-system-wave-2-modal-wrapper-formf/) |
 | 260621-pbc | Fix silent photo sync bug (delivery_proof/load_permit dropped), consolidate dual ARQ workers into app.worker, remove duplicate root railway.toml | 2026-06-21 | dd28089 | [260621-pbc](./quick/260621-pbc-fix-photo-sync-and-consolidate-arq-worke/) |
+| 260621-ext | Extrato conta corrente fornecedores: filtro período + opening_balance + PDF PHC landscape | 2026-06-21 | 233c7d8 | inline |
 
 ### Blockers
 

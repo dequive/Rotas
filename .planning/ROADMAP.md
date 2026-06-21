@@ -538,7 +538,15 @@ Plans:
 - **ARQ task**: `task_generate_settlement_pdf(settlement_id)` generates PDF using `fpdf2 + DejaVuSans.ttf` (same pattern as billing PDF). Stores result as a `File` record via the files module (R2 storage — Phase 8 must be complete). Manager downloads via `GET /api/v1/trips/{trip_id}/settlement/pdf`.
 - **Dexie schema**: If any settlement entity needs to be in the driver PWA sync queue (e.g., advance acknowledgment), `db.version()` must be incremented in `apps/driver/src/db.ts` — schema version bump is required or Dexie throws a schema version error (PITFALL-17). Assess scope before implementation.
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+- [ ] 11-01-PLAN.md — Wave 1: Database schema — driver_advances + trip_settlements tables with RLS + Alembic migration
+- [ ] 11-02-PLAN.md — Wave 2: Advance service layer — issue_advance, void_advance, list_advances
+- [ ] 11-03-PLAN.md — Wave 2: Settlement service layer — compute, approve, reject, PDF generation (DejaVuSans)
+- [ ] 11-04-PLAN.md — Wave 3: HTTP endpoints — advance_router.py + settlement_router.py registered in main.py
+- [ ] 11-05-PLAN.md — Wave 3: Manager UI — /despacho page with settlement table + advance modal + sidebar link
+- [ ] 11-06-PLAN.md — Wave 4: Tests — 6 advance tests + 6 settlement tests (12 total)
 
 **UI hint**: yes
 
@@ -676,7 +684,8 @@ Esta milestona converte o ROTAS de um MVP técnico avançado numa plataforma TMS
  (completed 2026-06-21)
 - [ ] **Phase 19: Customs/Border Crossing** — Workflows for cross-border routes, documentation, and border dispatch
 - [ ] **Phase 20: Route Optimization** — Distance matrix, waypoint sequencing, integration with routing providers
-- [x] **Phase 21: Frontend E2E Tests** — Playwright E2E testing suite to prevent visual and functional UI regressions (completed 2026-06-21)
+- [x] **Phase 21: Frontend E2E Tests** — Playwright E2E testing suite to prevent visual and functional UI regressions
+ (completed 2026-06-21)
 - [x] **Phase 22: RBAC Permission-Based** — Refactor do sistema de roles e permissões: dois planos (platform vs tenant), roles em português com agregados de gestão e operacional, `require_permission()` granular por domínio, `tenant_roles` custom para owner/director, migração dos 174 call sites de `require_roles`
  (completed 2026-06-20)
 - [x] **Phase 23: Third Party Registry** — Fornecedores e prestadores externos como entidades estruturadas; elegibilidade operacional de motoristas calculada em tempo real; atribuição motorista-viatura com histórico temporal; documentos com validade rastreada (completed 2026-06-20)

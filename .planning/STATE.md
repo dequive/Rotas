@@ -15,7 +15,7 @@ progress:
 
 # ROTAS — Project State
 
-_Last updated: 2026-06-21 — Completed quick task 260621-p2c: notifications module router + 3 ARQ tasks (outbox flush, dispatch rejected, vehicle doc expiry) + 6 tests_
+_Last updated: 2026-06-21 — Audited and confirmed complete: Phase 5 (Client Registry), Phase 6 (Payment), Phase 7 (AR Dashboard), Phase 8 (Infrastructure). ROADMAP updated. Phase 7: 07-01/02/03 SUMMARYs written; 6 AR tests GREEN._
 
 ---
 
@@ -26,6 +26,14 @@ Plan: 16-03 complete
 Status: Phase 16 in progress — 16-01 DONE; 16-02 DONE; 16-03 (availability endpoints + Redis cache) DONE 2026-06-20
 Last activity: 2026-06-20
 Stopped at: Completed 21-02-PLAN.md
+
+### Completed v2.0 Phases
+
+- [x] **Phase 5** — Client Registry + Migration Foundation (6 plans, VERIFICATION.md present)
+- [x] **Phase 6** — Payment Registration (4 plans, all SUMMARYs present)
+- [x] **Phase 7** — Accounts Receivable + Aging Dashboard (5 plans, 6 AR tests GREEN, /ar UI live)
+- [x] **Phase 8** — Infrastructure Hardening (8 plans + VERIFICATION.md; Sentry, R2, tenant limits)
+- [x] **Phase 9** — PostgreSQL RLS Policies (completed 2026-06-07)
 
 ### Completed v3.0 Phases
 

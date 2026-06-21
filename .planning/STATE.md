@@ -15,7 +15,7 @@ progress:
 
 # ROTAS — Project State
 
-_Last updated: 2026-06-21 — Completed quick task 260621-ei3: P0.3 numeração fiscal gap-free — FiscalCounter + SELECT FOR UPDATE_
+_Last updated: 2026-06-21 — Completed quick task 260621-f5i: P0.6 audit log patch mutations + P0.1 BILLABLE_PROOF_STATUSES + km_end guard_
 
 ---
 

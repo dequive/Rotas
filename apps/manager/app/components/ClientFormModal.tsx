@@ -1,11 +1,11 @@
 "use client";
 
-import { Loader2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { ClientResponse } from "../lib/clients-api";
 import { Button } from "@/app/components/ui/Button";
-import { IconButton } from "@/app/components/ui/IconButton";
+import { ModalDialog } from "@/app/components/ui/ModalDialog";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -42,8 +42,6 @@ export function ClientFormModal({
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
-
-  if (!open) return null;
 
   function validate(fd: FormData): FormErrors {
     const errors: FormErrors = {};
@@ -158,188 +156,157 @@ export function ClientFormModal({
   }
 
   return (
-    <div className="modal-backdrop" onClick={() => onOpenChange(false)}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{mode === "create" ? "Novo Cliente" : "Editar Cliente"}</h2>
-          <IconButton
-            onClick={() => onOpenChange(false)}
-            type="button"
-            label="Fechar"
-          >
-            <X size={18} />
-          </IconButton>
+    <ModalDialog open={open} onClose={() => onOpenChange(false)} title={mode === "create" ? "Novo Cliente" : "Editar Cliente"}>
+      <form onSubmit={handleSubmit} className="modal-form">
+        <label>
+          Nome comercial <span className="text-error">*</span>
+          <input
+            name="trading_name"
+            defaultValue={client?.trading_name ?? ""}
+            disabled={loading}
+            placeholder="Nome comercial do cliente"
+          />
+          {fieldErrors.trading_name && (
+            <span className="field-error text-error text-xs">{fieldErrors.trading_name}</span>
+          )}
+        </label>
+
+        <label>
+          Nome legal
+          <input
+            name="legal_name"
+            defaultValue={client?.legal_name ?? ""}
+            disabled={loading}
+            placeholder="Nome legal completo (opcional)"
+          />
+        </label>
+
+        <div className="form-row">
+          <label>
+            NUIT <span className="text-error">*</span>
+            <input
+              name="nuit"
+              defaultValue={client?.nuit ?? ""}
+              disabled={loading}
+              placeholder="000000000"
+              pattern="[0-9]{9}"
+              maxLength={9}
+              className="font-mono"
+            />
+            {fieldErrors.nuit && (
+              <span className="field-error text-error text-xs">{fieldErrors.nuit}</span>
+            )}
+          </label>
+          <label>
+            Telefone
+            <input
+              name="phone"
+              defaultValue={client?.phone ?? ""}
+              disabled={loading}
+              placeholder="+258..."
+              type="tel"
+            />
+          </label>
         </div>
 
-        <form onSubmit={handleSubmit} className="modal-form">
-          {/* Nome comercial — full width */}
-          <label>
-            Nome comercial <span style={{ color: "var(--error)" }}>*</span>
-            <input
-              name="trading_name"
-              defaultValue={client?.trading_name ?? ""}
-              disabled={loading}
-              placeholder="Nome comercial do cliente"
-            />
-            {fieldErrors.trading_name && (
-              <span className="field-error" style={{ color: "var(--error)", fontSize: 12 }}>
-                {fieldErrors.trading_name}
-              </span>
-            )}
-          </label>
+        <label>
+          Morada
+          <input
+            name="address"
+            defaultValue={client?.address ?? ""}
+            disabled={loading}
+            placeholder="Rua, número..."
+          />
+        </label>
 
-          {/* Nome legal — full width */}
+        <div className="form-row">
           <label>
-            Nome legal
+            Cidade
             <input
-              name="legal_name"
-              defaultValue={client?.legal_name ?? ""}
+              name="city"
+              defaultValue={client?.city ?? ""}
               disabled={loading}
-              placeholder="Nome legal completo (opcional)"
+              placeholder="Maputo"
             />
           </label>
-
-          {/* Row 1: NUIT + Telefone */}
-          <div className="form-row">
-            <label>
-              NUIT <span style={{ color: "var(--error)" }}>*</span>
-              <input
-                name="nuit"
-                defaultValue={client?.nuit ?? ""}
-                disabled={loading}
-                placeholder="000000000"
-                pattern="[0-9]{9}"
-                maxLength={9}
-                className="font-mono"
-                style={{ fontFamily: "var(--font-mono, 'IBM Plex Mono', monospace)" }}
-              />
-              {fieldErrors.nuit && (
-                <span className="field-error" style={{ color: "var(--error)", fontSize: 12 }}>
-                  {fieldErrors.nuit}
-                </span>
-              )}
-            </label>
-            <label>
-              Telefone
-              <input
-                name="phone"
-                defaultValue={client?.phone ?? ""}
-                disabled={loading}
-                placeholder="+258..."
-                type="tel"
-              />
-            </label>
-          </div>
-
-          {/* Row 2: Morada — full width */}
           <label>
-            Morada
+            Email
             <input
-              name="address"
-              defaultValue={client?.address ?? ""}
+              name="email"
+              type="email"
+              defaultValue={client?.email ?? ""}
               disabled={loading}
-              placeholder="Rua, número..."
+              placeholder="faturacao@empresa.co.mz"
             />
           </label>
+        </div>
 
-          {/* Row 3: Cidade + Email */}
-          <div className="form-row">
-            <label>
-              Cidade
-              <input
-                name="city"
-                defaultValue={client?.city ?? ""}
-                disabled={loading}
-                placeholder="Maputo"
-              />
-            </label>
-            <label>
-              Email
-              <input
-                name="email"
-                type="email"
-                defaultValue={client?.email ?? ""}
-                disabled={loading}
-                placeholder="faturacao@empresa.co.mz"
-              />
-            </label>
-          </div>
-
-          {/* Row 4: Prazo de pagamento + Limite de crédito */}
-          <div className="form-row">
-            <label>
-              Prazo de pagamento <span style={{ color: "var(--error)" }}>*</span>
-              <select
-                name="payment_terms_days"
-                defaultValue={String(client?.payment_terms_days ?? "30")}
-                disabled={loading}
-              >
-                <option value="30">30 dias</option>
-                <option value="45">45 dias</option>
-                <option value="60">60 dias</option>
-                <option value="90">90 dias</option>
-              </select>
-              {fieldErrors.payment_terms_days && (
-                <span className="field-error" style={{ color: "var(--error)", fontSize: 12 }}>
-                  {fieldErrors.payment_terms_days}
-                </span>
-              )}
-            </label>
-            <label>
-              Limite de crédito (MZN)
-              <input
-                name="credit_limit"
-                type="number"
-                min="0"
-                step="0.01"
-                defaultValue={client?.credit_limit != null ? String(client.credit_limit) : ""}
-                disabled={loading}
-                placeholder="0 = sem limite"
-              />
-            </label>
-          </div>
-
-          {apiError && (
-            <div className="form-error" style={{ color: "var(--error)", fontSize: 13 }}>
-              {apiError}
-            </div>
-          )}
-
-          <div className="modal-actions">
-            {mode === "edit" && (
-              <button
-                type="button"
-                className="action-btn"
-                style={{ color: "var(--error)", marginRight: "auto" }}
-                onClick={handleDeactivate}
-                disabled={loading}
-              >
-                Desactivar cliente
-              </button>
-            )}
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => onOpenChange(false)}
+        <div className="form-row">
+          <label>
+            Prazo de pagamento <span className="text-error">*</span>
+            <select
+              name="payment_terms_days"
+              defaultValue={String(client?.payment_terms_days ?? "30")}
               disabled={loading}
             >
-              Cancelar
-            </Button>
-            <Button type="submit" variant="primary" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" />
-                  A guardar...
-                </>
-              ) : mode === "create" ? (
-                "Guardar Cliente"
-              ) : (
-                "Guardar Alterações"
-              )}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+              <option value="30">30 dias</option>
+              <option value="45">45 dias</option>
+              <option value="60">60 dias</option>
+              <option value="90">90 dias</option>
+            </select>
+            {fieldErrors.payment_terms_days && (
+              <span className="field-error text-error text-xs">{fieldErrors.payment_terms_days}</span>
+            )}
+          </label>
+          <label>
+            Limite de crédito (MZN)
+            <input
+              name="credit_limit"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={client?.credit_limit != null ? String(client.credit_limit) : ""}
+              disabled={loading}
+              placeholder="0 = sem limite"
+            />
+          </label>
+        </div>
+
+        {apiError && <div className="form-error">{apiError}</div>}
+
+        <div className="modal-actions">
+          {mode === "edit" && (
+            <button
+              type="button"
+              className="action-btn text-error mr-auto"
+              onClick={handleDeactivate}
+              disabled={loading}
+            >
+              Desactivar cliente
+            </button>
+          )}
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => onOpenChange(false)}
+            disabled={loading}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" variant="primary" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                A guardar...
+              </>
+            ) : mode === "create" ? (
+              "Guardar Cliente"
+            ) : (
+              "Guardar Alterações"
+            )}
+          </Button>
+        </div>
+      </form>
+    </ModalDialog>
   );
 }

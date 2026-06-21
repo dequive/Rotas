@@ -1,9 +1,10 @@
 "use client";
 
-import { Copy, Smartphone, X } from "lucide-react";
+import { Copy, Smartphone } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/app/components/ui/Button";
 import { IconButton } from "@/app/components/ui/IconButton";
+import { ModalDialog } from "@/app/components/ui/ModalDialog";
 
 export function PairingCodeButton({ driverId, driverName }: { driverId: string; driverName: string }) {
   const [open, setOpen] = useState(false);
@@ -46,21 +47,18 @@ export function PairingCodeButton({ driverId, driverName }: { driverId: string; 
     void generate();
   }
 
-  if (!open) {
-    return (
+  return (
+    <>
       <IconButton label="Gerar código de pareamento" onClick={handleOpen}>
         <Smartphone size={15} />
       </IconButton>
-    );
-  }
 
-  return (
-    <div className="modal-backdrop" onClick={() => setOpen(false)}>
-      <div className="modal pairing-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Código de pareamento — {driverName}</h2>
-          <IconButton onClick={() => setOpen(false)} label="Fechar"><X size={18} /></IconButton>
-        </div>
+      <ModalDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title={`Código de pareamento — ${driverName}`}
+        className="pairing-modal"
+      >
         <div className="pairing-body">
           {loading && <p className="muted">A gerar código...</p>}
           {error && <p className="form-error">{error}</p>}
@@ -81,7 +79,7 @@ export function PairingCodeButton({ driverId, driverName }: { driverId: string; 
             </>
           )}
         </div>
-      </div>
-    </div>
+      </ModalDialog>
+    </>
   );
 }

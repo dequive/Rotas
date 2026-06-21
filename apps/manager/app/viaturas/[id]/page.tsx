@@ -60,23 +60,13 @@ export default async function VehicleDetailPage({ params }: PageProps) {
 
   return (
     <SidebarLayout active="viaturas">
-      <div style={{ width: "100%" }}>
-        {/* Back link */}
-        <div style={{ marginBottom: 16 }}>
-          <Link
-            href="/viaturas"
-            style={{
-              fontSize: "13px",
-              color: "var(--muted)",
-              textDecoration: "none",
-              fontFamily: "Manrope, sans-serif",
-            }}
-          >
+      <div className="w-full">
+        <div className="mb-4">
+          <Link href="/viaturas" className="text-[13px] text-muted no-underline hover:text-ink transition-colors">
             ← Viaturas
           </Link>
         </div>
 
-        {/* Header */}
         <PageHeader
           eyebrow="Viaturas"
           title={String(vehicle.plate ?? "")}
@@ -99,94 +89,38 @@ export default async function VehicleDetailPage({ params }: PageProps) {
         />
 
         {/* Motoristas Atribuídos */}
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--r-lg, 10px)",
-            padding: 24,
-            marginBottom: 20,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 16,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: "16px",
-                fontWeight: 600,
-                fontFamily: "Manrope, sans-serif",
-                color: "var(--ink)",
-              }}
-            >
+        <div className="bg-surface border border-border rounded-lg p-6 mb-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-ink">
               Motoristas Atribuídos
               {assignmentList.length > 0 && (
-                <span
-                  style={{ marginLeft: 8, fontSize: "12px", fontWeight: 400, color: "var(--muted)" }}
-                >
+                <span className="ml-2 text-xs font-normal text-muted">
                   ({assignmentList.length})
                 </span>
               )}
             </h2>
             <a
               href={`/viaturas/${id}/atribuir`}
-              style={{
-                padding: "5px 12px",
-                border: "1px solid var(--border-strong)",
-                borderRadius: "var(--r-md, 6px)",
-                background: "var(--surface-2)",
-                color: "var(--ink)",
-                fontSize: "12px",
-                fontWeight: 600,
-                fontFamily: "Manrope, sans-serif",
-                textDecoration: "none",
-                display: "inline-block",
-              }}
+              className="inline-flex items-center px-3 py-1.5 text-xs font-semibold border border-border-strong rounded-md bg-surface-2 text-ink hover:bg-surface transition-colors duration-100 no-underline"
             >
               Atribuir Motorista
             </a>
           </div>
 
           {assignmentList.length === 0 ? (
-            <p
-              style={{
-                fontSize: "13px",
-                color: "var(--muted)",
-                fontFamily: "Manrope, sans-serif",
-              }}
-            >
+            <p className="text-[13px] text-muted">
               Sem motoristas atribuídos a esta viatura.
             </p>
           ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: "13px",
-                  fontFamily: "Manrope, sans-serif",
-                }}
-              >
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px] border-collapse">
                 <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  <tr className="border-b border-border">
                     {["Motorista (ID)", "Tipo", "Atribuído em", "Encerrado em", "Estado"].map(
                       (h) => (
                         <th
                           key={h}
-                          style={{
-                            padding: "8px 12px",
-                            textAlign: "left",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            textTransform: "uppercase" as const,
-                            letterSpacing: "0.05em",
-                            color: "var(--muted)",
-                          }}
+                          className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-muted"
                         >
                           {h}
                         </th>
@@ -198,47 +132,20 @@ export default async function VehicleDetailPage({ params }: PageProps) {
                   {assignmentList.map((a) => {
                     const isActive = !a.unassigned_at;
                     return (
-                      <tr key={a.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            fontFamily: "IBM Plex Mono, monospace",
-                            fontSize: "11px",
-                            color: "var(--ink)",
-                          }}
-                        >
+                      <tr key={a.id} className="border-b border-border">
+                        <td className="px-3 py-2.5 font-mono text-[11px] text-ink">
                           {a.driver_id}
                         </td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            fontSize: "12px",
-                            color: "var(--muted)",
-                          }}
-                        >
+                        <td className="px-3 py-2.5 text-xs text-muted">
                           {a.assignment_type ?? "—"}
                         </td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            fontFamily: "IBM Plex Mono, monospace",
-                            fontSize: "12px",
-                            color: "var(--ink)",
-                          }}
-                        >
+                        <td className="px-3 py-2.5 font-mono text-xs text-ink">
                           {a.assigned_at ? a.assigned_at.slice(0, 10) : "—"}
                         </td>
-                        <td
-                          style={{
-                            padding: "10px 12px",
-                            fontFamily: "IBM Plex Mono, monospace",
-                            fontSize: "12px",
-                            color: "var(--muted)",
-                          }}
-                        >
+                        <td className="px-3 py-2.5 font-mono text-xs text-muted">
                           {a.unassigned_at ? a.unassigned_at.slice(0, 10) : "Actual"}
                         </td>
-                        <td style={{ padding: "10px 12px" }}>
+                        <td className="px-3 py-2.5">
                           <StatusBadge
                             status={isActive ? "activo" : "inactivo"}
                             label={isActive ? "Activa" : "Encerrada"}
@@ -254,35 +161,12 @@ export default async function VehicleDetailPage({ params }: PageProps) {
         </div>
 
         {/* Documentos Operacionais */}
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--r-lg, 10px)",
-            padding: 24,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 16,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: "16px",
-                fontWeight: 600,
-                fontFamily: "Manrope, sans-serif",
-                color: "var(--ink)",
-              }}
-            >
+        <div className="bg-surface border border-border rounded-lg p-6 mb-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-ink">
               Documentos Operacionais
               {documents.length > 0 && (
-                <span
-                  style={{ marginLeft: 8, fontSize: "12px", fontWeight: 400, color: "var(--muted)" }}
-                >
+                <span className="ml-2 text-xs font-normal text-muted">
                   ({documents.length})
                 </span>
               )}
@@ -293,15 +177,7 @@ export default async function VehicleDetailPage({ params }: PageProps) {
         </div>
 
         {/* Seguros */}
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--r-lg, 10px)",
-            padding: 24,
-            marginTop: 20,
-          }}
-        >
+        <div className="bg-surface border border-border rounded-lg p-6 mt-5">
           <InsuranceTab vehicleId={id} />
         </div>
       </div>

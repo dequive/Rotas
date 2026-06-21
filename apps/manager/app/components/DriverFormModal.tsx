@@ -1,11 +1,12 @@
 "use client";
 
-import { Edit2, Plus, X } from "lucide-react";
+import { Edit2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Driver } from "../lib/drivers-api";
 import { Button } from "@/app/components/ui/Button";
 import { IconButton } from "@/app/components/ui/IconButton";
+import { ModalDialog } from "@/app/components/ui/ModalDialog";
 
 export function DriverFormModal({ driver }: { driver?: Driver }) {
   const router = useRouter();
@@ -58,55 +59,47 @@ export function DriverFormModal({ driver }: { driver?: Driver }) {
         <Button onClick={() => setOpen(true)}><Plus size={16} /> Novo motorista</Button>
       )}
 
-      {open && (
-        <div className="modal-backdrop" onClick={() => setOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{isEdit ? "Editar motorista" : "Novo motorista"}</h2>
-              <IconButton onClick={() => setOpen(false)} label="Fechar"><X size={18} /></IconButton>
-            </div>
-            <form onSubmit={handleSubmit} className="modal-form">
-              <div className="form-row">
-                <label>Nome completo<input name="full_name" defaultValue={driver?.full_name} required /></label>
-                <label>Telefone<input name="phone" defaultValue={driver?.phone} required placeholder="258840000001" /></label>
-              </div>
-              <label>Email<input name="email" type="email" defaultValue={driver?.email ?? ""} placeholder="motorista@empresa.mz" /></label>
-              <div className="form-row">
-                <label>Nº Carta<input name="license_number" defaultValue={driver?.license_number} required /></label>
-                <label>Categoria
-                  <select name="license_category" defaultValue={driver?.license_category ?? "C"}>
-                    <option value="B">B</option>
-                    <option value="C">C</option>
-                    <option value="CE">CE</option>
-                    <option value="D">D</option>
-                  </select>
-                </label>
-              </div>
-              <label>Validade carta<input name="license_valid_until" type="date" defaultValue={driver?.license_valid_until?.slice(0, 10)} required /></label>
-              <div className="form-row">
-                <label>Nº Passaporte<input name="passport_number" defaultValue={driver?.passport_number ?? ""} placeholder="Ex: P123456789" /></label>
-                <label>Validade Passaporte<input name="passport_valid_until" type="date" defaultValue={driver?.passport_valid_until?.slice(0, 10) ?? ""} /></label>
-              </div>
-              <div className="form-row">
-                <label>Nº B.I.<input name="bi_number" defaultValue={driver?.bi_number ?? ""} placeholder="Ex: 123456789B001MZ" /></label>
-                <label>Validade B.I.<input name="bi_valid_until" type="date" defaultValue={driver?.bi_valid_until?.slice(0, 10) ?? ""} /></label>
-              </div>
-              <label>Vínculo
-                <select name="employment_type" defaultValue={driver?.employment_type ?? "efectivo"}>
-                  <option value="efectivo">Efectivo</option>
-                  <option value="contratado">Contratado</option>
-                  <option value="subcontratado">Subcontratado</option>
-                </select>
-              </label>
-              {error && <p className="form-error">{error}</p>}
-              <div className="modal-actions">
-                <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button type="submit" variant="primary" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</Button>
-              </div>
-            </form>
+      <ModalDialog open={open} onClose={() => setOpen(false)} title={isEdit ? "Editar motorista" : "Novo motorista"}>
+        <form onSubmit={handleSubmit} className="modal-form">
+          <div className="form-row">
+            <label>Nome completo<input name="full_name" defaultValue={driver?.full_name} required /></label>
+            <label>Telefone<input name="phone" defaultValue={driver?.phone} required placeholder="258840000001" /></label>
           </div>
-        </div>
-      )}
+          <label>Email<input name="email" type="email" defaultValue={driver?.email ?? ""} placeholder="motorista@empresa.mz" /></label>
+          <div className="form-row">
+            <label>Nº Carta<input name="license_number" defaultValue={driver?.license_number} required /></label>
+            <label>Categoria
+              <select name="license_category" defaultValue={driver?.license_category ?? "C"}>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="CE">CE</option>
+                <option value="D">D</option>
+              </select>
+            </label>
+          </div>
+          <label>Validade carta<input name="license_valid_until" type="date" defaultValue={driver?.license_valid_until?.slice(0, 10)} required /></label>
+          <div className="form-row">
+            <label>Nº Passaporte<input name="passport_number" defaultValue={driver?.passport_number ?? ""} placeholder="Ex: P123456789" /></label>
+            <label>Validade Passaporte<input name="passport_valid_until" type="date" defaultValue={driver?.passport_valid_until?.slice(0, 10) ?? ""} /></label>
+          </div>
+          <div className="form-row">
+            <label>Nº B.I.<input name="bi_number" defaultValue={driver?.bi_number ?? ""} placeholder="Ex: 123456789B001MZ" /></label>
+            <label>Validade B.I.<input name="bi_valid_until" type="date" defaultValue={driver?.bi_valid_until?.slice(0, 10) ?? ""} /></label>
+          </div>
+          <label>Vínculo
+            <select name="employment_type" defaultValue={driver?.employment_type ?? "efectivo"}>
+              <option value="efectivo">Efectivo</option>
+              <option value="contratado">Contratado</option>
+              <option value="subcontratado">Subcontratado</option>
+            </select>
+          </label>
+          {error && <p className="form-error">{error}</p>}
+          <div className="modal-actions">
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" variant="primary" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</Button>
+          </div>
+        </form>
+      </ModalDialog>
     </>
   );
 }

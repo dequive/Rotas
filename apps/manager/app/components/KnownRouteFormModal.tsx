@@ -1,11 +1,12 @@
 "use client";
 
-import { Edit2, Plus, X } from "lucide-react";
+import { Edit2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { KnownRoute } from "../lib/known-routes-api";
 import { Button } from "@/app/components/ui/Button";
 import { IconButton } from "@/app/components/ui/IconButton";
+import { ModalDialog } from "@/app/components/ui/ModalDialog";
 
 export function KnownRouteFormModal({ route }: { route?: KnownRoute }) {
   const router = useRouter();
@@ -51,51 +52,43 @@ export function KnownRouteFormModal({ route }: { route?: KnownRoute }) {
       ) : (
         <Button onClick={() => setOpen(true)}><Plus size={16} /> Novo destino</Button>
       )}
-      {open && (
-        <div className="modal-backdrop" onClick={() => setOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{isEdit ? "Editar destino" : "Novo destino"}</h2>
-              <IconButton onClick={() => setOpen(false)} label="Fechar"><X size={18} /></IconButton>
-            </div>
-            <form onSubmit={handleSubmit} className="modal-form">
-              <div className="form-row">
-                <label>Origem<input name="origin" defaultValue={route?.origin} required placeholder="Maputo" /></label>
-                <label>Destino<input name="destination" defaultValue={route?.destination} required placeholder="Beira" /></label>
-              </div>
-              <div className="form-row">
-                <label>
-                  Distância (km)
-                  <input name="distance_km" type="number" step="0.1" min="1" defaultValue={route?.distance_km} required placeholder="530" />
-                </label>
-                <label>
-                  Combustível estimado (L)
-                  <input name="avg_fuel_liters" type="number" step="0.1" min="0" defaultValue={route?.avg_fuel_liters ?? ""} placeholder="Auto (consumo da viatura)" />
-                  <span style={{ fontSize: 11, color: "var(--muted)" }}>Deixe em branco para calcular pelo consumo da viatura</span>
-                </label>
-              </div>
-              <div className="form-row">
-                <label>
-                  Despacho — Vazio (MZN)
-                  <input name="despacho_vazio" type="number" step="1" min="0" defaultValue={route?.despacho_vazio ?? ""} placeholder="Auto (faixas do tenant)" />
-                  <span style={{ fontSize: 11, color: "var(--muted)" }}>Override para viatura vazia nesta rota</span>
-                </label>
-                <label>
-                  Despacho — Carregado (MZN)
-                  <input name="despacho_carregado" type="number" step="1" min="0" defaultValue={route?.despacho_carregado ?? ""} placeholder="Auto (faixas do tenant)" />
-                  <span style={{ fontSize: 11, color: "var(--muted)" }}>Override para viatura carregada nesta rota</span>
-                </label>
-              </div>
-              <label>Notas<textarea name="notes" rows={2} defaultValue={route?.notes ?? ""} placeholder="Observações sobre a rota, portagens, etc." /></label>
-              {error && <p className="form-error">{error}</p>}
-              <div className="modal-actions">
-                <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button type="submit" variant="primary" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</Button>
-              </div>
-            </form>
+      <ModalDialog open={open} onClose={() => setOpen(false)} title={isEdit ? "Editar destino" : "Novo destino"}>
+        <form onSubmit={handleSubmit} className="modal-form">
+          <div className="form-row">
+            <label>Origem<input name="origin" defaultValue={route?.origin} required placeholder="Maputo" /></label>
+            <label>Destino<input name="destination" defaultValue={route?.destination} required placeholder="Beira" /></label>
           </div>
-        </div>
-      )}
+          <div className="form-row">
+            <label>
+              Distância (km)
+              <input name="distance_km" type="number" step="0.1" min="1" defaultValue={route?.distance_km} required placeholder="530" />
+            </label>
+            <label>
+              Combustível estimado (L)
+              <input name="avg_fuel_liters" type="number" step="0.1" min="0" defaultValue={route?.avg_fuel_liters ?? ""} placeholder="Auto (consumo da viatura)" />
+              <span className="text-[11px] text-muted">Deixe em branco para calcular pelo consumo da viatura</span>
+            </label>
+          </div>
+          <div className="form-row">
+            <label>
+              Despacho — Vazio (MZN)
+              <input name="despacho_vazio" type="number" step="1" min="0" defaultValue={route?.despacho_vazio ?? ""} placeholder="Auto (faixas do tenant)" />
+              <span className="text-[11px] text-muted">Override para viatura vazia nesta rota</span>
+            </label>
+            <label>
+              Despacho — Carregado (MZN)
+              <input name="despacho_carregado" type="number" step="1" min="0" defaultValue={route?.despacho_carregado ?? ""} placeholder="Auto (faixas do tenant)" />
+              <span className="text-[11px] text-muted">Override para viatura carregada nesta rota</span>
+            </label>
+          </div>
+          <label>Notas<textarea name="notes" rows={2} defaultValue={route?.notes ?? ""} placeholder="Observações sobre a rota, portagens, etc." /></label>
+          {error && <p className="form-error">{error}</p>}
+          <div className="modal-actions">
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" variant="primary" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</Button>
+          </div>
+        </form>
+      </ModalDialog>
     </>
   );
 }

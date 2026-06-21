@@ -1,10 +1,10 @@
 "use client";
 
-import { Info, Plus, X } from "lucide-react";
+import { Info, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/app/components/ui/Button";
-import { IconButton } from "@/app/components/ui/IconButton";
+import { ModalDialog } from "@/app/components/ui/ModalDialog";
 import type { KnownRoute } from "../lib/known-routes-api";
 import { calcDespacho, calcFuel } from "../lib/known-routes-api";
 import type { Vehicle } from "../lib/vehicles-api";
@@ -139,15 +139,8 @@ export function TripFormModal({
         <Plus size={16} /> Nova viagem
       </Button>
 
-      {open && (
-        <div className="modal-backdrop" onClick={() => setOpen(false)}>
-          <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Nova viagem</h2>
-              <IconButton onClick={() => setOpen(false)} label="Fechar"><X size={18} /></IconButton>
-            </div>
-
-            <form onSubmit={handleSubmit} className="modal-form">
+      <ModalDialog open={open} onClose={() => setOpen(false)} title="Nova viagem" className="modal-wide">
+        <form onSubmit={handleSubmit} className="modal-form">
               {/* Destino conhecido */}
               {knownRoutes.length > 0 && (
                 <label>
@@ -283,10 +276,8 @@ export function TripFormModal({
                 <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
                 <Button type="submit" variant="primary" disabled={loading}>{loading ? "A criar..." : "Criar viagem"}</Button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+        </form>
+      </ModalDialog>
     </>
   );
 }

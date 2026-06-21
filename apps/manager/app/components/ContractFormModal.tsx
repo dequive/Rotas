@@ -1,12 +1,13 @@
 "use client";
 
-import { Edit2, Plus, X } from "lucide-react";
+import { Edit2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Contract } from "../lib/contracts-api";
 import { ClientCombobox } from "./ClientCombobox";
 import { Button } from "@/app/components/ui/Button";
 import { IconButton } from "@/app/components/ui/IconButton";
+import { ModalDialog } from "@/app/components/ui/ModalDialog";
 
 export function ContractFormModal({ contract }: { contract?: Contract }) {
   const router = useRouter();
@@ -88,100 +89,81 @@ export function ContractFormModal({ contract }: { contract?: Contract }) {
         <Button onClick={handleOpen}><Plus size={16} /> Novo contrato</Button>
       )}
 
-      {open && (
-        <div className="modal-backdrop" onClick={() => setOpen(false)}>
-          <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{isEdit ? "Editar contrato" : "Novo contrato"}</h2>
-              <IconButton onClick={() => setOpen(false)} label="Fechar"><X size={18} /></IconButton>
-            </div>
-            <form onSubmit={handleSubmit} className="modal-form">
-              <div className="form-row">
-                <label>Referência<input name="contract_reference" defaultValue={contract?.contract_reference} required placeholder="CTR-2026-001" /></label>
-              </div>
-
-              {/* Cliente — ClientCombobox replaces the free-text client_name input */}
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    color: "var(--ink-2)",
-                    marginBottom: 4,
-                  }}
-                >
-                  Cliente <span aria-hidden="true" style={{ color: "var(--error)" }}>*</span>
-                </label>
-                <ClientCombobox
-                  value={clientId || undefined}
-                  onChange={handleClientChange}
-                  disabled={loading}
-                />
-                {clientError && (
-                  <p style={{ fontSize: "12px", color: "var(--error)", marginTop: 4, marginBottom: 0 }}>
-                    {clientError}
-                  </p>
-                )}
-              </div>
-
-              <label>Título<input name="title" defaultValue={contract?.title} required /></label>
-              <div className="form-row">
-                <label>Tipo de serviço
-                  <select name="service_type" defaultValue={contract?.service_type ?? "cargo_transport"}>
-                    <option value="cargo_transport">Transporte de carga</option>
-                    <option value="passenger_transport">Transporte de passageiros</option>
-                  </select>
-                </label>
-                <label>Ciclo de cobrança
-                  <select name="billing_cycle" defaultValue={contract?.billing_cycle ?? "monthly"}>
-                    <option value="monthly">Mensal</option>
-                    <option value="weekly">Semanal</option>
-                    <option value="per_trip">Por viagem</option>
-                  </select>
-                </label>
-              </div>
-              <div className="form-row">
-                <label>Base de cobrança
-                  <select name="billing_basis" defaultValue={contract?.billing_basis ?? "trip"}>
-                    <option value="trip">Por viagem</option>
-                    <option value="km">Por km</option>
-                    <option value="weight">Por peso</option>
-                  </select>
-                </label>
-                <label>Moeda
-                  <select name="currency" defaultValue={contract?.currency ?? "MZN"}>
-                    <option value="MZN">MZN</option>
-                    <option value="USD">USD</option>
-                    <option value="ZAR">ZAR</option>
-                  </select>
-                </label>
-              </div>
-              <label>Preço unitário padrão<input name="default_unit_price" type="number" step="0.01" defaultValue={contract?.default_unit_price ?? ""} placeholder="12500" /></label>
-              <div className="form-row">
-                <label>Início<input name="starts_at" type="date" defaultValue={contract?.starts_at?.slice(0, 10) ?? ""} /></label>
-                <label>Fim<input name="ends_at" type="date" defaultValue={contract?.ends_at?.slice(0, 10) ?? ""} /></label>
-              </div>
-              <div className="form-row checkboxes">
-                <label className="checkbox-label">
-                  <input name="requires_load_permit" type="checkbox" defaultChecked={contract?.requires_load_permit ?? true} />
-                  Requer Load Permit
-                </label>
-                <label className="checkbox-label">
-                  <input name="requires_delivery_proof" type="checkbox" defaultChecked={contract?.requires_delivery_proof ?? true} />
-                  Requer Prova de entrega
-                </label>
-              </div>
-              <label>Notas<textarea name="notes" rows={2} placeholder="Observações sobre o contrato..." /></label>
-              {error && <p className="form-error">{error}</p>}
-              <div className="modal-actions">
-                <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button type="submit" variant="primary" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</Button>
-              </div>
-            </form>
+      <ModalDialog open={open} onClose={() => setOpen(false)} title={isEdit ? "Editar contrato" : "Novo contrato"} className="modal-wide">
+        <form onSubmit={handleSubmit} className="modal-form">
+          <div className="form-row">
+            <label>Referência<input name="contract_reference" defaultValue={contract?.contract_reference} required placeholder="CTR-2026-001" /></label>
           </div>
-        </div>
-      )}
+
+          <div>
+            <label className="text-[13px] font-medium text-ink-2 block mb-1">
+              Cliente <span aria-hidden="true" className="text-error">*</span>
+            </label>
+            <ClientCombobox
+              value={clientId || undefined}
+              onChange={handleClientChange}
+              disabled={loading}
+            />
+            {clientError && (
+              <p className="text-xs text-error mt-1 mb-0">{clientError}</p>
+            )}
+          </div>
+
+          <label>Título<input name="title" defaultValue={contract?.title} required /></label>
+          <div className="form-row">
+            <label>Tipo de serviço
+              <select name="service_type" defaultValue={contract?.service_type ?? "cargo_transport"}>
+                <option value="cargo_transport">Transporte de carga</option>
+                <option value="passenger_transport">Transporte de passageiros</option>
+              </select>
+            </label>
+            <label>Ciclo de cobrança
+              <select name="billing_cycle" defaultValue={contract?.billing_cycle ?? "monthly"}>
+                <option value="monthly">Mensal</option>
+                <option value="weekly">Semanal</option>
+                <option value="per_trip">Por viagem</option>
+              </select>
+            </label>
+          </div>
+          <div className="form-row">
+            <label>Base de cobrança
+              <select name="billing_basis" defaultValue={contract?.billing_basis ?? "trip"}>
+                <option value="trip">Por viagem</option>
+                <option value="km">Por km</option>
+                <option value="weight">Por peso</option>
+              </select>
+            </label>
+            <label>Moeda
+              <select name="currency" defaultValue={contract?.currency ?? "MZN"}>
+                <option value="MZN">MZN</option>
+                <option value="USD">USD</option>
+                <option value="ZAR">ZAR</option>
+              </select>
+            </label>
+          </div>
+          <label>Preço unitário padrão<input name="default_unit_price" type="number" step="0.01" defaultValue={contract?.default_unit_price ?? ""} placeholder="12500" /></label>
+          <div className="form-row">
+            <label>Início<input name="starts_at" type="date" defaultValue={contract?.starts_at?.slice(0, 10) ?? ""} /></label>
+            <label>Fim<input name="ends_at" type="date" defaultValue={contract?.ends_at?.slice(0, 10) ?? ""} /></label>
+          </div>
+          <div className="form-row checkboxes">
+            <label className="checkbox-label">
+              <input name="requires_load_permit" type="checkbox" defaultChecked={contract?.requires_load_permit ?? true} />
+              Requer Load Permit
+            </label>
+            <label className="checkbox-label">
+              <input name="requires_delivery_proof" type="checkbox" defaultChecked={contract?.requires_delivery_proof ?? true} />
+              Requer Prova de entrega
+            </label>
+          </div>
+          <label>Notas<textarea name="notes" rows={2} placeholder="Observações sobre o contrato..." /></label>
+          {error && <p className="form-error">{error}</p>}
+          <div className="modal-actions">
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" variant="primary" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</Button>
+          </div>
+        </form>
+      </ModalDialog>
     </>
   );
 }

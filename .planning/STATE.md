@@ -210,6 +210,7 @@ Phase 12 (GPS+TRK): GPS ingestion + fleet map + customer tracking
 | 260620-vlw | Design system wave 1: Input + IconButton + sweep secondary-btn/badge/icon-btn + PaymentModal + PageHeader | 2026-06-21 | e33adc6 | [260620-vlw](./quick/260620-vlw-design-system-migration-wave-1-quick-win/) |
 | 260621-ei3 | P0.3 numeração fiscal gap-free: FiscalCounter + SELECT FOR UPDATE, migração fisc01 RLS, reescrita _assign_invoice_number, 5 testes concorrência | 2026-06-21 | 4c20890 | [260621-ei3](./quick/260621-ei3-p0-3-numeracao-fiscal-gap-free-substitui/) |
 | 260621-b3f | Redesenho 5 documentos operacionais PHC: Guia Remessa + CPI + Relatório Viagem + Ordem Serviço + Inspecção Viatura | 2026-06-21 | 96b70ed | [260621-b3f](./quick/260621-b3f-documentos-operacionais-redesenho-phc/) |
+| 260621-f5i | P0.6 audit log em mutações financeiras + P0.1 pipeline billable BILLABLE_PROOF_STATUSES | 2026-06-21 | 4c521ee | [260621-f5i](.planning/quick/260621-f5i-p0-6-audit-log-em-mutacoes-financeiras-a/) |
 
 ### Blockers
 

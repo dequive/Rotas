@@ -112,9 +112,9 @@ export default function ExportButtons({ currentMonth }: ExportButtonsProps) {
             A gerar XLSX...
           </>
         ) : fuelState === "done" ? (
-          <span className="text-green-600">XLSX pronto — ver em Ficheiros</span>
+          <span className="text-success">XLSX pronto — ver em Ficheiros</span>
         ) : fuelState === "failed" ? (
-          <span className="text-red-600">Erro — tente novamente</span>
+          <span className="text-error">Erro — tente novamente</span>
         ) : (
           "Exportar Combustível (XLSX)"
         )}
@@ -136,9 +136,9 @@ export default function ExportButtons({ currentMonth }: ExportButtonsProps) {
             A gerar PDF...
           </>
         ) : complianceState === "done" ? (
-          <span className="text-green-600">PDF pronto — ver em Ficheiros</span>
+          <span className="text-success">PDF pronto — ver em Ficheiros</span>
         ) : complianceState === "failed" ? (
-          <span className="text-red-600">Erro — tente novamente</span>
+          <span className="text-error">Erro — tente novamente</span>
         ) : (
           "Exportar Conformidade (PDF)"
         )}

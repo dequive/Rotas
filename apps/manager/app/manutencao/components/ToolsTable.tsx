@@ -34,7 +34,7 @@ function formatDate(isoString: string | null): string {
 export function ToolsTable({ tools }: Props) {
   if (tools.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground" style={{ fontFamily: "Manrope, sans-serif" }}>
+      <div className="text-center py-12 text-muted">
         Nenhuma ferramenta registada.
       </div>
     );

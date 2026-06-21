@@ -59,14 +59,14 @@ const BUCKETS: BucketConfig[] = [
   {
     key: "current",
     label: "Corrente",
-    containerClass: "bg-slate-50 border-slate-200",
-    textClass: "text-slate-700",
+    containerClass: "bg-surface-2 border-border",
+    textClass: "text-ink",
   },
   {
     key: "1_30",
     label: "1 – 30 d",
-    containerClass: "bg-slate-50 border-slate-200",
-    textClass: "text-slate-700",
+    containerClass: "bg-surface-2 border-border",
+    textClass: "text-ink",
   },
   {
     key: "31_60",

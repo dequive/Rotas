@@ -151,10 +151,7 @@ export default async function ClienteDetailPage({
       />
 
       {/* Client info card */}
-      <div
-        className="grid grid-cols-2 gap-6 p-4 rounded-lg border mb-6"
-        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
-      >
+      <div className="grid grid-cols-2 gap-6 p-4 rounded-lg border border-border bg-surface mb-6">
         {/* Left: identity */}
         <div className="space-y-3">
           <div>
@@ -218,30 +215,15 @@ export default async function ClienteDetailPage({
       {/* Credit limit warning strip */}
       {creditPct >= 80 && (
         <div
-          className="flex items-start gap-3 p-4 rounded-lg border mb-6"
-          style={{
-            background: creditPct >= 100 ? "var(--error-bg)" : "var(--warning-bg)",
-            borderColor: creditPct >= 100 ? "var(--error)" : "var(--warning)",
-          }}
+          className={`flex items-start gap-3 p-4 rounded-lg border mb-6 ${creditPct >= 100 ? "bg-error-bg border-error-border" : "bg-warning-bg border-warning-border"}`}
         >
           {creditPct >= 100 ? (
-            <AlertOctagon
-              size={18}
-              className="flex-shrink-0 mt-0.5"
-              style={{ color: "var(--error)" }}
-            />
+            <AlertOctagon size={18} className="flex-shrink-0 mt-0.5 text-error" />
           ) : (
-            <AlertTriangle
-              size={18}
-              className="flex-shrink-0 mt-0.5"
-              style={{ color: "var(--warning)" }}
-            />
+            <AlertTriangle size={18} className="flex-shrink-0 mt-0.5 text-warning" />
           )}
           <div>
-            <p
-              className="text-[13px] font-semibold"
-              style={{ color: creditPct >= 100 ? "var(--error)" : "var(--warning)" }}
-            >
+            <p className={`text-[13px] font-semibold ${creditPct >= 100 ? "text-error" : "text-warning"}`}>
               {creditPct >= 100
                 ? `Limite de crédito excedido. Saldo em aberto: ${formatMzn(client.outstanding_balance)} / Limite: ${formatMzn(client.credit_limit)}. Nenhuma acção está bloqueada.`
                 : `Saldo em aberto de ${formatMzn(client.outstanding_balance)} está a aproximar-se do limite de crédito (${formatMzn(client.credit_limit)}).`}
@@ -260,8 +242,7 @@ export default async function ClienteDetailPage({
               <a
                 href={`/api/billing/clients/${id}/statement/pdf`}
                 download={`extrato_${id}.pdf`}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md text-white transition-colors"
-                style={{ background: "var(--amber)" }}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md text-white bg-amber hover:bg-amber-dark transition-colors"
               >
                 Exportar PDF
               </a>
@@ -270,19 +251,15 @@ export default async function ClienteDetailPage({
 
           {/* Balance summary bar */}
           <div
-            className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-3 border-b"
-            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+            className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-3 border-b border-border bg-surface-2"
           >
-            <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
               Saldo em Aberto
             </span>
-            <span
-              className="font-mono text-2xl font-semibold"
-              style={{ color: Number(statement.balance) > 0 ? "var(--error)" : "var(--success)" }}
-            >
+            <span className={`font-mono text-2xl font-semibold ${Number(statement.balance) > 0 ? "text-error" : "text-success"}`}>
               {formatMzn(statement.balance)}
             </span>
-            <span className="ml-auto text-[11px]" style={{ color: "var(--muted)" }}>
+            <span className="ml-auto text-[11px] text-muted">
               Emitido: <span className="font-mono">{formatMzn(statement.total_invoiced)}</span>
               &nbsp;|&nbsp;
               Recebido: <span className="font-mono">{formatMzn(statement.total_paid)}</span>
@@ -324,10 +301,7 @@ export default async function ClienteDetailPage({
                         {formatDate(doc.issued_at)}
                       </RotasTableCell>
                       <RotasTableCell align="center">
-                        <span
-                          className={isOverdue ? "font-medium" : ""}
-                          style={isOverdue ? { color: "var(--error)" } : undefined}
-                        >
+                        <span className={isOverdue ? "font-medium text-error" : ""}>
                           {formatDate(doc.due_date)}
                         </span>
                       </RotasTableCell>

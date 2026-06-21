@@ -22,7 +22,7 @@ function isLowStock(part: SparePart): boolean {
 export function PartsInventoryTable({ parts }: Props) {
   if (parts.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground" style={{ fontFamily: "Manrope, sans-serif" }}>
+      <div className="text-center py-12 text-muted">
         Nenhuma peça registada no inventário.
       </div>
     );

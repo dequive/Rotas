@@ -295,7 +295,7 @@ export default function AnalyticsPage() {
                       {r.total_cost.toLocaleString("pt-MZ", { minimumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell
-                      className={`text-right font-mono font-semibold ${r.gross_margin >= 0 ? "text-green-700" : "text-red-600"}`}
+                      className={`text-right font-mono font-semibold ${r.gross_margin >= 0 ? "text-success" : "text-error"}`}
                     >
                       {r.gross_margin.toLocaleString("pt-MZ", { minimumFractionDigits: 2 })}
                     </TableCell>

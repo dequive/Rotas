@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { registerPayment, type ClientPaymentPayload } from "@/app/lib/billing-api";
+import { Input } from "@/app/components/ui/Input";
+import { Button } from "@/app/components/ui/Button";
 
 interface PaymentModalProps {
   clientId: string;
@@ -110,7 +112,7 @@ export function PaymentModal({
         <button
           type="button"
           onClick={handleOpen}
-          className="text-xs font-semibold text-amber-600 hover:text-amber-700 border border-amber-200 rounded px-2 py-1"
+          className="text-xs font-semibold text-amber border border-amber/30 rounded px-2 py-1 hover:bg-amber-light transition-colors duration-100"
         >
           {advanceMode ? "Registar Adiantamento" : "Registar Pagamento"}
         </button>
@@ -118,33 +120,33 @@ export function PaymentModal({
 
       {open && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/45 backdrop-blur-sm flex items-center justify-center z-50"
           onClick={(e) => {
             if (e.target === e.currentTarget) handleClose();
           }}
         >
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-surface rounded-lg shadow-design-md p-6 w-full max-w-lg mx-4">
+            <h2 className="text-lg font-semibold text-ink mb-4">
               {modalTitle}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Amount */}
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-2 mb-1">
                   Valor (MZN)
                 </label>
-                <input
+                <Input
                   type="text"
                   inputMode="decimal"
+                  variant="mono"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
                   required
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 />
                 {!advanceMode && invoiceOutstanding && (
-                  <p className="mt-1 text-[11px] font-mono text-gray-500">
+                  <p className="mt-1 text-[11px] font-mono text-ink-2">
                     Saldo em aberto: MZN {parseFloat(invoiceOutstanding).toLocaleString("pt-MZ", { minimumFractionDigits: 2 })}
                   </p>
                 )}
@@ -152,28 +154,27 @@ export function PaymentModal({
 
               {/* Value date */}
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-2 mb-1">
                   Data valor
                 </label>
-                <input
+                <Input
                   type="date"
                   value={valueDate}
                   onChange={(e) => setValueDate(e.target.value)}
                   required
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 />
               </div>
 
               {/* Payment method */}
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-2 mb-1">
                   Método
                 </label>
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value as "bank_transfer" | "cheque" | "cash")}
                   required
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white"
+                  className="w-full h-10 px-3 bg-surface border border-border rounded-md text-sm text-ink focus:outline-none focus:ring-2 focus:ring-amber/20 focus:border-amber transition-colors duration-100"
                 >
                   <option value="bank_transfer">Transferência Bancária</option>
                   <option value="cheque">Cheque</option>
@@ -183,50 +184,50 @@ export function PaymentModal({
 
               {/* Reference */}
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                  Referência <span className="font-normal normal-case text-gray-400">(opcional)</span>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-2 mb-1">
+                  Referência <span className="font-normal normal-case text-placeholder">(opcional)</span>
                 </label>
-                <input
+                <Input
                   type="text"
                   value={reference}
                   onChange={(e) => setReference(e.target.value)}
                   placeholder="Nº de transferência, cheque, etc."
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 />
               </div>
 
               {/* Notes */}
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                  Notas <span className="font-normal normal-case text-gray-400">(opcional)</span>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-ink-2 mb-1">
+                  Notas <span className="font-normal normal-case text-placeholder">(opcional)</span>
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Observações adicionais..."
                   rows={2}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
+                  className="w-full border border-border rounded-md px-3 py-2 text-sm text-ink bg-surface focus:outline-none focus:ring-2 focus:ring-amber/20 focus:border-amber resize-none transition-colors duration-100 placeholder:text-placeholder"
                 />
               </div>
 
               {/* Error */}
               {error && (
-                <p className="text-sm text-red-600">{error}</p>
+                <p className="text-sm text-error">{error}</p>
               )}
 
               {/* Actions */}
               <div className="flex gap-3 pt-2">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={handleClose}
-                  className="flex-1 border border-gray-200 rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="flex-1"
                 >
                   Cancelar
-                </button>
+                </Button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50 transition-colors"
+                  className="flex-1 bg-amber hover:bg-amber-dark text-ink rounded-lg px-4 py-2 text-sm font-bold disabled:opacity-50 transition-colors duration-100"
                 >
                   {loading ? "A registar..." : "Registar"}
                 </button>

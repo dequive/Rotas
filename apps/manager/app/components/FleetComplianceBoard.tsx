@@ -199,20 +199,20 @@ function ComplianceItem({
           type="date"
           value={validUntil}
           onChange={(event) => setValidUntil(event.target.value)}
-          className="min-h-[32px] border border-border rounded-md bg-white text-ink px-2 text-[12px] flex-1 min-w-[130px]"
+          className="min-h-[32px] border border-border rounded-md bg-surface text-ink px-2 text-[12px] flex-1 min-w-[130px]"
         />
         <input
           aria-label="Referência"
           placeholder="Referência doc."
           value={reference}
           onChange={(event) => setReference(event.target.value)}
-          className="min-h-[32px] border border-border rounded-md bg-white text-ink px-2 text-[12px] flex-1 min-w-[110px]"
+          className="min-h-[32px] border border-border rounded-md bg-surface text-ink px-2 text-[12px] flex-1 min-w-[110px]"
         />
         <button
           disabled={busy}
           onClick={renew}
           type="button"
-          className="min-h-[32px] px-3 text-[12px] font-bold border border-border rounded-md bg-white text-ink hover:bg-surface-2 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+          className="min-h-[32px] px-3 text-[12px] font-bold border border-border rounded-md bg-surface text-ink hover:bg-surface-2 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
         >
           {busy ? "A guardar..." : "Renovar"}
         </button>

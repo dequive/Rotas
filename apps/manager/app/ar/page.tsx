@@ -175,11 +175,11 @@ export default async function ArPage({
             type="date"
             name="as_of"
             defaultValue={asOf}
-            className="px-3 py-1.5 text-sm border border-[var(--border)] rounded-md bg-white text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--amber)]"
+            className="px-3 py-1.5 text-sm border border-border rounded-md bg-surface text-ink focus:outline-none focus:ring-2 focus:ring-amber/20 focus:border-amber"
           />
           <button
             type="submit"
-            className="px-3 py-1.5 text-sm font-medium rounded-md bg-[var(--amber)] text-white hover:bg-[var(--amber-dark)] transition-colors"
+            className="px-3 py-1.5 text-sm font-bold rounded-md bg-amber text-ink hover:bg-amber-dark transition-colors duration-100"
           >
             Aplicar
           </button>

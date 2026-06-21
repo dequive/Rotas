@@ -140,7 +140,7 @@ export default async function ClienteDetailPage({
               clientName={client.trading_name}
               advanceMode={true}
               trigger={
-                <button className="text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded px-3 py-1.5 transition-colors">
+                <button className="text-xs font-semibold bg-amber hover:bg-amber-dark text-ink rounded-md px-3 py-1.5 transition-colors duration-100">
                   Registar Adiantamento
                 </button>
               }

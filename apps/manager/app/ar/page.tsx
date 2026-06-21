@@ -71,20 +71,20 @@ const BUCKETS: BucketConfig[] = [
   {
     key: "31_60",
     label: "31 – 60 d",
-    containerClass: "bg-amber-50 border-amber-300",
-    textClass: "text-amber-700",
+    containerClass: "bg-warning-bg border-warning-border",
+    textClass: "text-warning",
   },
   {
     key: "61_90",
     label: "61 – 90 d",
-    containerClass: "bg-red-50 border-red-300",
-    textClass: "text-red-700",
+    containerClass: "bg-error-bg border-error-border",
+    textClass: "text-error",
   },
   {
     key: "over_90",
     label: "+ 90 d",
-    containerClass: "bg-red-50 border-red-400",
-    textClass: "text-red-800",
+    containerClass: "bg-error-bg border-error-border",
+    textClass: "text-error",
   },
 ];
 
@@ -101,18 +101,18 @@ function worstBucketLabel(bucket: string): string {
 
 function bucketBadgeClass(bucket: string): string {
   if (bucket === "over_90" || bucket === "61_90") {
-    return "text-red-700 bg-red-50 border border-red-200";
+    return "text-error bg-error-bg border border-error-border";
   }
   if (bucket === "31_60") {
-    return "text-amber-700 bg-amber-50 border border-amber-200";
+    return "text-warning bg-warning-bg border border-warning-border";
   }
-  return "text-slate-600 bg-slate-100 border border-slate-200";
+  return "text-ink-2 bg-surface-2 border border-border";
 }
 
 function bucketDotClass(bucket: string): string {
-  if (bucket === "over_90" || bucket === "61_90") return "bg-red-500";
-  if (bucket === "31_60") return "bg-amber-500";
-  return "bg-slate-400";
+  if (bucket === "over_90" || bucket === "61_90") return "bg-error";
+  if (bucket === "31_60") return "bg-amber";
+  return "bg-muted";
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────

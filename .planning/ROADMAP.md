@@ -1158,6 +1158,24 @@ Plans:
 ---
 
 
+### Phase 26: Gestão de Terceiros — Backend Unification
+
+**Goal**: A tabela `clients` passa a ser um subconjunto de `third_parties` — cada client tem um `third_party_id` FK, um registo em `third_party_roles` com `role_type='client'` e um `client_profile` com dados financeiros. A BD rejeita duplicação via `UNIQUE (tenant_id, nuit)` em `third_parties`. O POST /clients passa a ser find-or-create contra `third_parties`. Nenhuma rota de API existente é alterada (aliases e novos endpoints são Phase 27).
+
+**Depends on**: Phase 23, Phase 24 (third_parties, third_party_roles, supplier_profiles já existem)
+
+**Requirements**: GT-01, GT-02, GT-03, GT-04, GT-05
+
+**Plans**: 3 plans
+
+Plans:
+
+- [ ] 26-01-PLAN.md — Wave 1: gt01 migration (CREATE TABLE client_profiles + RLS + GRANT + ADD COLUMN clients.third_party_id), ClientProfile SQLAlchemy model, Client model update
+- [ ] 26-02-PLAN.md — Wave 2: gt02 DML backfill migration (2213 clients → third_parties + roles + client_profiles, batches of 500, idempotent)
+- [ ] 26-03-PLAN.md — Wave 3: create_client find-or-create rewrite + 3 new GT-05 tests
+
+---
+
 ## Progress Table (v3.0)
 
 | Phase | Plans Complete | Status | Completed |
@@ -1173,3 +1191,4 @@ Plans:
 | 23. Third Party Registry | 8/8 | Complete | 2026-06-20 |
 | 24. Third Party Completion — UI, Conta Corrente & Avaliação | 7/7 | Complete | 2026-06-20 |
 | 25. Platform/Tenant Scope Separation | 3/3 | Complete   | 2026-06-20 |
+| 26. Gestão de Terceiros — Backend Unification | 0/TBD | Not started | - |

@@ -271,7 +271,7 @@ export function TripFormModal({
                 </label>
               </div>
 
-              {error && <p className="form-error">{error}</p>}
+              {error && <p className="text-error text-[13px] m-0 bg-error-bg border border-error-border rounded-md px-3 py-2">{error}</p>}
               <div className="modal-actions">
                 <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
                 <Button type="submit" variant="primary" disabled={loading}>{loading ? "A criar..." : "Criar viagem"}</Button>

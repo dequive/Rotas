@@ -71,7 +71,7 @@ export function FuelControlBoard({ result }: FuelControlBoardProps) {
 
         <aside className="fuel-risk-list" aria-label="Riscos de stock">
           <header>
-            <span className="queue-icon orange">
+            <span className="w-[30px] h-[30px] rounded-md inline-flex items-center justify-center flex-shrink-0 bg-warning-bg text-warning">
               <AlertTriangle size={16} />
             </span>
             <div>

@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Trip } from "../lib/trips-api";
 
+const btnBase = "inline-flex items-center gap-1 h-[30px] px-2.5 bg-surface text-ink border border-border rounded-md text-xs font-bold whitespace-nowrap cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed";
+const btnGreen = "text-success bg-success-bg border-success-border";
+const btnCyan = "text-info bg-info-bg border-info-border";
+const errorCls = "text-error text-[13px] m-0 bg-error-bg border border-error-border rounded-md px-3 py-2";
+
 export function TripActionButton({ trip }: { trip: Trip }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -57,11 +62,11 @@ export function TripActionButton({ trip }: { trip: Trip }) {
   if (trip.status === "planned" || trip.status === "dispatched") {
     return (
       <div>
-        <button className="action-btn green" onClick={handleStart} disabled={loading} title="Iniciar viagem">
+        <button className={`${btnBase} ${btnGreen}`} onClick={handleStart} disabled={loading} title="Iniciar viagem">
           <Play size={14} />
           {loading ? "..." : "Iniciar"}
         </button>
-        {error && <p className="form-error">{error}</p>}
+        {error && <p className={errorCls}>{error}</p>}
       </div>
     );
   }
@@ -69,7 +74,7 @@ export function TripActionButton({ trip }: { trip: Trip }) {
   if (trip.status === "in_progress") {
     if (showComplete) {
       return (
-        <form onSubmit={handleComplete} className="inline-form">
+        <form onSubmit={handleComplete} className="flex items-center gap-1.5">
           <input
             type="number"
             value={kmEnd}
@@ -77,18 +82,18 @@ export function TripActionButton({ trip }: { trip: Trip }) {
             placeholder="Km final"
             required
             min={0}
-            className="km-input"
+            className="w-[90px] h-[30px] px-2 border border-border rounded-md bg-surface text-ink text-xs focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
           />
-          <button type="submit" className="action-btn green" disabled={loading}>
+          <button type="submit" className={`${btnBase} ${btnGreen}`} disabled={loading}>
             {loading ? "..." : "Confirmar"}
           </button>
-          <button type="button" className="action-btn" onClick={() => setShowComplete(false)}>✕</button>
-          {error && <p className="form-error">{error}</p>}
+          <button type="button" className={btnBase} onClick={() => setShowComplete(false)}>✕</button>
+          {error && <p className={errorCls}>{error}</p>}
         </form>
       );
     }
     return (
-      <button className="action-btn cyan" onClick={() => setShowComplete(true)} title="Concluir viagem">
+      <button className={`${btnBase} ${btnCyan}`} onClick={() => setShowComplete(true)} title="Concluir viagem">
         <CheckCircle size={14} />
         Concluir
       </button>

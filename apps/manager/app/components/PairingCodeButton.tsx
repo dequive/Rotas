@@ -61,7 +61,7 @@ export function PairingCodeButton({ driverId, driverName }: { driverId: string; 
       >
         <div className="pairing-body">
           {loading && <p className="muted">A gerar código...</p>}
-          {error && <p className="form-error">{error}</p>}
+          {error && <p className="text-error text-[13px] m-0 bg-error-bg border border-error-border rounded-md px-3 py-2">{error}</p>}
           {code && (
             <>
               <p className="muted">Código válido por 15 minutos. O motorista deve introduzir este código na app.</p>

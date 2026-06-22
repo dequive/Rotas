@@ -37,7 +37,7 @@ function VehicleTimeline({ history }: { history: VehicleHistory }) {
   return (
     <article className="bg-surface border border-border rounded-lg overflow-hidden">
       <header className="history-header">
-        <span className="queue-icon blue">
+        <span className="w-[30px] h-[30px] rounded-md inline-flex items-center justify-center flex-shrink-0 bg-info-bg text-info">
           <Truck size={16} />
         </span>
         <div>
@@ -56,7 +56,7 @@ function DriverTimeline({ history }: { history: DriverHistory }) {
   return (
     <article className="bg-surface border border-border rounded-lg overflow-hidden">
       <header className="history-header">
-        <span className="queue-icon green">
+        <span className="w-[30px] h-[30px] rounded-md inline-flex items-center justify-center flex-shrink-0 bg-success-bg text-success">
           <UserRound size={16} />
         </span>
         <div>

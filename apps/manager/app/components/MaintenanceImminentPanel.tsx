@@ -45,7 +45,7 @@ export function MaintenanceImminentPanel({ alerts }: Props) {
       </div>
 
       {alerts.length === 0 ? (
-        <div className="empty-state">
+        <div className="py-2">
           <p className="font-bold">Sem manutenções iminentes</p>
           <p className="text-muted">
             Todas as viaturas estão dentro dos limites de intervenção.

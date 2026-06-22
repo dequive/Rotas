@@ -272,13 +272,13 @@ export function ClientFormModal({
           </label>
         </div>
 
-        {apiError && <div className="form-error">{apiError}</div>}
+        {apiError && <div className="text-error text-[13px] m-0 bg-error-bg border border-error-border rounded-md px-3 py-2">{apiError}</div>}
 
         <div className="modal-actions">
           {mode === "edit" && (
             <button
               type="button"
-              className="action-btn text-error mr-auto"
+              className="inline-flex items-center gap-1 h-[30px] px-2.5 bg-surface text-error border border-error-border rounded-md text-xs font-bold whitespace-nowrap cursor-pointer disabled:opacity-60 mr-auto"
               onClick={handleDeactivate}
               disabled={loading}
             >

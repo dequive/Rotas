@@ -175,7 +175,7 @@ export default function SecurityPage() {
         </div>
         <div className="modal-form">
           {mfa?.enabled ? (
-            <form onSubmit={disableMfa} className="inline-form">
+            <form onSubmit={disableMfa} className="flex items-center gap-1.5">
               <input
                 value={disableCode}
                 onChange={(e) => setDisableCode(e.target.value)}
@@ -197,7 +197,7 @@ export default function SecurityPage() {
                 URI
                 <input value={mfa.otpauth_uri ?? ""} readOnly />
               </label>
-              <div className="inline-form">
+              <div className="flex items-center gap-1.5">
                 <input
                   value={mfaCode}
                   onChange={(e) => setMfaCode(e.target.value)}
@@ -224,9 +224,9 @@ export default function SecurityPage() {
           <h2 className="text-base font-semibold m-0">Sessões</h2>
           <span>{sessions.filter((session) => session.active).length} ativas</span>
         </div>
-        {error && <p className="form-error">{error}</p>}
+        {error && <p className="text-error text-[13px] m-0 bg-error-bg border border-error-border rounded-md px-3 py-2">{error}</p>}
         {loading ? (
-          <p className="empty-state">A carregar sessões...</p>
+          <p className="py-2 text-muted text-sm">A carregar sessões...</p>
         ) : (
           <div className="table-wrap">
             <table className="table">
@@ -260,7 +260,7 @@ export default function SecurityPage() {
                     <td>{formatDate(session.revoked_at)}</td>
                     <td>
                       <button
-                        className="action-btn"
+                        className="inline-flex items-center gap-1 h-[30px] px-2.5 bg-surface text-ink border border-border rounded-md text-xs font-bold whitespace-nowrap cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                         disabled={!session.active || busyId === session.id}
                         onClick={() => revokeSession(session.id)}
                       >

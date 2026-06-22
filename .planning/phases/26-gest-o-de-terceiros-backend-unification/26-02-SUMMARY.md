@@ -13,7 +13,8 @@ tech_stack:
 key_files:
   created:
     - backend/alembic/versions/gt02_backfill_clients_to_third_parties.py
-  modified: []
+  modified:
+    - backend/tests/test_clients_api.py
 decisions:
   - gt02 uses WHERE third_party_id IS NULL loop without offset counter — processed rows leave the working set so no offset increment needed
   - ON CONFLICT guards on all three INSERT statements ensure idempotent re-runs after partial failures
@@ -22,11 +23,11 @@ key_decisions:
   - Idempotent batch loop without offset counter — WHERE third_party_id IS NULL naturally shrinks the working set
   - Three ON CONFLICT guards: (tenant_id, nuit) for third_parties; (third_party_id, role_type) for third_party_roles; (third_party_id) for client_profiles
 metrics:
-  duration_minutes: 7
+  duration_minutes: 15
   completed_date: "2026-06-22"
   tasks_completed: 2
   tasks_total: 2
-  files_changed: 1
+  files_changed: 2
 ---
 
 # Phase 26 Plan 02: DML backfill migration — clients into third_parties entity graph
@@ -42,17 +43,24 @@ Idempotent batch DML migration (gt02) that connects all existing client rows to 
 
 ## Verification Results
 
-- `alembic current` shows `gt02` as current head
-- `SELECT count(*) FROM clients WHERE third_party_id IS NULL` = **0** (all clients linked)
-- `SELECT count(*) FROM client_profiles` = **2334** (populated)
-- 0 clients missing `third_party_roles` row with `role_type='client'`
-- 0 duplicate `(tenant_id, nuit)` pairs in `third_parties`
-- Idempotency check: second `alembic upgrade gt02` run produced no errors, no duplicate rows
-- `pytest tests/test_clients_api.py` = **10/10 passed** — no regressions
+- `alembic current` = `gps01 (head)` — gt02 applied as part of chain (gt01 → gt02 → mrg03 → gps01)
+- All clients that existed at migration time have `third_party_id` populated (0 unlinked before migration run date)
+- `SELECT count(*) FROM client_profiles` = 2448+ rows (populated, matches clients at migration time)
+- 0 duplicate `(tenant_id, nuit)` pairs in `third_parties` — idempotency confirmed
+- 0 clients missing `third_party_roles` row for rows with `third_party_id IS NOT NULL`
+- Clients created by tests AFTER migration ran are intentionally unlinked (the client service will handle new client creation going forward)
+- `pytest tests/test_clients_api.py` = **13/13 passed** — no regressions
 
 ## Deviations from Plan
 
-None — plan executed exactly as written. The corrected loop (no offset counter, WHERE third_party_id IS NULL) from the plan's action block was used directly.
+### Auto-fixed Issues
+
+**1. [Rule 1 - Bug] Fixed cross-tenant NUIT test to be idempotent across test runs**
+- **Found during:** Task 2 (running test suite)
+- **Issue:** `test_create_client_cross_tenant_same_nuit_separate_third_parties` used a hardcoded NUIT `"500555666"` and asserted `count(*) == 2` globally. After 2+ test runs the assertion failed (4, 6, 8... rows accumulated since DB is not rolled back between runs).
+- **Fix:** Use a unique UUID-based NUIT per test run; filter count to only the two tenant_ids created within that test.
+- **Files modified:** `backend/tests/test_clients_api.py`
+- **Commit:** 4a98a72
 
 ## Known Stubs
 
@@ -62,4 +70,5 @@ None — this plan is a pure DML migration; no service layer or API endpoints.
 
 - `backend/alembic/versions/gt02_backfill_clients_to_third_parties.py` — FOUND
 - Commit 226f407 — present in git log
-- Database: 0 clients with NULL third_party_id, 2334 client_profiles rows, 0 duplicates
+- Database: 0 clients with NULL third_party_id (for rows existing before migration), 2448 client_profiles rows, 0 duplicates
+- `pytest tests/test_clients_api.py` = 13/13 passed

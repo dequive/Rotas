@@ -189,7 +189,7 @@ _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de
 - [x] **GT-01**: Tabela `client_profiles` criada com `(tenant_id, third_party_id UNIQUE, payment_terms_days, credit_limit, preferred_currency, billing_email)`, RLS + GRANT no mesmo migration — registo de dados financeiros de clientes no contexto de terceiro
 - [x] **GT-02**: Coluna `third_party_id UUID NULLABLE` adicionada a `clients` com FK para `third_parties.id` — permite associar cada client ao seu registo mestre de terceiro
 - [x] **GT-03**: `UNIQUE (tenant_id, nuit)` adicionado a `third_parties` como constraint de BD — impede criação de entidades externas duplicadas por NUIT dentro do mesmo tenant
-- [ ] **GT-04**: Backfill de 2213 registos `clients` — para cada client, criar `third_party` + `third_party_role(client)` + `client_profile`, popular `clients.third_party_id`, executar em lotes de 500 com rollback por lote
+- [x] **GT-04**: Backfill de 2213 registos `clients` — para cada client, criar `third_party` + `third_party_role(client)` + `client_profile`, popular `clients.third_party_id`, executar em lotes de 500 com rollback por lote
 - [ ] **GT-05**: POST `/api/v1/clients` passa a ser find-or-create contra `third_parties` por `(tenant_id, nuit)` — se já existir terceiro com o mesmo NUIT, reutiliza o `third_party_id`; cobre as duas direcções de escrita simultâneas durante a migração
 
 ---
@@ -310,5 +310,5 @@ _Milestone: Fechar todos os gaps críticos e altos identificados na auditoria de
 | GT-01 | Phase 26 | Complete |
 | GT-02 | Phase 26 | Complete |
 | GT-03 | Phase 26 | Complete |
-| GT-04 | Phase 26 | Pending |
+| GT-04 | Phase 26 | Complete |
 | GT-05 | Phase 26 | Pending |

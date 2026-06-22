@@ -31,7 +31,7 @@ export function FuelControlBoard({ result }: FuelControlBoardProps) {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
-        <div className="fuel-main">
+        <div className="min-w-0">
           <section
             className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4"
             aria-label="Indicadores de combustível"
@@ -62,21 +62,21 @@ export function FuelControlBoard({ result }: FuelControlBoardProps) {
             />
           </section>
 
-          <section className="tank-grid" aria-label="Tanques de combustível">
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2" aria-label="Tanques de combustível">
             {board.tanks.map((tank) => (
               <TankStatus key={tank.id} tank={tank} />
             ))}
           </section>
         </div>
 
-        <aside className="fuel-risk-list" aria-label="Riscos de stock">
-          <header>
+        <aside className="min-w-0 p-3 bg-surface border border-border rounded-md" aria-label="Riscos de stock">
+          <header className="flex items-center gap-2 mb-2">
             <span className="w-[30px] h-[30px] rounded-md inline-flex items-center justify-center flex-shrink-0 bg-warning-bg text-warning">
               <AlertTriangle size={16} />
             </span>
             <div>
-              <h3>Reposição necessária</h3>
-              <p>{board.queues.lowStockTanks.length} tanques</p>
+              <h3 className="text-[14px] font-semibold m-0">Reposição necessária</h3>
+              <p className="mt-0.5 text-muted text-[12px] m-0">{board.queues.lowStockTanks.length} tanques</p>
             </div>
           </header>
           {board.queues.lowStockTanks.length === 0 ? (

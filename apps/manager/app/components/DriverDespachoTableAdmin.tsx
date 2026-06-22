@@ -148,59 +148,64 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
         </span>
       </div>
 
-      <div className="despacho-admin-grid">
+      <div className="grid gap-3.5" style={{ gridTemplateColumns: "minmax(280px,0.45fr) minmax(0,1fr)" }}>
         <article className="min-w-0 p-3.5 bg-surface border border-border rounded-lg">
-          <div className="despacho-summary">
-            <div>
-              <span>Faixas</span>
-              <strong>{totalTiers}</strong>
+          <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: "repeat(2,minmax(0,1fr)) minmax(92px,auto)" }}>
+            <div className="min-h-[48px] p-2 border border-border rounded-md bg-surface">
+              <span className="block text-muted text-[12px]">Faixas</span>
+              <strong className="block mt-0.5 text-[14px]">{totalTiers}</strong>
             </div>
-            <div>
-              <span>Valor maior</span>
-              <strong>{formatMoney(highestAmount, table.currency)}</strong>
+            <div className="min-h-[48px] p-2 border border-border rounded-md bg-surface">
+              <span className="block text-muted text-[12px]">Valor maior</span>
+              <strong className="block mt-0.5 text-[14px]">{formatMoney(highestAmount, table.currency)}</strong>
             </div>
-            <label className="switch-row">
+            <label className="min-h-[48px] p-2 border border-border rounded-md bg-surface inline-flex items-center justify-center gap-2 text-[13px] font-black cursor-pointer">
               <input
                 checked={table.enabled}
                 onChange={(event) => updateTable("enabled", event.target.checked)}
                 type="checkbox"
+                className="w-4 h-4 accent-amber"
               />
               Activa
             </label>
           </div>
 
-          <div className="despacho-form-grid">
-            <label>
+          <div className="grid grid-cols-2 gap-2.5">
+            <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
               Nome da tabela
               <input
                 value={table.table_name}
                 onChange={(event) => updateTable("table_name", event.target.value)}
+                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
               />
             </label>
-            <label>
+            <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
               Referencia
               <input
                 value={table.table_reference ?? ""}
                 onChange={(event) => updateTable("table_reference", event.target.value)}
+                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
               />
             </label>
-            <label>
+            <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
               Moeda
               <input
                 maxLength={3}
                 value={table.currency}
                 onChange={(event) => updateTable("currency", event.target.value.toUpperCase())}
+                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20 font-mono"
               />
             </label>
-            <label>
+            <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
               Vigencia
               <input
                 type="date"
                 value={table.effective_from ?? ""}
                 onChange={(event) => updateTable("effective_from", event.target.value || null)}
+                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
               />
             </label>
-            <label>
+            <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
               Minimo longo curso
               <input
                 min={0}
@@ -209,6 +214,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
                 onChange={(event) =>
                   updateTable("min_long_course_km", Number(event.target.value || 0))
                 }
+                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
               />
             </label>
           </div>
@@ -229,19 +235,24 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
             </Button>
           </div>
 
-          <div className="despacho-tier-list">
+          <div className="grid gap-2">
             {table.tiers.map((tier, index) => (
-              <div className="despacho-tier-row" key={`${tier.code ?? "tier"}-${index}`}>
-                <label>
+              <div
+                className="grid gap-2 items-end p-2.5 border border-border rounded-lg bg-surface"
+                style={{ gridTemplateColumns: "minmax(72px,0.65fr) minmax(72px,0.65fr) minmax(88px,0.8fr) minmax(82px,0.75fr) minmax(140px,1.2fr) 38px" }}
+                key={`${tier.code ?? "tier"}-${index}`}
+              >
+                <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
                   Min km
                   <input
                     min={0}
                     type="number"
                     value={tier.min_km}
                     onChange={(event) => updateTier(index, "min_km", Number(event.target.value || 0))}
+                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
                   />
                 </label>
-                <label>
+                <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
                   Max km
                   <input
                     min={0}
@@ -254,29 +265,33 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
                         event.target.value === "" ? null : Number(event.target.value),
                       )
                     }
+                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
                   />
                 </label>
-                <label>
+                <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
                   Valor
                   <input
                     min={0}
                     type="number"
                     value={tier.amount}
                     onChange={(event) => updateTier(index, "amount", Number(event.target.value || 0))}
+                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
                   />
                 </label>
-                <label>
+                <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
                   Codigo
                   <input
                     value={tier.code ?? ""}
                     onChange={(event) => updateTier(index, "code", event.target.value)}
+                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
                   />
                 </label>
-                <label className="tier-label">
+                <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
                   Nome
                   <input
                     value={tier.label ?? ""}
                     onChange={(event) => updateTier(index, "label", event.target.value)}
+                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
                   />
                 </label>
                 <Button
@@ -294,7 +309,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
             ))}
           </div>
 
-          <div className="despacho-save-row">
+          <div className="flex items-center flex-wrap gap-2.5 mt-3">
             <Button
               className="inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-border rounded-md bg-surface hover:bg-surface-2"
               disabled={busy || !canUseApi}

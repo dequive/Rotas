@@ -350,7 +350,7 @@ export function BillingTripActions({
           </div>
         )}
         {trip.waiverStatus === "active" && (
-          <Badge className="bg-green/10 text-green border border-green/20 font-semibold w-fit">
+          <Badge className="bg-success-bg text-success border border-success-border font-semibold w-fit">
             Aprovado
           </Badge>
         )}

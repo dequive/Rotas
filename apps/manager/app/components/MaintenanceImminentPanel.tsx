@@ -6,11 +6,12 @@ interface Props {
   alerts: ImminentAlert[];
 }
 
-// Trigger type to marker color mapping (D-06 / UI-SPEC.md)
+const markerBase = "w-7 h-7 inline-flex items-center justify-center rounded-md flex-shrink-0";
+
 const TRIGGER_MARKER: Record<string, string> = {
-  calendar: "history-marker orange",
-  odometer: "history-marker cyan",
-  overdue: "history-marker red",
+  calendar: `${markerBase} bg-warning-bg text-warning`,
+  odometer: `${markerBase} bg-info-bg text-info`,
+  overdue: `${markerBase} bg-error-bg text-error`,
 };
 
 const TRIGGER_LABEL: Record<string, string> = {
@@ -30,7 +31,7 @@ function formatDueKm(km: number): string {
 
 export function MaintenanceImminentPanel({ alerts }: Props) {
   return (
-    <div className="fleet-compliance-panel">
+    <div className="min-w-0 p-3.5 bg-surface border border-border rounded-lg">
       <div className="flex items-center gap-2 mb-1">
         <Wrench size={20} />
         <div>
@@ -52,10 +53,10 @@ export function MaintenanceImminentPanel({ alerts }: Props) {
           </p>
         </div>
       ) : (
-        <ul className="fleet-compliance-list" role="list">
+        <ul className="grid gap-2" role="list">
           {alerts.map((alert) => (
             <li className="fleet-compliance-item" key={alert.plan_id} role="listitem">
-              <span className={TRIGGER_MARKER[alert.trigger_type] ?? "history-marker"} />
+              <span className={TRIGGER_MARKER[alert.trigger_type] ?? `${markerBase} bg-surface-2 text-muted`} />
               <div>
                 <strong className="text-[14px]">{alert.vehicle_plate}</strong>
                 <span className="text-xs text-muted block">

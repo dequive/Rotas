@@ -83,7 +83,7 @@ export function FuelControlBoard({ result }: FuelControlBoardProps) {
             <EmptyStateInline label="Sem tanques abaixo do mínimo." />
           ) : null}
           {board.queues.lowStockTanks.map((tank) => (
-            <div className="fuel-risk-item" key={tank.id}>
+            <div className="grid gap-0.5 py-2.5 border-t border-border" key={tank.id}>
               <strong>{tank.code}</strong>
               <span>{tank.name}</span>
               <small>
@@ -104,7 +104,7 @@ function TankStatus({ tank }: { tank: FuelTank }) {
 
   return (
     <article className="bg-surface border border-border rounded-lg p-4">
-      <div className="tank-title">
+      <div className="flex justify-between gap-2">
         <div>
           <strong>{tank.code}</strong>
           <span>{tank.name}</span>

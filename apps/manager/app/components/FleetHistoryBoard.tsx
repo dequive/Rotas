@@ -36,7 +36,7 @@ export function FleetHistoryBoard({ result }: FleetHistoryBoardProps) {
 function VehicleTimeline({ history }: { history: VehicleHistory }) {
   return (
     <article className="bg-surface border border-border rounded-lg overflow-hidden">
-      <header className="history-header">
+      <header className="flex items-center gap-2.5 pb-2.5 border-b border-border px-4 pt-4 mb-0">
         <span className="w-[30px] h-[30px] rounded-md inline-flex items-center justify-center flex-shrink-0 bg-info-bg text-info">
           <Truck size={16} />
         </span>
@@ -55,7 +55,7 @@ function VehicleTimeline({ history }: { history: VehicleHistory }) {
 function DriverTimeline({ history }: { history: DriverHistory }) {
   return (
     <article className="bg-surface border border-border rounded-lg overflow-hidden">
-      <header className="history-header">
+      <header className="flex items-center gap-2.5 pb-2.5 border-b border-border px-4 pt-4 mb-0">
         <span className="w-[30px] h-[30px] rounded-md inline-flex items-center justify-center flex-shrink-0 bg-success-bg text-success">
           <UserRound size={16} />
         </span>
@@ -83,7 +83,7 @@ function Timeline({
   }
 
   return (
-    <div className="history-list">
+    <div className="grid">
       {events.map((event) => (
         <div
           className="px-4 py-3 flex items-start gap-3 border-b border-border last:border-0"

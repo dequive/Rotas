@@ -149,7 +149,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
       </div>
 
       <div className="despacho-admin-grid">
-        <article className="despacho-admin-panel">
+        <article className="min-w-0 p-3.5 bg-surface border border-border rounded-lg">
           <div className="despacho-summary">
             <div>
               <span>Faixas</span>
@@ -214,7 +214,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
           </div>
         </article>
 
-        <article className="despacho-admin-panel">
+        <article className="min-w-0 p-3.5 bg-surface border border-border rounded-lg">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h3 className="text-base font-semibold m-0">Faixas de distancia</h3>
             <Button
@@ -306,7 +306,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
               <Save size={16} />
               {busy ? "A gravar" : "Gravar tabela"}
             </Button>
-            {saved ? <small className="text-green text-xs">Tabela gravada.</small> : null}
+            {saved ? <small className="text-success text-xs">Tabela gravada.</small> : null}
             {error ? <small className="text-error text-xs">{error}</small> : null}
           </div>
         </article>

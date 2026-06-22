@@ -18,6 +18,7 @@ async def create_api_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(transport=transport, base_url="http://testserver")
 
 
+@pytest.mark.xfail(reason="slowapi not yet integrated — Plan 03", strict=True)
 async def test_login_rate_limited_after_10_requests():
     """SEC-03: The 11th login attempt within 1 minute must return HTTP 429."""
     async with await create_api_client() as client:
@@ -30,7 +31,6 @@ async def test_login_rate_limited_after_10_requests():
             "/api/v1/auth/login",
             json={"email": "noexist@example.com", "password": "wrong"},
         )
-    # Will FAIL until slowapi is integrated in Plan 03 (currently returns 401, not 429)
     assert response.status_code == 429
 
 

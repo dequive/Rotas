@@ -284,3 +284,131 @@ async def test_backfill_zero_null_client_ids(db, tenant_id):
     assert null_count == 0, (
         f"Expected 0 contracts with NULL client_id after backfill, got {null_count}"
     )
+
+
+# ---------------------------------------------------------------------------
+# GT-05: find-or-create against third_parties
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_client_duplicate_nuit_no_duplicate_third_party(
+    async_client, auth_headers, db, tenant_id
+):
+    """Two POSTs with the same NUIT: second returns 409 AND only one third_parties row exists."""
+    from sqlalchemy import text
+
+    payload = {
+        "trading_name": "Empresa Alpha Lda",
+        "nuit": "500111222",
+        "payment_terms_days": 30,
+    }
+
+    first = await async_client.post("/api/v1/clients", json=payload, headers=auth_headers)
+    assert first.status_code == 201, first.text
+
+    second = await async_client.post("/api/v1/clients", json=payload, headers=auth_headers)
+    assert second.status_code == 409, second.text
+    assert second.json()["error"]["code"] == "nuit_already_exists"
+
+    # Verify no duplicate third_parties row was created
+    result = await db.execute(
+        text(
+            "SELECT count(*) FROM third_parties WHERE tenant_id = :t AND nuit = '500111222'"
+        ),
+        {"t": str(tenant_id)},
+    )
+    assert result.scalar() == 1, "find-or-create must not create duplicate third_parties rows"
+
+
+@pytest.mark.asyncio
+async def test_create_client_links_to_preexisting_third_party(
+    async_client, auth_headers, db, tenant_id
+):
+    """If a third_party with same (tenant_id, nuit) already exists, client links to it — no duplicate."""
+    from sqlalchemy import text
+
+    nuit = "500333444"
+
+    # Pre-insert a third_party row (simulates a supplier already registered)
+    tp_result = await db.execute(
+        text(
+            """
+            INSERT INTO third_parties (id, tenant_id, name, nuit, status, created_at, updated_at)
+            VALUES (gen_random_uuid(), :t, 'Pre-existing Supplier', :nuit, 'active', now(), now())
+            RETURNING id
+            """
+        ),
+        {"t": str(tenant_id), "nuit": nuit},
+    )
+    existing_tp_id = tp_result.scalar()
+    await db.commit()
+
+    # POST /clients with the same NUIT
+    resp = await async_client.post(
+        "/api/v1/clients",
+        json={"trading_name": "Empresa Beta Lda", "nuit": nuit, "payment_terms_days": 30},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201, resp.text
+
+    # Verify the client links to the pre-existing third_party
+    client_id = resp.json()["id"]
+    tp_check = await db.execute(
+        text("SELECT third_party_id FROM clients WHERE id = :cid"),
+        {"cid": client_id},
+    )
+    linked_tp_id = tp_check.scalar()
+    assert str(linked_tp_id) == str(existing_tp_id), (
+        "Client must link to pre-existing third_party, not create a new one"
+    )
+
+    # Verify no duplicate third_parties row
+    count_result = await db.execute(
+        text("SELECT count(*) FROM third_parties WHERE tenant_id = :t AND nuit = :nuit"),
+        {"t": str(tenant_id), "nuit": nuit},
+    )
+    assert count_result.scalar() == 1, "Must not create duplicate third_parties row"
+
+
+@pytest.mark.asyncio
+async def test_create_client_cross_tenant_same_nuit_separate_third_parties(
+    async_client, auth_headers, db
+):
+    """Same NUIT in two different tenants → two separate third_parties rows (cross-tenant isolation)."""
+    from sqlalchemy import text
+
+    from app.modules.tenants.models import Tenant
+
+    # Use a unique NUIT per test run to avoid cross-run pollution (DB is not rolled back between runs)
+    nuit = f"5{uuid.uuid4().int % 100000000:08d}"
+
+    # Create a second tenant
+    tenant_b = Tenant(name=f"Tenant B {uuid.uuid4().hex[:6]}", slug=f"tb-{uuid.uuid4().hex[:6]}")
+    db.add(tenant_b)
+    await db.commit()
+    await db.refresh(tenant_b)
+
+    headers_b = {"Authorization": "Bearer test-token", "X-Tenant-Id": str(tenant_b.id)}
+
+    payload = {"trading_name": "Empresa Gamma Lda", "nuit": nuit, "payment_terms_days": 30}
+
+    tenant_a_id = auth_headers["X-Tenant-Id"]
+
+    resp_a = await async_client.post("/api/v1/clients", json=payload, headers=auth_headers)
+    assert resp_a.status_code == 201, resp_a.text
+
+    resp_b = await async_client.post("/api/v1/clients", json=payload, headers=headers_b)
+    assert resp_b.status_code == 201, resp_b.text
+
+    # Two third_parties rows with same NUIT but different tenant_ids — filter to only these two tenants
+    # (avoids cross-run pollution since the DB is not rolled back between test runs)
+    count_result = await db.execute(
+        text(
+            "SELECT count(*) FROM third_parties WHERE nuit = :nuit AND tenant_id IN (:t_a, :t_b)"
+        ),
+        {"nuit": nuit, "t_a": tenant_a_id, "t_b": str(tenant_b.id)},
+    )
+    assert count_result.scalar() == 2, (
+        "Each tenant must get its own third_parties row for the same NUIT"
+    )

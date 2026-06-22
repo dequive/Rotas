@@ -11,6 +11,7 @@ from app.core.errors import ApiError
 from app.modules.billing.models import BillingDocument
 from app.modules.clients.models import Client
 from app.modules.clients.schemas import ClientCreate, ClientPatch
+from app.modules.third_party.models import ClientProfile, ThirdParty, ThirdPartyRole
 
 
 def serialize_client(client: Client, outstanding_balance: Decimal | None = None) -> dict:
@@ -101,7 +102,81 @@ async def get_client_with_balance(db: AsyncSession, client_id: UUID, tenant_id: 
 
 
 async def create_client(db: AsyncSession, tenant_id: UUID, payload: ClientCreate) -> dict:
-    client = Client(tenant_id=tenant_id, **payload.model_dump())
+    """POST /api/v1/clients — find-or-create against third_parties by (tenant_id, nuit).
+
+    GT-05: If a third_party with the same (tenant_id, nuit) already exists, reuse it.
+    If not, create third_party + role + client_profile atomically before inserting the client.
+    The clients UNIQUE constraint on (tenant_id, nuit) still guards duplicate client creation.
+    """
+    nuit: str = payload.nuit  # type: ignore[attr-defined]
+
+    # ── Step 1: find-or-create third_party ──────────────────────────────────
+    third_party = await db.scalar(
+        select(ThirdParty).where(
+            ThirdParty.tenant_id == tenant_id,
+            ThirdParty.nuit == nuit,
+        )
+    )
+
+    if third_party is None:
+        third_party = ThirdParty(
+            tenant_id=tenant_id,
+            name=payload.trading_name,  # type: ignore[attr-defined]
+            nuit=nuit,
+            status="active",
+        )
+        db.add(third_party)
+        try:
+            await db.flush()
+        except IntegrityError:
+            # Concurrent request won the race — rollback and re-select
+            await db.rollback()
+            third_party = await db.scalar(
+                select(ThirdParty).where(
+                    ThirdParty.tenant_id == tenant_id,
+                    ThirdParty.nuit == nuit,
+                )
+            )
+
+    third_party_id = third_party.id  # type: ignore[union-attr]
+
+    # ── Step 2: ensure third_party_role 'client' exists ─────────────────────
+    existing_role = await db.scalar(
+        select(ThirdPartyRole).where(
+            ThirdPartyRole.third_party_id == third_party_id,
+            ThirdPartyRole.role_type == "client",
+        )
+    )
+    if existing_role is None:
+        db.add(
+            ThirdPartyRole(
+                tenant_id=tenant_id,
+                third_party_id=third_party_id,
+                role_type="client",
+                is_active=True,
+            )
+        )
+
+    # ── Step 3: ensure client_profile exists ────────────────────────────────
+    existing_profile = await db.scalar(
+        select(ClientProfile).where(ClientProfile.third_party_id == third_party_id)
+    )
+    if existing_profile is None:
+        db.add(
+            ClientProfile(
+                tenant_id=tenant_id,
+                third_party_id=third_party_id,
+                payment_terms_days=payload.payment_terms_days,  # type: ignore[attr-defined]
+                credit_limit=payload.credit_limit,  # type: ignore[attr-defined]
+            )
+        )
+
+    # ── Step 4: insert client record ─────────────────────────────────────────
+    client = Client(
+        tenant_id=tenant_id,
+        third_party_id=third_party_id,
+        **payload.model_dump(),
+    )
     db.add(client)
     try:
         await db.flush()
@@ -111,6 +186,7 @@ async def create_client(db: AsyncSession, tenant_id: UUID, payload: ClientCreate
             "NUIT já existe neste tenant.",
             status_code=status.HTTP_409_CONFLICT,
         ) from exc
+
     await db.commit()
     await db.refresh(client)
     return serialize_client(client)

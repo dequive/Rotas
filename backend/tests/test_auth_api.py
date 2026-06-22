@@ -286,7 +286,6 @@ async def test_alg_none_token_rejected() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="slowapi not yet integrated — Plan 03", strict=True)
 async def test_refresh_token_rate_limited() -> None:
     """SEC-03: The /auth/refresh endpoint must rate limit after 10 rapid requests."""
     async with await create_api_client() as client:

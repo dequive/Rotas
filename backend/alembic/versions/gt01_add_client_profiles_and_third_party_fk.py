@@ -1,7 +1,7 @@
 """add client_profiles table and clients.third_party_id FK
 
 Revision ID: gt01
-Revises: adv01
+Revises: adv03
 Create Date: 2026-06-21
 
 CRITICAL: RLS + GRANT are co-located in this CREATE TABLE migration per v2.0 migration rule.
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 revision = "gt01"
-down_revision = "adv01"
+down_revision = "adv03"
 branch_labels = None
 depends_on = None
 

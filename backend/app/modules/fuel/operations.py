@@ -453,7 +453,18 @@ async def create_vehicle_refuel(
     *,
     actor_id: UUID | None,
 ) -> dict:
-    tank = await _require_tank(db, tenant_id, payload.tank_id)
+    # Acquire exclusive lock on tank BEFORE flushing the VehicleRefuel row.
+    # FK checks during flush acquire a ShareLock on the referenced tank row.
+    # If two concurrent transactions both flush their refuel first and then try
+    # to upgrade ShareLock → ExclusiveLock in FuelMovementService.record,
+    # they deadlock. Locking early serialises concurrent refuels at the gate.
+    tank = await db.scalar(
+        select(FuelTank)
+        .where(FuelTank.id == payload.tank_id, FuelTank.tenant_id == tenant_id)
+        .with_for_update()
+    )
+    if not tank or tank.status != "active":
+        raise ApiError("fuel_tank_not_found", "Active fuel tank not found.", status_code=404)
     vehicle = await db.get(Vehicle, payload.vehicle_id)
     if (
         not vehicle

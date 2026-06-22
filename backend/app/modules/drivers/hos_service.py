@@ -89,13 +89,13 @@ async def calculate_driving_hours(
         if departure.date() == today:
             hours_today += duration_hours
 
-    # Determine status — daily limit takes priority over weekly limit
-    if hours_today >= HOS_VIOLATION_HOURS_DAY:
+    # Determine status — weekly limit takes priority: even resting a day won't clear it
+    if hours_this_week >= HOS_VIOLATION_HOURS_WEEK:
         status_val = "violation"
-        violation_reason: str | None = "daily_limit"
-    elif hours_this_week >= HOS_VIOLATION_HOURS_WEEK:
+        violation_reason: str | None = "weekly_limit"
+    elif hours_today >= HOS_VIOLATION_HOURS_DAY:
         status_val = "violation"
-        violation_reason = "weekly_limit"
+        violation_reason = "daily_limit"
     elif hours_today >= HOS_WARNING_HOURS_DAY:
         status_val = "warning"
         violation_reason = None

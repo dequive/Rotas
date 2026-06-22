@@ -280,7 +280,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
                   />
                 </label>
                 <Button
-                  className="text-red hover:text-red"
+                  className="text-error hover:text-error"
                   disabled={table.tiers.length === 1}
                   onClick={() => removeTier(index)}
                   title="Remover faixa"
@@ -307,7 +307,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
               {busy ? "A gravar" : "Gravar tabela"}
             </Button>
             {saved ? <small className="text-green text-xs">Tabela gravada.</small> : null}
-            {error ? <small className="text-red text-xs">{error}</small> : null}
+            {error ? <small className="text-error text-xs">{error}</small> : null}
           </div>
         </article>
       </div>

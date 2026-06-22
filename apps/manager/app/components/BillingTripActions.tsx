@@ -239,7 +239,7 @@ export function BillingTripActions({
         <Button variant="outline" size="sm" onClick={() => handleExport(format)} type="button">
           {label}
         </Button>
-        <span className="text-red text-xs">
+        <span className="text-error text-xs">
           Falha ao gerar. Clique para tentar novamente.
         </span>
       </div>
@@ -343,7 +343,7 @@ export function BillingTripActions({
               </>
             )}
             {trip.waiverStatus === "rejected" && (
-              <Badge className="bg-red/10 text-red border border-red/20 font-semibold">
+              <Badge className="bg-error-bg text-error border border-error-border font-semibold">
                 Rejeitado
               </Badge>
             )}
@@ -398,7 +398,7 @@ export function BillingTripActions({
               <p className="text-sm text-muted">
                 <span className="font-semibold text-ink">{trip.route}</span>
                 {trip.actualMargin !== null && trip.actualMargin !== undefined && (
-                  <span className="text-red font-semibold ml-2">
+                  <span className="text-error font-semibold ml-2">
                     Margem: {Number(trip.actualMargin).toLocaleString("pt-MZ")} MZN
                   </span>
                 )}
@@ -413,7 +413,7 @@ export function BillingTripActions({
               <p className="text-xs text-muted">
                 Mínimo 10 caracteres ({waiverReason.length}/10)
               </p>
-              {waiverError && <p className="text-red text-sm">{waiverError}</p>}
+              {waiverError && <p className="text-error text-sm">{waiverError}</p>}
             </div>
             <DialogFooter>
               <Button
@@ -451,7 +451,7 @@ export function BillingTripActions({
                 {trip.actualMargin !== null && trip.actualMargin !== undefined && (
                   <p>
                     <span className="font-semibold text-muted">Margem:</span>{" "}
-                    <span className="text-red font-semibold">
+                    <span className="text-error font-semibold">
                       {Number(trip.actualMargin).toLocaleString("pt-MZ")} MZN
                     </span>
                   </p>
@@ -463,13 +463,13 @@ export function BillingTripActions({
                   </p>
                 )}
               </div>
-              {reviewError && <p className="text-red text-sm">{reviewError}</p>}
+              {reviewError && <p className="text-error text-sm">{reviewError}</p>}
             </div>
             <DialogFooter>
               <Button
                 variant="outline"
                 type="button"
-                className="text-red border-red/30 hover:bg-red/10"
+                className="text-error border-error-border hover:bg-error-bg"
                 disabled={reviewSubmitting}
                 onClick={handleWaiverReject}
               >

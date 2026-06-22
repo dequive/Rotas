@@ -292,7 +292,7 @@ This milestone extends ROTAS across five capability areas: financial client mana
 - [x] **Phase 8: Infrastructure Hardening** — Sentry error tracking, R2/S3 durable file storage, and tenant plan limit enforcement make ROTAS production-grade
 - [x] **Phase 9: PostgreSQL RLS Policies** — Database-level tenant isolation across all 47+ tenant-owned tables as a second security layer (completed 2026-06-07)
 - [ ] **Phase 10: Notifications + Self-Service Onboarding** — WhatsApp/email notification infrastructure and public registration enable SaaS launch
-- [ ] **Phase 11: Driver Financial Settlement (Despacho)** — Complete driver expense lifecycle: advance before departure, settlement after delivery, PDF document
+- [x] **Phase 11: Driver Financial Settlement (Despacho)** — Complete driver expense lifecycle: advance before departure, settlement after delivery, PDF document
 - [ ] **Phase 12: GPS Integration + Customer Tracking Portal** — Fleet map in manager dashboard, GPS webhook ingestion, shareable customer tracking links
 
 ---

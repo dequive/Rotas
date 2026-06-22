@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 26-01-SUMMARY.md
-last_updated: "2026-06-22T08:31:46.342Z"
+stopped_at: Completed 26-02-SUMMARY.md
+last_updated: "2026-06-22T08:48:43.317Z"
 last_activity: 2026-06-22
 progress:
   total_phases: 13
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 75
-  completed_plans: 68
+  completed_plans: 74
 ---
 
 # ROTAS — Project State
@@ -25,7 +25,7 @@ Phase: 16
 Plan: 16-05 complete — ALL PLANS DONE
 Status: Phase 16 complete — all 5 plans done (16-01 router; 16-02 HOS service; 16-03 availability endpoints + Redis; 16-04 status filter; 16-05 HOS integration test)
 Last activity: 2026-06-22
-Stopped at: Completed 26-01-SUMMARY.md
+Stopped at: Completed 26-02-SUMMARY.md
 
 ### Completed v2.0 Phases
 
@@ -45,6 +45,7 @@ Stopped at: Completed 26-01-SUMMARY.md
 - [x] **Phase 18** — Analytics + Insurance (18-01..04: all plans complete, SUMMARYs present) — completed
 - [x] **Phase 21** — Frontend E2E Tests (21-01 Playwright scaffold; 21-02 5 spec files + CI e2e job; 10 tests passing) — completed 2026-06-21
 - [x] **Phase 16** — HOS + Availability (16-01 router registration; 16-02 HOS service + trip gate 8h/9h/48h thresholds + hos_override_reason bypass; 16-03 availability endpoints + Redis cache; 16-04 status filter; 16-05 integration; 434 tests GREEN) — completed 2026-06-21
+- [x] **Phase 11** — Driver Financial Settlement / Despacho (11-01 schema: driver_advances + trip_settlements + RLS; 11-02 advance service: issue/void/list; 11-03 settlement service: compute/approve/reject/PDF fpdf2+DejaVuSans; 11-04 HTTP endpoints; 11-05 /despacho UI + sidebar; 11-06 12 tests GREEN; 287 total GREEN) — completed 2026-06-22
 
 ---
 

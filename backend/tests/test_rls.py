@@ -191,6 +191,11 @@ EXPECTED_RLS_TABLES = sorted(
         "insurance_claims",
         "vehicle_insurances",
         "tenant_document_profiles",
+        # Phase 24 / adv01: driver financial settlement
+        "driver_advances",
+        "trip_settlements",
+        # gt01: client profiles (third-party enrichment)
+        "client_profiles",
     ]
 )
 # 63 tables: base RLS set + export_jobs + self-service token/outbox tables

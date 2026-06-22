@@ -104,7 +104,7 @@ export function TransportCargoActions({ action, apiConfig, label }: TransportCar
       >
         {busy ? "A processar..." : label}
       </Button>
-      {error ? <small className="text-red text-xs">{error}</small> : null}
+      {error ? <small className="text-error text-xs">{error}</small> : null}
     </div>
   );
 }

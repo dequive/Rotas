@@ -78,6 +78,10 @@ class Settings(BaseSettings):
     smtp_password: SecretStr = Field(default=SecretStr(""), validation_alias="SMTP_PASSWORD")
     smtp_use_tls: bool = Field(default=True, validation_alias="SMTP_USE_TLS")
 
+    # Governance Engine — optional; integration is a no-op when absent
+    governance_engine_url: str = Field(default="", validation_alias="GOVERNANCE_ENGINE_URL")
+    governance_api_key: str = Field(default="", validation_alias="GOVERNANCE_API_KEY")
+
     @property
     def resolved_admin_database_url(self) -> str:
         return self.admin_database_url if self.admin_database_url else self.database_url

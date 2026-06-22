@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -7,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ApiError
 from app.modules.alerts.models import Alert
 from app.modules.audit.service import record_audit_log
+from app.modules.governance.client import push_governance_event
+from app.modules.governance.events import operational_exception_event
 from app.modules.operational_exceptions.models import OperationalException
 
 ACTIVE_STATUSES = {"open", "acknowledged"}
@@ -119,6 +122,24 @@ async def ensure_exception(
         entity_id=alert.id,
         new_values={"exception_id": str(item.id), "alert_type": alert.alert_type},
     )
+
+    # Push high/critical exceptions to the Governance Engine (fire-and-forget).
+    # Wrapped in create_task so a slow/unavailable engine never delays the response.
+    if severity in {"high", "critical"}:
+        payload = operational_exception_event(
+            exception_id=item.id,
+            exception_type=exception_type,
+            severity=severity,
+            title=title,
+            message=message,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            entity_display_name=str(entity_id),
+            entity_attributes=context or {},
+            tenant_id=tenant_id,
+        )
+        asyncio.create_task(push_governance_event(**payload))
+
     return item
 
 

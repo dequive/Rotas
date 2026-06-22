@@ -147,24 +147,18 @@ function IssueAdvanceModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div
-        className="w-[420px] rounded-xl border shadow-xl p-6"
-        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
-      >
+      <div className="w-[420px] rounded-xl border border-border bg-surface shadow-xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[15px] font-semibold" style={{ color: "var(--text)" }}>
-            Emitir Adiantamento
-          </h2>
+          <h2 className="text-[15px] font-semibold text-ink">Emitir Adiantamento</h2>
           <button
             onClick={onClose}
-            className="h-7 w-7 flex items-center justify-center rounded-md border-0 bg-transparent cursor-pointer"
-            style={{ color: "var(--text-muted)" }}
+            className="h-7 w-7 flex items-center justify-center rounded-md border-0 bg-transparent cursor-pointer text-muted"
           >
             <X size={14} />
           </button>
         </div>
 
-        <p className="text-[12px] mb-4" style={{ color: "var(--text-muted)" }}>
+        <p className="text-[12px] mb-4 text-muted">
           Viagem:{" "}
           <span className="font-mono font-medium">{shortId(trip.id)}</span> —{" "}
           {trip.origin} → {trip.destination}
@@ -172,7 +166,7 @@ function IssueAdvanceModal({
 
         <div className="flex flex-col gap-3">
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--text-muted)" }}>
+            <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1 text-muted">
               Valor (MZN)
             </label>
             <input
@@ -182,36 +176,24 @@ function IssueAdvanceModal({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
-              className="w-full h-9 px-3 rounded-md border text-[13px] font-mono"
-              style={{
-                background: "var(--surface-2)",
-                borderColor: "var(--border)",
-                color: "var(--text)",
-                outline: "none",
-              }}
+              className="w-full h-9 px-3 rounded-md border border-border bg-surface-2 text-[13px] font-mono text-ink outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
             />
           </div>
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--text-muted)" }}>
+            <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1 text-muted">
               Notas (opcional)
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 rounded-md border text-[13px] resize-none"
-              style={{
-                background: "var(--surface-2)",
-                borderColor: "var(--border)",
-                color: "var(--text)",
-                outline: "none",
-              }}
+              className="w-full px-3 py-2 rounded-md border border-border bg-surface-2 text-[13px] text-ink outline-none resize-none focus:border-amber focus:ring-1 focus:ring-amber/20"
             />
           </div>
         </div>
 
         {error && (
-          <p className="mt-3 text-[12px] text-red-600 flex items-center gap-1">
+          <p className="mt-3 text-[12px] text-error flex items-center gap-1">
             <AlertTriangle size={12} /> {error}
           </p>
         )}
@@ -219,16 +201,14 @@ function IssueAdvanceModal({
         <div className="flex items-center justify-end gap-2 mt-5">
           <button
             onClick={onClose}
-            className="h-8 px-3 text-[13px] rounded-md border bg-transparent cursor-pointer"
-            style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+            className="h-8 px-3 text-[13px] rounded-md border border-border bg-transparent text-muted cursor-pointer"
           >
             Cancelar
           </button>
           <button
             onClick={submit}
             disabled={loading}
-            className="h-8 px-4 text-[13px] font-semibold rounded-md border-0 cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-            style={{ background: "var(--amber)", color: "#000" }}
+            className="h-8 px-4 text-[13px] font-semibold rounded-md border-0 bg-amber text-black cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
           >
             {loading ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
             Emitir
@@ -282,44 +262,37 @@ function RejectModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div
-        className="w-[400px] rounded-xl border shadow-xl p-6"
-        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
-      >
+      <div className="w-[400px] rounded-xl border border-border bg-surface shadow-xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[15px] font-semibold" style={{ color: "var(--text)" }}>
-            Rejeitar Liquidação
-          </h2>
-          <button onClick={onClose} className="h-7 w-7 flex items-center justify-center rounded-md border-0 bg-transparent cursor-pointer" style={{ color: "var(--text-muted)" }}>
+          <h2 className="text-[15px] font-semibold text-ink">Rejeitar Liquidação</h2>
+          <button onClick={onClose} className="h-7 w-7 flex items-center justify-center rounded-md border-0 bg-transparent cursor-pointer text-muted">
             <X size={14} />
           </button>
         </div>
         <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--text-muted)" }}>
+          <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1 text-muted">
             Motivo
           </label>
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={3}
-            className="w-full px-3 py-2 rounded-md border text-[13px] resize-none"
-            style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text)", outline: "none" }}
+            className="w-full px-3 py-2 rounded-md border border-border bg-surface-2 text-[13px] text-ink outline-none resize-none focus:border-amber focus:ring-1 focus:ring-amber/20"
           />
         </div>
         {error && (
-          <p className="mt-2 text-[12px] text-red-600 flex items-center gap-1">
+          <p className="mt-2 text-[12px] text-error flex items-center gap-1">
             <AlertTriangle size={12} /> {error}
           </p>
         )}
         <div className="flex items-center justify-end gap-2 mt-4">
-          <button onClick={onClose} className="h-8 px-3 text-[13px] rounded-md border bg-transparent cursor-pointer" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+          <button onClick={onClose} className="h-8 px-3 text-[13px] rounded-md border border-border bg-transparent text-muted cursor-pointer">
             Cancelar
           </button>
           <button
             onClick={submit}
             disabled={loading}
-            className="h-8 px-4 text-[13px] font-semibold rounded-md border-0 cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-            style={{ background: "#dc2626", color: "#fff" }}
+            className="h-8 px-4 text-[13px] font-semibold rounded-md border-0 bg-error text-white cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
           >
             {loading ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
             Rejeitar
@@ -339,7 +312,7 @@ function ActiveTripsTable({ trips }: { trips: Trip[] }) {
 
   if (trips.length === 0) {
     return (
-      <p className="px-4 py-6 text-[13px]" style={{ color: "var(--text-muted)" }}>
+      <p className="px-4 py-6 text-[13px] text-muted">
         Sem viagens activas.
       </p>
     );
@@ -356,22 +329,22 @@ function ActiveTripsTable({ trips }: { trips: Trip[] }) {
       )}
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]">
-          <thead className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+          <thead className="border-b border-border bg-surface-2">
             <tr>
-              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>ID</th>
-              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Rota</th>
-              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Estado</th>
-              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Partida</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">ID</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Rota</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Estado</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Partida</th>
               <th className="px-3 py-2.5"></th>
             </tr>
           </thead>
           <tbody>
             {trips.map((trip) => (
-              <tr key={trip.id} className="border-b" style={{ borderColor: "var(--border)" }}>
+              <tr key={trip.id} className="border-b border-border">
                 <td className="px-3 py-2.5">
                   <MonoCell value={shortId(trip.id)} />
                 </td>
-                <td className="px-3 py-2.5" style={{ color: "var(--text)" }}>
+                <td className="px-3 py-2.5 text-ink">
                   {trip.origin} → {trip.destination}
                 </td>
                 <td className="px-3 py-2.5">
@@ -380,14 +353,13 @@ function ActiveTripsTable({ trips }: { trips: Trip[] }) {
                     tone={trip.status === "planned" ? "blue" : "amber"}
                   />
                 </td>
-                <td className="px-3 py-2.5" style={{ color: "var(--text-muted)" }}>
+                <td className="px-3 py-2.5 text-muted">
                   {fmtDate(trip.actual_departure ?? trip.actual_departure)}
                 </td>
                 <td className="px-3 py-2.5 text-right">
                   <button
                     onClick={() => setIssuing(trip)}
-                    className="inline-flex items-center gap-1.5 h-7 px-3 text-[12px] font-semibold rounded-md border-0 cursor-pointer"
-                    style={{ background: "var(--amber)", color: "#000" }}
+                    className="inline-flex items-center gap-1.5 h-7 px-3 text-[12px] font-semibold rounded-md border-0 bg-amber text-black cursor-pointer"
                   >
                     <Plus size={12} />
                     Emitir Adiantamento
@@ -490,7 +462,7 @@ function CompletedTripsTable({ rows, onRefresh }: { rows: SettlementRow[]; onRef
 
   if (rows.length === 0) {
     return (
-      <p className="px-4 py-6 text-[13px]" style={{ color: "var(--text-muted)" }}>
+      <p className="px-4 py-6 text-[13px] text-muted">
         Sem viagens concluídas.
       </p>
     );
@@ -507,15 +479,15 @@ function CompletedTripsTable({ rows, onRefresh }: { rows: SettlementRow[]; onRef
       )}
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]">
-          <thead className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+          <thead className="border-b border-border bg-surface-2">
             <tr>
-              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>ID</th>
-              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Rota</th>
-              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Chegada</th>
-              <th className="text-right px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Adiantamento</th>
-              <th className="text-right px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Despesas</th>
-              <th className="text-right px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Saldo</th>
-              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Estado</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">ID</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Rota</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Chegada</th>
+              <th className="text-right px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Adiantamento</th>
+              <th className="text-right px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Despesas</th>
+              <th className="text-right px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Saldo</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Estado</th>
               <th className="px-3 py-2.5"></th>
             </tr>
           </thead>
@@ -528,25 +500,25 @@ function CompletedTripsTable({ rows, onRefresh }: { rows: SettlementRow[]; onRef
               const err = actionError[trip.id];
 
               return (
-                <tr key={trip.id} className="border-b" style={{ borderColor: "var(--border)" }}>
+                <tr key={trip.id} className="border-b border-border">
                   <td className="px-3 py-2.5">
                     <MonoCell value={shortId(trip.id)} />
                   </td>
-                  <td className="px-3 py-2.5" style={{ color: "var(--text)" }}>
+                  <td className="px-3 py-2.5 text-ink">
                     {trip.origin} → {trip.destination}
                   </td>
-                  <td className="px-3 py-2.5" style={{ color: "var(--text-muted)" }}>
+                  <td className="px-3 py-2.5 text-muted">
                     {fmtDate(trip.actual_arrival)}
                   </td>
-                  <td className="px-3 py-2.5 text-right font-mono" style={{ color: "var(--text-muted)" }}>
+                  <td className="px-3 py-2.5 text-right font-mono text-muted">
                     {settlement ? money(settlement.advance_amount_mzn) : advance ? money(advance.amount_mzn) : "—"}
                   </td>
-                  <td className="px-3 py-2.5 text-right font-mono" style={{ color: "var(--text)" }}>
+                  <td className="px-3 py-2.5 text-right font-mono text-ink">
                     {settlement ? money(settlement.total_costs_mzn) : "—"}
                   </td>
                   <td className="px-3 py-2.5 text-right font-mono font-semibold">
                     {balanceNum !== null ? (
-                      <span style={{ color: balanceNum >= 0 ? "var(--amber)" : "#dc2626" }}>
+                      <span className={balanceNum >= 0 ? "text-amber" : "text-error"}>
                         {money(Math.abs(balanceNum))}
                         <span className="text-[10px] ml-1 font-normal">
                           {balanceNum >= 0 ? "↑ emp." : "↑ mot."}
@@ -559,13 +531,11 @@ function CompletedTripsTable({ rows, onRefresh }: { rows: SettlementRow[]; onRef
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center justify-end gap-1.5">
-                      {/* No settlement yet — compute */}
                       {!settlement && (
                         <button
                           onClick={() => computeSettlement(trip.id)}
                           disabled={isComputing}
-                          className="inline-flex items-center gap-1 h-7 px-2.5 text-[11px] font-semibold rounded-md border cursor-pointer disabled:opacity-50"
-                          style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text)" }}
+                          className="inline-flex items-center gap-1 h-7 px-2.5 text-[11px] font-semibold rounded-md border border-border bg-surface-2 text-ink cursor-pointer disabled:opacity-50"
                           title="Calcular liquidação"
                         >
                           {isComputing ? <Loader2 size={11} className="animate-spin" /> : <FileText size={11} />}
@@ -573,22 +543,19 @@ function CompletedTripsTable({ rows, onRefresh }: { rows: SettlementRow[]; onRef
                         </button>
                       )}
 
-                      {/* Pending settlement — approve / reject */}
                       {settlement?.status === "pending" && (
                         <>
                           <button
                             onClick={() => approveSettlement(trip.id)}
                             disabled={isApproving}
-                            className="inline-flex items-center gap-1 h-7 px-2.5 text-[11px] font-semibold rounded-md border-0 cursor-pointer disabled:opacity-50"
-                            style={{ background: "#16a34a", color: "#fff" }}
+                            className="inline-flex items-center gap-1 h-7 px-2.5 text-[11px] font-semibold rounded-md border-0 bg-success text-white cursor-pointer disabled:opacity-50"
                             title="Aprovar liquidação"
                           >
                             {isApproving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                           </button>
                           <button
                             onClick={() => setRejecting(trip.id)}
-                            className="inline-flex items-center gap-1 h-7 px-2.5 text-[11px] font-semibold rounded-md border-0 cursor-pointer"
-                            style={{ background: "#dc2626", color: "#fff" }}
+                            className="inline-flex items-center gap-1 h-7 px-2.5 text-[11px] font-semibold rounded-md border-0 bg-error text-white cursor-pointer"
                             title="Rejeitar liquidação"
                           >
                             <X size={11} />
@@ -596,18 +563,15 @@ function CompletedTripsTable({ rows, onRefresh }: { rows: SettlementRow[]; onRef
                         </>
                       )}
 
-                      {/* Approved — show approved badge + PDF */}
                       {settlement?.status === "approved" && (
-                        <BadgeCheck size={15} style={{ color: "#16a34a" }} />
+                        <BadgeCheck size={15} className="text-success" />
                       )}
 
-                      {/* Any settlement — download PDF */}
                       {settlement && (
                         <button
                           onClick={() => downloadPdf(trip.id)}
                           disabled={isDownloading}
-                          className="inline-flex items-center gap-1 h-7 px-2.5 text-[11px] font-semibold rounded-md border cursor-pointer disabled:opacity-50"
-                          style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text)" }}
+                          className="inline-flex items-center gap-1 h-7 px-2.5 text-[11px] font-semibold rounded-md border border-border bg-surface-2 text-ink cursor-pointer disabled:opacity-50"
                           title="Descarregar PDF"
                         >
                           {isDownloading ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
@@ -616,7 +580,7 @@ function CompletedTripsTable({ rows, onRefresh }: { rows: SettlementRow[]; onRef
                     </div>
 
                     {err && (
-                      <p className="text-[11px] text-red-600 mt-0.5 flex items-center gap-0.5">
+                      <p className="text-[11px] text-error mt-0.5 flex items-center gap-0.5">
                         <AlertTriangle size={10} /> {err}
                       </p>
                     )}
@@ -645,48 +609,32 @@ export function DespachoClient({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Active trips — issue advance */}
       <section
-        className="rounded-lg border overflow-hidden"
-        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+        className="rounded-lg border border-border bg-surface overflow-hidden"
         aria-label="Viagens activas — emitir adiantamento"
       >
-        <div
-          className="px-4 py-3 border-b flex items-center gap-2"
-          style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
-        >
-          <Clock size={14} style={{ color: "var(--amber)" }} />
-          <span className="text-[13px] font-semibold" style={{ color: "var(--text)" }}>
+        <div className="px-4 py-3 border-b border-border bg-surface-2 flex items-center gap-2">
+          <Clock size={14} className="text-amber" />
+          <span className="text-[13px] font-semibold text-ink">
             Viagens Activas
           </span>
-          <span
-            className="ml-1 px-1.5 py-0.5 rounded text-[11px] font-mono"
-            style={{ background: "var(--surface)", color: "var(--text-muted)" }}
-          >
+          <span className="ml-1 px-1.5 py-0.5 rounded text-[11px] font-mono bg-surface text-muted">
             {activeTrips.length}
           </span>
         </div>
         <ActiveTripsTable trips={activeTrips} />
       </section>
 
-      {/* Completed trips — settlement */}
       <section
-        className="rounded-lg border overflow-hidden"
-        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+        className="rounded-lg border border-border bg-surface overflow-hidden"
         aria-label="Liquidações de viagens concluídas"
       >
-        <div
-          className="px-4 py-3 border-b flex items-center gap-2"
-          style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
-        >
-          <BadgeCheck size={14} style={{ color: "#16a34a" }} />
-          <span className="text-[13px] font-semibold" style={{ color: "var(--text)" }}>
+        <div className="px-4 py-3 border-b border-border bg-surface-2 flex items-center gap-2">
+          <BadgeCheck size={14} className="text-success" />
+          <span className="text-[13px] font-semibold text-ink">
             Liquidações
           </span>
-          <span
-            className="ml-1 px-1.5 py-0.5 rounded text-[11px] font-mono"
-            style={{ background: "var(--surface)", color: "var(--text-muted)" }}
-          >
+          <span className="ml-1 px-1.5 py-0.5 rounded text-[11px] font-mono bg-surface text-muted">
             {completedRows.length}
           </span>
         </div>

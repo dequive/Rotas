@@ -196,6 +196,11 @@ EXPECTED_RLS_TABLES = sorted(
         "trip_settlements",
         # gt01: client profiles (third-party enrichment)
         "client_profiles",
+        # gps01: GPS tracking + customer-facing token tables
+        "gps_devices",
+        "gps_positions",
+        "tracking_tokens",
+        "vehicle_last_position",
     ]
 )
 # 63 tables: base RLS set + export_jobs + self-service token/outbox tables
@@ -248,12 +253,21 @@ async def test_rls_all_tenant_tables_have_policy():
             f"  Unexpected policies (not in expected list): {sorted(extra)}"
         )
 
-        # 3. Cross-check: tables with tenant_id column that lack a policy (gap detection)
+        # 3. Cross-check: tables with tenant_id column that lack a policy (gap detection).
+        # Partition children (gps_positions_2026_XX etc.) are excluded — they inherit
+        # RLS enforcement from the parent partitioned table; individual policies are
+        # neither needed nor applied by PostgreSQL to child partitions.
         gap_result = await db.execute(
             text(
                 "SELECT c.table_name "
                 "FROM information_schema.columns c "
                 "WHERE c.column_name = 'tenant_id' AND c.table_schema = 'public' "
+                "AND c.table_name NOT IN ("
+                "  SELECT child.relname FROM pg_inherits "
+                "  JOIN pg_class child ON child.oid = pg_inherits.inhrelid "
+                "  JOIN pg_class parent ON parent.oid = pg_inherits.inhparent "
+                "  WHERE parent.relkind = 'p'"
+                ") "
                 "EXCEPT "
                 "SELECT p.tablename "
                 "FROM pg_policies p "

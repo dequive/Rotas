@@ -1170,7 +1170,7 @@ Plans:
 
 Plans:
 
-- [ ] 26-01-PLAN.md — Wave 1: gt01 migration (CREATE TABLE client_profiles + RLS + GRANT + ADD COLUMN clients.third_party_id), ClientProfile SQLAlchemy model, Client model update
+- [x] 26-01-PLAN.md — Wave 1: gt01 migration (CREATE TABLE client_profiles + RLS + GRANT + ADD COLUMN clients.third_party_id), ClientProfile SQLAlchemy model, Client model update
 - [ ] 26-02-PLAN.md — Wave 2: gt02 DML backfill migration (2213 clients → third_parties + roles + client_profiles, batches of 500, idempotent)
 - [ ] 26-03-PLAN.md — Wave 3: create_client find-or-create rewrite + 3 new GT-05 tests
 
@@ -1191,4 +1191,4 @@ Plans:
 | 23. Third Party Registry | 8/8 | Complete | 2026-06-20 |
 | 24. Third Party Completion — UI, Conta Corrente & Avaliação | 7/7 | Complete | 2026-06-20 |
 | 25. Platform/Tenant Scope Separation | 3/3 | Complete   | 2026-06-20 |
-| 26. Gestão de Terceiros — Backend Unification | 0/TBD | Not started | - |
+| 26. Gestão de Terceiros — Backend Unification | 1/3 | In Progress|  |

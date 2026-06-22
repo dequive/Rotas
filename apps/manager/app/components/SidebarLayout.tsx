@@ -44,7 +44,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "operacao",           label: "Torre de Controlo", href: "/",                    icon: Map      },
       { key: "viagens",            label: "Viagens",           href: "/viagens",              icon: Route    },
-      { key: "motoristas-despacho",label: "Despachos",         href: "/motoristas#despacho",  icon: FileText },
+      { key: "despacho",           label: "Despacho",           href: "/despacho",             icon: FileText },
     ],
   },
   {

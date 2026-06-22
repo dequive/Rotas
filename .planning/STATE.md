@@ -15,17 +15,17 @@ progress:
 
 # ROTAS — Project State
 
-_Last updated: 2026-06-21 — Phase 16 (HOS + Availability) complete: 16-01 router registration, 16-02 HOS service + trip gate (8 tests GREEN, 434 total passing), 16-03/04/05 availability endpoints. All 5 plans have SUMMARYs._
+_Last updated: 2026-06-22 — Phase 26 (Third Party Unification) complete: 26-01 schema nullable FKs + ThirdParty models, 26-02 supplier service + router + 3 tests GREEN, 26-03 create_client find-or-create against third_parties + 3 GT-05 tests GREEN. All 75/75 plans done. 456 tests passing._
 
 ---
 
 ## Current Phase
 
-Phase: 16
-Plan: 16-05 complete — ALL PLANS DONE
-Status: Phase 16 complete — all 5 plans done (16-01 router; 16-02 HOS service; 16-03 availability endpoints + Redis; 16-04 status filter; 16-05 HOS integration test)
+Phase: 26 — ALL PLANS DONE (75/75)
+Plan: 26-03 complete — MILESTONE COMPLETE
+Status: All 75 plans complete across 11 phases. 456 tests passing.
 Last activity: 2026-06-22
-Stopped at: Completed 26-02-PLAN.md
+Stopped at: Completed 26-03-PLAN.md
 
 ### Completed v2.0 Phases
 
@@ -46,6 +46,7 @@ Stopped at: Completed 26-02-PLAN.md
 - [x] **Phase 21** — Frontend E2E Tests (21-01 Playwright scaffold; 21-02 5 spec files + CI e2e job; 10 tests passing) — completed 2026-06-21
 - [x] **Phase 16** — HOS + Availability (16-01 router registration; 16-02 HOS service + trip gate 8h/9h/48h thresholds + hos_override_reason bypass; 16-03 availability endpoints + Redis cache; 16-04 status filter; 16-05 integration; 434 tests GREEN) — completed 2026-06-21
 - [x] **Phase 11** — Driver Financial Settlement / Despacho (11-01 schema: driver_advances + trip_settlements + RLS; 11-02 advance service: issue/void/list; 11-03 settlement service: compute/approve/reject/PDF fpdf2+DejaVuSans; 11-04 HTTP endpoints; 11-05 /despacho UI + sidebar; 11-06 12 tests GREEN; 287 total GREEN) — completed 2026-06-22
+- [x] **Phase 26** — Third Party Unification (26-01 schema: nullable third_party_id FKs on clients/contracts/suppliers + ThirdParty/ClientProfile/SupplierProfile models; 26-02 supplier service/router + 3 tests GREEN; 26-03 create_client find-or-create against third_parties by (tenant_id, nuit) + 3 GT-05 tests GREEN; 456 tests passing) — completed 2026-06-22
 
 ---
 

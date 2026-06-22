@@ -7,7 +7,10 @@ import type { ClientResponse } from "../lib/clients-api";
 import { Button } from "@/app/components/ui/Button";
 import { ModalDialog } from "@/app/components/ui/ModalDialog";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const lbl = "flex flex-col gap-1.5 text-[13px] font-bold text-muted";
+const inp = "min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20";
+const row = "grid grid-cols-2 gap-3";
+const actions = "flex justify-end gap-2.5 mt-1.5 pt-4 border-t border-border";
 
 interface ClientFormModalProps {
   mode: "create" | "edit";
@@ -21,14 +24,6 @@ interface FormErrors {
   trading_name?: string;
   nuit?: string;
   payment_terms_days?: string;
-}
-
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  // In client components we cannot access httpOnly cookies directly.
-  // The Next.js API route /api/clients proxies to the backend with auth headers.
-  // But for this pattern we use the same route as ContractFormModal (/api/contracts).
-  // Client-side fetch uses the /api/* proxy routes that inject auth server-side.
-  return {};
 }
 
 export function ClientFormModal({
@@ -157,32 +152,34 @@ export function ClientFormModal({
 
   return (
     <ModalDialog open={open} onClose={() => onOpenChange(false)} title={mode === "create" ? "Novo Cliente" : "Editar Cliente"}>
-      <form onSubmit={handleSubmit} className="modal-form">
-        <label>
+      <form onSubmit={handleSubmit} className="px-6 pb-6 pt-4 flex flex-col gap-3.5">
+        <label className={lbl}>
           Nome comercial <span className="text-error">*</span>
           <input
             name="trading_name"
             defaultValue={client?.trading_name ?? ""}
             disabled={loading}
             placeholder="Nome comercial do cliente"
+            className={inp}
           />
           {fieldErrors.trading_name && (
-            <span className="field-error text-error text-xs">{fieldErrors.trading_name}</span>
+            <span className="text-error text-xs">{fieldErrors.trading_name}</span>
           )}
         </label>
 
-        <label>
+        <label className={lbl}>
           Nome legal
           <input
             name="legal_name"
             defaultValue={client?.legal_name ?? ""}
             disabled={loading}
             placeholder="Nome legal completo (opcional)"
+            className={inp}
           />
         </label>
 
-        <div className="form-row">
-          <label>
+        <div className={row}>
+          <label className={lbl}>
             NUIT <span className="text-error">*</span>
             <input
               name="nuit"
@@ -191,13 +188,13 @@ export function ClientFormModal({
               placeholder="000000000"
               pattern="[0-9]{9}"
               maxLength={9}
-              className="font-mono"
+              className={`${inp} font-mono`}
             />
             {fieldErrors.nuit && (
-              <span className="field-error text-error text-xs">{fieldErrors.nuit}</span>
+              <span className="text-error text-xs">{fieldErrors.nuit}</span>
             )}
           </label>
-          <label>
+          <label className={lbl}>
             Telefone
             <input
               name="phone"
@@ -205,31 +202,34 @@ export function ClientFormModal({
               disabled={loading}
               placeholder="+258..."
               type="tel"
+              className={inp}
             />
           </label>
         </div>
 
-        <label>
+        <label className={lbl}>
           Morada
           <input
             name="address"
             defaultValue={client?.address ?? ""}
             disabled={loading}
             placeholder="Rua, número..."
+            className={inp}
           />
         </label>
 
-        <div className="form-row">
-          <label>
+        <div className={row}>
+          <label className={lbl}>
             Cidade
             <input
               name="city"
               defaultValue={client?.city ?? ""}
               disabled={loading}
               placeholder="Maputo"
+              className={inp}
             />
           </label>
-          <label>
+          <label className={lbl}>
             Email
             <input
               name="email"
@@ -237,17 +237,19 @@ export function ClientFormModal({
               defaultValue={client?.email ?? ""}
               disabled={loading}
               placeholder="faturacao@empresa.co.mz"
+              className={inp}
             />
           </label>
         </div>
 
-        <div className="form-row">
-          <label>
+        <div className={row}>
+          <label className={lbl}>
             Prazo de pagamento <span className="text-error">*</span>
             <select
               name="payment_terms_days"
               defaultValue={String(client?.payment_terms_days ?? "30")}
               disabled={loading}
+              className={inp}
             >
               <option value="30">30 dias</option>
               <option value="45">45 dias</option>
@@ -255,10 +257,10 @@ export function ClientFormModal({
               <option value="90">90 dias</option>
             </select>
             {fieldErrors.payment_terms_days && (
-              <span className="field-error text-error text-xs">{fieldErrors.payment_terms_days}</span>
+              <span className="text-error text-xs">{fieldErrors.payment_terms_days}</span>
             )}
           </label>
-          <label>
+          <label className={lbl}>
             Limite de crédito (MZN)
             <input
               name="credit_limit"
@@ -268,13 +270,14 @@ export function ClientFormModal({
               defaultValue={client?.credit_limit != null ? String(client.credit_limit) : ""}
               disabled={loading}
               placeholder="0 = sem limite"
+              className={inp}
             />
           </label>
         </div>
 
         {apiError && <div className="text-error text-[13px] m-0 bg-error-bg border border-error-border rounded-md px-3 py-2">{apiError}</div>}
 
-        <div className="modal-actions">
+        <div className={actions}>
           {mode === "edit" && (
             <button
               type="button"

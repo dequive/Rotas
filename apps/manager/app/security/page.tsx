@@ -173,7 +173,7 @@ export default function SecurityPage() {
           <h2 className="text-base font-semibold m-0">Autenticação multifator</h2>
           <span>{mfa?.enabled ? "Ativa" : "Inativa"}</span>
         </div>
-        <div className="modal-form">
+        <div className="flex flex-col gap-3.5 mt-2">
           {mfa?.enabled ? (
             <form onSubmit={disableMfa} className="flex items-center gap-1.5">
               <input
@@ -182,20 +182,21 @@ export default function SecurityPage() {
                 inputMode="numeric"
                 placeholder="Código MFA"
                 required
+                className="min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
               />
               <Button variant="secondary" disabled={mfaBusy}>
                 Desativar MFA
               </Button>
             </form>
           ) : mfa?.secret ? (
-            <form onSubmit={confirmMfa} className="modal-form">
-              <label>
+            <form onSubmit={confirmMfa} className="flex flex-col gap-3.5">
+              <label className="flex flex-col gap-1.5 text-[13px] font-bold text-muted">
                 Segredo
-                <input value={mfa.secret} readOnly />
+                <input value={mfa.secret} readOnly className="min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none font-mono" />
               </label>
-              <label>
+              <label className="flex flex-col gap-1.5 text-[13px] font-bold text-muted">
                 URI
-                <input value={mfa.otpauth_uri ?? ""} readOnly />
+                <input value={mfa.otpauth_uri ?? ""} readOnly className="min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none font-mono text-xs" />
               </label>
               <div className="flex items-center gap-1.5">
                 <input
@@ -204,6 +205,7 @@ export default function SecurityPage() {
                   inputMode="numeric"
                   placeholder="Código de 6 dígitos"
                   required
+                  className="min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
                 />
                 <Button variant="primary" disabled={mfaBusy}>
                   Confirmar MFA

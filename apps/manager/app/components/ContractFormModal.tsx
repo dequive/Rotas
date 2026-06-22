@@ -9,6 +9,11 @@ import { Button } from "@/app/components/ui/Button";
 import { IconButton } from "@/app/components/ui/IconButton";
 import { ModalDialog } from "@/app/components/ui/ModalDialog";
 
+const lbl = "flex flex-col gap-1.5 text-[13px] font-bold text-muted";
+const inp = "min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20";
+const row = "grid grid-cols-2 gap-3";
+const actions = "flex justify-end gap-2.5 mt-1.5 pt-4 border-t border-border";
+
 export function ContractFormModal({ contract }: { contract?: Contract }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -31,7 +36,6 @@ export function ContractFormModal({ contract }: { contract?: Contract }) {
     setError(null);
     setClientError(null);
 
-    // Validate client selection
     if (!clientId && !clientName) {
       setClientError("Seleccione um cliente.");
       return;
@@ -73,7 +77,6 @@ export function ContractFormModal({ contract }: { contract?: Contract }) {
   }
 
   function handleOpen() {
-    // Reset client state to contract's current values when (re-)opening
     setClientId(contract?.client_id ?? "");
     setClientName(contract?.client_name ?? "");
     setClientError(null);
@@ -90,13 +93,13 @@ export function ContractFormModal({ contract }: { contract?: Contract }) {
       )}
 
       <ModalDialog open={open} onClose={() => setOpen(false)} title={isEdit ? "Editar contrato" : "Novo contrato"} className="modal-wide">
-        <form onSubmit={handleSubmit} className="modal-form">
-          <div className="form-row">
-            <label>Referência<input name="contract_reference" defaultValue={contract?.contract_reference} required placeholder="CTR-2026-001" /></label>
+        <form onSubmit={handleSubmit} className="px-6 pb-6 pt-4 flex flex-col gap-3.5">
+          <div className={row}>
+            <label className={lbl}>Referência<input name="contract_reference" defaultValue={contract?.contract_reference} required placeholder="CTR-2026-001" className={inp} /></label>
           </div>
 
           <div>
-            <label className="text-[13px] font-medium text-ink-2 block mb-1">
+            <label className="flex flex-col gap-1.5 text-[13px] font-bold text-muted">
               Cliente <span aria-hidden="true" className="text-error">*</span>
             </label>
             <ClientCombobox
@@ -109,56 +112,56 @@ export function ContractFormModal({ contract }: { contract?: Contract }) {
             )}
           </div>
 
-          <label>Título<input name="title" defaultValue={contract?.title} required /></label>
-          <div className="form-row">
-            <label>Tipo de serviço
-              <select name="service_type" defaultValue={contract?.service_type ?? "cargo_transport"}>
+          <label className={lbl}>Título<input name="title" defaultValue={contract?.title} required className={inp} /></label>
+          <div className={row}>
+            <label className={lbl}>Tipo de serviço
+              <select name="service_type" defaultValue={contract?.service_type ?? "cargo_transport"} className={inp}>
                 <option value="cargo_transport">Transporte de carga</option>
                 <option value="passenger_transport">Transporte de passageiros</option>
               </select>
             </label>
-            <label>Ciclo de cobrança
-              <select name="billing_cycle" defaultValue={contract?.billing_cycle ?? "monthly"}>
+            <label className={lbl}>Ciclo de cobrança
+              <select name="billing_cycle" defaultValue={contract?.billing_cycle ?? "monthly"} className={inp}>
                 <option value="monthly">Mensal</option>
                 <option value="weekly">Semanal</option>
                 <option value="per_trip">Por viagem</option>
               </select>
             </label>
           </div>
-          <div className="form-row">
-            <label>Base de cobrança
-              <select name="billing_basis" defaultValue={contract?.billing_basis ?? "trip"}>
+          <div className={row}>
+            <label className={lbl}>Base de cobrança
+              <select name="billing_basis" defaultValue={contract?.billing_basis ?? "trip"} className={inp}>
                 <option value="trip">Por viagem</option>
                 <option value="km">Por km</option>
                 <option value="weight">Por peso</option>
               </select>
             </label>
-            <label>Moeda
-              <select name="currency" defaultValue={contract?.currency ?? "MZN"}>
+            <label className={lbl}>Moeda
+              <select name="currency" defaultValue={contract?.currency ?? "MZN"} className={inp}>
                 <option value="MZN">MZN</option>
                 <option value="USD">USD</option>
                 <option value="ZAR">ZAR</option>
               </select>
             </label>
           </div>
-          <label>Preço unitário padrão<input name="default_unit_price" type="number" step="0.01" defaultValue={contract?.default_unit_price ?? ""} placeholder="12500" /></label>
-          <div className="form-row">
-            <label>Início<input name="starts_at" type="date" defaultValue={contract?.starts_at?.slice(0, 10) ?? ""} /></label>
-            <label>Fim<input name="ends_at" type="date" defaultValue={contract?.ends_at?.slice(0, 10) ?? ""} /></label>
+          <label className={lbl}>Preço unitário padrão<input name="default_unit_price" type="number" step="0.01" defaultValue={contract?.default_unit_price ?? ""} placeholder="12500" className={inp} /></label>
+          <div className={row}>
+            <label className={lbl}>Início<input name="starts_at" type="date" defaultValue={contract?.starts_at?.slice(0, 10) ?? ""} className={inp} /></label>
+            <label className={lbl}>Fim<input name="ends_at" type="date" defaultValue={contract?.ends_at?.slice(0, 10) ?? ""} className={inp} /></label>
           </div>
-          <div className="form-row checkboxes">
-            <label className="checkbox-label">
-              <input name="requires_load_permit" type="checkbox" defaultChecked={contract?.requires_load_permit ?? true} />
+          <div className="grid grid-cols-2 gap-3 items-center">
+            <label className="flex flex-row items-center gap-2 text-sm font-semibold text-ink cursor-pointer">
+              <input name="requires_load_permit" type="checkbox" defaultChecked={contract?.requires_load_permit ?? true} className="w-4 h-4 accent-amber" />
               Requer Load Permit
             </label>
-            <label className="checkbox-label">
-              <input name="requires_delivery_proof" type="checkbox" defaultChecked={contract?.requires_delivery_proof ?? true} />
+            <label className="flex flex-row items-center gap-2 text-sm font-semibold text-ink cursor-pointer">
+              <input name="requires_delivery_proof" type="checkbox" defaultChecked={contract?.requires_delivery_proof ?? true} className="w-4 h-4 accent-amber" />
               Requer Prova de entrega
             </label>
           </div>
-          <label>Notas<textarea name="notes" rows={2} placeholder="Observações sobre o contrato..." /></label>
+          <label className={lbl}>Notas<textarea name="notes" rows={2} placeholder="Observações sobre o contrato..." className="px-2.5 py-2 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20 resize-y" /></label>
           {error && <p className="text-error text-[13px] m-0 bg-error-bg border border-error-border rounded-md px-3 py-2">{error}</p>}
-          <div className="modal-actions">
+          <div className={actions}>
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button type="submit" variant="primary" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</Button>
           </div>

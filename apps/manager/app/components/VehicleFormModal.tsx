@@ -8,6 +8,11 @@ import { Button } from "@/app/components/ui/Button";
 import { IconButton } from "@/app/components/ui/IconButton";
 import { ModalDialog } from "@/app/components/ui/ModalDialog";
 
+const lbl = "flex flex-col gap-1.5 text-[13px] font-bold text-muted";
+const inp = "min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20";
+const row = "grid grid-cols-2 gap-3";
+const actions = "flex justify-end gap-2.5 mt-1.5 pt-4 border-t border-border";
+
 export function VehicleFormModal({ vehicle }: { vehicle?: Vehicle }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -60,43 +65,43 @@ export function VehicleFormModal({ vehicle }: { vehicle?: Vehicle }) {
       )}
 
       <ModalDialog open={open} onClose={() => setOpen(false)} title={isEdit ? "Editar viatura" : "Nova viatura"}>
-        <form onSubmit={handleSubmit} className="modal-form">
-          <div className="form-row">
-            <label>Matrícula<input name="plate" defaultValue={vehicle?.plate} required placeholder="MPT-00-RT" /></label>
-            <label>Chassis<input name="chassis" defaultValue={""} placeholder="VIN/Chassis" /></label>
+        <form onSubmit={handleSubmit} className="px-6 pb-6 pt-4 flex flex-col gap-3.5">
+          <div className={row}>
+            <label className={lbl}>Matrícula<input name="plate" defaultValue={vehicle?.plate} required placeholder="MPT-00-RT" className={inp} /></label>
+            <label className={lbl}>Chassis<input name="chassis" defaultValue={""} placeholder="VIN/Chassis" className={inp} /></label>
           </div>
-          <div className="form-row">
-            <label>Marca<input name="brand" defaultValue={vehicle?.brand} required placeholder="Mercedes-Benz" /></label>
-            <label>Modelo<input name="model" defaultValue={vehicle?.model} required placeholder="Actros" /></label>
+          <div className={row}>
+            <label className={lbl}>Marca<input name="brand" defaultValue={vehicle?.brand} required placeholder="Mercedes-Benz" className={inp} /></label>
+            <label className={lbl}>Modelo<input name="model" defaultValue={vehicle?.model} required placeholder="Actros" className={inp} /></label>
           </div>
-          <div className="form-row">
-            <label>Ano<input name="year" type="number" defaultValue={vehicle?.year ?? new Date().getFullYear()} required min={1990} max={2030} /></label>
-            <label>Cor<input name="color" defaultValue={vehicle?.color ?? ""} placeholder="Branco" /></label>
+          <div className={row}>
+            <label className={lbl}>Ano<input name="year" type="number" defaultValue={vehicle?.year ?? new Date().getFullYear()} required min={1990} max={2030} className={inp} /></label>
+            <label className={lbl}>Cor<input name="color" defaultValue={vehicle?.color ?? ""} placeholder="Branco" className={inp} /></label>
           </div>
-          <div className="form-row">
-            <label>Categoria
-              <select name="category" defaultValue={vehicle?.category ?? "pesado"}>
+          <div className={row}>
+            <label className={lbl}>Categoria
+              <select name="category" defaultValue={vehicle?.category ?? "pesado"} className={inp}>
                 <option value="ligeiro">Ligeiro</option>
                 <option value="pesado">Pesado</option>
                 <option value="semi_reboque">Semi-Reboque</option>
                 <option value="cisterna">Cisterna</option>
               </select>
             </label>
-            <label>Combustível
-              <select name="fuel_type" defaultValue={vehicle?.fuel_type ?? "gasoleo"}>
+            <label className={lbl}>Combustível
+              <select name="fuel_type" defaultValue={vehicle?.fuel_type ?? "gasoleo"} className={inp}>
                 <option value="gasoleo">Gasóleo</option>
                 <option value="gasolina">Gasolina</option>
                 <option value="gnc">GNC</option>
               </select>
             </label>
           </div>
-          <div className="form-row">
-            <label>Km actual<input name="current_km" type="number" defaultValue={vehicle?.current_km ?? 0} required min={0} /></label>
-            <label>Consumo alvo (L/100km)<input name="avg_consumption_target" type="number" step="0.1" defaultValue={vehicle?.avg_consumption_target ?? ""} placeholder="32.5" /></label>
+          <div className={row}>
+            <label className={lbl}>Km actual<input name="current_km" type="number" defaultValue={vehicle?.current_km ?? 0} required min={0} className={inp} /></label>
+            <label className={lbl}>Consumo alvo (L/100km)<input name="avg_consumption_target" type="number" step="0.1" defaultValue={vehicle?.avg_consumption_target ?? ""} placeholder="32.5" className={inp} /></label>
           </div>
-          <label>Limite diário combustível (MZN)<input name="fuel_limit_daily" type="number" step="0.01" defaultValue={vehicle?.fuel_limit_daily ?? ""} placeholder="350" /></label>
+          <label className={lbl}>Limite diário combustível (MZN)<input name="fuel_limit_daily" type="number" step="0.01" defaultValue={vehicle?.fuel_limit_daily ?? ""} placeholder="350" className={inp} /></label>
           {error && <p className="text-error text-[13px] m-0 bg-error-bg border border-error-border rounded-md px-3 py-2">{error}</p>}
-          <div className="modal-actions">
+          <div className={actions}>
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button type="submit" variant="primary" disabled={loading}>{loading ? "A guardar..." : "Guardar"}</Button>
           </div>

@@ -126,22 +126,25 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
   }
 
   return (
-    <section className="domain-section admin-despacho" aria-labelledby="driver-despacho-title">
-      <div className="domain-heading">
-        <div className="title">
-          <span className="eyebrow">Administracao Operacional</span>
-          <h2 id="driver-despacho-title">Tabela manual de despacho</h2>
-          <p>Faixas de subsidio de viagem preenchidas manualmente pelo transportador.</p>
+    <section className="pt-6 mt-5 border-t border-border" aria-labelledby="driver-despacho-title">
+      <div className="flex items-end justify-between gap-4 mb-3">
+        <div className="min-w-0">
+          <span className="text-amber text-[11px] font-black uppercase">Administracao Operacional</span>
+          <h2 id="driver-despacho-title" className="m-0 mt-0.5 text-[21px]">Tabela manual de despacho</h2>
+          <p className="m-0 mt-1 text-muted">Faixas de subsidio de viagem preenchidas manualmente pelo transportador.</p>
         </div>
-        <span className="module-state">
+        <span className="flex-none inline-flex items-center gap-[7px] px-2.5 py-2 text-[#2563eb] bg-[#eff6ff] border border-[#bfdbfe] rounded-md text-[12px] font-black">
           <WalletCards size={15} />
           {result.configured ? "Configurada" : "Por preencher"}
         </span>
       </div>
 
-      <div className={`data-source ${result.source}`}>
+      <div className={result.source === "api"
+        ? "border rounded-md min-h-[36px] inline-flex items-center gap-2 px-2.5 py-[7px] mb-3.5 text-[13px] max-w-full bg-success-bg text-success border-success-border"
+        : "border rounded-md min-h-[36px] inline-flex items-center gap-2 px-2.5 py-[7px] mb-3.5 text-[13px] max-w-full bg-warning-bg text-warning border-warning-border"
+      }>
         <WalletCards size={15} />
-        <span>
+        <span className="flex-1 min-w-0 [overflow-wrap:anywhere]">
           {result.source === "api"
             ? "Tabela carregada da API ROTAS."
             : result.message}

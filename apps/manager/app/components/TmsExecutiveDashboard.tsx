@@ -21,6 +21,12 @@ interface TmsExecutiveDashboardProps {
   billingTrips: BillingTrip[];
 }
 
+const activityIconCls: Record<string, string> = {
+  red: "w-[38px] h-[38px] inline-flex items-center justify-center rounded-lg flex-shrink-0 bg-error-bg text-error",
+  blue: "w-[38px] h-[38px] inline-flex items-center justify-center rounded-lg flex-shrink-0 bg-[#dbeafe] text-[#2563eb]",
+  orange: "w-[38px] h-[38px] inline-flex items-center justify-center rounded-lg flex-shrink-0 bg-warning-bg text-warning",
+};
+
 export function TmsExecutiveDashboard({
   controlTower,
   billingTrips,
@@ -147,7 +153,7 @@ export function TmsExecutiveDashboard({
       </div>
 
       <div className="tms-grid">
-        <div className="tms-panel tms-chart-panel">
+        <div className="min-w-0 bg-surface border border-border rounded-lg p-3.5">
           <PanelTitle
             title="Pressão operacional"
             meta={formatDate(tower.date)}
@@ -168,9 +174,9 @@ export function TmsExecutiveDashboard({
           </div>
         </div>
 
-        <div className="tms-panel">
+        <div className="min-w-0 bg-surface border border-border rounded-lg p-3.5">
           <PanelTitle title="Estado das viagens" meta={`${shipmentTotal} itens`} icon={CheckCircle2} />
-          <div className="tms-status">
+          <div className="grid gap-3.5 items-center" style={{ gridTemplateColumns: "144px minmax(0,1fr)" }}>
             <div
               className="tms-donut"
               style={{
@@ -180,7 +186,7 @@ export function TmsExecutiveDashboard({
               <strong>{shipmentTotal}</strong>
               <span>Total</span>
             </div>
-            <div className="tms-status-list">
+            <div className="grid gap-2">
               <StatusLine color="green" label="Entregue/cobrado" value={delivered} total={shipmentTotal} />
               <StatusLine color="blue" label="Em trânsito" value={inTransit} total={shipmentTotal} />
               <StatusLine color="amber" label="Pendente" value={pending} total={shipmentTotal} />
@@ -189,34 +195,35 @@ export function TmsExecutiveDashboard({
           </div>
         </div>
 
-        <div className="tms-panel tms-activity-panel">
+        <div className="min-w-0 bg-surface border border-border rounded-lg p-3.5">
           <PanelTitle title="Atividades recentes" meta="Operação" icon={Clock3} />
-          <div className="tms-activity-list">
+          <div className="grid gap-2">
             {recentActivities.length > 0 ? (
               recentActivities.map((item) => {
                 const Icon = item.icon;
+                const iconCls = activityIconCls[item.tone] ?? "w-[38px] h-[38px] inline-flex items-center justify-center rounded-lg flex-shrink-0 bg-surface-2 text-muted";
                 return (
-                  <div key={item.id} className="tms-activity">
-                    <span className={`tms-activity-icon ${item.tone}`}>
+                  <div key={item.id} className="grid gap-[9px] py-2 border-t border-border first:border-t-0 first:pt-0" style={{ gridTemplateColumns: "auto minmax(0,1fr)" }}>
+                    <span className={iconCls}>
                       <Icon size={15} />
                     </span>
                     <div>
-                      <strong>{item.title}</strong>
-                      <span>{item.detail}</span>
-                      <small>{item.meta}</small>
+                      <strong className="block text-ink text-[13px] [overflow-wrap:anywhere]">{item.title}</strong>
+                      <span className="block text-muted text-[12px] [overflow-wrap:anywhere]">{item.detail}</span>
+                      <small className="block text-muted text-[12px] [overflow-wrap:anywhere]">{item.meta}</small>
                     </div>
                   </div>
                 );
               })
             ) : (
-              <p className="tms-empty">Sem atividades críticas recentes.</p>
+              <p className="text-muted text-[12px]">Sem atividades críticas recentes.</p>
             )}
           </div>
         </div>
       </div>
 
       <div className="tms-grid tms-grid-bottom">
-        <div className="tms-panel tms-map-panel">
+        <div className="min-w-0 bg-surface border border-border rounded-lg p-3.5">
           <PanelTitle title="Live fleet tracking" meta="Rotas críticas" icon={Navigation} />
           <div className="tms-map">
             <span className="tms-map-node origin"><MapPin size={15} /> Maputo</span>
@@ -227,7 +234,7 @@ export function TmsExecutiveDashboard({
           </div>
         </div>
 
-        <div className="tms-panel">
+        <div className="min-w-0 bg-surface border border-border rounded-lg p-3.5">
           <PanelTitle title="Viagens monitoradas" meta={`${activeTrips.length} em foco`} icon={Route} />
           <div className="tms-trip-list">
             {activeTrips.length > 0 ? (
@@ -238,12 +245,12 @@ export function TmsExecutiveDashboard({
                 </div>
               ))
             ) : (
-              <p className="tms-empty">Sem viagens críticas em foco.</p>
+              <p className="text-muted text-[12px]">Sem viagens críticas em foco.</p>
             )}
           </div>
         </div>
 
-        <div className="tms-panel">
+        <div className="min-w-0 bg-surface border border-border rounded-lg p-3.5">
           <PanelTitle title="Saúde operacional" meta="Hoje" icon={Wrench} />
           <div className="tms-health">
             <HealthRow label="Margem" value={formatMoney(summary.marginTotal)} />
@@ -296,12 +303,12 @@ function MetricPill({ icon: Icon, label, value }: { icon: typeof Truck; label: s
 
 function PanelTitle({ title, meta, icon: Icon }: { title: string; meta: string; icon: typeof Truck }) {
   return (
-    <header className="tms-panel-title">
-      <div>
+    <header className="flex items-center justify-between gap-3 mb-3">
+      <div className="inline-flex items-center gap-2">
         <Icon size={16} />
-        <strong>{title}</strong>
+        <strong className="text-[14px]">{title}</strong>
       </div>
-      <span>{meta}</span>
+      <span className="text-[12px] text-muted">{meta}</span>
     </header>
   );
 }
@@ -318,10 +325,10 @@ function StatusLine({
   total: number;
 }) {
   return (
-    <div className="tms-status-line">
+    <div className="grid gap-2 items-center text-[12px]" style={{ gridTemplateColumns: "auto minmax(0,1fr) auto" }}>
       <span className={`tms-dot ${color}`} />
       <strong>{label}</strong>
-      <small>{value} ({percent(value, total)}%)</small>
+      <small className="text-muted">{value} ({percent(value, total)}%)</small>
     </div>
   );
 }

@@ -60,16 +60,16 @@ export function DriverScorecardPanel({ drivers }: Props) {
 
   return (
     <section>
-      <hr className="section-divider" />
-      <div className="domain-heading">
-        <h2>Desempenho de Motoristas</h2>
-        <p>Últimos 30 dias · Score composto</p>
+      <hr className="border-0 border-t border-border mt-6" />
+      <div className="flex items-end justify-between gap-4 mb-3">
+        <h2 className="m-0 mt-0.5 text-[21px]">Desempenho de Motoristas</h2>
+        <p className="m-0 mt-1 text-muted">Últimos 30 dias · Score composto</p>
       </div>
 
       <div className="mb-4">
         <select
           aria-label="Seleccionar motorista"
-          className="form-select"
+          className="min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
           value={selectedId}
           onChange={(e) => handleDriverChange(e.target.value)}
         >
@@ -82,7 +82,7 @@ export function DriverScorecardPanel({ drivers }: Props) {
       </div>
 
       {error && (
-        <p className="error-text">Erro ao carregar scorecard. Tente novamente.</p>
+        <p className="text-error text-xs font-bold [overflow-wrap:anywhere]">Erro ao carregar scorecard. Tente novamente.</p>
       )}
 
       {loading && !scorecard && (

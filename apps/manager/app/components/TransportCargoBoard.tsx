@@ -91,7 +91,7 @@ export function TransportCargoBoard({ apiConfig, result }: TransportCargoBoardPr
         />
       </div>
 
-      <div className="transport-work-grid" aria-label="Filas de trabalho de transporte">
+      <div className="grid gap-3 mt-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))" }} aria-label="Filas de trabalho de transporte">
         <TransportQueue
           emptyLabel="Sem autorizações pendentes."
           icon={ShieldAlert}

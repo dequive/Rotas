@@ -186,7 +186,7 @@ function NegativeMarginItem({ apiConfig, item }: { apiConfig: ApiConfig; item: N
           <ShieldCheck size={15} />
           {busy ? "A aprovar" : "Aprovar"}
         </Button>
-        {error ? <small className="error-text">{error}</small> : null}
+        {error ? <small className="text-error text-xs font-bold [overflow-wrap:anywhere]">{error}</small> : null}
       </div>
     </div>
   );
@@ -260,7 +260,7 @@ function DespachoPendingItem({ apiConfig, item }: { apiConfig: ApiConfig; item: 
           <Save size={15} />
           {busy ? "A lançar" : "Lançar"}
         </Button>
-        {error ? <small className="error-text">{error}</small> : null}
+        {error ? <small className="text-error text-xs font-bold [overflow-wrap:anywhere]">{error}</small> : null}
       </div>
     </div>
   );

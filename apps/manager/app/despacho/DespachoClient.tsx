@@ -87,14 +87,14 @@ function shortId(id: string) {
 // ── Settlement status badge ───────────────────────────────────────────────────
 
 function SettlementStatusBadge({ status }: { status: Settlement["status"] | null }) {
-  if (!status) return <StatusBadge label="Sem despacho" tone="gray" />;
-  const map = {
-    pending: { label: "Pendente", tone: "orange" as const },
-    approved: { label: "Aprovado", tone: "green" as const },
-    rejected: { label: "Rejeitado", tone: "red" as const },
+  if (!status) return <StatusBadge status="draft" label="Sem despacho" />;
+  const map: Record<string, { label: string; status: string }> = {
+    pending: { label: "Pendente", status: "pending" },
+    approved: { label: "Aprovado", status: "approved" },
+    rejected: { label: "Rejeitado", status: "blocked" },
   };
-  const m = map[status] ?? { label: status, tone: "gray" as const };
-  return <StatusBadge label={m.label} tone={m.tone} />;
+  const m = map[status] ?? { label: status, status: "draft" };
+  return <StatusBadge status={m.status} label={m.label} />;
 }
 
 // ── Issue Advance Modal ───────────────────────────────────────────────────────
@@ -342,15 +342,15 @@ function ActiveTripsTable({ trips }: { trips: Trip[] }) {
             {trips.map((trip) => (
               <tr key={trip.id} className="border-b border-border">
                 <td className="px-3 py-2.5">
-                  <MonoCell value={shortId(trip.id)} />
+                  <MonoCell>{shortId(trip.id)}</MonoCell>
                 </td>
                 <td className="px-3 py-2.5 text-ink">
                   {trip.origin} → {trip.destination}
                 </td>
                 <td className="px-3 py-2.5">
                   <StatusBadge
+                    status={trip.status === "planned" ? "planeada" : "em_viagem"}
                     label={trip.status === "planned" ? "Planeada" : "Em curso"}
-                    tone={trip.status === "planned" ? "blue" : "amber"}
                   />
                 </td>
                 <td className="px-3 py-2.5 text-muted">
@@ -502,7 +502,7 @@ function CompletedTripsTable({ rows, onRefresh }: { rows: SettlementRow[]; onRef
               return (
                 <tr key={trip.id} className="border-b border-border">
                   <td className="px-3 py-2.5">
-                    <MonoCell value={shortId(trip.id)} />
+                    <MonoCell>{shortId(trip.id)}</MonoCell>
                   </td>
                   <td className="px-3 py-2.5 text-ink">
                     {trip.origin} → {trip.destination}

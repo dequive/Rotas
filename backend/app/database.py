@@ -117,6 +117,7 @@ MODEL_MODULES = (
     "notifications",
     "sync",
     "audit",
+    "gps",
 )
 
 

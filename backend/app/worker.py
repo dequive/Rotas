@@ -829,6 +829,43 @@ async def task_check_vehicle_document_expiry(ctx: dict) -> str:
     return f"Generated {alert_count} vehicle document expiry alerts"
 
 
+async def task_expire_gps_partitions(ctx: dict) -> str:
+    """Drop gps_positions partitions older than 90 days (GPS-07 — storage bloat prevention)."""
+    import structlog
+    from datetime import date, timedelta
+
+    from sqlalchemy import text
+
+    logger = structlog.get_logger("worker")
+    dropped = []
+    cutoff = date.today() - timedelta(days=90)
+    async with ctx["db_factory"]() as db:
+        # List all gps_positions_YYYY_MM partitions
+        result = await db.execute(
+            text(
+                "SELECT relname FROM pg_class "
+                "WHERE relname LIKE 'gps_positions_%' "
+                "AND relkind = 'r' "
+                "AND relname ~ '^gps_positions_\\d{4}_\\d{2}$'"
+            )
+        )
+        partitions = [row[0] for row in result.fetchall()]
+        for part in partitions:
+            # parse YYYY_MM from name
+            try:
+                _, _, year_str, month_str = part.split("_")
+                part_date = date(int(year_str), int(month_str), 1)
+            except (ValueError, IndexError):
+                continue
+            if part_date < cutoff.replace(day=1):
+                await db.execute(text(f"DROP TABLE IF EXISTS {part} CASCADE"))
+                dropped.append(part)
+        await db.commit()
+
+    logger.info("task_expire_gps_partitions", dropped=dropped)
+    return f"Dropped {len(dropped)} GPS partitions: {dropped}"
+
+
 class WorkerSettings:
     functions = [
         # Billing
@@ -856,6 +893,8 @@ class WorkerSettings:
         # Maintenance
         check_maintenance_schedules,
         check_vehicle_maintenance,
+        # GPS
+        task_expire_gps_partitions,
     ]
     cron_jobs = [
         # SM-01: Mark overdue billing documents — 01:00 Africa/Maputo = 23:00 UTC
@@ -891,6 +930,8 @@ class WorkerSettings:
             deliver_queued_notifications,
             minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
         ),
+        # GPS-07: Drop gps_positions partitions older than 90 days — daily 06:00 UTC
+        cron(task_expire_gps_partitions, hour=6, minute=0),
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     max_jobs = 10

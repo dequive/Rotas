@@ -39,6 +39,8 @@ from app.modules.driver_app.router import router as driver_app_router
 from app.modules.drivers.advance_router import router as advance_router
 from app.modules.drivers.router import router as drivers_router
 from app.modules.drivers.settlement_router import router as settlement_router
+from app.modules.gps.router import router as gps_router
+from app.modules.tracking.router import router as tracking_router
 from app.modules.files.router import router as files_router
 from app.modules.fuel.operations_router import router as fuel_operations_router
 from app.modules.fuel.router import router as fuel_router
@@ -289,5 +291,7 @@ app.include_router(audit_router, prefix=api)
 app.include_router(availability_router, prefix=api)
 app.include_router(analytics_router, prefix=api)
 app.include_router(notifications_router, prefix=api)
+app.include_router(gps_router, prefix=api)
+app.include_router(tracking_router, prefix=api)
 app.include_router(platform_auth_router, prefix=api)
 app.include_router(platform_router, prefix=api)

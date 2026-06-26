@@ -7,8 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
 from app.modules.audit.service import record_audit_log
-from app.modules.contracts.models import Contract
-from app.modules.contracts.schemas import ContractCreate, ContractPatch
+from app.modules.contracts.models import Contract, ContractTariff
+from app.modules.contracts.schemas import (
+    ContractCreate,
+    ContractPatch,
+    ContractTariffCreate,
+    ContractTariffPatch,
+)
 
 
 def serialize_contract(contract: Contract) -> dict:
@@ -259,3 +264,156 @@ async def renew_contract(
         tenant_id=tenant_id,
         new_ends_at=new_ends_at,
     )
+
+
+def serialize_contract_tariff(tariff: ContractTariff) -> dict:
+    return {
+        "id": tariff.id,
+        "tenant_id": tariff.tenant_id,
+        "contract_id": tariff.contract_id,
+        "known_route_id": tariff.known_route_id,
+        "rate_basis": tariff.rate_basis,
+        "unit_price": tariff.unit_price,
+        "currency": tariff.currency,
+        "created_at": tariff.created_at,
+        "updated_at": tariff.updated_at,
+    }
+
+
+async def list_contract_tariffs(
+    db: AsyncSession, tenant_id: UUID, contract_id: UUID
+) -> list[dict]:
+    # Verify contract exists and belongs to the tenant
+    contract = await db.get(Contract, contract_id)
+    if not contract or contract.tenant_id != tenant_id:
+        raise ApiError("contract_not_found", "Contract not found.", status_code=404)
+
+    query = select(ContractTariff).where(
+        ContractTariff.tenant_id == tenant_id,
+        ContractTariff.contract_id == contract_id,
+    ).order_by(ContractTariff.created_at.desc())
+    
+    result = await db.execute(query)
+    return [serialize_contract_tariff(t) for t in result.scalars()]
+
+
+async def create_contract_tariff(
+    db: AsyncSession,
+    tenant_id: UUID,
+    contract_id: UUID,
+    payload: ContractTariffCreate,
+    *,
+    actor_id: UUID | None = None,
+) -> dict:
+    # Verify contract exists and belongs to the tenant
+    contract = await db.get(Contract, contract_id)
+    if not contract or contract.tenant_id != tenant_id:
+        raise ApiError("contract_not_found", "Contract not found.", status_code=404)
+
+    # Verify known route exists and belongs to the tenant
+    from app.modules.trips.models import KnownRoute
+    known_route = await db.get(KnownRoute, payload.known_route_id)
+    if not known_route or known_route.tenant_id != tenant_id:
+        raise ApiError("known_route_not_found", "Known route not found.", status_code=404)
+
+    # Check for existing tariff matching (tenant, contract, route)
+    existing = await db.scalar(
+        select(ContractTariff).where(
+            ContractTariff.tenant_id == tenant_id,
+            ContractTariff.contract_id == contract_id,
+            ContractTariff.known_route_id == payload.known_route_id,
+        )
+    )
+    if existing:
+        raise ApiError(
+            "contract_tariff_exists",
+            "A tariff for this route already exists in this contract.",
+            status_code=status.HTTP_409_CONFLICT,
+        )
+
+    tariff = ContractTariff(
+        tenant_id=tenant_id,
+        contract_id=contract_id,
+        known_route_id=payload.known_route_id,
+        rate_basis=payload.rate_basis,
+        unit_price=payload.unit_price,
+        currency=payload.currency,
+    )
+    db.add(tariff)
+    await db.flush()
+    await db.refresh(tariff)
+
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="contract_tariff.created",
+        entity_type="contract_tariff",
+        entity_id=tariff.id,
+        new_values=serialize_contract_tariff(tariff),
+    )
+    await db.commit()
+    await db.refresh(tariff)
+    return serialize_contract_tariff(tariff)
+
+
+async def update_contract_tariff(
+    db: AsyncSession,
+    tenant_id: UUID,
+    contract_id: UUID,
+    tariff_id: UUID,
+    payload: ContractTariffPatch,
+    *,
+    actor_id: UUID | None = None,
+) -> dict:
+    tariff = await db.get(ContractTariff, tariff_id)
+    if not tariff or tariff.tenant_id != tenant_id or tariff.contract_id != contract_id:
+        raise ApiError("contract_tariff_not_found", "Contract tariff not found.", status_code=404)
+
+    old_values = serialize_contract_tariff(tariff)
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(tariff, field, value)
+
+    await db.flush()
+    await db.refresh(tariff)
+
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="contract_tariff.updated",
+        entity_type="contract_tariff",
+        entity_id=tariff.id,
+        old_values=old_values,
+        new_values=serialize_contract_tariff(tariff),
+    )
+    await db.commit()
+    await db.refresh(tariff)
+    return serialize_contract_tariff(tariff)
+
+
+async def delete_contract_tariff(
+    db: AsyncSession,
+    tenant_id: UUID,
+    contract_id: UUID,
+    tariff_id: UUID,
+    *,
+    actor_id: UUID | None = None,
+) -> None:
+    tariff = await db.get(ContractTariff, tariff_id)
+    if not tariff or tariff.tenant_id != tenant_id or tariff.contract_id != contract_id:
+        raise ApiError("contract_tariff_not_found", "Contract tariff not found.", status_code=404)
+
+    old_values = serialize_contract_tariff(tariff)
+    await db.delete(tariff)
+    
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="contract_tariff.deleted",
+        entity_type="contract_tariff",
+        entity_id=tariff_id,
+        old_values=old_values,
+    )
+    await db.commit()

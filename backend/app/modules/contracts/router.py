@@ -131,3 +131,73 @@ async def transition_contract_status(
     await db.commit()
     await db.refresh(updated)
     return service.serialize_contract(updated)
+
+
+@router.get("/{contract_id}/tariffs")
+async def list_contract_tariffs(
+    contract_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.list_contract_tariffs(db, principal.tenant_id, contract_id)
+
+
+@router.post("/{contract_id}/tariffs")
+async def create_contract_tariff(
+    contract_id: UUID,
+    payload: schemas.ContractTariffCreate,
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+):
+    return await execute_http_idempotent(
+        db,
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        idempotency_key=idempotency_key,
+        operation="contract_tariffs.create",
+        entity_type="contract_tariff",
+        payload=payload,
+        handler=lambda: service.create_contract_tariff(
+            db,
+            principal.tenant_id,
+            contract_id,
+            payload,
+            actor_id=principal.user_id,
+        ),
+    )
+
+
+@router.patch("/{contract_id}/tariffs/{tariff_id}")
+async def update_contract_tariff(
+    contract_id: UUID,
+    tariff_id: UUID,
+    payload: schemas.ContractTariffPatch,
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.update_contract_tariff(
+        db,
+        principal.tenant_id,
+        contract_id,
+        tariff_id,
+        payload,
+        actor_id=principal.user_id,
+    )
+
+
+@router.delete("/{contract_id}/tariffs/{tariff_id}")
+async def delete_contract_tariff(
+    contract_id: UUID,
+    tariff_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    await service.delete_contract_tariff(
+        db,
+        principal.tenant_id,
+        contract_id,
+        tariff_id,
+        actor_id=principal.user_id,
+    )
+    return {"status": "success"}

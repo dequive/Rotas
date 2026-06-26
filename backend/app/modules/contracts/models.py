@@ -69,3 +69,28 @@ class Contract(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class ContractTariff(Base):
+    __tablename__ = "contract_tariffs"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "contract_id",
+            "known_route_id",
+            name="uq_contract_tariffs_tenant_contract_route",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    contract_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contracts.id", ondelete="CASCADE"), index=True)
+    known_route_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("known_routes.id", ondelete="RESTRICT"), index=True)
+    rate_basis: Mapped[str] = mapped_column(String(40), default="trip", server_default="trip")
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    currency: Mapped[str] = mapped_column(String(3), default="MZN", server_default="MZN")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+

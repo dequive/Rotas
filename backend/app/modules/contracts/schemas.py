@@ -56,3 +56,31 @@ class ContractTransitionRequest(BaseModel):
     action: Literal["activate", "pause", "resume", "expire", "terminate", "renew"]
     termination_reason: str | None = Field(None, min_length=5, max_length=500)
     new_ends_at: datetime | None = None
+
+
+from decimal import Decimal
+
+class ContractTariffCreate(BaseModel):
+    known_route_id: UUID
+    rate_basis: Literal["trip", "ton", "volume", "km"] = "trip"
+    unit_price: Decimal = Field(..., gt=0)
+    currency: str = Field("MZN", min_length=3, max_length=3)
+
+
+class ContractTariffPatch(BaseModel):
+    rate_basis: Literal["trip", "ton", "volume", "km"] | None = None
+    unit_price: Decimal | None = Field(None, gt=0)
+    currency: str | None = Field(None, min_length=3, max_length=3)
+
+
+class ContractTariffResponse(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    contract_id: UUID
+    known_route_id: UUID
+    rate_basis: str
+    unit_price: Decimal
+    currency: str
+    created_at: datetime
+    updated_at: datetime
+

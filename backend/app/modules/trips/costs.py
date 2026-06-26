@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
 from app.modules.audit.service import record_audit_log
-from app.modules.contracts.models import Contract
 from app.modules.trips.models import Trip, TripCost
+from app.modules.trips.revenue import auto_calculate_revenue
 
 
 def _decimal(value: float | Decimal | None) -> Decimal:
@@ -122,11 +122,7 @@ async def reconcile_trip_costs(db: AsyncSession, tenant_id: UUID, trip: Trip) ->
             )
         )
     )
-    revenue = Decimal("0.00")
-    if trip.contract_id:
-        contract = await db.get(Contract, trip.contract_id)
-        if contract and contract.tenant_id == tenant_id:
-            revenue = _decimal(contract.default_unit_price)
+    revenue = await auto_calculate_revenue(db, tenant_id, trip)
     fuel_total = _decimal(trip.total_fuel_cost)
     trip.total_expense_cost = expense_total
     trip.total_transport_cost = fuel_total + expense_total

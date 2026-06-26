@@ -25,3 +25,9 @@ async def invalidate_tenant_caches(redis: Redis | None, tenant_id: UUID) -> None
         return
     pattern = f"tenant:{tenant_id}:*"
     await invalidate_keys(redis, pattern)
+    # Also invalidate the limits cache key
+    try:
+        await redis.delete(f"tenant:limits:{tenant_id}")
+    except Exception as e:
+        logger.error(f"Failed to delete limits cache key for tenant {tenant_id}: {e}")
+

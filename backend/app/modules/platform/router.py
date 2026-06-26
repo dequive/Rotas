@@ -8,10 +8,11 @@ at the scope check before any route logic runs.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.cache import invalidate_tenant_caches
 from app.core.rbac import (
     PLATFORM_ADMIN,
     PLATFORM_BILLING,
@@ -54,33 +55,45 @@ async def get_tenant(
 
 @router.patch("/tenants/{tenant_id}/plan")
 async def change_plan(
+    request: Request,
     tenant_id: UUID,
     payload: PlatformChangePlanRequest,
     principal: Annotated[Principal, Depends(require_platform_role(PLATFORM_ADMIN))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
     """Change tenant subscription plan. platform_admin only."""
-    return await service.change_tenant_plan(db, tenant_id, payload.plan, actor=principal)
+    res = await service.change_tenant_plan(db, tenant_id, payload.plan, actor=principal)
+    redis = getattr(request.app.state, "redis", None)
+    await invalidate_tenant_caches(redis, tenant_id)
+    return res
 
 
 @router.post("/tenants/{tenant_id}/suspend")
 async def suspend_tenant(
+    request: Request,
     tenant_id: UUID,
     principal: Annotated[Principal, Depends(require_platform_role(PLATFORM_ADMIN))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
     """Suspend a tenant (set is_active=False). platform_admin only."""
-    return await service.suspend_tenant(db, tenant_id, actor=principal)
+    res = await service.suspend_tenant(db, tenant_id, actor=principal)
+    redis = getattr(request.app.state, "redis", None)
+    await invalidate_tenant_caches(redis, tenant_id)
+    return res
 
 
 @router.post("/tenants/{tenant_id}/reactivate")
 async def reactivate_tenant(
+    request: Request,
     tenant_id: UUID,
     principal: Annotated[Principal, Depends(require_platform_role(PLATFORM_ADMIN))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
     """Reactivate a suspended tenant (set is_active=True). platform_admin only."""
-    return await service.reactivate_tenant(db, tenant_id, actor=principal)
+    res = await service.reactivate_tenant(db, tenant_id, actor=principal)
+    redis = getattr(request.app.state, "redis", None)
+    await invalidate_tenant_caches(redis, tenant_id)
+    return res
 
 
 @router.get("/tenants/{tenant_id}/audit-log")

@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed Milestone v2.0 Archival
-last_updated: "2026-06-26T17:30:00Z"
+stopped_at: Swapped Phase 19 & Phase 20 based on user request
+last_updated: "2026-06-26T17:45:00Z"
 last_activity: 2026-06-26
 progress:
   total_phases: 16
@@ -15,7 +15,7 @@ progress:
 
 # ROTAS — Project State
 
-_Last updated: 2026-06-26 — Milestone v2.0 has been successfully archived. Active milestone is now v3.0 (TMS Enterprise Completo). All core v3.0 phases (14 out of 16) are complete, with 475 tests passing successfully._
+_Last updated: 2026-06-26 — Phase 19 is now Route Optimization (planned), and Phase 20 is Customs/Border Crossing (deferred to the end of milestone v3.0). All core v3.0 phases (14 out of 16) are complete, with 475 tests passing successfully._
 
 ---
 
@@ -24,7 +24,7 @@ _Last updated: 2026-06-26 — Milestone v2.0 has been successfully archived. Act
 Milestone: v3.0 — TMS Enterprise Completo
 Status: In Progress
 Last activity: 2026-06-26
-Stopped at: Completed Milestone v2.0 Archival
+Stopped at: Swapped Phase 19 & Phase 20
 
 ### Completed v3.0 Phases
 
@@ -45,8 +45,8 @@ Stopped at: Completed Milestone v2.0 Archival
 
 ### Planned v3.0 Phases
 
-- [ ] **Phase 19** — Customs/Border Crossing (0/TBD plans complete)
-- [ ] **Phase 20** — Route Optimization (0/TBD plans complete)
+- [ ] **Phase 19** — Route Optimization (0/TBD plans complete)
+- [ ] **Phase 20** — Customs/Border Crossing (0/TBD plans complete)
 
 ---
 

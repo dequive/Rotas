@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class VehicleCreate(BaseModel):
@@ -50,6 +50,13 @@ class VehicleDocumentRenewalRequest(BaseModel):
     reference: str | None = None
     notes: str | None = None
 
+    @field_validator("valid_until")
+    @classmethod
+    def validate_expiry_date(cls, v: date) -> date:
+        if v < date.today():
+            raise ValueError("Document expiration date must be today or in the future.")
+        return v
+
 
 # ── Insurance schemas ─────────────────────────────────────────────────────────
 
@@ -62,6 +69,13 @@ class VehicleInsuranceCreate(BaseModel):
     valid_from: date
     valid_until: date
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def validate_insurance_dates(self) -> "VehicleInsuranceCreate":
+        if self.valid_until <= self.valid_from:
+            raise ValueError("Insurance valid_until must be after valid_from.")
+        return self
+
 
 
 class VehicleInsuranceRead(BaseModel):

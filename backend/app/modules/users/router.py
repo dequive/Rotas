@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import ADMIN_USERS, require_permission
@@ -33,7 +34,7 @@ async def create_user(
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
     redis = getattr(request.app.state, "redis", None)
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -45,22 +46,28 @@ async def create_user(
             db, principal.tenant_id, payload, actor_id=principal.user_id, redis=redis
         ),
     )
+    await invalidate_tenant_caches(redis, principal.tenant_id)
+    return res
 
 
 @router.patch("/{user_id}")
 async def patch_user(
+    request: Request,
     user_id: UUID,
     payload: schemas.UserPatch,
     principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.patch_user(
+    res = await service.patch_user(
         db,
         principal.tenant_id,
         user_id,
         payload,
         actor_id=principal.user_id,
     )
+    redis = getattr(request.app.state, "redis", None)
+    await invalidate_tenant_caches(redis, principal.tenant_id)
+    return res
 
 
 # ── Tenant role endpoints ─────────────────────────────────────────────────────
@@ -97,15 +104,19 @@ async def update_tenant_role_endpoint(
 
 @router.post("/{user_id}/role")
 async def assign_custom_role_endpoint(
+    request: Request,
     user_id: UUID,
     payload: schemas.AssignCustomRoleRequest,
     principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
-    return await service.assign_custom_role_to_user(
+    res = await service.assign_custom_role_to_user(
         db,
         principal.tenant_id,
         user_id,
         custom_role_id=payload.custom_role_id,
         actor_id=principal.user_id,
     )
+    redis = getattr(request.app.state, "redis", None)
+    await invalidate_tenant_caches(redis, principal.tenant_id)
+    return res

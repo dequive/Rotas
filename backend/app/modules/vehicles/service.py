@@ -160,6 +160,9 @@ async def create_vehicle(
 
     await _check_vehicle_limit(db, tenant, redis)
 
+    if payload.plate:
+        payload.plate = payload.plate.strip().upper()
+
     if await _plate_exists(db, tenant_id, payload.plate):
         raise ApiError(
             "vehicle_plate_conflict",
@@ -672,6 +675,9 @@ async def patch_vehicle(
     *,
     actor_id: UUID | None = None,
 ) -> dict:
+    if payload.plate:
+        payload.plate = payload.plate.strip().upper()
+
     vehicle = await _require_vehicle(db, tenant_id, vehicle_id)
     old_values = serialize_vehicle(vehicle)
     values = payload.model_dump(exclude_unset=True)

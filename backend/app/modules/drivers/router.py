@@ -1,3 +1,4 @@
+import json
 from typing import Annotated
 from uuid import UUID
 
@@ -5,6 +6,7 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import DRIVERS_PAIRING, DRIVERS_READ, DRIVERS_WRITE, require_permission
@@ -16,6 +18,7 @@ router = APIRouter(prefix="/drivers", tags=["drivers"])
 
 @router.get("")
 async def list_drivers(
+    request: Request,
     principal: Annotated[Principal, Depends(require_permission(DRIVERS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
@@ -23,7 +26,14 @@ async def list_drivers(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    return await service.list_drivers(
+    redis = getattr(request.app.state, "redis", None)
+    cache_key = f"tenant:{principal.tenant_id}:drivers:status={status}:search={search}:limit={limit}:offset={offset}"
+    if redis is not None:
+        cached = await redis.get(cache_key)
+        if cached:
+            return json.loads(cached)
+
+    result = await service.list_drivers(
         db,
         principal.tenant_id,
         status_filter=status,
@@ -31,6 +41,10 @@ async def list_drivers(
         limit=limit,
         offset=offset,
     )
+
+    if redis is not None:
+        await redis.setex(cache_key, 120, json.dumps(result, default=str))
+    return result
 
 
 @router.post("")
@@ -42,7 +56,7 @@ async def create_driver(
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
     redis = getattr(request.app.state, "redis", None)
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -58,6 +72,8 @@ async def create_driver(
             redis=redis,
         ),
     )
+    await invalidate_tenant_caches(redis, principal.tenant_id)
+    return res
 
 
 @router.get("/{driver_id}")
@@ -118,28 +134,32 @@ async def get_driver_availability(
 
 @router.patch("/{driver_id}")
 async def patch_driver(
+    request: Request,
     driver_id: UUID,
     payload: schemas.DriverPatch,
     principal: Annotated[Principal, Depends(require_permission(DRIVERS_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.patch_driver(
+    res = await service.patch_driver(
         db,
         principal.tenant_id,
         driver_id,
         payload,
         actor_id=principal.user_id,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/{driver_id}/pairing-code")
 async def issue_driver_pairing_code(
+    request: Request,
     driver_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(DRIVERS_PAIRING))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -154,10 +174,13 @@ async def issue_driver_pairing_code(
             actor_id=principal.user_id,
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/{driver_id}/documents/{document_type}/renew")
 async def renew_driver_document(
+    request: Request,
     driver_id: UUID,
     document_type: str,
     payload: schemas.DriverDocumentRenewalRequest,
@@ -165,7 +188,7 @@ async def renew_driver_document(
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -182,3 +205,5 @@ async def renew_driver_document(
             actor_id=principal.user_id,
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res

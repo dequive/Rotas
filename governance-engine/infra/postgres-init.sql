@@ -6,8 +6,8 @@ CREATE ROLE governance_app WITH LOGIN PASSWORD 'governance';
 -- Grant connect on the governance database (created by POSTGRES_DB env var)
 GRANT CONNECT ON DATABASE governance TO governance_app;
 
--- Schema usage
-GRANT USAGE ON SCHEMA public TO governance_app;
+-- Schema usage and creation privileges (needed in pg15+)
+GRANT USAGE, CREATE ON SCHEMA public TO governance_app;
 
 -- Future tables: grant access automatically
 ALTER DEFAULT PRIVILEGES IN SCHEMA public

@@ -5,6 +5,7 @@ from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBea
 
 from core.auth import Principal, validate_api_key
 from core.database import AsyncSessionLocal, get_raw_session, set_rls_tenant
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 _bearer = HTTPBearer(auto_error=False)
@@ -29,6 +30,10 @@ async def get_session(
     set_rls_tenant(principal.tenant_id)
     try:
         async with AsyncSessionLocal() as session:
+            await session.execute(
+                text("SELECT set_config('app.tenant_id', :tid, false)"),
+                {"tid": str(principal.tenant_id)},
+            )
             yield session
     finally:
         set_rls_tenant(None)

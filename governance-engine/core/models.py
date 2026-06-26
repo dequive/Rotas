@@ -20,6 +20,15 @@ from sqlalchemy.orm import Mapped, mapped_column
 from core.database import Base
 
 
+class TenantSequence(Base):
+    __tablename__ = "tenant_sequences"
+
+    tenant_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    prefix: Mapped[str] = mapped_column(String(10), primary_key=True)
+    year: Mapped[int] = mapped_column(Integer, primary_key=True)
+    last_seq: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+
+
 # ── Taxonomy ──────────────────────────────────────────────────────────────────
 
 class TaxonomyDomain(Base):

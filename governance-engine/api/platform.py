@@ -16,7 +16,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from slowapi.util import get_remote_address
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.rotas.service import RotasAdapterService
@@ -54,7 +54,7 @@ class OnboardResponse(BaseModel):
 @router.post("/onboard", status_code=201, response_model=OnboardResponse)
 @limiter.limit("5/minute", key_func=get_remote_address)
 async def onboard_tenant(
-    _request: Request,
+    request: Request,
     body: OnboardRequest,
     db: AsyncSession = Depends(get_raw_session),
 ) -> OnboardResponse:
@@ -95,6 +95,10 @@ async def onboard_tenant(
         set_rls_tenant(str(tenant.id))
         try:
             async with AsyncSessionLocal() as rls_db:
+                await rls_db.execute(
+                    text("SELECT set_config('app.tenant_id', :tid, false)"),
+                    {"tid": str(tenant.id)},
+                )
                 svc = RotasAdapterService(rls_db, tenant.id, api_key.id)
                 bootstrap_result = await svc.bootstrap()
         finally:

@@ -50,14 +50,16 @@ END;
 $$;
 """
 
-_IMMUTABILITY_TRIGGER_SQL = """
+_IMMUTABILITY_FUNCTION_SQL = """
 CREATE OR REPLACE FUNCTION raise_immutable_record()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
     RAISE EXCEPTION 'This table is append-only — reverse with a new record.';
 END;
 $$;
+"""
 
+_TRIGGER_OCCURRENCES_SQL = """
 DO $$ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_trigger WHERE tgname = 'trg_occurrences_immutable'
@@ -67,7 +69,9 @@ DO $$ BEGIN
             FOR EACH ROW EXECUTE FUNCTION raise_immutable_record();
     END IF;
 END $$;
+"""
 
+_TRIGGER_TRANSITIONS_SQL = """
 DO $$ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_trigger WHERE tgname = 'trg_case_transitions_immutable'
@@ -91,8 +95,16 @@ async def create_tables(engine):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await conn.execute(text(_NEXT_HUMAN_ID_SQL))
-        await conn.execute(text(_IMMUTABILITY_TRIGGER_SQL))
+        await conn.execute(text(_IMMUTABILITY_FUNCTION_SQL))
+        await conn.execute(text(_TRIGGER_OCCURRENCES_SQL))
+        await conn.execute(text(_TRIGGER_TRANSITIONS_SQL))
     yield
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def dispose_engine_between_tests(engine):
+    yield
+    await engine.dispose()
 
 
 @pytest.fixture
@@ -106,6 +118,10 @@ async def db(engine, tenant_id) -> AsyncIterator[AsyncSession]:
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     set_rls_tenant(str(tenant_id))
     async with session_factory() as session:
+        await session.execute(
+            text("SELECT set_config('app.tenant_id', :tid, false)"),
+            {"tid": str(tenant_id)},
+        )
         yield session
     set_rls_tenant(None)
 

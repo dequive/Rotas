@@ -1,3 +1,4 @@
+import json
 from typing import Annotated
 from uuid import UUID
 
@@ -5,6 +6,7 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
@@ -16,6 +18,7 @@ router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 
 @router.get("")
 async def list_vehicles(
+    request: Request,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
@@ -23,7 +26,14 @@ async def list_vehicles(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    return await service.list_vehicles(
+    redis = getattr(request.app.state, "redis", None)
+    cache_key = f"tenant:{principal.tenant_id}:vehicles:status={status}:search={search}:limit={limit}:offset={offset}"
+    if redis is not None:
+        cached = await redis.get(cache_key)
+        if cached:
+            return json.loads(cached)
+
+    result = await service.list_vehicles(
         db,
         principal.tenant_id,
         status_filter=status,
@@ -31,6 +41,10 @@ async def list_vehicles(
         limit=limit,
         offset=offset,
     )
+
+    if redis is not None:
+        await redis.setex(cache_key, 120, json.dumps(result, default=str))
+    return result
 
 
 @router.post("")
@@ -42,7 +56,7 @@ async def create_vehicle(
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
     redis = getattr(request.app.state, "redis", None)
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -58,6 +72,8 @@ async def create_vehicle(
             redis=redis,
         ),
     )
+    await invalidate_tenant_caches(redis, principal.tenant_id)
+    return res
 
 
 @router.get("/{vehicle_id}")
@@ -132,18 +148,21 @@ async def get_vehicle_availability(
 
 @router.patch("/{vehicle_id}")
 async def patch_vehicle(
+    request: Request,
     vehicle_id: UUID,
     payload: schemas.VehiclePatch,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.patch_vehicle(
+    res = await service.patch_vehicle(
         db,
         principal.tenant_id,
         vehicle_id,
         payload,
         actor_id=principal.user_id,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.get("/{vehicle_id}/qr-code")
@@ -157,6 +176,7 @@ async def get_vehicle_qr_code(
 
 @router.post("/{vehicle_id}/documents/{document_type}/renew")
 async def renew_vehicle_document(
+    request: Request,
     vehicle_id: UUID,
     document_type: str,
     payload: schemas.VehicleDocumentRenewalRequest,
@@ -164,7 +184,7 @@ async def renew_vehicle_document(
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -181,6 +201,8 @@ async def renew_vehicle_document(
             actor_id=principal.user_id,
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 # ── INS-01: Insurance policy routes ──────────────────────────────────────────
@@ -201,14 +223,17 @@ async def list_vehicle_insurances(
 
 @router.post("/{vehicle_id}/insurance", status_code=201)
 async def create_vehicle_insurance(
+    request: Request,
     vehicle_id: UUID,
     payload: schemas.VehicleInsuranceCreate,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await insurance_service.create_insurance(
+    res = await insurance_service.create_insurance(
         db, principal.tenant_id, vehicle_id, payload, actor_id=principal.user_id
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.get("/{vehicle_id}/insurance/{insurance_id}")
@@ -225,19 +250,23 @@ async def get_vehicle_insurance(
 
 @router.patch("/{vehicle_id}/insurance/{insurance_id}")
 async def update_vehicle_insurance(
+    request: Request,
     vehicle_id: UUID,
     insurance_id: UUID,
     payload: schemas.VehicleInsuranceCreate,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await insurance_service.update_insurance(
+    res = await insurance_service.update_insurance(
         db, principal.tenant_id, vehicle_id, insurance_id, payload, actor_id=principal.user_id
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.delete("/{vehicle_id}/insurance/{insurance_id}", status_code=204)
 async def delete_vehicle_insurance(
+    request: Request,
     vehicle_id: UUID,
     insurance_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
@@ -246,6 +275,7 @@ async def delete_vehicle_insurance(
     await insurance_service.delete_insurance(
         db, principal.tenant_id, vehicle_id, insurance_id, actor_id=principal.user_id
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
 
 
 # ── INS-01: Insurance claims routes ──────────────────────────────────────────
@@ -267,19 +297,23 @@ async def list_insurance_claims(
 
 @router.post("/{vehicle_id}/insurance/{insurance_id}/claims", status_code=201)
 async def create_insurance_claim(
+    request: Request,
     vehicle_id: UUID,
     insurance_id: UUID,
     payload: schemas.InsuranceClaimCreate,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await insurance_service.create_claim(
+    res = await insurance_service.create_claim(
         db, principal.tenant_id, vehicle_id, insurance_id, payload, actor_id=principal.user_id
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.patch("/{vehicle_id}/insurance/{insurance_id}/claims/{claim_id}/status")
 async def update_claim_status(
+    request: Request,
     vehicle_id: UUID,
     insurance_id: UUID,
     claim_id: UUID,
@@ -287,7 +321,7 @@ async def update_claim_status(
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await insurance_service.update_claim_status(
+    res = await insurance_service.update_claim_status(
         db,
         principal.tenant_id,
         vehicle_id,
@@ -296,3 +330,5 @@ async def update_claim_status(
         payload,
         actor_id=principal.user_id,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res

@@ -35,16 +35,6 @@ def set_rls_tenant(tenant_id: str | None) -> None:
     _rls_tenant.set(tenant_id)
 
 
-@event.listens_for(AsyncSession.sync_session_class, "after_begin")
-def _inject_rls_tenant(session, transaction, connection):  # type: ignore[no-untyped-def]
-    tid = _rls_tenant.get()
-    if tid is not None:
-        connection.execute(
-            text("SELECT set_config('app.tenant_id', :tid, true)"),
-            {"tid": tid},
-        )
-
-
 async def get_raw_session() -> AsyncIterator[AsyncSession]:
     """Session without RLS — for auth lookups before principal is known."""
     set_rls_tenant(None)

@@ -1,5 +1,6 @@
 """Analytics router — RPT-01 (KPIs), RPT-02 (document expiry), ANA-02/03 (exports)."""
 
+import json
 import uuid as _uuid
 from datetime import datetime
 from typing import Annotated
@@ -21,6 +22,7 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 @router.get("/kpis")
 async def get_kpis(
+    request: Request,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     period_start: Annotated[datetime, Query(description="Period start (ISO 8601)")],
@@ -29,7 +31,18 @@ async def get_kpis(
     driver_id: Annotated[UUID | None, Query()] = None,
 ) -> dict:
     """RPT-01: Fleet KPI aggregations for the authenticated tenant."""
-    return await service.get_fleet_kpis(
+    redis = getattr(request.app.state, "redis", None)
+    cache_key = (
+        f"tenant:{principal.tenant_id}:analytics:kpis"
+        f":start={period_start.isoformat()}:end={period_end.isoformat()}"
+        f":vehicle={vehicle_id}:driver={driver_id}"
+    )
+    if redis is not None:
+        cached = await redis.get(cache_key)
+        if cached:
+            return json.loads(cached)
+
+    result = await service.get_fleet_kpis(
         db,
         principal.tenant_id,
         period_start=period_start,
@@ -37,6 +50,10 @@ async def get_kpis(
         vehicle_id=vehicle_id,
         driver_id=driver_id,
     )
+
+    if redis is not None:
+        await redis.setex(cache_key, 60, json.dumps(result, default=str))
+    return result
 
 
 @router.get("/document-expiry")

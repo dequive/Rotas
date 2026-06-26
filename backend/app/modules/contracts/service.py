@@ -280,19 +280,21 @@ def serialize_contract_tariff(tariff: ContractTariff) -> dict:
     }
 
 
-async def list_contract_tariffs(
-    db: AsyncSession, tenant_id: UUID, contract_id: UUID
-) -> list[dict]:
+async def list_contract_tariffs(db: AsyncSession, tenant_id: UUID, contract_id: UUID) -> list[dict]:
     # Verify contract exists and belongs to the tenant
     contract = await db.get(Contract, contract_id)
     if not contract or contract.tenant_id != tenant_id:
         raise ApiError("contract_not_found", "Contract not found.", status_code=404)
 
-    query = select(ContractTariff).where(
-        ContractTariff.tenant_id == tenant_id,
-        ContractTariff.contract_id == contract_id,
-    ).order_by(ContractTariff.created_at.desc())
-    
+    query = (
+        select(ContractTariff)
+        .where(
+            ContractTariff.tenant_id == tenant_id,
+            ContractTariff.contract_id == contract_id,
+        )
+        .order_by(ContractTariff.created_at.desc())
+    )
+
     result = await db.execute(query)
     return [serialize_contract_tariff(t) for t in result.scalars()]
 
@@ -312,6 +314,7 @@ async def create_contract_tariff(
 
     # Verify known route exists and belongs to the tenant
     from app.modules.trips.models import KnownRoute
+
     known_route = await db.get(KnownRoute, payload.known_route_id)
     if not known_route or known_route.tenant_id != tenant_id:
         raise ApiError("known_route_not_found", "Known route not found.", status_code=404)
@@ -406,7 +409,7 @@ async def delete_contract_tariff(
 
     old_values = serialize_contract_tariff(tariff)
     await db.delete(tariff)
-    
+
     await record_audit_log(
         db,
         tenant_id=tenant_id,

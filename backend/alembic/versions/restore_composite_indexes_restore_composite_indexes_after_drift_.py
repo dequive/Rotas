@@ -12,8 +12,8 @@ Requires AUTOCOMMIT / transaction_per_migration=False (configured in env.py).
 
 from alembic import op
 
-revision: str = 'restore_composite_indexes'
-down_revision: str | None = 'tp_merge_wave2'
+revision: str = "restore_composite_indexes"
+down_revision: str | None = "tp_merge_wave2"
 branch_labels = None
 depends_on = None
 

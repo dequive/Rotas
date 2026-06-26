@@ -34,8 +34,9 @@ Backfill strategy:
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision: str = "f6a7b8c9d0e1"
 down_revision: str | None = "e5f6a7b8c9d0"
@@ -49,7 +50,8 @@ def upgrade() -> None:
     # Step 1 + 2: INSERT one client per (tenant_id, normalized name) using DISTINCT ON.
     # Uses client_nuit from contracts when populated; placeholder '000000000' otherwise.
     # ON CONFLICT DO NOTHING ensures idempotent re-runs.
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         INSERT INTO clients (id, tenant_id, trading_name, nuit, payment_terms_days, is_active, created_at, updated_at)
         SELECT DISTINCT ON (tenant_id, lower(trim(client_name)))
             gen_random_uuid(),
@@ -69,20 +71,24 @@ def upgrade() -> None:
         FROM contracts
         WHERE client_name IS NOT NULL AND client_name != ''
         ON CONFLICT (tenant_id, nuit) DO NOTHING
-    """))
+    """)
+    )
 
     # Step 3: UPDATE contracts.client_id by matching normalized trading_name
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         UPDATE contracts c
         SET client_id = cl.id
         FROM clients cl
         WHERE c.tenant_id = cl.tenant_id
           AND lower(trim(c.client_name)) = lower(trim(cl.trading_name))
           AND c.client_id IS NULL
-    """))
+    """)
+    )
 
     # Step 4: UPDATE billing_documents.client_id + due_date from their linked contract
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         UPDATE billing_documents bd
         SET client_id = c.client_id,
             due_date = CASE
@@ -99,17 +105,20 @@ def upgrade() -> None:
         WHERE bd.contract_id = c.id
           AND bd.client_id IS NULL
           AND c.client_id IS NOT NULL
-    """))
+    """)
+    )
 
     # Step 5: billing_documents without a matched contract — match by client_name directly
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         UPDATE billing_documents bd
         SET client_id = cl.id
         FROM clients cl
         WHERE bd.tenant_id = cl.tenant_id
           AND lower(trim(bd.client_name)) = lower(trim(cl.trading_name))
           AND bd.client_id IS NULL
-    """))
+    """)
+    )
 
 
 def downgrade() -> None:

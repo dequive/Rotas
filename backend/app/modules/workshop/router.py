@@ -276,9 +276,7 @@ async def download_spare_part_movement_pdf(
     )
 
     prof_row = await db.scalar(
-        select(TenantDocumentProfile).where(
-            TenantDocumentProfile.tenant_id == principal.tenant_id
-        )
+        select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == principal.tenant_id)
     )
     profile = (
         {
@@ -587,9 +585,7 @@ async def download_work_order_pdf(
     tasks = list(tasks_row.scalars().all())
 
     prof_row = await db.execute(
-        select(TenantDocumentProfile).where(
-            TenantDocumentProfile.tenant_id == principal.tenant_id
-        )
+        select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == principal.tenant_id)
     )
     prof_obj = prof_row.scalar_one_or_none()
     profile = (
@@ -620,7 +616,5 @@ async def download_work_order_pdf(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": f"attachment; filename=ordem-servico-{work_order_id}.pdf"
-        },
+        headers={"Content-Disposition": f"attachment; filename=ordem-servico-{work_order_id}.pdf"},
     )

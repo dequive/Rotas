@@ -81,9 +81,7 @@ class InsuranceClaim(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
     vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"), index=True)
-    insurance_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("vehicle_insurances.id"), index=True
-    )
+    insurance_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicle_insurances.id"), index=True)
     incident_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("trip_incidents.id"), nullable=True, index=True
     )

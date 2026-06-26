@@ -219,8 +219,7 @@ async def test_sm01_mark_paid_transitions_issued_to_paid(async_client, auth_head
 
 @pytest.mark.asyncio
 async def test_sm01_mark_paid_on_draft_returns_409(async_client, auth_headers, db, tenant_id):
-    """Must-have 3: PATCH mark-paid on a draft document returns HTTP 409 invalid_state_transition.
-    """
+    """Must-have 3: PATCH mark-paid on a draft document returns HTTP 409 invalid_state_transition."""
     contract = await _make_contract(db, tenant_id)
     doc = await _make_draft_billing_doc(db, tenant_id, contract)
 

@@ -1,10 +1,9 @@
 import uuid
-import pytest
 from decimal import Decimal
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.contracts.models import Contract, ContractTariff
+import pytest
+
+from app.modules.contracts.models import Contract
 from app.modules.trips.models import KnownRoute
 
 
@@ -96,7 +95,9 @@ async def test_contract_tariff_crud(async_client, auth_headers, sample_contract,
 
 
 @pytest.mark.asyncio
-async def test_contract_tariff_rbac_write_denied(async_client, viewer_headers, sample_contract, sample_route):
+async def test_contract_tariff_rbac_write_denied(
+    async_client, viewer_headers, sample_contract, sample_route
+):
     # viewer only has BILLING_READ, not BILLING_WRITE
     payload = {
         "known_route_id": str(sample_route.id),
@@ -113,12 +114,15 @@ async def test_contract_tariff_rbac_write_denied(async_client, viewer_headers, s
 
 
 @pytest.mark.asyncio
-async def test_contract_tariff_multi_tenant_isolation(async_client, auth_headers, sample_contract, sample_route, db):
+async def test_contract_tariff_multi_tenant_isolation(
+    async_client, auth_headers, sample_contract, sample_route, db
+):
     # Create another tenant and its auth headers
+    import jwt
+
+    from app.config import get_settings
     from app.modules.tenants.models import Tenant
     from app.modules.users.models import User
-    import jwt
-    from app.config import get_settings
 
     settings = get_settings()
     other_tenant = Tenant(name="Tenant B", slug=f"tenant-b-{uuid.uuid4().hex[:6]}")

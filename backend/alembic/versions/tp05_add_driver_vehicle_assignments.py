@@ -5,9 +5,10 @@ Revises: tp01b
 Create Date: 2026-06-19
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+
+from alembic import op
 
 revision = "tp05"
 down_revision = "tp01b"
@@ -87,15 +88,9 @@ def upgrade() -> None:
     )
 
     # v2.0 RLS rules — mandatory for tenant_id tables
-    op.execute(
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON driver_vehicle_assignments TO rotas_app"
-    )
-    op.execute(
-        "ALTER TABLE driver_vehicle_assignments ENABLE ROW LEVEL SECURITY"
-    )
-    op.execute(
-        "ALTER TABLE driver_vehicle_assignments FORCE ROW LEVEL SECURITY"
-    )
+    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON driver_vehicle_assignments TO rotas_app")
+    op.execute("ALTER TABLE driver_vehicle_assignments ENABLE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE driver_vehicle_assignments FORCE ROW LEVEL SECURITY")
     op.execute(
         """CREATE POLICY tenant_isolation ON driver_vehicle_assignments
            USING (tenant_id::text = current_setting('app.tenant_id', true))"""
@@ -103,9 +98,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
-        "DROP POLICY IF EXISTS tenant_isolation ON driver_vehicle_assignments"
-    )
+    op.execute("DROP POLICY IF EXISTS tenant_isolation ON driver_vehicle_assignments")
     op.drop_index("ix_dva_vehicle", table_name="driver_vehicle_assignments")
     op.drop_index("ix_dva_driver", table_name="driver_vehicle_assignments")
     op.drop_index("ix_dva_tenant", table_name="driver_vehicle_assignments")

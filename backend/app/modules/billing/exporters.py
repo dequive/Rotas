@@ -210,10 +210,12 @@ def _render_pdf(
         pdf.multi_cell(LEFT_W, 4, issuer_address, align="L")
 
     contact_parts = [
-        p for p in [
+        p
+        for p in [
             getattr(document, "issuer_phone", None),
             getattr(document, "issuer_email", None),
-        ] if p
+        ]
+        if p
     ]
     if not contact_parts and issuer_contact:
         contact_parts = [issuer_contact]
@@ -237,8 +239,12 @@ def _render_pdf(
     pdf.set_font("DejaVu", "B", 9)
     pdf.set_text_color(*_INK)
     pdf.cell(
-        RIGHT_W - 6, 5, (document.client_name or "—")[:38],
-        align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT,
+        RIGHT_W - 6,
+        5,
+        (document.client_name or "—")[:38],
+        align="L",
+        new_x=XPos.LMARGIN,
+        new_y=YPos.NEXT,
     )
 
     client_nuit = getattr(document, "client_nuit", None)
@@ -247,8 +253,12 @@ def _render_pdf(
         pdf.set_font("DejaVu", "", 8)
         pdf.set_text_color(*_MUTED)
         pdf.cell(
-            RIGHT_W - 6, 4, f"NUIT: {client_nuit}",
-            align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT,
+            RIGHT_W - 6,
+            4,
+            f"NUIT: {client_nuit}",
+            align="L",
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
         )
 
     contract_ref = getattr(document, "contract_reference", None)
@@ -257,8 +267,12 @@ def _render_pdf(
         pdf.set_font("DejaVu", "", 8)
         pdf.set_text_color(*_MUTED)
         pdf.cell(
-            RIGHT_W - 6, 4, f"Contrato: {contract_ref[:28]}",
-            align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT,
+            RIGHT_W - 6,
+            4,
+            f"Contrato: {contract_ref[:28]}",
+            align="L",
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
         )
 
     pdf.set_y(max(issuer_bottom, header_y + box_h) + 3)
@@ -401,8 +415,13 @@ def _render_pdf(
     pdf.set_text_color(*_WHITE)
     pdf.set_fill_color(*_NAV)
     pdf.cell(
-        RIGHT_TOT, 6, "Valores do Documento", fill=True, align="C",
-        new_x=XPos.LMARGIN, new_y=YPos.NEXT,
+        RIGHT_TOT,
+        6,
+        "Valores do Documento",
+        fill=True,
+        align="C",
+        new_x=XPos.LMARGIN,
+        new_y=YPos.NEXT,
     )
 
     lw = RIGHT_TOT * 0.64

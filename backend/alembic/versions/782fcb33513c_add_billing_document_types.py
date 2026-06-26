@@ -7,9 +7,11 @@ Create Date: 2026-06-19
 FDOC-01: Add document_type, parent_document_id, due_date, client_nuit
 to billing_documents for fiscal document type discrimination and AR tracking.
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "782fcb33513c"

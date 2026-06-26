@@ -1,4 +1,5 @@
 """GPS ingestion service — webhook processing, HMAC auth, position storage."""
+
 from __future__ import annotations
 
 import hashlib
@@ -66,23 +67,21 @@ def normalize_position(raw: dict[str, Any]) -> dict[str, Any]:
     Supports Teltonika FMB (lat/lon/speed/angle) and Coban GT06 (latitude/longitude/speed/course).
     Falls back to direct field access if neither matches.
     """
-    lat = (
-        raw.get("lat") or raw.get("latitude") or raw.get("Lat") or raw.get("LAT")
-    )
+    lat = raw.get("lat") or raw.get("latitude") or raw.get("Lat") or raw.get("LAT")
     lon = (
         raw.get("lon") or raw.get("lng") or raw.get("longitude") or raw.get("Lon") or raw.get("LON")
     )
-    speed = (
-        raw.get("speed") or raw.get("Speed") or raw.get("spd")
-    )
-    heading = (
-        raw.get("angle") or raw.get("heading") or raw.get("course") or raw.get("Heading")
-    )
+    speed = raw.get("speed") or raw.get("Speed") or raw.get("spd")
+    heading = raw.get("angle") or raw.get("heading") or raw.get("course") or raw.get("Heading")
     accuracy = raw.get("accuracy") or raw.get("hdop")
     ts = raw.get("timestamp") or raw.get("recorded_at") or raw.get("time") or raw.get("dt")
 
     if lat is None or lon is None:
-        raise ApiError("invalid_position", "Payload missing lat/lon fields", status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise ApiError(
+            "invalid_position",
+            "Payload missing lat/lon fields",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
 
     recorded_at: datetime
     if isinstance(ts, (int, float)):
@@ -122,10 +121,18 @@ async def ingest_position(
         select(GpsDevice).where(GpsDevice.imei == imei, GpsDevice.is_active == True)  # noqa: E712
     )
     if not device:
-        raise ApiError("device_not_found", "IMEI not registered or inactive", status_code=status.HTTP_401_UNAUTHORIZED)
+        raise ApiError(
+            "device_not_found",
+            "IMEI not registered or inactive",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
 
     if not verify_device_signature(device.device_secret, body, signature):
-        raise ApiError("invalid_signature", "X-Device-Signature mismatch", status_code=status.HTTP_401_UNAUTHORIZED)
+        raise ApiError(
+            "invalid_signature",
+            "X-Device-Signature mismatch",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
 
     norm = normalize_position(raw_payload)
 
@@ -140,26 +147,30 @@ async def ingest_position(
     db.add(pos)
 
     # Upsert vehicle_last_position
-    stmt = pg_insert(VehicleLastPosition).values(
-        vehicle_id=device.vehicle_id,
-        tenant_id=device.tenant_id,
-        lat=norm["lat"],
-        lon=norm["lon"],
-        speed_kmh=norm["speed_kmh"],
-        heading_deg=norm["heading_deg"],
-        recorded_at=norm["recorded_at"],
-        updated_at=datetime.now(UTC),
-    ).on_conflict_do_update(
-        index_elements=["vehicle_id"],
-        set_={
-            "lat": norm["lat"],
-            "lon": norm["lon"],
-            "speed_kmh": norm["speed_kmh"],
-            "heading_deg": norm["heading_deg"],
-            "recorded_at": norm["recorded_at"],
-            "updated_at": datetime.now(UTC),
-        },
-        where=text("vehicle_last_position.recorded_at < EXCLUDED.recorded_at"),
+    stmt = (
+        pg_insert(VehicleLastPosition)
+        .values(
+            vehicle_id=device.vehicle_id,
+            tenant_id=device.tenant_id,
+            lat=norm["lat"],
+            lon=norm["lon"],
+            speed_kmh=norm["speed_kmh"],
+            heading_deg=norm["heading_deg"],
+            recorded_at=norm["recorded_at"],
+            updated_at=datetime.now(UTC),
+        )
+        .on_conflict_do_update(
+            index_elements=["vehicle_id"],
+            set_={
+                "lat": norm["lat"],
+                "lon": norm["lon"],
+                "speed_kmh": norm["speed_kmh"],
+                "heading_deg": norm["heading_deg"],
+                "recorded_at": norm["recorded_at"],
+                "updated_at": datetime.now(UTC),
+            },
+            where=text("vehicle_last_position.recorded_at < EXCLUDED.recorded_at"),
+        )
     )
     await db.execute(stmt)
     await db.commit()
@@ -182,7 +193,9 @@ async def register_device(
 ) -> dict[str, Any]:
     existing = await db.scalar(select(GpsDevice).where(GpsDevice.imei == imei))
     if existing:
-        raise ApiError("imei_exists", "IMEI already registered", status_code=status.HTTP_409_CONFLICT)
+        raise ApiError(
+            "imei_exists", "IMEI already registered", status_code=status.HTTP_409_CONFLICT
+        )
 
     device = GpsDevice(
         tenant_id=tenant_id,
@@ -202,9 +215,7 @@ async def get_trip_eta(db: AsyncSession, tenant_id: UUID, trip_id: UUID) -> dict
     """Haversine ETA from last position to trip destination via known_routes."""
     from app.modules.trips.models import Trip
 
-    trip = await db.scalar(
-        select(Trip).where(Trip.id == trip_id, Trip.tenant_id == tenant_id)
-    )
+    trip = await db.scalar(select(Trip).where(Trip.id == trip_id, Trip.tenant_id == tenant_id))
     if not trip:
         raise ApiError("trip_not_found", "Trip not found", status_code=status.HTTP_404_NOT_FOUND)
 
@@ -216,7 +227,11 @@ async def get_trip_eta(db: AsyncSession, tenant_id: UUID, trip_id: UUID) -> dict
 
     staleness = (datetime.now(UTC) - pos.recorded_at).total_seconds()
     if staleness > 300 or (pos.speed_kmh is None or pos.speed_kmh == 0):
-        return {"eta_minutes": None, "reason": "stale_or_stopped", "last_position": serialize_last_position(pos)}
+        return {
+            "eta_minutes": None,
+            "reason": "stale_or_stopped",
+            "last_position": serialize_last_position(pos),
+        }
 
     # Destination from known_routes or trip.destination string
     from app.modules.trips.models import KnownRoute
@@ -232,7 +247,11 @@ async def get_trip_eta(db: AsyncSession, tenant_id: UUID, trip_id: UUID) -> dict
     if route and route.destination_lat and route.destination_lon:
         dest_lat, dest_lon = float(route.destination_lat), float(route.destination_lon)
     else:
-        return {"eta_minutes": None, "reason": "destination_coordinates_unknown", "last_position": serialize_last_position(pos)}
+        return {
+            "eta_minutes": None,
+            "reason": "destination_coordinates_unknown",
+            "last_position": serialize_last_position(pos),
+        }
 
     # Haversine distance in km
     R = 6371.0

@@ -124,17 +124,21 @@ async def list_insurances(
 ) -> list[dict]:
     await _require_vehicle(db, tenant_id, vehicle_id)
     rows = (
-        await db.execute(
-            select(VehicleInsurance)
-            .where(
-                VehicleInsurance.tenant_id == tenant_id,
-                VehicleInsurance.vehicle_id == vehicle_id,
+        (
+            await db.execute(
+                select(VehicleInsurance)
+                .where(
+                    VehicleInsurance.tenant_id == tenant_id,
+                    VehicleInsurance.vehicle_id == vehicle_id,
+                )
+                .order_by(VehicleInsurance.valid_until.desc())
+                .limit(limit)
+                .offset(offset)
             )
-            .order_by(VehicleInsurance.valid_until.desc())
-            .limit(limit)
-            .offset(offset)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return [_serialize_insurance(r) for r in rows]
 
 
@@ -254,17 +258,21 @@ async def list_claims(
     await _require_vehicle(db, tenant_id, vehicle_id)
     await _require_insurance(db, tenant_id, insurance_id)
     rows = (
-        await db.execute(
-            select(InsuranceClaim)
-            .where(
-                InsuranceClaim.tenant_id == tenant_id,
-                InsuranceClaim.insurance_id == insurance_id,
+        (
+            await db.execute(
+                select(InsuranceClaim)
+                .where(
+                    InsuranceClaim.tenant_id == tenant_id,
+                    InsuranceClaim.insurance_id == insurance_id,
+                )
+                .order_by(InsuranceClaim.claim_date.desc())
+                .limit(limit)
+                .offset(offset)
             )
-            .order_by(InsuranceClaim.claim_date.desc())
-            .limit(limit)
-            .offset(offset)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return [_serialize_claim(r) for r in rows]
 
 

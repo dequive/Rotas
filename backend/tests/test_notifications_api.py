@@ -145,9 +145,7 @@ async def test_list_notifications_filter_by_status():
     payload = _email_payload()
 
     async with _client() as c:
-        enq = await c.post(
-            "/api/v1/notifications/email", json=payload, headers=_auth(tenant.id)
-        )
+        enq = await c.post("/api/v1/notifications/email", json=payload, headers=_auth(tenant.id))
         assert enq.status_code == 201
 
         resp = await c.get(

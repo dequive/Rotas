@@ -116,8 +116,7 @@ def render_supplier_statement(
     pdf.set_xy(box_x, y0 + 3)
     pdf.set_font("DejaVu", "B", 10)
     pdf.set_text_color(*_INK)
-    pdf.cell(BOX_W, 5, "EXTRATO DE CONTA CORRENTE", align="C",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(BOX_W, 5, "EXTRATO DE CONTA CORRENTE", align="C", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     sep_y = y0 + 12
     pdf.set_draw_color(*_LINE)
@@ -128,8 +127,7 @@ def render_supplier_statement(
     pdf.set_xy(box_x, sep_y + 2)
     pdf.set_font("DejaVu", "B", 7)
     pdf.set_text_color(*_MUTED)
-    pdf.cell(BOX_W, 4, "FORNECEDOR / PRESTADOR", align="C",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(BOX_W, 4, "FORNECEDOR / PRESTADOR", align="C", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     pdf.set_xy(box_x, pdf.get_y())
     pdf.set_font("DejaVu", "B", 9)
@@ -192,34 +190,39 @@ def render_supplier_statement(
         ob_val = Decimal(str(opening_balance or "0"))
         pdf.set_font("DejaVu", "B", 8)
         pdf.set_text_color(*_MUTED)
-        pdf.cell(PW * 0.65, 5, "SALDO DE ABERTURA DO PERÍODO", align="L",
-                 new_x=XPos.RIGHT, new_y=YPos.TOP)
+        pdf.cell(
+            PW * 0.65,
+            5,
+            "SALDO DE ABERTURA DO PERÍODO",
+            align="L",
+            new_x=XPos.RIGHT,
+            new_y=YPos.TOP,
+        )
         color = _GREEN if ob_val >= 0 else _RED
         pdf.set_text_color(*color)
-        pdf.cell(PW * 0.35, 5, _money(ob_val), align="R",
-                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(PW * 0.35, 5, _money(ob_val), align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.set_text_color(*_INK)
         pdf.ln(2)
 
     # ── Table header (bottom border only, no fill) ────────────────────────────
     COL = {
-        "data":    (0,    PW * 0.09),
-        "tipo":    (0.09, PW * 0.08),
-        "origem":  (0.17, PW * 0.13),
-        "desc":    (0.30, PW * 0.30),
-        "debito":  (0.60, PW * 0.13),
+        "data": (0, PW * 0.09),
+        "tipo": (0.09, PW * 0.08),
+        "origem": (0.17, PW * 0.13),
+        "desc": (0.30, PW * 0.30),
+        "debito": (0.60, PW * 0.13),
         "credito": (0.73, PW * 0.13),
-        "saldo":   (0.86, PW * 0.14),
+        "saldo": (0.86, PW * 0.14),
     }
 
     headers = [
-        ("data",    "DATA",      "L"),
-        ("tipo",    "TIPO",      "L"),
-        ("origem",  "ORIGEM",    "L"),
-        ("desc",    "DESCRIÇÃO", "L"),
-        ("debito",  "DÉBITO",    "R"),
-        ("credito", "CRÉDITO",   "R"),
-        ("saldo",   "SALDO",     "R"),
+        ("data", "DATA", "L"),
+        ("tipo", "TIPO", "L"),
+        ("origem", "ORIGEM", "L"),
+        ("desc", "DESCRIÇÃO", "L"),
+        ("debito", "DÉBITO", "R"),
+        ("credito", "CRÉDITO", "R"),
+        ("saldo", "SALDO", "R"),
     ]
     header_y = pdf.get_y()
     row_h = 6.0
@@ -264,13 +267,13 @@ def render_supplier_statement(
         src = entry.get("source_type", "")
         origem = _SOURCE_LABELS.get(src, src)[:30]
         cells = [
-            ("data",    entry.get("entry_date", "")[:10], "L"),
-            ("tipo",    "Crédito" if etype == "credit" else "Débito", "L"),
-            ("origem",  origem, "L"),
-            ("desc",    entry.get("description") or "—", "L"),
-            ("debito",  debit_str, "R"),
+            ("data", entry.get("entry_date", "")[:10], "L"),
+            ("tipo", "Crédito" if etype == "credit" else "Débito", "L"),
+            ("origem", origem, "L"),
+            ("desc", entry.get("description") or "—", "L"),
+            ("debito", debit_str, "R"),
             ("credito", credit_str, "R"),
-            ("saldo",   f"{running:,.2f}", "R"),
+            ("saldo", f"{running:,.2f}", "R"),
         ]
 
         pdf.set_font("DejaVu", "", 7.5)
@@ -302,7 +305,7 @@ def render_supplier_statement(
     pdf.set_y(totals_y + 2)
 
     totals = [
-        (0.0,  PW * 0.60, "TOTAIS DO PERÍODO", "L"),
+        (0.0, PW * 0.60, "TOTAIS DO PERÍODO", "L"),
         (0.60, PW * 0.13, f"- {td:,.2f}", "R"),
         (0.73, PW * 0.13, f"+ {tc:,.2f}", "R"),
         (0.86, PW * 0.14, f"{bal:,.2f}", "R"),

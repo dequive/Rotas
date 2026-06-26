@@ -30,4 +30,3 @@ async def validate_active_tenant(tenant_id: UUID) -> Tenant:
                 status_code=status.HTTP_403_FORBIDDEN,
             )
         return tenant
-

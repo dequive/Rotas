@@ -20,9 +20,7 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 async def _get_profile(db: AsyncSession, tenant_id: object) -> dict | None:
     row = await db.scalar(
-        select(TenantDocumentProfile).where(
-            TenantDocumentProfile.tenant_id == tenant_id
-        )
+        select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == tenant_id)
     )
     if not row:
         return None

@@ -190,9 +190,7 @@ async def download_purchase_order_pdf(
         raise HTTPException(status_code=404, detail="Purchase order not found")
 
     prof_row = await db.scalar(
-        select(TenantDocumentProfile).where(
-            TenantDocumentProfile.tenant_id == principal.tenant_id
-        )
+        select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == principal.tenant_id)
     )
     profile = (
         {

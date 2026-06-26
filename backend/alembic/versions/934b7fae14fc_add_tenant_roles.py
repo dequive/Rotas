@@ -8,8 +8,9 @@ Create Date: 2026-06-20 11:25:31.415993+02:00
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "934b7fae14fc"
 down_revision: str | None = "tp09"
@@ -120,9 +121,7 @@ def upgrade() -> None:
     op.drop_index(
         op.f("ix_operational_documents_tenant_subject"), table_name="operational_documents"
     )
-    op.drop_index(
-        op.f("ix_operational_documents_verification"), table_name="operational_documents"
-    )
+    op.drop_index(op.f("ix_operational_documents_verification"), table_name="operational_documents")
     op.create_index(
         op.f("ix_operational_documents_tenant_id"),
         "operational_documents",
@@ -165,9 +164,7 @@ def downgrade() -> None:
     op.drop_table("tenant_roles")
 
     # ── Restore renamed indexes ───────────────────────────────────────────────
-    op.drop_index(
-        op.f("ix_work_orders_service_provider_third_party_id"), table_name="work_orders"
-    )
+    op.drop_index(op.f("ix_work_orders_service_provider_third_party_id"), table_name="work_orders")
     op.create_index(
         op.f("ix_work_orders_service_provider_tp"),
         "work_orders",
@@ -180,9 +177,7 @@ def downgrade() -> None:
         ["tenant_id", "vehicle_id", "status"],
         unique=False,
     )
-    op.create_index(
-        op.f("ix_trips_tenant_status"), "trips", ["tenant_id", "status"], unique=False
-    )
+    op.create_index(op.f("ix_trips_tenant_status"), "trips", ["tenant_id", "status"], unique=False)
     op.create_index(
         op.f("ix_trips_tenant_driver_status"),
         "trips",
@@ -291,9 +286,7 @@ def downgrade() -> None:
         ["tenant_id", "status", "next_due_km"],
         unique=False,
     )
-    op.drop_index(
-        op.f("ix_fuel_purchases_supplier_third_party_id"), table_name="fuel_purchases"
-    )
+    op.drop_index(op.f("ix_fuel_purchases_supplier_third_party_id"), table_name="fuel_purchases")
     op.create_index(
         op.f("ix_fuel_purchases_supplier_tp"),
         "fuel_purchases",

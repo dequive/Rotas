@@ -16,6 +16,7 @@ Create Date: 2026-06-18
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "c7d8e9f0a1b2"
@@ -139,8 +140,6 @@ def downgrade() -> None:
     op.drop_column("vehicles", "max_payload_kg")
     op.drop_column("billing_items", "iva_amount")
     op.drop_column("billing_items", "iva_rate")
-    op.drop_constraint(
-        "uq_billing_docs_tenant_invoice_number", "billing_documents", type_="unique"
-    )
+    op.drop_constraint("uq_billing_docs_tenant_invoice_number", "billing_documents", type_="unique")
     op.drop_column("billing_documents", "iva_rate")
     op.drop_column("billing_documents", "invoice_number")

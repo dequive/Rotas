@@ -14,8 +14,9 @@ Idempotency: only processes clients WHERE third_party_id IS NULL.
 Processed rows leave the working set automatically, so no OFFSET counter is needed.
 """
 
-from alembic import op
 from sqlalchemy import text
+
+from alembic import op
 
 revision = "gt02"
 down_revision = "gt01"

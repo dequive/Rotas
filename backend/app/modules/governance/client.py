@@ -6,6 +6,7 @@ Design:
 - Non-blocking: falhas do motor de governança nunca afectam operações ROTAS.
 - Idempotente: idempotency_key derivada de IDs ROTAS — re-envios são seguros.
 """
+
 from __future__ import annotations
 
 import logging
@@ -96,15 +97,17 @@ async def sync_entity(
         async with httpx.AsyncClient(timeout=_TIMEOUT) as http:
             await http.post(
                 f"{s.governance_engine_url}/api/v1/adapters/rotas/entities/sync",
-                json={"entities": [{
-                    "entity_type": entity_type,
-                    "external_id": external_id,
-                    "display_name": display_name,
-                    "attributes": attributes,
-                }]},
+                json={
+                    "entities": [
+                        {
+                            "entity_type": entity_type,
+                            "external_id": external_id,
+                            "display_name": display_name,
+                            "attributes": attributes,
+                        }
+                    ]
+                },
                 headers={"X-API-Key": s.governance_api_key},
             )
     except Exception as exc:
-        logger.error(
-            "governance: entity sync failed for %s/%s: %s", entity_type, external_id, exc
-        )
+        logger.error("governance: entity sync failed for %s/%s: %s", entity_type, external_id, exc)

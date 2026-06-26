@@ -366,12 +366,11 @@ async def get_supplier_statement_pdf(
     tp = tp_row.scalar_one_or_none()
     if tp is None:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Third party not found")
 
     prof_row = await db.execute(
-        select(TenantDocumentProfile).where(
-            TenantDocumentProfile.tenant_id == principal.tenant_id
-        )
+        select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == principal.tenant_id)
     )
     prof_obj = prof_row.scalar_one_or_none()
     profile = (

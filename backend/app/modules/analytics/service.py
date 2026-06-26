@@ -362,8 +362,9 @@ async def get_contract_margins(
     # Fetch invoice numbers for the documents
     inv_rows = (
         await db.execute(
-            select(BillingDocument.id, BillingDocument.invoice_number)
-            .where(BillingDocument.id.in_(doc_ids))
+            select(BillingDocument.id, BillingDocument.invoice_number).where(
+                BillingDocument.id.in_(doc_ids)
+            )
         )
     ).all()
     invoice_by_doc = {str(r.id): r.invoice_number for r in inv_rows}
@@ -395,9 +396,9 @@ async def get_delivery_nps(
     row = (
         await db.execute(
             select(
-                func.sum(
-                    cast(DeliveryProof.cargo_condition == "intact", Integer)
-                ).label("intact_count"),
+                func.sum(cast(DeliveryProof.cargo_condition == "intact", Integer)).label(
+                    "intact_count"
+                ),
                 func.count(DeliveryProof.id).label("total"),
             ).where(
                 DeliveryProof.tenant_id == tenant_id,
@@ -459,11 +460,9 @@ async def get_analytics_dashboard(
     period_end: datetime,
     redis=None,
 ) -> dict:
-    """ANA-01: Compose all KPI blocks into a single dashboard payload with Redis cache (TTL 300s).
-    """
+    """ANA-01: Compose all KPI blocks into a single dashboard payload with Redis cache (TTL 300s)."""
     cache_key = (
-        f"analytics:dashboard:{tenant_id}"
-        f":{period_start.isoformat()}:{period_end.isoformat()}"
+        f"analytics:dashboard:{tenant_id}:{period_start.isoformat()}:{period_end.isoformat()}"
     )
     if redis is not None:
         cached = await redis.get(cache_key)

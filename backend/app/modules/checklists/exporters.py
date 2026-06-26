@@ -165,8 +165,9 @@ def render_checklist_report(
     pdf.set_fill_color(*_NAV)
     pdf.set_text_color(*_WHITE)
     pdf.set_font("DejaVu", "B", 7)
-    pdf.cell(RIGHT_W, 6, "VIATURA / MOTORISTA", fill=True, align="C",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(
+        RIGHT_W, 6, "VIATURA / MOTORISTA", fill=True, align="C", new_x=XPos.LMARGIN, new_y=YPos.NEXT
+    )
 
     for lbl, val in [
         ("Matrícula", plate),
@@ -282,12 +283,12 @@ def render_checklist_report(
     # ── Observations ─────────────────────────────────────────────────────────
     obs_rows = [
         (
+            (item.get("label") if isinstance(item, dict) else getattr(item, "label", "—")) or "—",
             (
-                item.get("label") if isinstance(item, dict) else getattr(item, "label", "—")
-            ) or "—",
-            (responses.get(
-                str(item.get("id") if isinstance(item, dict) else getattr(item, "id", "")), {}
-            )).get("notes", ""),
+                responses.get(
+                    str(item.get("id") if isinstance(item, dict) else getattr(item, "id", "")), {}
+                )
+            ).get("notes", ""),
         )
         for item in items
         if responses.get(

@@ -49,9 +49,22 @@ def _date_pt(iso: str | None) -> str:
         return "—"
     try:
         from datetime import date
+
         d = date.fromisoformat(str(iso)[:10])
-        months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-                  "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+        months = [
+            "Jan",
+            "Fev",
+            "Mar",
+            "Abr",
+            "Mai",
+            "Jun",
+            "Jul",
+            "Ago",
+            "Set",
+            "Out",
+            "Nov",
+            "Dez",
+        ]
         return f"{d.day:02d} {months[d.month - 1]}. {d.year}"
     except Exception:
         return str(iso)[:10]
@@ -225,11 +238,23 @@ def _items_table(
 
     # Column widths — adjust if no price column
     if show_price:
-        C = {"num": 8, "desc": PW - 8 - 22 - 16 - 24 - 28, "qty": 22, "unit": 16,
-             "price": 24, "total": 28}
+        C = {
+            "num": 8,
+            "desc": PW - 8 - 22 - 16 - 24 - 28,
+            "qty": 22,
+            "unit": 16,
+            "price": 24,
+            "total": 28,
+        }
     else:
-        C = {"num": 8, "desc": PW - 8 - 22 - 16 - 0 - 0, "qty": 22, "unit": 16,
-             "price": 0, "total": 0}
+        C = {
+            "num": 8,
+            "desc": PW - 8 - 22 - 16 - 0 - 0,
+            "qty": 22,
+            "unit": 16,
+            "price": 0,
+            "total": 0,
+        }
 
     hdrs = ["#", "DESCRIÇÃO", "QTD.", "UNID."]
     cols = [C["num"], C["desc"], C["qty"], C["unit"]]
@@ -286,8 +311,15 @@ def _items_table(
         for i, (w, val, aln) in enumerate(zip(cols, vals, alns, strict=False)):
             pdf.set_xy(x0, row_y)
             if i == 1:  # description — multi-cell
-                pdf.multi_cell(w, 4.5, val, border="B", align="L",  # type: ignore[arg-type]
-                                new_x=XPos.RIGHT, new_y=YPos.TOP)
+                pdf.multi_cell(
+                    w,
+                    4.5,
+                    val,
+                    border="B",
+                    align="L",  # type: ignore[arg-type]
+                    new_x=XPos.RIGHT,
+                    new_y=YPos.TOP,
+                )
             else:
                 pdf.set_xy(x0, row_y)
                 pdf.cell(w, rh, val, border="B", align=aln)  # type: ignore[arg-type]
@@ -334,8 +366,7 @@ def _totals_block(
     pdf.set_font("DejaVu", "B", 9)
     pdf.set_text_color(*_INK)
     pdf.cell(label_w, 6, f"TOTAL {currency}", align="R")
-    pdf.cell(val_w, 6, f"{_fmt(total)}", align="R",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(val_w, 6, f"{_fmt(total)}", align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
 
 def _notes_block(pdf: _CleanPDF, notes: str, extra_kv: list[tuple[str, str]] | None = None) -> None:
@@ -386,8 +417,7 @@ def _signature_block(
     pdf.set_text_color(*_MUTED)
     pdf.cell(col, 4, left_label, align="C")
     pdf.set_x(LM + col + 16)
-    pdf.cell(col, 4, right_label, align="C",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(col, 4, right_label, align="C", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     pdf.set_xy(LM, pdf.get_y() + 1)
     pdf.set_font("DejaVu", "", 7)

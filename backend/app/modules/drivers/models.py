@@ -130,7 +130,9 @@ class TripSettlement(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
     trip_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("trips.id"))
-    advance_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("driver_advances.id"), nullable=True)
+    advance_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("driver_advances.id"), nullable=True
+    )
     total_costs_mzn: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     advance_amount_mzn: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0"))
     balance_mzn: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)

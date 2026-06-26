@@ -1,23 +1,18 @@
 # ROTAS
 
-## Current Milestone: v2.0 — Gestão de Clientes e Contas a Receber
+## Current Milestone: v3.0 — TMS Enterprise Completo
 
-**Goal:** Transformar o módulo de faturação num sistema financeiro completo — com cadastro de clientes como entidade de primeira classe, contratos vinculados por client_id, faturação multi-contrato, registo de pagamentos e extrato com aging.
+**Goal:** Completar as funcionalidades e integrações avançadas do sistema de gestão de transportes (TMS), incluindo gestão aduaneira e otimização de rotas para rotas transfronteiriças.
 
 **Target features:**
-
-- Cadastro de clientes (NUIT, morada, condições de pagamento, limite de crédito, contactos)
-- Migração de `contract.client_name` (str livre) → `contract.client_id` (FK) sem perda de dados
-- Faturas por cliente agregando múltiplos contratos no mesmo período
-- Registo de pagamentos (total, parcial, adiantamento) com data valor
-- Extrato do cliente com saldo e aging (30/60/90 dias)
-- Dashboard de contas a receber com KPIs financeiros (total emitido, recebido, em aberto)
+- Gestão aduaneira e desalfandegamento em rotas transfronteiriças (BORDER-01 a BORDER-03)
+- Otimização de rotas com múltiplos waypoints e alertas de desvio de rota (OPTIM-01 a OPTIM-03)
 
 ---
 
 ## What This Is
 
-ROTAS é uma plataforma SaaS multitenant de gestão de frotas construída para operadores logísticos e transportadoras em Moçambique. O produto resolve dois problemas simultaneamente: motoristas precisam registar viagens, abastecimentos e descargas sem conexão confiável (PWA offline-first com Dexie.js + sync idempotente), e gestores precisam de controlo financeiro rigoroso sobre custos de frota, cumprimento documental e faturamento de clientes. É distribuído como SaaS público — qualquer transportadora moçambicana pode contratar e começar a operar.
+ROTAS é uma plataforma SaaS multitenant de gestão de frotas construída para operadores logísticos e transportadoras em Moçambique. O produto resolve dois problemas simultaneamente: motoristas precisam registar viagens, abastecimentos e descargas sem conexão confiável (PWA offline-first com Dexie.js + sync independente), e gestores precisam de controle financeiro rigoroso sobre custos de frota, cumprimento documental e faturamento de clientes. É distribuído como SaaS público — qualquer transportadora moçambicana pode contratar e começar a operar.
 
 ## Core Value
 
@@ -48,101 +43,44 @@ _Funcionalidades já implementadas e operacionais no codebase:_
 - ✓ **Railway Deployment**: `railway.toml` com Gunicorn 4-worker + `alembic upgrade head` pre-deploy; pool tuning para produção — Validated in Phase 4
 - ✓ **PostgreSQL RLS**: Políticas de isolamento em 47 tabelas; `SET LOCAL app.tenant_id` por transacção; role `rotas_admin` com BYPASSRLS — Validated in Phase 4
 - ✓ **UI Panels**: `DriverScorecardPanel` em `/motoristas` e `MaintenanceImminentPanel` no Control Tower — Validated in Phase 4
+- ✓ **Cadastro de Clientes (CLI-01 a CLI-05)** — v2.0
+- ✓ **Pagamentos (PAY-01 a PAY-03)** — v2.0
+- ✓ **Contas a Receber (AR-01 a AR-04)** — v2.0
+- ✓ **Infraestrutura de Produção (INFRA-01 a INFRA-03)** — v2.0
+- ✓ **Row Level Security (RLS-01 a RLS-03)** — v2.0
+- ✓ **Notificações (NOTIF-01 a NOTIF-03)** — v2.0
+- ✓ **Onboarding Self-Service (ONBRD-01)** — v2.0
+- ✓ **Despacho Financeiro (DESP-01 a DESP-05)** — v2.0
+- ✓ **Integração GPS (GPS-01 a GPS-03)** — v2.0
+- ✓ **Portal do Cliente / Rastreamento (TRK-01 a TRK-02)** — v2.0
 
 ### Active
 
-_Gaps críticos e funcionalidades pendentes de completar para MVP em produção:_
+_Gaps críticos e funcionalidades pendentes de completar para o atual milestone:_
 
-**Segurança e Infraestrutura — Validado em Phase 1 (2026-06-05):**
-
-- ✓ **SEC-01**: JWT_SECRET_KEY `SecretStr` obrigatório — app recusa startup sem a env var
-- ✓ **SEC-02**: CORSMiddleware sempre anexado; produção bloqueia CORS_ORIGINS vazio/wildcard
-- ✓ **SEC-03**: slowapi 10 req/min em `/auth/login`, `/auth/refresh`, `/driver-auth/pair`
-- ✓ **SEC-04**: Cookies com `Secure=true` e `SameSite=lax` quando `NODE_ENV=production`
-- ✓ **SEC-05**: CVE-2025-61152 fechado — python-jose substituído por PyJWT>=2.8; alg=none rejeitado
-- ✓ **AUTH-03**: `/sync/batch` e `/sync/bootstrap` exigem `get_driver_principal` (scope=driver_app)
-- ✓ **DEPLOY-01**: ENVIRONMENT, DATABASE_URL, JWT_SECRET_KEY obrigatórios no startup
-- ✓ **DEPLOY-02/03/04**: railway.toml + vercel.json + NEXT_PUBLIC_API_URL prontos; deploy em produção adiado
-
-**PWA Offline-First (Critical):**
-- [ ] **PWA-01**: Service Worker implementado com Workbox — cache de assets, fila de sync em background
-- [ ] **PWA-02**: Web App Manifest — ícones, display standalone, tema, instalabilidade
-- [ ] **PWA-03**: Estratégia de cache network-first para API calls e offline fallback para assets
-
-**Autenticação Completa:**
-- [ ] **AUTH-01**: Token refresh no manager Next.js — renovação silenciosa antes de 401 com access token de 15 min
-- [ ] **AUTH-02**: Token refresh no driver PWA — renovação automática de token expirado
-- [ ] **AUTH-03**: Endpoint de sync (`/api/v1/sync/batch`) validado com `get_driver_principal` (não `get_current_principal`)
-- [ ] **AUTH-04**: Sync `update` implementado para todos os entity types (hoje só checklists)
-
-**Billing e Faturamento:**
-- [ ] **BILL-01**: Exportação de faturas em PDF com suporte a caracteres moçambicanos (UTF-8 correto, nomes com acentos)
-- [ ] **BILL-02**: Exportação de faturas em XLSX formatado
-- [ ] **BILL-03**: Validação de margem negativa com waiver de supervisor funcional end-to-end
-
-**Control Tower e Performance:**
-- [ ] **CT-01**: Queries do Control Tower otimizadas — substituir ~38 queries sequenciais por queries agregadas
-- [ ] **CT-02**: Redis utilizado para cache de KPIs do Control Tower (Redis já provisionado, não usado)
-- [ ] **CT-03**: Paginação nas filas do Control Tower (sem limit = risco de memory)
-
-**Deploy e Produção:**
-- [ ] **DEPLOY-01**: Variáveis de ambiente documentadas e validadas no startup (Pydantic Settings com `required=True`)
-- [ ] **DEPLOY-02**: Deploy do backend FastAPI no Railway ou Render com CI/CD
-- [ ] **DEPLOY-03**: Deploy do manager Next.js no Vercel
-- [ ] **DEPLOY-04**: Migrações Alembic executadas automaticamente no deploy
+- [ ] **BORDER-01/02/03**: Gestão aduaneira e desalfandegamento em viagens transfronteiriças.
+- [ ] **OPTIM-01/02/03**: Otimização de rotas com múltiplos waypoints e alertas de desvio.
 
 ### Out of Scope
 
-- **App nativa iOS/Android** — PWA cobre o caso de uso dos motoristas com custo zero de distribuição
-- **Tracking GPS em tempo real via servidor** — driver registra GPS no payload de sync; não é streaming
-- **Marketplace B2C** — produto é B2B SaaS para transportadoras, não para usuários finais
-- **Otimização de rotas por IA** — fora do escopo do MVP; foco é gestão operacional e conformidade
+- **App nativa iOS/Android** — PWA cobre o caso de uso; distribuição via app stores desnecessária
+- **GPS streaming via servidor TCP** — dispositivos configurados para HTTP POST; TCP socket não viável em Railway
+- **Marketplace B2C** — produto é B2B SaaS para transportadoras
 - **Integração com ERP de terceiros** — API própria cobre exportação; integrações são futuro
+- **SAFT-MZ / AT certification** — geração de documentos correcta; certificação formal é iniciativa legal separada
+- **Carbon/Emissions tracking** — cálculo de CO₂ é v4 (regulação Moçambique não exige ainda)
 
-## Context
-
-- **Mercado-alvo**: Moçambique — dispositivos Android de baixo custo, conectividade intermitente ou ausente fora de Maputo
-- **Compliance local**: INATTER (inspeção técnica de veículos), carta de condução válida, seguros e taxas de rádio — regras implementadas no `compliance_policy` JSONB do tenant
-- **Multitenant desde o início**: arquitetura suporta N transportadoras; objetivo é SaaS público
-- **Stack confirmada pelo codebase**: FastAPI 0.115 + Python 3.12 + SQLAlchemy 2.0 async + PostgreSQL 16 / Next.js 14 App Router + React 18 + Tailwind / Vite + Dexie.js 4
-- **Deploy target**: Vercel (manager) + Railway ou Render (backend FastAPI) — infra atual é Docker Compose local
-- **Codebase map**: `.planning/codebase/` — 7 documentos de análise gerados em 2026-06-04
-- **Gap crítico oculto**: PWA do motorista não tem Service Worker — core do "offline-first" está ausente apesar de toda a lógica de sync já existir no backend
-
-## Constraints
-
-- **Tech stack**: FastAPI + Next.js + Vite/React + PostgreSQL — não mudar stack base
-- **Compatibilidade**: Dexie.js 4 já em uso — manter schema IndexedDB compatível ao adicionar SW
-- **Dados financeiros**: Colunas de valor monetário precisam migrar de `float` para `Numeric(10,2)` sem perder dados históricos
-- **Caracteres locais**: Suporte a UTF-8 completo em todos os outputs (PDF, XLSX) — nomes moçambicanos com acentos e diacríticos
-- **Multitenant safety**: Toda query deve filtrar por `tenant_id` — nunca remover esse filtro em otimizações
+---
 
 ## Key Decisions
 
-| Decision | Rationale | Outcome |
-|----------|-----------|---------|
-| Monolito modular (FastAPI) sobre microserviços | Complexidade baixa para MVP, fácil de extrair depois | — Pending validação em produção |
-| IndexedDB + Dexie.js para offline (não SQLite WASM) | Suporte nativo no browser, sem WASM overhead | — Pending |
-| Tenant isolation na aplicação (não RLS no Postgres) | Mais simples de implementar; risco: bug pode vazar dados entre tenants | ⚠️ Revisitar para v2 com RLS como segunda camada |
-| Deploy Vercel + Railway/Render | Sem DevOps próprio para MVP; custo gerido por utilização | — Pending |
-| Workbox para Service Worker | Biblioteca padrão para PWA offline com estratégias de cache prontas | — Pending |
-
-## Evolution
-
-Este documento evolui nas transições de fase e marcos de milestone.
-
-**Após cada transição de fase** (via `/gsd:transition`):
-1. Requirements invalidados? → Mover para Out of Scope com motivo
-2. Requirements validados? → Mover para Validated com referência de fase
-3. Novos requirements emergiram? → Adicionar em Active
-4. Decisões a registar? → Adicionar em Key Decisions
-5. "What This Is" ainda preciso? → Atualizar se derivou
-
-**Após cada milestone** (via `/gsd:complete-milestone`):
-1. Revisão completa de todas as secções
-2. Core Value check — ainda a prioridade certa?
-3. Auditoria de Out of Scope — motivos ainda válidos?
-4. Atualizar Context com o estado atual
+| Decision | Phase | Rationale | Outcome |
+|----------|-------|-----------|---------|
+| Monolito modular (FastAPI) | Complexidade baixa para MVP, fácil de extrair depois | ✓ Good |
+| IndexedDB + Dexie.js para offline | Suporte nativo no browser, sem WASM overhead | ✓ Good |
+| Row Level Security (RLS) | Segunda camada de isolamento robusta no DB | ✓ Good |
+| Redis-Backed Rate Limiting | slowapi + Redis storage compartilha limites entre workers Gunicorn | ✓ Good |
+| Flutterwave Mozambique Fallback | Flutterwave MZN mobile money indisponível; fallback para transferência bancária manual | ✓ Good |
 
 ---
-*Last updated: 2026-06-06 — Phase 4 complete (production hardening: RLS, ARQ scheduler, scorecard API, composite indexes, Railway deploy)*
+*Last updated: 2026-06-26 after v2.0 milestone completion*

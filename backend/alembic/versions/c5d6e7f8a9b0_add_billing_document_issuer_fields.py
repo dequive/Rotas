@@ -5,8 +5,9 @@ Revises: a3b4c5d6e7f8
 Create Date: 2026-06-20
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "c5d6e7f8a9b0"
 down_revision = "a3b4c5d6e7f8"
@@ -20,9 +21,17 @@ def upgrade():
     op.add_column("billing_documents", sa.Column("issuer_email", sa.String(120), nullable=True))
     op.add_column("billing_documents", sa.Column("issuer_city", sa.String(80), nullable=True))
     op.add_column("billing_documents", sa.Column("issuer_bank_details", sa.Text(), nullable=True))
-    op.add_column("billing_documents", sa.Column("payment_conditions", sa.String(80), nullable=True))
-    op.add_column("billing_documents", sa.Column("commercial_discount", sa.Numeric(5, 4), nullable=True, server_default="0"))
-    op.add_column("billing_documents", sa.Column("financial_discount", sa.Numeric(5, 4), nullable=True, server_default="0"))
+    op.add_column(
+        "billing_documents", sa.Column("payment_conditions", sa.String(80), nullable=True)
+    )
+    op.add_column(
+        "billing_documents",
+        sa.Column("commercial_discount", sa.Numeric(5, 4), nullable=True, server_default="0"),
+    )
+    op.add_column(
+        "billing_documents",
+        sa.Column("financial_discount", sa.Numeric(5, 4), nullable=True, server_default="0"),
+    )
 
 
 def downgrade():

@@ -147,9 +147,13 @@ def _kv(pdf: _CleanPDF, label: str, value: str, w_label: float = 50) -> None:
 
 def _two_kv(
     pdf: _CleanPDF,
-    l_label: str, l_val: str,
-    r_label: str, r_val: str,
-    lw: float = 45, lv: float = 55, rw: float = 35,
+    l_label: str,
+    l_val: str,
+    r_label: str,
+    r_val: str,
+    lw: float = 45,
+    lv: float = 55,
+    rw: float = 35,
 ) -> None:
     pdf.set_font("DejaVu", "B", 8)
     pdf.set_text_color(*_MUTED)
@@ -275,24 +279,22 @@ def render_guia_remessa(
     _header_block(pdf, profile, "GUIA DE REMESSA", doc_num, issued)
 
     # ── Recipient block ───────────────────────────────────────────────────────
-    recipient = (
-        getattr(document, "recipient_name", None)
-        or extra.get("recipient_name", "")
-        or "—"
-    )
+    recipient = getattr(document, "recipient_name", None) or extra.get("recipient_name", "") or "—"
     recipient_nuit = (
-        getattr(document, "recipient_nuit", None)
-        or extra.get("recipient_nuit", "")
-        or "—"
+        getattr(document, "recipient_nuit", None) or extra.get("recipient_nuit", "") or "—"
     )
     dest_val = g("destination") or "—"
     valid_until = g("valid_until")[:10] if g("valid_until") else "—"
 
-    _entity_block(pdf, "Destinatário", [
-        ("Nome", str(recipient)),
-        ("Destino", dest_val),
-        ("NUIT", str(recipient_nuit)),
-    ])
+    _entity_block(
+        pdf,
+        "Destinatário",
+        [
+            ("Nome", str(recipient)),
+            ("Destino", dest_val),
+            ("NUIT", str(recipient_nuit)),
+        ],
+    )
 
     _kv(pdf, "Válido até", valid_until, w_label=28)
 
@@ -317,8 +319,9 @@ def render_guia_remessa(
     _section(pdf, "Percurso")
     _kv(pdf, "Origem", g("origin") or "—")
     _kv(pdf, "Destino", g("destination") or "—")
-    _two_kv(pdf, "Viatura", extra.get("vehicle_plate", "—"),
-            "Motorista", extra.get("driver_name", "—"))
+    _two_kv(
+        pdf, "Viatura", extra.get("vehicle_plate", "—"), "Motorista", extra.get("driver_name", "—")
+    )
 
     # ── Signature block ───────────────────────────────────────────────────────
     _section(pdf, "Assinaturas")
@@ -358,11 +361,15 @@ def render_carta_porte_internacional(
     # ── Expedidor / consignor block ───────────────────────────────────────────
     client_name = g("client_name") or "—"
     issuer_nuit = g("issuer") or "—"
-    _entity_block(pdf, "Expedidor / Consignor", [
-        ("Nome", client_name),
-        ("País Origem", "Moçambique / Mozambique"),
-        ("NUIT", issuer_nuit),
-    ])
+    _entity_block(
+        pdf,
+        "Expedidor / Consignor",
+        [
+            ("Nome", client_name),
+            ("País Origem", "Moçambique / Mozambique"),
+            ("NUIT", issuer_nuit),
+        ],
+    )
 
     # Rule below entity
     LM = pdf.l_margin
@@ -393,15 +400,19 @@ def render_carta_porte_internacional(
     _section(pdf, "Percurso / Route")
     _two_kv(
         pdf,
-        "Origem / Origin", g("origin") or "—",
-        "Destino / Destination", g("destination") or "—",
+        "Origem / Origin",
+        g("origin") or "—",
+        "Destino / Destination",
+        g("destination") or "—",
     )
     valid_from = g("valid_from")[:10] if g("valid_from") else "—"
     valid_until = g("valid_until")[:10] if g("valid_until") else "—"
     _two_kv(
         pdf,
-        "Válido De / From", valid_from,
-        "Válido Até / To", valid_until,
+        "Válido De / From",
+        valid_from,
+        "Válido Até / To",
+        valid_until,
     )
 
     # ── Cargo block ───────────────────────────────────────────────────────────
@@ -413,11 +424,13 @@ def render_carta_porte_internacional(
     pdf.set_font("DejaVu", "", 7.5)
     pdf.set_text_color(*_MUTED)
     pdf.multi_cell(
-        0, 4,
+        0,
+        4,
         "O expedidor declara que as informações fornecidas neste documento são verdadeiras e"
         " correctas. / The consignor declares that the information provided in this document"
         " is true and correct.",
-        new_x=XPos.LMARGIN, new_y=YPos.NEXT,
+        new_x=XPos.LMARGIN,
+        new_y=YPos.NEXT,
     )
     pdf.set_text_color(*_INK)
 

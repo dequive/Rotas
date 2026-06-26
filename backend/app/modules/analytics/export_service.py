@@ -1,4 +1,5 @@
 """ANA-02: Fuel consumption XLSX report generator."""
+
 from __future__ import annotations
 
 import calendar
@@ -47,15 +48,19 @@ async def generate_fuel_report_xlsx(
 
     # Query active vehicles for this tenant
     vehicles = (
-        await db.execute(
-            select(Vehicle)
-            .where(
-                Vehicle.tenant_id == tenant_id,
-                Vehicle.status == "active",
+        (
+            await db.execute(
+                select(Vehicle)
+                .where(
+                    Vehicle.tenant_id == tenant_id,
+                    Vehicle.status == "active",
+                )
+                .limit(500)
             )
-            .limit(500)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     # Fuel aggregates per vehicle for the month
     fuel_rows = (
@@ -64,11 +69,13 @@ async def generate_fuel_report_xlsx(
                 FuelLog.vehicle_id,
                 func.coalesce(func.sum(FuelLog.liters), 0).label("total_liters"),
                 func.coalesce(func.sum(FuelLog.total_cost), 0).label("total_cost"),
-            ).where(
+            )
+            .where(
                 FuelLog.tenant_id == tenant_id,
                 FuelLog.fuel_date >= ts_start,
                 FuelLog.fuel_date <= ts_end,
-            ).group_by(FuelLog.vehicle_id)
+            )
+            .group_by(FuelLog.vehicle_id)
         )
     ).all()
     fuel_map = {str(r.vehicle_id): r for r in fuel_rows}
@@ -79,14 +86,16 @@ async def generate_fuel_report_xlsx(
             select(
                 Trip.vehicle_id,
                 func.coalesce(func.sum(Trip.km_end - Trip.km_start), 0).label("total_km"),
-            ).where(
+            )
+            .where(
                 Trip.tenant_id == tenant_id,
                 Trip.status == "closed",
                 Trip.closed_at >= ts_start,
                 Trip.closed_at <= ts_end,
                 Trip.km_end.isnot(None),
                 Trip.km_start.isnot(None),
-            ).group_by(Trip.vehicle_id)
+            )
+            .group_by(Trip.vehicle_id)
         )
     ).all()
     km_map = {str(r.vehicle_id): float(r.total_km) for r in km_rows}
@@ -97,11 +106,13 @@ async def generate_fuel_report_xlsx(
             select(
                 func.extract("week", FuelLog.fuel_date).label("week_num"),
                 func.coalesce(func.sum(FuelLog.total_cost), 0).label("week_cost"),
-            ).where(
+            )
+            .where(
                 FuelLog.tenant_id == tenant_id,
                 FuelLog.fuel_date >= ts_start,
                 FuelLog.fuel_date <= ts_end,
-            ).group_by(func.extract("week", FuelLog.fuel_date))
+            )
+            .group_by(func.extract("week", FuelLog.fuel_date))
             .order_by(func.extract("week", FuelLog.fuel_date))
         )
     ).all()
@@ -169,4 +180,3 @@ async def generate_fuel_report_xlsx(
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()
-

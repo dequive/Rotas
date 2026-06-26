@@ -1,4 +1,5 @@
 """Tracking router — token management + public tracking endpoint."""
+
 from __future__ import annotations
 
 from uuid import UUID

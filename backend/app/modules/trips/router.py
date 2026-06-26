@@ -531,16 +531,12 @@ async def download_trip_report_pdf(
         driver = d_row.scalar_one_or_none()
 
     stops_row = await db.execute(
-        select(TripStop)
-        .where(TripStop.trip_id == trip_id)
-        .order_by(TripStop.stopped_at)
+        select(TripStop).where(TripStop.trip_id == trip_id).order_by(TripStop.stopped_at)
     )
     stops = list(stops_row.scalars().all())
 
     prof_row = await db.execute(
-        select(TenantDocumentProfile).where(
-            TenantDocumentProfile.tenant_id == principal.tenant_id
-        )
+        select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == principal.tenant_id)
     )
     prof_obj = prof_row.scalar_one_or_none()
     profile = (

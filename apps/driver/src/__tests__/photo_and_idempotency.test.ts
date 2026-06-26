@@ -82,7 +82,7 @@ describe("Photo Queue — upload offline e resolução de fileId", () => {
 
     // Apenas 1 chamada (sync/batch) — upload não necessário
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, options] = fetchMock.mock.calls[0];
+    const [url, options] = (fetchMock as any).mock.calls[0];
     expect(url).toContain("/api/v1/sync/batch");
     const body = JSON.parse(options.body);
     expect(body.operations[0].payload.receiptFileId).toBe("server-file-uuid-abc");
@@ -205,7 +205,7 @@ describe("Idempotência — chave única por operação", () => {
 
     await processSyncQueue("token-abc");
 
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const body = JSON.parse((fetchMock as any).mock.calls[0][1].body);
     expect(body.operations[0].idempotency_key).toBe(expectedKey);
   });
 });

@@ -1,4 +1,5 @@
 """GPS router — webhook ingestion, fleet map, device management, ETA."""
+
 from __future__ import annotations
 
 from uuid import UUID
@@ -7,8 +8,8 @@ from fastapi import APIRouter, Depends, Header, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_principal
-from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
 from app.core.deps import get_session
+from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
 from app.database import get_session_raw
 from app.modules.gps import service
 
@@ -28,7 +29,9 @@ async def gps_webhook(
         payload = await request.json()
     except Exception:
         return Response(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
-    return await service.ingest_position(db, imei=imei, signature=x_device_signature, body=body, raw_payload=payload)
+    return await service.ingest_position(
+        db, imei=imei, signature=x_device_signature, body=body, raw_payload=payload
+    )
 
 
 @router.get("/gps/vehicles/latest")

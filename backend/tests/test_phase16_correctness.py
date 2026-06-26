@@ -68,9 +68,11 @@ async def test_hos_hours_value_correct(db, tenant_id):
 
     driver = await _make_driver(db, tenant_id)
     vehicle = await _make_vehicle(db, tenant_id)
-    db.add(_completed_trip(
-        tenant_id=tenant_id, driver_id=driver.id, vehicle_id=vehicle.id, hours=3.0, offset=1.0
-    ))
+    db.add(
+        _completed_trip(
+            tenant_id=tenant_id, driver_id=driver.id, vehicle_id=vehicle.id, hours=3.0, offset=1.0
+        )
+    )
     await db.commit()
 
     result = await calculate_driving_hours(driver.id, tenant_id, db)
@@ -88,9 +90,11 @@ async def test_hos_violation_blocks_trip_create():
         tenant = await _make_tenant(db)
         driver = await _make_driver(db, tenant.id)
         vehicle = await _make_vehicle(db, tenant.id)
-        db.add(_completed_trip(
-            tenant_id=tenant.id, driver_id=driver.id, vehicle_id=vehicle.id, hours=9.5
-        ))
+        db.add(
+            _completed_trip(
+                tenant_id=tenant.id, driver_id=driver.id, vehicle_id=vehicle.id, hours=9.5
+            )
+        )
         await db.commit()
 
     async with AsyncSessionLocal() as db:

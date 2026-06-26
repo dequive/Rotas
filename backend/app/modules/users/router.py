@@ -92,9 +92,7 @@ async def update_tenant_role_endpoint(
     principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
-    return await service.update_tenant_role(
-        db, principal.tenant_id, role_id, payload
-    )
+    return await service.update_tenant_role(db, principal.tenant_id, role_id, payload)
 
 
 @router.post("/{user_id}/role")

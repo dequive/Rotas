@@ -19,9 +19,10 @@ v2.0 Migration Rules: RLS + GRANT co-located in this migration (MANDATORY per CL
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+
+from alembic import op
 
 revision: str = "a7b8c9d0e1f2"
 down_revision: str | None = "f6a7b8c9d0e1"

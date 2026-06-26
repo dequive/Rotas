@@ -313,9 +313,7 @@ async def test_create_client_duplicate_nuit_no_duplicate_third_party(
 
     # Verify no duplicate third_parties row was created
     result = await db.execute(
-        text(
-            "SELECT count(*) FROM third_parties WHERE tenant_id = :t AND nuit = '500111222'"
-        ),
+        text("SELECT count(*) FROM third_parties WHERE tenant_id = :t AND nuit = '500111222'"),
         {"t": str(tenant_id)},
     )
     assert result.scalar() == 1, "find-or-create must not create duplicate third_parties rows"
@@ -404,9 +402,7 @@ async def test_create_client_cross_tenant_same_nuit_separate_third_parties(
     # Two third_parties rows with same NUIT but different tenant_ids — filter to only these two tenants
     # (avoids cross-run pollution since the DB is not rolled back between test runs)
     count_result = await db.execute(
-        text(
-            "SELECT count(*) FROM third_parties WHERE nuit = :nuit AND tenant_id IN (:t_a, :t_b)"
-        ),
+        text("SELECT count(*) FROM third_parties WHERE nuit = :nuit AND tenant_id IN (:t_a, :t_b)"),
         {"nuit": nuit, "t_a": tenant_a_id, "t_b": str(tenant_b.id)},
     )
     assert count_result.scalar() == 2, (

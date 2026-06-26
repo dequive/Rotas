@@ -131,6 +131,7 @@ EXPECTED_RLS_TABLES = sorted(
         "client_payments",
         "clients",
         "contracts",
+        "contract_tariffs",
         "delivery_proofs",
         "dispatch_clearances",
         "driver_devices",

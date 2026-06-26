@@ -168,9 +168,14 @@ def render_purchase_order(
     status_raw = _g(purchase, "status", "pending")
     status_label = _STATUS_LABELS.get(status_raw, status_raw.title())
     meta = [
-        ("Data do Pedido", _date_short(getattr(purchase, "ordered_at", None)
-                                       if not isinstance(purchase, dict)
-                                       else purchase.get("ordered_at"))),
+        (
+            "Data do Pedido",
+            _date_short(
+                getattr(purchase, "ordered_at", None)
+                if not isinstance(purchase, dict)
+                else purchase.get("ordered_at")
+            ),
+        ),
         ("Estado", status_label),
         ("Emissão", _date_short(__import__("datetime").date.today())),
     ]
@@ -213,21 +218,33 @@ def render_purchase_order(
 
     kv("Tipo de Combustível", fuel_label)
     kv("Quantidade Pedida", ordered_fmt)
-    kv("Preço Unitário", _money(getattr(purchase, "unit_price", None)
-                                if not isinstance(purchase, dict)
-                                else purchase.get("unit_price")))
-    kv("Total da Encomenda", _money(getattr(purchase, "total_cost", None)
-                                    if not isinstance(purchase, dict)
-                                    else purchase.get("total_cost")))
+    kv(
+        "Preço Unitário",
+        _money(
+            getattr(purchase, "unit_price", None)
+            if not isinstance(purchase, dict)
+            else purchase.get("unit_price")
+        ),
+    )
+    kv(
+        "Total da Encomenda",
+        _money(
+            getattr(purchase, "total_cost", None)
+            if not isinstance(purchase, dict)
+            else purchase.get("total_cost")
+        ),
+    )
 
     notes = _g(purchase, "notes", "")
     if notes and notes != "—":
         kv("Observações", notes)
 
     # ── Approval block (if approved) ──────────────────────────────────────────
-    approved_at = (getattr(purchase, "approved_at", None)
-                   if not isinstance(purchase, dict)
-                   else purchase.get("approved_at"))
+    approved_at = (
+        getattr(purchase, "approved_at", None)
+        if not isinstance(purchase, dict)
+        else purchase.get("approved_at")
+    )
     if approved_at:
         pdf.ln(4)
         section("APROVAÇÃO")

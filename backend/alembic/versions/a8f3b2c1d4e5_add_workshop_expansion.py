@@ -81,9 +81,7 @@ def upgrade() -> None:
     op.add_column(
         "spare_parts_inventory", sa.Column("supplier_name", sa.String(160), nullable=True)
     )
-    op.add_column(
-        "spare_parts_inventory", sa.Column("lead_time_days", sa.Integer(), nullable=True)
-    )
+    op.add_column("spare_parts_inventory", sa.Column("lead_time_days", sa.Integer(), nullable=True))
     op.add_column(
         "spare_parts_inventory", sa.Column("reorder_quantity", sa.Integer(), nullable=True)
     )
@@ -113,21 +111,15 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "ix_workshop_staff_rates_tenant_id", "workshop_staff_rates", ["tenant_id"]
-    )
-    op.create_index(
-        "ix_workshop_staff_rates_user_id", "workshop_staff_rates", ["user_id"]
-    )
+    op.create_index("ix_workshop_staff_rates_tenant_id", "workshop_staff_rates", ["tenant_id"])
+    op.create_index("ix_workshop_staff_rates_user_id", "workshop_staff_rates", ["user_id"])
     op.execute("ALTER TABLE workshop_staff_rates ENABLE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE workshop_staff_rates FORCE ROW LEVEL SECURITY")
     op.execute(
         "CREATE POLICY rls_workshop_staff_rates ON workshop_staff_rates "
         "USING (tenant_id::text = current_setting('app.tenant_id', true))"
     )
-    op.execute(
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON workshop_staff_rates TO rotas_app"
-    )
+    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON workshop_staff_rates TO rotas_app")
 
     # -------------------------------------------------------------------------
     # CREATE TABLE — tool_calibrations
@@ -156,21 +148,15 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["tool_id"], ["workshop_tools.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "ix_tool_calibrations_tenant_id", "tool_calibrations", ["tenant_id"]
-    )
-    op.create_index(
-        "ix_tool_calibrations_tool_id", "tool_calibrations", ["tool_id"]
-    )
+    op.create_index("ix_tool_calibrations_tenant_id", "tool_calibrations", ["tenant_id"])
+    op.create_index("ix_tool_calibrations_tool_id", "tool_calibrations", ["tool_id"])
     op.execute("ALTER TABLE tool_calibrations ENABLE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE tool_calibrations FORCE ROW LEVEL SECURITY")
     op.execute(
         "CREATE POLICY rls_tool_calibrations ON tool_calibrations "
         "USING (tenant_id::text = current_setting('app.tenant_id', true))"
     )
-    op.execute(
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON tool_calibrations TO rotas_app"
-    )
+    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON tool_calibrations TO rotas_app")
 
     # -------------------------------------------------------------------------
     # CREATE TABLE — spare_part_serial_items
@@ -229,9 +215,7 @@ def upgrade() -> None:
         "CREATE POLICY rls_spare_part_serial_items ON spare_part_serial_items "
         "USING (tenant_id::text = current_setting('app.tenant_id', true))"
     )
-    op.execute(
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON spare_part_serial_items TO rotas_app"
-    )
+    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON spare_part_serial_items TO rotas_app")
 
 
 def downgrade() -> None:

@@ -5,8 +5,6 @@ Revises: gt02, mrg02
 Create Date: 2026-06-22
 """
 
-from alembic import op
-
 revision = "mrg03"
 down_revision = ("gt02", "mrg02")
 branch_labels = None

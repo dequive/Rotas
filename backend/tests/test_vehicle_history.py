@@ -137,8 +137,7 @@ async def test_vehicle_history_empty() -> None:
 
 @pytest.mark.asyncio
 async def test_work_order_in_vehicle_history() -> None:
-    """Create WO for vehicle -> GET history with types=work_order -> event_type=work_order present.
-    """
+    """Create WO for vehicle -> GET history with types=work_order -> event_type=work_order present."""
     try:
         tenant_id, vehicle_id, _ = await seed_entities()
         headers = auth_headers(tenant_id)

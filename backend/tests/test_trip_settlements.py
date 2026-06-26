@@ -111,9 +111,7 @@ async def test_set01_compute_settlement_correct_balance(db, tenant_id):
     await _add_cost(db, tenant_id, trip, "toll", "800.00")
     await db.commit()
 
-    result = await settlement_service.compute_settlement(
-        db, tenant_id=tenant_id, trip_id=trip.id
-    )
+    result = await settlement_service.compute_settlement(db, tenant_id=tenant_id, trip_id=trip.id)
 
     assert result["status"] == "pending"
     assert Decimal(result["total_costs_mzn"]) == Decimal("2300.00")
@@ -130,12 +128,8 @@ async def test_set02_compute_settlement_is_idempotent(db, tenant_id):
     driver = await _make_driver(db, tenant_id)
     trip = await _make_trip(db, tenant_id, vehicle, driver, status="completed")
 
-    first = await settlement_service.compute_settlement(
-        db, tenant_id=tenant_id, trip_id=trip.id
-    )
-    second = await settlement_service.compute_settlement(
-        db, tenant_id=tenant_id, trip_id=trip.id
-    )
+    first = await settlement_service.compute_settlement(db, tenant_id=tenant_id, trip_id=trip.id)
+    second = await settlement_service.compute_settlement(db, tenant_id=tenant_id, trip_id=trip.id)
 
     assert first["id"] == second["id"], "Idempotent — same settlement returned on second call"
 
@@ -148,9 +142,7 @@ async def test_set03_compute_settlement_non_completed_trip_raises(db, tenant_id)
     trip = await _make_trip(db, tenant_id, vehicle, driver, status="planned")
 
     with pytest.raises(ApiError) as exc_info:
-        await settlement_service.compute_settlement(
-            db, tenant_id=tenant_id, trip_id=trip.id
-        )
+        await settlement_service.compute_settlement(db, tenant_id=tenant_id, trip_id=trip.id)
 
     assert exc_info.value.status_code == 409
     assert exc_info.value.code == "trip_not_completed"

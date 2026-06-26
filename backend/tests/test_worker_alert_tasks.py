@@ -4,19 +4,19 @@ Tests call service-layer functions directly (same approach as the tasks themselv
 to avoid needing a live ARQ / Redis setup. The ctx["db_factory"] pattern is
 exercised via a thin async-context-manager adapter over the test db fixture.
 """
+
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from datetime import date as _date
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
 
 from app.modules.alerts.models import Alert
 from app.modules.drivers.models import Driver
 from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
-from sqlalchemy import select
-
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 

@@ -332,8 +332,7 @@ async def test_advance_payment(db, tenant_id):
 
 @pytest.mark.asyncio
 async def test_apply_advance(db, tenant_id):
-    """PAY-02: Applying an advance to an invoice creates allocation and transitions doc to 'paid'.
-    """
+    """PAY-02: Applying an advance to an invoice creates allocation and transitions doc to 'paid'."""
     user = await _make_user(db, tenant_id)
     client = await _make_client(db, tenant_id)
 

@@ -127,9 +127,7 @@ async def test_ar_summary_buckets_correct(db: AsyncSession, tenant: Tenant):
 
     result = await get_ar_summary(db, tenant.id)
 
-    assert result["31_60"] == Decimal("1000.00"), (
-        f"Expected 1000.00 in 31_60 bucket, got: {result}"
-    )
+    assert result["31_60"] == Decimal("1000.00"), f"Expected 1000.00 in 31_60 bucket, got: {result}"
     assert result["current"] == Decimal("0.00"), f"current must be 0, got {result['current']}"
     assert result["1_30"] == Decimal("0.00"), f"1_30 must be 0, got {result['1_30']}"
     assert result["61_90"] == Decimal("0.00"), f"61_90 must be 0, got {result['61_90']}"
@@ -161,7 +159,7 @@ async def test_ar_summary_as_of_param(db: AsyncSession, tenant: Tenant):
         status="issued",
         document_type="invoice",
         due_date=now + timedelta(days=30),  # not yet due — 'current' bucket
-        issued_at=now,                       # issued today
+        issued_at=now,  # issued today
         issuer_name="Test Issuer",
         iva_rate=Decimal("0.16"),
     )
@@ -208,9 +206,7 @@ async def test_ar_summary_excludes_drafts(db: AsyncSession, tenant: Tenant):
 
 
 @pytest.mark.asyncio
-async def test_client_statement_outstanding_correct(
-    db: AsyncSession, tenant: Tenant, owner: User
-):
+async def test_client_statement_outstanding_correct(db: AsyncSession, tenant: Tenant, owner: User):
     """Invoice 1000 MZN with 400 MZN confirmed payment allocated → balance == 600.00."""
     client = await _make_client(db, tenant.id)
     invoice = _make_invoice(tenant.id, client.id, Decimal("1000.00"), due_days_ago=15)
@@ -261,9 +257,7 @@ async def test_client_statement_outstanding_correct(
 
 
 @pytest.mark.asyncio
-async def test_client_statement_pdf_returns_bytes(
-    db: AsyncSession, tenant: Tenant, owner: User
-):
+async def test_client_statement_pdf_returns_bytes(db: AsyncSession, tenant: Tenant, owner: User):
     """generate_client_statement_pdf returns PDF bytes with magic header and len > 1000.
 
     This test depends on 07-01 adding generate_client_statement_pdf to billing/service.py.
@@ -272,9 +266,7 @@ async def test_client_statement_pdf_returns_bytes(
     try:
         from app.modules.billing.service import generate_client_statement_pdf
     except ImportError:
-        pytest.skip(
-            "generate_client_statement_pdf not yet available — requires 07-01 to complete"
-        )
+        pytest.skip("generate_client_statement_pdf not yet available — requires 07-01 to complete")
 
     client = await _make_client(db, tenant.id, "Cliente Moçambicano Ção")
     invoice = _make_invoice(tenant.id, client.id, Decimal("750.00"), due_days_ago=20)
@@ -286,9 +278,7 @@ async def test_client_statement_pdf_returns_bytes(
     assert isinstance(pdf_bytes, bytes), (
         f"generate_client_statement_pdf must return bytes, got {type(pdf_bytes)}"
     )
-    assert len(pdf_bytes) > 1000, (
-        f"PDF too small — expected > 1000 bytes, got {len(pdf_bytes)}"
-    )
+    assert len(pdf_bytes) > 1000, f"PDF too small — expected > 1000 bytes, got {len(pdf_bytes)}"
     assert pdf_bytes[:4] == b"%PDF", (
         f"Response is not a valid PDF (missing %PDF magic bytes); starts with {pdf_bytes[:8]!r}"
     )

@@ -243,9 +243,7 @@ async def get_vehicle_insurance(
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await insurance_service.get_insurance(
-        db, principal.tenant_id, vehicle_id, insurance_id
-    )
+    return await insurance_service.get_insurance(db, principal.tenant_id, vehicle_id, insurance_id)
 
 
 @router.patch("/{vehicle_id}/insurance/{insurance_id}")

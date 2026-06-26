@@ -204,8 +204,8 @@ async def test_require_platform_role_checks_scope_before_role() -> None:
         {
             "sub": f"dashboard:{uuid4()}",
             "typ": "access",
-            "scope": "dashboard",       # tenant scope
-            "role": "platform_admin",   # platform role name — the abuse
+            "scope": "dashboard",  # tenant scope
+            "role": "platform_admin",  # platform role name — the abuse
             "tenant_id": fake_tenant_id,
             "user_id": str(uuid4()),
         },

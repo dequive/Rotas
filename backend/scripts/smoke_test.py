@@ -122,9 +122,7 @@ async def run(base_url: str) -> int:
             if r.status_code == 200:
                 data = r.json()
                 access_token = data.get("access_token")
-                tenant_id = data.get("tenant_id") or (
-                    data.get("user", {}) or {}
-                ).get("tenant_id")
+                tenant_id = data.get("tenant_id") or (data.get("user", {}) or {}).get("tenant_id")
                 if access_token:
                     ok("login", f"token issued tenant={tenant_id}")
                 else:
@@ -231,8 +229,8 @@ async def run(base_url: str) -> int:
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print(f"Usage: python smoke_test.py <base-url>")
-        print(f"  e.g. python smoke_test.py https://rotas-api.railway.app")
+        print("Usage: python smoke_test.py <base-url>")
+        print("  e.g. python smoke_test.py https://rotas-api.railway.app")
         sys.exit(1)
 
     base_url = sys.argv[1].rstrip("/")

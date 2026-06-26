@@ -244,9 +244,7 @@ async def list_platform_audit_log(
 
 async def list_platform_users(db: AsyncSession) -> list[dict]:
     """Return all platform users ordered by creation date."""
-    rows = (
-        await db.scalars(select(PlatformUser).order_by(PlatformUser.created_at))
-    ).all()
+    rows = (await db.scalars(select(PlatformUser).order_by(PlatformUser.created_at))).all()
     return [_serialize_platform_user(u) for u in rows]
 
 

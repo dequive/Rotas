@@ -2,9 +2,10 @@
 Builders de eventos: traduzem objectos de domínio ROTAS em payloads
 prontos para push_governance_event().
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 # Mapeamento ROTAS severity → governance severity
@@ -47,14 +48,16 @@ def operational_exception_event(
         "severity": _SEVERITY_MAP.get(severity, "baixa"),
         "title": title,
         "description": message,
-        "occurred_at": datetime.now(timezone.utc),
-        "entities": [{
-            "entity_type": entity_type,
-            "external_id": str(entity_id),
-            "role": "sujeito",
-            "display_name": entity_display_name,
-            "snapshot": entity_attributes,
-        }],
+        "occurred_at": datetime.now(UTC),
+        "entities": [
+            {
+                "entity_type": entity_type,
+                "external_id": str(entity_id),
+                "role": "sujeito",
+                "display_name": entity_display_name,
+                "snapshot": entity_attributes,
+            }
+        ],
         # Idempotency key inclui exception_id para que o mesmo exception nunca crie
         # dois eventos no motor mesmo que ensure_exception seja chamado duas vezes
         # por código não-idempotente.

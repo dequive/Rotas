@@ -20,12 +20,11 @@ from uuid import uuid4
 import pytest
 
 from app.modules.drivers.models import Driver
-from app.modules.gps.models import GpsDevice, TrackingToken, VehicleLastPosition
 from app.modules.gps import service as gps_service
+from app.modules.gps.models import GpsDevice, TrackingToken, VehicleLastPosition
 from app.modules.tracking import service as tracking_service
 from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -88,16 +87,22 @@ async def test_gps01_valid_webhook_stores_position(db, tenant_id):
 
     payload = {"lat": -25.9, "lon": 32.6, "speed": 80, "timestamp": datetime.now(UTC).isoformat()}
     import json
+
     body = json.dumps(payload).encode()
     sig = _sign(device.device_secret, body)
 
-    result = await gps_service.ingest_position(db, imei=device.imei, signature=sig, body=body, raw_payload=payload)
+    result = await gps_service.ingest_position(
+        db, imei=device.imei, signature=sig, body=body, raw_payload=payload
+    )
 
     assert result["accepted"] is True
     assert result["vehicle_id"] == str(vehicle.id)
 
     from sqlalchemy import select
-    pos = await db.scalar(select(VehicleLastPosition).where(VehicleLastPosition.vehicle_id == vehicle.id))
+
+    pos = await db.scalar(
+        select(VehicleLastPosition).where(VehicleLastPosition.vehicle_id == vehicle.id)
+    )
     assert pos is not None
     assert abs(pos.lat - (-25.9)) < 0.001
     assert abs(pos.lon - 32.6) < 0.001
@@ -107,16 +112,20 @@ async def test_gps01_valid_webhook_stores_position(db, tenant_id):
 async def test_gps02_invalid_hmac_rejected(db, tenant_id):
     """GPS-02: Invalid HMAC signature returns 401 ApiError."""
     from app.core.errors import ApiError
+
     vehicle = await _make_vehicle(db, tenant_id)
     device = await _make_device(db, tenant_id, vehicle)
     await db.commit()
 
     import json
+
     payload = {"lat": -25.9, "lon": 32.6}
     body = json.dumps(payload).encode()
 
     with pytest.raises(ApiError) as exc_info:
-        await gps_service.ingest_position(db, imei=device.imei, signature="badhex", body=body, raw_payload=payload)
+        await gps_service.ingest_position(
+            db, imei=device.imei, signature="badhex", body=body, raw_payload=payload
+        )
 
     assert exc_info.value.status_code == 401
     assert exc_info.value.code == "invalid_signature"
@@ -125,13 +134,17 @@ async def test_gps02_invalid_hmac_rejected(db, tenant_id):
 @pytest.mark.asyncio
 async def test_gps03_unknown_imei_rejected(db, tenant_id):
     """GPS-03: Unknown IMEI returns 401 ApiError."""
-    from app.core.errors import ApiError
     import json
+
+    from app.core.errors import ApiError
+
     payload = {"lat": -25.9, "lon": 32.6}
     body = json.dumps(payload).encode()
 
     with pytest.raises(ApiError) as exc_info:
-        await gps_service.ingest_position(db, imei="000000000000000", signature="any", body=body, raw_payload=payload)
+        await gps_service.ingest_position(
+            db, imei="000000000000000", signature="any", body=body, raw_payload=payload
+        )
 
     assert exc_info.value.status_code == 401
     assert exc_info.value.code == "device_not_found"
@@ -140,7 +153,6 @@ async def test_gps03_unknown_imei_rejected(db, tenant_id):
 @pytest.mark.asyncio
 async def test_gps04_get_fleet_positions(db, tenant_id):
     """GPS-04: get_fleet_positions returns all last-known positions for tenant."""
-    from sqlalchemy import select as sa_select
     vehicle = await _make_vehicle(db, tenant_id)
     now = datetime.now(UTC)
     pos = VehicleLastPosition(
@@ -202,6 +214,7 @@ async def test_gps06_public_tracking_payload(db, tenant_id):
 async def test_gps07_expired_token_returns_410(db, tenant_id):
     """GPS-07: Expired tracking token raises ApiError 410."""
     from app.core.errors import ApiError
+
     vehicle = await _make_vehicle(db, tenant_id)
     driver = await _make_driver(db, tenant_id)
     trip = await _make_trip(db, tenant_id, vehicle, driver)

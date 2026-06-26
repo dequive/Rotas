@@ -63,58 +63,104 @@ AUDIT_READ = "audit.read"
 # ── Role → Permission mapping ──────────────────────────────────────────────────
 
 ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
-    "owner": frozenset({
-        # Owner holds every permission in the system
-        FLEET_READ, FLEET_WRITE,
-        DRIVERS_READ, DRIVERS_WRITE, DRIVERS_PAIRING,
-        TRIPS_READ, TRIPS_DISPATCH, TRIPS_CLOSE,
-        CARGO_WRITE, CARGO_VALIDATE,
-        BILLING_READ, BILLING_WRITE, BILLING_ISSUE, BILLING_VOID,
-        FUEL_READ, FUEL_WRITE, FUEL_APPROVE,
-        WORKSHOP_READ, WORKSHOP_WRITE, WORKSHOP_RELEASE,
-        ADMIN_USERS, ADMIN_TENANT,
-        AUDIT_READ,
-    }),
-    "admin": frozenset({
-        # Admin has all permissions except admin.tenant (tenant-level config reserved for owner)
-        FLEET_READ, FLEET_WRITE,
-        DRIVERS_READ, DRIVERS_WRITE, DRIVERS_PAIRING,
-        TRIPS_READ, TRIPS_DISPATCH, TRIPS_CLOSE,
-        CARGO_WRITE, CARGO_VALIDATE,
-        BILLING_READ, BILLING_WRITE, BILLING_ISSUE, BILLING_VOID,
-        FUEL_READ, FUEL_WRITE, FUEL_APPROVE,
-        WORKSHOP_READ, WORKSHOP_WRITE, WORKSHOP_RELEASE,
-        ADMIN_USERS,
-        AUDIT_READ,
-    }),
-    "manager": frozenset({
-        # Manager can operate fleet and financial workflows; cannot approve/void or manage users
-        FLEET_READ, FLEET_WRITE,
-        DRIVERS_READ, DRIVERS_WRITE,
-        TRIPS_READ, TRIPS_DISPATCH, TRIPS_CLOSE,
-        CARGO_WRITE, CARGO_VALIDATE,
-        BILLING_READ, BILLING_WRITE, BILLING_ISSUE,
-        FUEL_READ, FUEL_WRITE,
-        WORKSHOP_READ, WORKSHOP_WRITE,
-    }),
-    "viewer": frozenset({
-        # Viewer is read-only across core domains (no billing.read gap, no workshop write)
-        FLEET_READ,
-        DRIVERS_READ,
-        TRIPS_READ,
-        BILLING_READ,
-        FUEL_READ,
-        WORKSHOP_READ,
-    }),
-    "mechanic": frozenset({
-        # Mechanic writes to workshop; read-only on fleet/drivers/trips/fuel; no billing access
-        FLEET_READ,
-        DRIVERS_READ,
-        TRIPS_READ,
-        FUEL_READ,
-        WORKSHOP_READ,
-        WORKSHOP_WRITE,
-    }),
+    "owner": frozenset(
+        {
+            # Owner holds every permission in the system
+            FLEET_READ,
+            FLEET_WRITE,
+            DRIVERS_READ,
+            DRIVERS_WRITE,
+            DRIVERS_PAIRING,
+            TRIPS_READ,
+            TRIPS_DISPATCH,
+            TRIPS_CLOSE,
+            CARGO_WRITE,
+            CARGO_VALIDATE,
+            BILLING_READ,
+            BILLING_WRITE,
+            BILLING_ISSUE,
+            BILLING_VOID,
+            FUEL_READ,
+            FUEL_WRITE,
+            FUEL_APPROVE,
+            WORKSHOP_READ,
+            WORKSHOP_WRITE,
+            WORKSHOP_RELEASE,
+            ADMIN_USERS,
+            ADMIN_TENANT,
+            AUDIT_READ,
+        }
+    ),
+    "admin": frozenset(
+        {
+            # Admin has all permissions except admin.tenant (tenant-level config reserved for owner)
+            FLEET_READ,
+            FLEET_WRITE,
+            DRIVERS_READ,
+            DRIVERS_WRITE,
+            DRIVERS_PAIRING,
+            TRIPS_READ,
+            TRIPS_DISPATCH,
+            TRIPS_CLOSE,
+            CARGO_WRITE,
+            CARGO_VALIDATE,
+            BILLING_READ,
+            BILLING_WRITE,
+            BILLING_ISSUE,
+            BILLING_VOID,
+            FUEL_READ,
+            FUEL_WRITE,
+            FUEL_APPROVE,
+            WORKSHOP_READ,
+            WORKSHOP_WRITE,
+            WORKSHOP_RELEASE,
+            ADMIN_USERS,
+            AUDIT_READ,
+        }
+    ),
+    "manager": frozenset(
+        {
+            # Manager can operate fleet and financial workflows; cannot approve/void or manage users
+            FLEET_READ,
+            FLEET_WRITE,
+            DRIVERS_READ,
+            DRIVERS_WRITE,
+            TRIPS_READ,
+            TRIPS_DISPATCH,
+            TRIPS_CLOSE,
+            CARGO_WRITE,
+            CARGO_VALIDATE,
+            BILLING_READ,
+            BILLING_WRITE,
+            BILLING_ISSUE,
+            FUEL_READ,
+            FUEL_WRITE,
+            WORKSHOP_READ,
+            WORKSHOP_WRITE,
+        }
+    ),
+    "viewer": frozenset(
+        {
+            # Viewer is read-only across core domains (no billing.read gap, no workshop write)
+            FLEET_READ,
+            DRIVERS_READ,
+            TRIPS_READ,
+            BILLING_READ,
+            FUEL_READ,
+            WORKSHOP_READ,
+        }
+    ),
+    "mechanic": frozenset(
+        {
+            # Mechanic writes to workshop; read-only on fleet/drivers/trips/fuel; no billing access
+            FLEET_READ,
+            DRIVERS_READ,
+            TRIPS_READ,
+            FUEL_READ,
+            WORKSHOP_READ,
+            WORKSHOP_WRITE,
+        }
+    ),
 }
 
 # ── ALL_PERMISSIONS: union of every role's permission set ─────────────────────
@@ -123,6 +169,7 @@ ALL_PERMISSIONS: frozenset[str] = frozenset().union(*ROLE_PERMISSIONS.values())
 
 
 # ── require_permission() FastAPI dependency factory ───────────────────────────
+
 
 def require_permission(*permissions: str) -> Callable:
     """FastAPI dependency factory.

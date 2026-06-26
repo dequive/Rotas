@@ -8,11 +8,13 @@ OPDOC-01: Extend transport_documents with extra_fields JSONB for type-specific
 metadata (border_post, sadc_cpi_number, authorization_code, etc.) plus
 recipient_name and recipient_nuit for Guia de Remessa fiscal compliance.
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
 
 revision: str = "f5fe4c151bd1"
 down_revision: str | None = "782fcb33513c"

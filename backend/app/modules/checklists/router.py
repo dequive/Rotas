@@ -189,9 +189,7 @@ async def download_checklist_pdf(
         driver = d_row.scalar_one_or_none()
 
     prof_row = await db.execute(
-        select(TenantDocumentProfile).where(
-            TenantDocumentProfile.tenant_id == principal.tenant_id
-        )
+        select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == principal.tenant_id)
     )
     prof_obj = prof_row.scalar_one_or_none()
     profile = (
@@ -213,9 +211,7 @@ async def download_checklist_pdf(
         else None
     )
     driver_dict = (
-        {"full_name": driver.full_name, "license_number": driver.license_number}
-        if driver
-        else None
+        {"full_name": driver.full_name, "license_number": driver.license_number} if driver else None
     )
 
     pdf_bytes = render_checklist_report(

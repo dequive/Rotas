@@ -16,10 +16,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_trips_tenant_status "
-        "ON trips (tenant_id, status)"
-    )
+    op.execute("CREATE INDEX IF NOT EXISTS ix_trips_tenant_status ON trips (tenant_id, status)")
     op.execute(
         "CREATE INDEX IF NOT EXISTS ix_trips_tenant_driver_status "
         "ON trips (tenant_id, driver_id, status)"
@@ -53,8 +50,7 @@ def upgrade() -> None:
         "ON sync_events (tenant_id, driver_id)"
     )
     op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_trip_stops_tenant_trip "
-        "ON trip_stops (tenant_id, trip_id)"
+        "CREATE INDEX IF NOT EXISTS ix_trip_stops_tenant_trip ON trip_stops (tenant_id, trip_id)"
     )
 
     op.execute("ALTER TABLE tenant_roles ENABLE ROW LEVEL SECURITY")

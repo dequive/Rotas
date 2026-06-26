@@ -14,7 +14,7 @@ def _decimal(value: float | Decimal | None) -> Decimal:
 
 async def auto_calculate_revenue(db: AsyncSession, tenant_id: UUID, trip: Trip) -> Decimal:
     """Automated revenue calculation engine.
-    
+
     Executes when a trip is reconciled.
     """
     if not trip.contract_id:
@@ -31,7 +31,8 @@ async def auto_calculate_revenue(db: AsyncSession, tenant_id: UUID, trip: Trip) 
         route_query = select(KnownRoute).where(
             KnownRoute.tenant_id == tenant_id,
             func.lower(func.trim(KnownRoute.origin)) == func.lower(func.trim(trip.origin)),
-            func.lower(func.trim(KnownRoute.destination)) == func.lower(func.trim(trip.destination))
+            func.lower(func.trim(KnownRoute.destination))
+            == func.lower(func.trim(trip.destination)),
         )
         known_route = await db.scalar(route_query)
 
@@ -41,7 +42,7 @@ async def auto_calculate_revenue(db: AsyncSession, tenant_id: UUID, trip: Trip) 
         tariff_query = select(ContractTariff).where(
             ContractTariff.tenant_id == tenant_id,
             ContractTariff.contract_id == trip.contract_id,
-            ContractTariff.known_route_id == known_route.id
+            ContractTariff.known_route_id == known_route.id,
         )
         tariff = await db.scalar(tariff_query)
 
@@ -60,7 +61,7 @@ async def auto_calculate_revenue(db: AsyncSession, tenant_id: UUID, trip: Trip) 
             km_diff = 0
             if trip.km_start is not None and trip.km_end is not None:
                 km_diff = trip.km_end - trip.km_start
-            
+
             if km_diff > 0:
                 distance = Decimal(km_diff)
             else:

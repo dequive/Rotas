@@ -52,8 +52,17 @@ async def _create_driver(db, tenant_id, name="Driver Test"):
     return d
 
 
-async def _create_closed_trip(db, tenant_id, vehicle_id, driver_id, origin="Maputo",
-                               destination="Beira", cost=50000, km_start=0, km_end=500):
+async def _create_closed_trip(
+    db,
+    tenant_id,
+    vehicle_id,
+    driver_id,
+    origin="Maputo",
+    destination="Beira",
+    cost=50000,
+    km_start=0,
+    km_end=500,
+):
     t = Trip(
         tenant_id=tenant_id,
         vehicle_id=vehicle_id,
@@ -102,12 +111,8 @@ async def test_route_profitability_returns_origin_destination(
     """ANA-01: 2 closed trips on same route → 1 entry with correct avg_cost."""
     vehicle = await _create_vehicle(db, tenant_id)
     driver = await _create_driver(db, tenant_id)
-    await _create_closed_trip(
-        db, tenant_id, vehicle.id, driver.id, "Maputo", "Nampula", cost=800
-    )
-    await _create_closed_trip(
-        db, tenant_id, vehicle.id, driver.id, "Maputo", "Nampula", cost=1200
-    )
+    await _create_closed_trip(db, tenant_id, vehicle.id, driver.id, "Maputo", "Nampula", cost=800)
+    await _create_closed_trip(db, tenant_id, vehicle.id, driver.id, "Maputo", "Nampula", cost=1200)
     await db.commit()
 
     response = await async_client.get(
@@ -300,10 +305,9 @@ async def test_dashboard_cross_tenant_isolation(async_client, db, tenant_id, aut
     data = response.json()
 
     routes = data.get("route_profitability", [])
-    assert all(
-        not (r["origin"] == "Lichinga" and r["destination"] == "Mocuba")
-        for r in routes
-    ), "Tenant B route 'Lichinga→Mocuba' must not appear in Tenant A dashboard"
+    assert all(not (r["origin"] == "Lichinga" and r["destination"] == "Mocuba") for r in routes), (
+        "Tenant B route 'Lichinga→Mocuba' must not appear in Tenant A dashboard"
+    )
 
     top_driver_ids = {str(dr["driver_id"]) for dr in data.get("top_drivers", [])}
     assert str(db_driver.id) not in top_driver_ids, (

@@ -40,6 +40,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     for table in ("vehicle_insurances", "insurance_claims", "tenant_document_profiles"):
-        op.execute(
-            f"DROP POLICY IF EXISTS tenant_isolation ON {table}"
-        )
+        op.execute(f"DROP POLICY IF EXISTS tenant_isolation ON {table}")

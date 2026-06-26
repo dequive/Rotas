@@ -7,9 +7,10 @@ Create Date: 2026-06-21
 CRITICAL: RLS + GRANT are co-located in this CREATE TABLE migration per v2.0 migration rule.
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+
+from alembic import op
 
 revision = "gt01"
 down_revision = "adv03"

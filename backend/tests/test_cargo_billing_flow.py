@@ -24,7 +24,6 @@ from app.modules.drivers.models import Driver
 from app.modules.operational_exceptions.models import OperationalException
 from app.modules.tenants.models import Tenant
 from app.modules.trips import service as trips_service
-from app.modules.users.models import User
 from app.modules.trips.models import Trip
 from app.modules.trips.schemas import (
     AssociateContractRequest,
@@ -32,6 +31,7 @@ from app.modules.trips.schemas import (
     StartTripRequest,
     TripCreate,
 )
+from app.modules.users.models import User
 from app.modules.vehicles.models import Vehicle
 
 import_all_models()

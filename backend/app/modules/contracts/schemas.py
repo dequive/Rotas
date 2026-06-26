@@ -82,4 +82,3 @@ class ContractTariffResponse(BaseModel):
     currency: str
     created_at: datetime
     updated_at: datetime
-

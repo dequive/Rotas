@@ -70,16 +70,10 @@ def upgrade() -> None:
         "CREATE POLICY rls_tenant_document_profiles ON tenant_document_profiles "
         "USING (tenant_id::text = current_setting('app.tenant_id', true))"
     )
-    op.execute(
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON tenant_document_profiles TO rotas_app"
-    )
+    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON tenant_document_profiles TO rotas_app")
 
 
 def downgrade() -> None:
-    op.execute(
-        "DROP POLICY IF EXISTS rls_tenant_document_profiles ON tenant_document_profiles"
-    )
-    op.drop_index(
-        "ix_tenant_document_profiles_tenant_id", table_name="tenant_document_profiles"
-    )
+    op.execute("DROP POLICY IF EXISTS rls_tenant_document_profiles ON tenant_document_profiles")
+    op.drop_index("ix_tenant_document_profiles_tenant_id", table_name="tenant_document_profiles")
     op.drop_table("tenant_document_profiles")

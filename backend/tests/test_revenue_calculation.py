@@ -1,14 +1,14 @@
 import uuid
-import pytest
 from decimal import Decimal
-from sqlalchemy.ext.asyncio import AsyncSession
+
+import pytest
 
 from app.modules.contracts.models import Contract, ContractTariff
-from app.modules.trips.models import Trip, KnownRoute
-from app.modules.vehicles.models import Vehicle
 from app.modules.drivers.models import Driver
-from app.modules.trips.revenue import auto_calculate_revenue
 from app.modules.trips.costs import reconcile_trip_costs
+from app.modules.trips.models import KnownRoute, Trip
+from app.modules.trips.revenue import auto_calculate_revenue
+from app.modules.vehicles.models import Vehicle
 
 
 @pytest.fixture
@@ -240,7 +240,9 @@ async def test_revenue_fallback_to_contract_default(db, tenant_id, sample_entiti
 
 
 @pytest.mark.asyncio
-async def test_reconcile_trip_costs_calculates_actual_revenue_and_margin(db, tenant_id, sample_entities):
+async def test_reconcile_trip_costs_calculates_actual_revenue_and_margin(
+    db, tenant_id, sample_entities
+):
     entities = sample_entities
     # Reconciled trip: actual_revenue and actual_margin are recalculated automatically
     tariff = ContractTariff(

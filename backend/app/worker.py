@@ -612,9 +612,7 @@ async def task_check_driver_document_expiry(ctx: dict) -> str:
 
                 days_remaining = (expiry_date - today).days
                 priority = "critical" if days_remaining <= 7 else "high"
-                request_reference = (
-                    f"driver_doc:{driver.id}:{doc_type}:{expiry_date.isoformat()}"
-                )
+                request_reference = f"driver_doc:{driver.id}:{doc_type}:{expiry_date.isoformat()}"
 
                 try:
                     await create_alert(
@@ -794,9 +792,7 @@ async def task_check_vehicle_document_expiry(ctx: dict) -> str:
 
                 days_remaining = (expiry_date - today).days
                 priority = "critical" if days_remaining <= 7 else "high"
-                request_reference = (
-                    f"vehicle_doc:{vehicle.id}:{doc_type}:{expiry_date.isoformat()}"
-                )
+                request_reference = f"vehicle_doc:{vehicle.id}:{doc_type}:{expiry_date.isoformat()}"
 
                 try:
                     await create_alert(
@@ -831,9 +827,9 @@ async def task_check_vehicle_document_expiry(ctx: dict) -> str:
 
 async def task_expire_gps_partitions(ctx: dict) -> str:
     """Drop gps_positions partitions older than 90 days (GPS-07 — storage bloat prevention)."""
-    import structlog
     from datetime import date, timedelta
 
+    import structlog
     from sqlalchemy import text
 
     logger = structlog.get_logger("worker")
@@ -880,15 +876,15 @@ class WorkerSettings:
         task_worker_heartbeat,
         run_housekeeping,
         # Document expiry alerts
-        task_check_document_expiry,          # OperationalDocument (third-party docs)
-        scan_expiring_documents,             # Driver + vehicle docs via analytics
+        task_check_document_expiry,  # OperationalDocument (third-party docs)
+        scan_expiring_documents,  # Driver + vehicle docs via analytics
         task_check_vehicle_document_expiry,  # Vehicle.documents JSON column
-        task_check_driver_document_expiry,   # Driver.documents JSON column (NOTIF-04)
-        task_check_hos_violations,           # HOS violation scan (HOS-01)
+        task_check_driver_document_expiry,  # Driver.documents JSON column (NOTIF-04)
+        task_check_hos_violations,  # HOS violation scan (HOS-01)
         # Insurance
         task_check_insurance_renewals,
         # Notifications
-        deliver_queued_notifications,        # Replaces task_process_notification_outbox
+        deliver_queued_notifications,  # Replaces task_process_notification_outbox
         task_notify_dispatch_rejected,
         # Maintenance
         check_maintenance_schedules,

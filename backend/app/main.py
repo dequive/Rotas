@@ -39,11 +39,10 @@ from app.modules.driver_app.router import router as driver_app_router
 from app.modules.drivers.advance_router import router as advance_router
 from app.modules.drivers.router import router as drivers_router
 from app.modules.drivers.settlement_router import router as settlement_router
-from app.modules.gps.router import router as gps_router
-from app.modules.tracking.router import router as tracking_router
 from app.modules.files.router import router as files_router
 from app.modules.fuel.operations_router import router as fuel_operations_router
 from app.modules.fuel.router import router as fuel_router
+from app.modules.gps.router import router as gps_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.onboarding.router import router as onboarding_router
 from app.modules.operational_exceptions.router import router as operational_exceptions_router
@@ -53,6 +52,7 @@ from app.modules.platform.router import router as platform_router
 from app.modules.sync.router import router as sync_router
 from app.modules.tenants.router import router as tenants_router
 from app.modules.third_party.router import router as third_party_router
+from app.modules.tracking.router import router as tracking_router
 from app.modules.trip_orders.router import router as trip_orders_router
 from app.modules.trips.known_routes_router import router as known_routes_router
 from app.modules.trips.router import router as trips_router

@@ -17,14 +17,8 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute(
-        "ALTER POLICY rls_client_profiles ON client_profiles "
-        "RENAME TO tenant_isolation"
-    )
+    op.execute("ALTER POLICY rls_client_profiles ON client_profiles RENAME TO tenant_isolation")
 
 
 def downgrade() -> None:
-    op.execute(
-        "ALTER POLICY tenant_isolation ON client_profiles "
-        "RENAME TO rls_client_profiles"
-    )
+    op.execute("ALTER POLICY tenant_isolation ON client_profiles RENAME TO rls_client_profiles")

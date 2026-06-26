@@ -322,9 +322,7 @@ class SupplierLedgerEntry(Base):
 
 class SupplierEvaluation(Base):
     __tablename__ = "supplier_evaluations"
-    __table_args__ = (
-        CheckConstraint("score >= 0 AND score <= 10", name="ck_se_score_range"),
-    )
+    __table_args__ = (CheckConstraint("score >= 0 AND score <= 10", name="ck_se_score_range"),)
 
     id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -365,7 +363,10 @@ class ClientProfile(Base):
         server_default=func.gen_random_uuid(),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+        PG_UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
     )
     third_party_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -375,7 +376,9 @@ class ClientProfile(Base):
     )
     payment_terms_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="30")
     credit_limit: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
-    preferred_currency: Mapped[str | None] = mapped_column(String(3), nullable=True, server_default="MZN")
+    preferred_currency: Mapped[str | None] = mapped_column(
+        String(3), nullable=True, server_default="MZN"
+    )
     billing_email: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

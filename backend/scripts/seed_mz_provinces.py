@@ -23,8 +23,9 @@ PROVINCES = [
 
 
 async def seed() -> None:
-    from sqlalchemy.ext.asyncio import create_async_engine
     from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+
     from app.config import get_settings
 
     settings = get_settings()

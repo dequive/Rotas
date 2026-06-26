@@ -294,9 +294,7 @@ async def create_tenant_role(
 
 async def list_tenant_roles(db: AsyncSession, tenant_id: UUID) -> list[dict]:
     roles = await db.scalars(
-        select(TenantRole)
-        .where(TenantRole.tenant_id == tenant_id)
-        .order_by(TenantRole.name)
+        select(TenantRole).where(TenantRole.tenant_id == tenant_id).order_by(TenantRole.name)
     )
     return [_serialize_tenant_role(r) for r in roles.all()]
 

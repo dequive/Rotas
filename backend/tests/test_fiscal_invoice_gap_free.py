@@ -175,9 +175,7 @@ async def test_sequential_numbers_same_series(db, tenant_id):
     seq1 = int(r1["invoice_number"].split("/")[1])
     seq2 = int(r2["invoice_number"].split("/")[1])
 
-    assert seq2 == seq1 + 1, (
-        f"Second document must get seq={seq1 + 1}, got {seq2}"
-    )
+    assert seq2 == seq1 + 1, f"Second document must get seq={seq1 + 1}, got {seq2}"
 
 
 @pytest.mark.asyncio
@@ -304,6 +302,4 @@ async def test_concurrent_issue_no_gaps(db, tenant_id):
 
     seqs = sorted(int(r.split("/")[1]) for r in results)
     expected = list(range(1, n + 1))
-    assert seqs == expected, (
-        f"Invoice numbers must be contiguous [1..{n}], got sequences {seqs}"
-    )
+    assert seqs == expected, f"Invoice numbers must be contiguous [1..{n}], got sequences {seqs}"

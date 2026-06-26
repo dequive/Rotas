@@ -1115,9 +1115,9 @@ async def create_evaluation(
             f"Pesos devem somar 1.0 (soma actual: {total_weight:.2f})",
             status_code=422,
         )
-    score = Decimal(
-        str(sum(c["weight"] * c["score"] for c in payload.criteria))
-    ).quantize(Decimal("0.01"))
+    score = Decimal(str(sum(c["weight"] * c["score"] for c in payload.criteria))).quantize(
+        Decimal("0.01")
+    )
 
     evaluation = SupplierEvaluation(
         tenant_id=tenant_id,

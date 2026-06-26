@@ -7,6 +7,7 @@ Two sections:
 Uses DejaVuSans (same font path as billing exporters) for full UTF-8 / Portuguese support.
 Falls back to built-in Helvetica if the font file is not present.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -65,8 +66,12 @@ async def generate_compliance_report_pdf(
     # ── Document header ──────────────────────────────────────────────────────
     _set("B", 14)
     pdf.cell(
-        0, 10, f"Relatório de Conformidade — {tenant_name}",
-        new_x="LMARGIN", new_y="NEXT", align="C",
+        0,
+        10,
+        f"Relatório de Conformidade — {tenant_name}",
+        new_x="LMARGIN",
+        new_y="NEXT",
+        align="C",
     )
     _set("", 9)
     pdf.cell(0, 6, f"Gerado em: {today_str}", new_x="LMARGIN", new_y="NEXT", align="C")
@@ -99,8 +104,12 @@ async def generate_compliance_report_pdf(
             pdf.cell(50, 6, str(item.get("document_type", ""))[:24], border=1)
             pdf.cell(30, 6, str(item.get("expires_at", ""))[:10], border=1)
             pdf.cell(
-                20, 6, str(item.get("days_remaining", "")),
-                border=1, new_x="LMARGIN", new_y="NEXT",
+                20,
+                6,
+                str(item.get("days_remaining", "")),
+                border=1,
+                new_x="LMARGIN",
+                new_y="NEXT",
             )
 
         pdf.ln(4)

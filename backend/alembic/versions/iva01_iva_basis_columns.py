@@ -8,8 +8,9 @@ No RLS changes needed — these are new columns on existing RLS-protected tables
 RLS policies filter rows, not columns.
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "iva01a1b2c3d4"
 down_revision = "fisc01"

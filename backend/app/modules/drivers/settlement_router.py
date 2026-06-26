@@ -25,9 +25,7 @@ class RejectSettlementRequest(BaseModel):
     reason: str
 
 
-async def _get_settlement(
-    db: AsyncSession, tenant_id: UUID, trip_id: UUID
-) -> TripSettlement:
+async def _get_settlement(db: AsyncSession, tenant_id: UUID, trip_id: UUID) -> TripSettlement:
     s = await db.scalar(
         select(TripSettlement).where(
             TripSettlement.trip_id == trip_id,

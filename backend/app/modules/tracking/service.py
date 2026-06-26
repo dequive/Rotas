@@ -1,4 +1,5 @@
 """Customer tracking portal service — token generation + public payload assembly."""
+
 from __future__ import annotations
 
 import secrets
@@ -34,13 +35,15 @@ async def create_tracking_token(
 ) -> dict[str, Any]:
     from app.modules.trips.models import Trip
 
-    trip = await db.scalar(
-        select(Trip).where(Trip.id == trip_id, Trip.tenant_id == tenant_id)
-    )
+    trip = await db.scalar(select(Trip).where(Trip.id == trip_id, Trip.tenant_id == tenant_id))
     if not trip:
         raise ApiError("trip_not_found", "Trip not found", status_code=status.HTTP_404_NOT_FOUND)
     if trip.status not in ("in_progress", "planned"):
-        raise ApiError("trip_not_trackable", "Tracking only available for active trips", status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise ApiError(
+            "trip_not_trackable",
+            "Tracking only available for active trips",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
 
     token_val = secrets.token_urlsafe(32)
     token = TrackingToken(
@@ -58,35 +61,49 @@ async def create_tracking_token(
 
 async def get_public_tracking_payload(db: AsyncSession, token_val: str) -> dict[str, Any]:
     """Return public (no-auth) tracking payload. Used by /track/{token} page."""
-    token = await db.scalar(
-        select(TrackingToken).where(TrackingToken.token == token_val)
-    )
+    token = await db.scalar(select(TrackingToken).where(TrackingToken.token == token_val))
     if not token:
-        raise ApiError("token_not_found", "Tracking link not found or expired", status_code=status.HTTP_404_NOT_FOUND)
+        raise ApiError(
+            "token_not_found",
+            "Tracking link not found or expired",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
 
     now = datetime.now(UTC)
     if token.expires_at < now:
-        raise ApiError("token_expired", "This tracking link has expired", status_code=status.HTTP_410_GONE)
+        raise ApiError(
+            "token_expired", "This tracking link has expired", status_code=status.HTTP_410_GONE
+        )
 
-    from app.modules.trips.models import Trip
-    from app.modules.drivers.models import Driver
-    from app.modules.vehicles.models import Vehicle
     from app.modules.cargo.models import DeliveryProof
+    from app.modules.drivers.models import Driver
+    from app.modules.trips.models import Trip
+    from app.modules.vehicles.models import Vehicle
 
     trip = await db.scalar(select(Trip).where(Trip.id == token.trip_id))
     driver = await db.scalar(select(Driver).where(Driver.id == trip.driver_id)) if trip else None
-    vehicle = await db.scalar(select(Vehicle).where(Vehicle.id == trip.vehicle_id)) if trip else None
-    last_pos = await db.scalar(
-        select(VehicleLastPosition).where(VehicleLastPosition.vehicle_id == trip.vehicle_id)
-    ) if trip else None
+    vehicle = (
+        await db.scalar(select(Vehicle).where(Vehicle.id == trip.vehicle_id)) if trip else None
+    )
+    last_pos = (
+        await db.scalar(
+            select(VehicleLastPosition).where(VehicleLastPosition.vehicle_id == trip.vehicle_id)
+        )
+        if trip
+        else None
+    )
 
     # Latest delivery proof photo
-    delivery_proof = await db.scalar(
-        select(DeliveryProof)
-        .where(DeliveryProof.trip_id == token.trip_id)
-        .order_by(DeliveryProof.created_at.desc())
-        .limit(1)
-    ) if trip else None
+    delivery_proof = (
+        await db.scalar(
+            select(DeliveryProof)
+            .where(DeliveryProof.trip_id == token.trip_id)
+            .order_by(DeliveryProof.created_at.desc())
+            .limit(1)
+        )
+        if trip
+        else None
+    )
 
     return {
         "trip_id": str(token.trip_id),

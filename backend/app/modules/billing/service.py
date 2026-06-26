@@ -1633,9 +1633,7 @@ async def get_ar_summary(
     the reference point. Defaults to today.
     """
     _as_of = as_of or datetime.now(UTC).date()
-    today = datetime(
-        _as_of.year, _as_of.month, _as_of.day, 23, 59, 59, tzinfo=UTC
-    )
+    today = datetime(_as_of.year, _as_of.month, _as_of.day, 23, 59, 59, tzinfo=UTC)
 
     stmt = select(BillingDocument).where(
         BillingDocument.tenant_id == tenant_id,
@@ -2001,7 +1999,13 @@ async def generate_client_statement_pdf(
     # Table columns: Fatura | Emissão | Vencimento | Total | Pago | Em Aberto | Estado
     COL_W = [28, 22, 22, 30, 30, 30, 18]  # = 180mm usable
     HEADERS = [
-        "Fatura", "Emissão", "Vencimento", "Total MZN", "Pago MZN", "Em Aberto MZN", "Estado"
+        "Fatura",
+        "Emissão",
+        "Vencimento",
+        "Total MZN",
+        "Pago MZN",
+        "Em Aberto MZN",
+        "Estado",
     ]
     ALIGN = ["L", "C", "C", "R", "R", "R", "C"]
 
@@ -2056,8 +2060,14 @@ async def generate_client_statement_pdf(
         ]
         for w, (cell_text, align) in zip(COL_W, values, strict=False):
             pdf.cell(  # noqa: E501
-                w, 6, cell_text, border=0, fill=fill, align=align,
-                new_x=XPos.RIGHT, new_y=YPos.TOP,
+                w,
+                6,
+                cell_text,
+                border=0,
+                fill=fill,
+                align=align,
+                new_x=XPos.RIGHT,
+                new_y=YPos.TOP,
             )
         pdf.ln()
 
@@ -2141,9 +2151,7 @@ async def list_payments(
     if value_date_end:
         query = query.where(ClientPayment.value_date < value_date_end)
 
-    count_query = select(func.count(ClientPayment.id)).where(
-        ClientPayment.tenant_id == tenant_id
-    )
+    count_query = select(func.count(ClientPayment.id)).where(ClientPayment.tenant_id == tenant_id)
     if client_id:
         count_query = count_query.where(ClientPayment.client_id == client_id)
     if status:

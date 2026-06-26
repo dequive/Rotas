@@ -49,9 +49,7 @@ def second_auth_headers(second_tenant_id: str) -> dict:
 
 
 @pytest.fixture
-async def second_third_party_id(
-    async_client: AsyncClient, second_auth_headers: dict
-) -> str:
+async def second_third_party_id(async_client: AsyncClient, second_auth_headers: dict) -> str:
     resp = await async_client.post(
         "/api/v1/third-party",
         json={"name": f"Terceiro Isolado {uuid.uuid4().hex[:6]}"},
@@ -273,15 +271,14 @@ async def test_create_evaluation_score_correctness(
     )
     assert resp.status_code == 201, resp.text
     ev = resp.json()
-    assert Decimal(ev["score"]) == Decimal("6.80"), (
-        f"Expected score 6.80, got {ev['score']}"
-    )
+    assert Decimal(ev["score"]) == Decimal("6.80"), f"Expected score 6.80, got {ev['score']}"
 
 
 async def test_create_evaluation_invalid_criteria_rejected(
     async_client: AsyncClient, auth_headers: dict, third_party_id: str
 ):
     """Negative weight, out-of-range score, and wrong sum all return 422."""
+
     def base_idem() -> dict:
         return {**auth_headers, "Idempotency-Key": str(uuid.uuid4())}
 
@@ -366,9 +363,7 @@ async def test_list_evaluations_average_score(
     # Evaluation 2: score = 8.00
     await async_client.post(
         f"/api/v1/third-party/{third_party_id}/evaluations",
-        json={
-            "criteria": [{"name": "geral", "weight": 1.0, "score": 8.0}]
-        },
+        json={"criteria": [{"name": "geral", "weight": 1.0, "score": 8.0}]},
         headers={**auth_headers, "Idempotency-Key": str(uuid.uuid4())},
     )
 
@@ -401,9 +396,7 @@ async def test_ledger_immutability(
         # UPDATE must raise
         with pytest.raises(Exception, match="immutable"):
             await session.execute(
-                sa.text(
-                    "UPDATE supplier_ledger_entries SET amount = 999.00 WHERE id = :eid"
-                ),
+                sa.text("UPDATE supplier_ledger_entries SET amount = 999.00 WHERE id = :eid"),
                 {"eid": entry_id},
             )
             await session.commit()
@@ -433,9 +426,7 @@ async def test_evaluation_immutability(
     async with AsyncSessionLocal() as session:
         with pytest.raises(Exception, match="immutable"):
             await session.execute(
-                sa.text(
-                    "UPDATE supplier_evaluations SET score = 0.00 WHERE id = :eid"
-                ),
+                sa.text("UPDATE supplier_evaluations SET score = 0.00 WHERE id = :eid"),
                 {"eid": eval_id},
             )
             await session.commit()

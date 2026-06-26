@@ -7,12 +7,8 @@ Create Date: 2026-06-21 07:15:49.230918+02:00
 
 from collections.abc import Sequence
 
-from alembic import op
-import sqlalchemy as sa
-
-
-revision: str = 'e66352d728cd'
-down_revision: str | None = ('c5d6e7f8a9b0', 'ins01')
+revision: str = "e66352d728cd"
+down_revision: str | None = ("c5d6e7f8a9b0", "ins01")
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

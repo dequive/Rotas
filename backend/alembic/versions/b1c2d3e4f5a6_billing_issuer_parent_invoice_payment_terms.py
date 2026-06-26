@@ -12,8 +12,9 @@ CME — production hardening:
 - contracts.payment_terms_days (Integer, NOT NULL, default 30): used by issue_document to compute due_date
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "b1c2d3e4f5a6"
 down_revision = "restore_composite_indexes"

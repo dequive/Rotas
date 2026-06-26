@@ -197,9 +197,7 @@ async def test_adv05_cannot_void_settled_advance(db, tenant_id):
     )
 
     # Manually set status to 'settled' to simulate settlement workflow
-    advance = await db.scalar(
-        select(DriverAdvance).where(DriverAdvance.id == issued["id"])
-    )
+    advance = await db.scalar(select(DriverAdvance).where(DriverAdvance.id == issued["id"]))
     advance.status = "settled"
     await db.commit()
 
@@ -228,12 +226,20 @@ async def test_adv06_list_advances_filters_by_trip_and_status(db, tenant_id):
     trip_b = await _make_trip(db, tenant_id, vehicle_b, driver_b, status="in_progress")
 
     await advance_service.issue_advance(
-        db, tenant_id=tenant_id, user_id=user.id,
-        trip_id=trip_a.id, driver_id=driver_a.id, amount_mzn=Decimal("1000.00"),
+        db,
+        tenant_id=tenant_id,
+        user_id=user.id,
+        trip_id=trip_a.id,
+        driver_id=driver_a.id,
+        amount_mzn=Decimal("1000.00"),
     )
     advance_b = await advance_service.issue_advance(
-        db, tenant_id=tenant_id, user_id=user.id,
-        trip_id=trip_b.id, driver_id=driver_b.id, amount_mzn=Decimal("2000.00"),
+        db,
+        tenant_id=tenant_id,
+        user_id=user.id,
+        trip_id=trip_b.id,
+        driver_id=driver_b.id,
+        amount_mzn=Decimal("2000.00"),
     )
 
     # Filter by trip_a — should only return trip_a's advance

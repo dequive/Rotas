@@ -181,8 +181,11 @@ def render_trip_report(
     vplate = (vehicle or {}).get("plate", "—") if vehicle else "—"
     dname = (driver or {}).get("full_name", "—") if driver else "—"
     for lbl, val in [
-        ("ID", trip_id_str), ("Status", status), ("N.º Guia", waybill),
-        ("Viatura", vplate), ("Motorista", dname),
+        ("ID", trip_id_str),
+        ("Status", status),
+        ("N.º Guia", waybill),
+        ("Viatura", vplate),
+        ("Motorista", dname),
     ]:
         pdf.set_xy(x_right + 2, pdf.get_y())
         pdf.set_font("DejaVu", "B", 7)
@@ -274,8 +277,14 @@ def render_trip_report(
             row_vals = [loc[:40], arr_str, stop_type[:18], dur_str]
             for val, w in zip(row_vals, STOP_COLS, strict=False):
                 pdf.cell(
-                    w, 6, val, border=1, fill=fill, align="L",
-                    new_x=XPos.RIGHT, new_y=YPos.TOP,
+                    w,
+                    6,
+                    val,
+                    border=1,
+                    fill=fill,
+                    align="L",
+                    new_x=XPos.RIGHT,
+                    new_y=YPos.TOP,
                 )
             pdf.ln()
         pdf.ln(3)
@@ -329,8 +338,13 @@ def render_trip_report(
     pdf.set_text_color(*_WHITE)
     pdf.set_font("DejaVu", "B", 7)
     pdf.cell(
-        RIGHT_FIN, 6, "RESUMO FINANCEIRO", fill=True, align="C",
-        new_x=XPos.LMARGIN, new_y=YPos.NEXT,
+        RIGHT_FIN,
+        6,
+        "RESUMO FINANCEIRO",
+        fill=True,
+        align="C",
+        new_x=XPos.LMARGIN,
+        new_y=YPos.NEXT,
     )
 
     margin_color = _GREEN if margin >= 0 else _RED

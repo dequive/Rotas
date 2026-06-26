@@ -185,9 +185,13 @@ def _kv(pdf: _CleanPDF, label: str, value: str, w_label: float = 55) -> None:
 
 def _two_kv(
     pdf: _CleanPDF,
-    l_label: str, l_val: str,
-    r_label: str, r_val: str,
-    lw: float = 45, lv: float = 55, rw: float = 35,
+    l_label: str,
+    l_val: str,
+    r_label: str,
+    r_val: str,
+    lw: float = 45,
+    lv: float = 55,
+    rw: float = 35,
 ) -> None:
     pdf.set_font("DejaVu", "B", 8)
     pdf.set_text_color(*_MUTED)
@@ -374,10 +378,12 @@ def render_work_order(
     sig_y = pdf.get_y()
     SIG_COL = PW / 2 - 5
 
-    for i, (label, date_attr) in enumerate([
-        ("Aprovado por", "approved_at"),
-        ("Encerrado por", "closed_at"),
-    ]):
+    for i, (label, date_attr) in enumerate(
+        [
+            ("Aprovado por", "approved_at"),
+            ("Encerrado por", "closed_at"),
+        ]
+    ):
         x = LM + i * (SIG_COL + 10)
         date_val = _date(_get(work_order, date_attr))
         pdf.set_draw_color(*_INK_LINE)

@@ -5,9 +5,10 @@ Revises: tp01a
 Create Date: 2026-06-19
 """
 
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+
+from alembic import op
 
 revision = "tp01b"
 down_revision = "tp01a"
@@ -89,9 +90,7 @@ def upgrade() -> None:
         ),
     )
     op.create_index("ix_third_parties_tenant_id", "third_parties", ["tenant_id"])
-    op.create_index(
-        "ix_third_parties_tenant_status", "third_parties", ["tenant_id", "status"]
-    )
+    op.create_index("ix_third_parties_tenant_status", "third_parties", ["tenant_id", "status"])
     op.create_unique_constraint(
         "uq_third_parties_tenant_nuit", "third_parties", ["tenant_id", "nuit"]
     )
@@ -131,9 +130,7 @@ def upgrade() -> None:
         ),
     )
     op.create_index("ix_third_party_roles_tenant_id", "third_party_roles", ["tenant_id"])
-    op.create_index(
-        "ix_third_party_roles_third_party_id", "third_party_roles", ["third_party_id"]
-    )
+    op.create_index("ix_third_party_roles_third_party_id", "third_party_roles", ["third_party_id"])
     op.create_unique_constraint(
         "uq_third_party_roles_tp_role",
         "third_party_roles",

@@ -10,7 +10,6 @@ import httpx
 import pytest
 from sqlalchemy import select
 
-
 from app.database import AsyncSessionLocal, engine, import_all_models
 from app.main import app
 from app.modules.alerts.models import Alert
@@ -208,14 +207,18 @@ async def test_update_claim_status_transitions() -> None:
 
     async with AsyncSessionLocal() as db:
         logs = (
-            await db.execute(
-                select(AuditLog).where(
-                    AuditLog.tenant_id == tenant.id,
-                    AuditLog.entity_type == "insurance_claim",
-                    AuditLog.action == "insurance_claim.status_updated",
+            (
+                await db.execute(
+                    select(AuditLog).where(
+                        AuditLog.tenant_id == tenant.id,
+                        AuditLog.entity_type == "insurance_claim",
+                        AuditLog.action == "insurance_claim.status_updated",
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
     assert len(logs) >= 2
 
 
@@ -312,9 +315,7 @@ async def test_delete_insurance_cascades_claims() -> None:
     from app.modules.vehicles.models import InsuranceClaim
 
     async with AsyncSessionLocal() as db:
-        claim = await db.scalar(
-            select(InsuranceClaim).where(InsuranceClaim.id == UUID(claim_id))
-        )
+        claim = await db.scalar(select(InsuranceClaim).where(InsuranceClaim.id == UUID(claim_id)))
     assert claim is None, "Claim should have been cascade-deleted with the insurance policy"
 
 

@@ -41,9 +41,7 @@ def serialize_settlement(s: TripSettlement) -> dict[str, Any]:
 
 
 async def _require_trip(db: AsyncSession, tenant_id: UUID, trip_id: UUID) -> Trip:
-    trip = await db.scalar(
-        select(Trip).where(Trip.id == trip_id, Trip.tenant_id == tenant_id)
-    )
+    trip = await db.scalar(select(Trip).where(Trip.id == trip_id, Trip.tenant_id == tenant_id))
     if not trip:
         raise ApiError("trip_not_found", "Trip not found.", status_code=status.HTTP_404_NOT_FOUND)
     return trip
@@ -261,9 +259,7 @@ async def generate_settlement_pdf(
     tenant = await db.scalar(select(Tenant).where(Tenant.id == tenant_id))
 
     costs_rows = await db.scalars(
-        select(TripCost).where(
-            TripCost.trip_id == s.trip_id, TripCost.tenant_id == tenant_id
-        )
+        select(TripCost).where(TripCost.trip_id == s.trip_id, TripCost.tenant_id == tenant_id)
     )
     costs = list(costs_rows)
 
@@ -277,34 +273,40 @@ async def generate_settlement_pdf(
     pdf.set_font("DejaVu", "B", 16)
     pdf.cell(0, 10, "RECIBO DE DESPACHO", align="C", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("DejaVu", "", 10)
-    pdf.cell(0, 6, tenant.name if tenant else "—",
-             align="C", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 6, tenant.name if tenant else "—", align="C", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(4)
 
     pdf.set_font("DejaVu", "B", 11)
     pdf.cell(0, 7, "Dados da Viagem", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("DejaVu", "", 10)
     pdf.cell(60, 6, "Motorista:")
-    pdf.cell(0, 6, driver.full_name if driver else "—",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 6, driver.full_name if driver else "—", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     doc_number = (driver.bi_number or driver.license_number or "—") if driver else "—"
     pdf.cell(60, 6, "Documento:")
     pdf.cell(0, 6, doc_number, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.cell(60, 6, "Viatura:")
-    pdf.cell(0, 6, vehicle.plate if vehicle else "—",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 6, vehicle.plate if vehicle else "—", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     if trip:
         pdf.cell(60, 6, "Rota:")
-        pdf.cell(0, 6, f"{trip.origin} → {trip.destination}",
-                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 6, f"{trip.origin} → {trip.destination}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         if trip.actual_departure:
             pdf.cell(60, 6, "Partida:")
-            pdf.cell(0, 6, trip.actual_departure.strftime("%d/%m/%Y %H:%M"),
-                     new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.cell(
+                0,
+                6,
+                trip.actual_departure.strftime("%d/%m/%Y %H:%M"),
+                new_x=XPos.LMARGIN,
+                new_y=YPos.NEXT,
+            )
         if trip.actual_arrival:
             pdf.cell(60, 6, "Chegada:")
-            pdf.cell(0, 6, trip.actual_arrival.strftime("%d/%m/%Y %H:%M"),
-                     new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.cell(
+                0,
+                6,
+                trip.actual_arrival.strftime("%d/%m/%Y %H:%M"),
+                new_x=XPos.LMARGIN,
+                new_y=YPos.NEXT,
+            )
     pdf.ln(4)
 
     pdf.set_font("DejaVu", "B", 11)
@@ -318,34 +320,30 @@ async def generate_settlement_pdf(
         desc = cost.description or cost.cost_type
         pdf.cell(90, 6, desc[:50], border=1)
         pdf.cell(40, 6, cost.cost_type, border=1)
-        pdf.cell(0, 6, f"{cost.amount:,.2f}", border=1, align="R",
-                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(
+            0, 6, f"{cost.amount:,.2f}", border=1, align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT
+        )
     pdf.ln(4)
 
     pdf.set_font("DejaVu", "B", 11)
     pdf.cell(0, 7, "Resumo Financeiro", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("DejaVu", "", 10)
     pdf.cell(90, 7, "Adiantamento (Despacho):")
-    pdf.cell(0, 7, f"MZN {s.advance_amount_mzn:,.2f}",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 7, f"MZN {s.advance_amount_mzn:,.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.cell(90, 7, "Total de Despesas:")
-    pdf.cell(0, 7, f"MZN {s.total_costs_mzn:,.2f}",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 7, f"MZN {s.total_costs_mzn:,.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("DejaVu", "B", 11)
     balance_label = (
-        "Saldo a Devolver à Empresa:" if s.balance_mzn >= 0
-        else "Valor a Pagar ao Motorista:"
+        "Saldo a Devolver à Empresa:" if s.balance_mzn >= 0 else "Valor a Pagar ao Motorista:"
     )
     pdf.cell(90, 8, balance_label)
-    pdf.cell(0, 8, f"MZN {abs(s.balance_mzn):,.2f}",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 8, f"MZN {abs(s.balance_mzn):,.2f}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(10)
 
     pdf.set_font("DejaVu", "", 10)
     pdf.cell(80, 6, "Assinatura do Motorista:", border="B")
     pdf.cell(20)
-    pdf.cell(80, 6, "Assinatura do Gestor:", border="B",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(80, 6, "Assinatura do Gestor:", border="B", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(8)
     pdf.cell(80, 6, driver.full_name if driver else "—", align="C")
     pdf.cell(20)

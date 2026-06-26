@@ -86,6 +86,7 @@ async def _owner_headers(tenant_id) -> dict[str, str]:
     user = await _make_user(tenant_id, "owner")
     # owner gets ADMIN_USERS via ROLE_PERMISSIONS — include perms in JWT
     from app.core.rbac import ROLE_PERMISSIONS
+
     perms = list(ROLE_PERMISSIONS.get("owner", frozenset()))
     return _jwt_headers(tenant_id, user, perms=perms)
 
@@ -222,6 +223,7 @@ async def test_non_admin_cannot_create_role():
     tenant = await _make_tenant()
     manager = await _make_user(tenant.id, "manager")
     from app.core.rbac import ROLE_PERMISSIONS
+
     perms = list(ROLE_PERMISSIONS.get("manager", frozenset()))
     manager_headers = _jwt_headers(tenant.id, manager, perms=perms)
 

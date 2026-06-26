@@ -128,8 +128,7 @@ async def _make_issued_doc(db, tenant_id):
 
 @pytest.mark.asyncio
 async def test_billing_document_has_document_type_column(db, tenant_id):
-    """BillingDocument ORM model exposes document_type, parent_document_id, due_date, client_nuit.
-    """
+    """BillingDocument ORM model exposes document_type, parent_document_id, due_date, client_nuit."""
     contract = await _make_contract(db, tenant_id)
     await _make_vehicle(db, tenant_id)
     await _make_driver(db, tenant_id)

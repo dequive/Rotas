@@ -39,9 +39,7 @@ def serialize_advance(advance: DriverAdvance) -> dict[str, Any]:
 
 
 async def _require_trip(db: AsyncSession, tenant_id: UUID, trip_id: UUID) -> Trip:
-    trip = await db.scalar(
-        select(Trip).where(Trip.id == trip_id, Trip.tenant_id == tenant_id)
-    )
+    trip = await db.scalar(select(Trip).where(Trip.id == trip_id, Trip.tenant_id == tenant_id))
     if not trip:
         raise ApiError("trip_not_found", "Trip not found.", status_code=status.HTTP_404_NOT_FOUND)
     return trip

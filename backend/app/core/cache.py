@@ -1,8 +1,10 @@
 import logging
 from uuid import UUID
+
 from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
+
 
 async def invalidate_keys(redis: Redis | None, pattern: str) -> None:
     """Invalidate all keys matching the pattern in Redis."""
@@ -15,6 +17,7 @@ async def invalidate_keys(redis: Redis | None, pattern: str) -> None:
             logger.info(f"Invalidated {len(keys)} keys matching pattern: {pattern}")
     except Exception as e:
         logger.error(f"Failed to invalidate keys for pattern {pattern}: {e}")
+
 
 async def invalidate_tenant_caches(redis: Redis | None, tenant_id: UUID) -> None:
     """Invalidate all cached read endpoints for the given tenant."""

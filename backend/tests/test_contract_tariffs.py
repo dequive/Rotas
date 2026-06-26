@@ -121,7 +121,7 @@ async def test_contract_tariff_multi_tenant_isolation(async_client, auth_headers
     from app.config import get_settings
 
     settings = get_settings()
-    other_tenant = Tenant(name="Tenant B", slug="tenant-b")
+    other_tenant = Tenant(name="Tenant B", slug=f"tenant-b-{uuid.uuid4().hex[:6]}")
     db.add(other_tenant)
     await db.commit()
     await db.refresh(other_tenant)

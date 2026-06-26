@@ -82,10 +82,18 @@ class ContractTariff(Base):
         ),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
-    contract_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contracts.id", ondelete="CASCADE"), index=True)
-    known_route_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("known_routes.id", ondelete="RESTRICT"), index=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    contract_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("contracts.id", ondelete="CASCADE"), index=True
+    )
+    known_route_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("known_routes.id", ondelete="RESTRICT"), index=True
+    )
     rate_basis: Mapped[str] = mapped_column(String(40), default="trip", server_default="trip")
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     currency: Mapped[str] = mapped_column(String(3), default="MZN", server_default="MZN")

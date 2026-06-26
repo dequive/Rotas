@@ -1,9 +1,11 @@
 from decimal import Decimal
 from uuid import UUID
-from sqlalchemy import select, func
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.modules.contracts.models import Contract, ContractTariff
-from app.modules.trips.models import Trip, KnownRoute
+from app.modules.trips.models import KnownRoute, Trip
 
 
 def _decimal(value: float | Decimal | None) -> Decimal:

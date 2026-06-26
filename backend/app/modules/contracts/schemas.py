@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
@@ -57,8 +58,6 @@ class ContractTransitionRequest(BaseModel):
     termination_reason: str | None = Field(None, min_length=5, max_length=500)
     new_ends_at: datetime | None = None
 
-
-from decimal import Decimal
 
 class ContractTariffCreate(BaseModel):
     known_route_id: UUID

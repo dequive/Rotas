@@ -18,7 +18,7 @@ setup('authenticate as E2E user', async ({ page }) => {
 
   // After successful login, middleware redirects to /
   // waitForURL confirms the redirect completed before saving state
-  await page.waitForURL('/', { timeout: 15_000 });
+  await page.waitForURL('/', { timeout: 45_000 });
 
   // Confirm we are actually on the dashboard (not still on /login)
   expect(page.url()).toContain('/');

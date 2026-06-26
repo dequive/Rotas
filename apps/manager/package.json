@@ -5,12 +5,13 @@
   "scripts": {
     "dev": "next dev --port 3030",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --port 3030",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
-    "e2e:report": "playwright show-report"
+    "e2e:report": "playwright show-report",
+    "test": "vitest run"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.16",
@@ -33,13 +34,18 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20.0.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.5.0",
+    "jsdom": "^29.1.1",
+    "msw": "^2.14.6",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.9"
   },
   "engines": {
     "node": "20.x"

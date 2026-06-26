@@ -4,7 +4,7 @@ test('vehicles list page loads', async ({ page }) => {
   await page.goto('/viaturas');
   // Either a table row or an empty-state message must appear — not a hard crash
   await expect(
-    page.locator('table, [data-testid="empty-state"], text=Sem viaturas').first()
+    page.locator('table').first()
   ).toBeVisible({ timeout: 10_000 });
 });
 

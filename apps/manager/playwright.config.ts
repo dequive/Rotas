@@ -31,9 +31,12 @@ export default defineConfig({
   webServer: process.env.CI
     ? undefined
     : {
-        command: 'npm run dev',
+        command: 'npm run start',
         url: 'http://localhost:3030',
         reuseExistingServer: true,
         timeout: 120_000,
+        env: {
+          ROTAS_ALLOW_DEMO_FALLBACK: '1',
+        },
       },
 });

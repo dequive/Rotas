@@ -6,6 +6,7 @@ import { SidebarLayout } from "../components/SidebarLayout";
 import { DriverFormModal } from "../components/DriverFormModal";
 import { DriverScorecardPanel } from "../components/DriverScorecardPanel";
 import { PairingCodeButton } from "../components/PairingCodeButton";
+import { DriverHubButton } from "../components/DriverHubButton";
 import { PageHeader } from "../components/ui/PageHeader";
 import { StatusBadge } from "../components/ui/StatusBadge";
 
@@ -62,12 +63,7 @@ export default async function MotoristasPage() {
                   return (
                     <tr key={d.id}>
                       <td>
-                        <Link href={`/motoristas/${d.id}`} className="no-underline text-inherit">
-                          <span className="inline-flex items-center gap-1.5">
-                            <User size={14} />
-                            {d.full_name}
-                          </span>
-                        </Link>
+                        <DriverHubButton driverId={d.id} driverName={d.full_name} />
                       </td>
                       <td>{d.phone}</td>
                       <td>

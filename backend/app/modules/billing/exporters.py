@@ -335,11 +335,11 @@ def _render_pdf(
         dest = item.destination or ""
         desig = f"{origin} → {dest}" if (origin or dest) else "—"
         if getattr(item, "cargo_description", None):
-            desig = f"{desig} — {item.cargo_description[:30]}"
+            desig = f"{desig} — {item.cargo_description[:60]}"
 
         row_vals = [
             ((getattr(item, "client_reference", None) or "—")[:14], "C"),
-            (desig[:50], "L"),
+            (desig[:80], "L"),
             (str(item.quantity or 1), "C"),
             (_money(item.unit_price, ""), "R"),
             (f"{iva_pct_item}%", "C"),

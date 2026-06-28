@@ -92,3 +92,28 @@ export async function loadDriverScorecard(
     return null;
   }
 }
+
+export interface DocumentAlert {
+  type: string;
+  status: string;
+  message: string;
+}
+
+export interface RecentTrip {
+  id: string;
+  route_name: string | null;
+  status: string;
+  date: string;
+}
+
+export interface DriverHub360Response {
+  driver: Driver;
+  recent_trips: RecentTrip[];
+  pending_advances_count: number;
+  pending_advances_total: number;
+  document_alerts: DocumentAlert[];
+}
+
+export async function loadDriverHub360(id: string): Promise<DriverHub360Response> {
+  return apiFetch<DriverHub360Response>(`/api/v1/drivers/${id}/hub360`, { revalidate: 0 });
+}

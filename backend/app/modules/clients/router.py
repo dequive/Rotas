@@ -2,10 +2,11 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.rbac import BILLING_READ, BILLING_WRITE, require_permission
 from app.modules.clients import schemas, service
@@ -25,11 +26,14 @@ async def list_clients(
 
 @router.post("", status_code=201)
 async def create_client(
+    request: Request,
     payload: schemas.ClientCreate,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.create_client(db, principal.tenant_id, payload)
+    res = await service.create_client(db, principal.tenant_id, payload)
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.get("/{client_id}")
@@ -43,12 +47,15 @@ async def get_client(
 
 @router.patch("/{client_id}")
 async def patch_client(
+    request: Request,
     client_id: UUID,
     payload: schemas.ClientPatch,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.patch_client(db, client_id, principal.tenant_id, payload)
+    res = await service.patch_client(db, client_id, principal.tenant_id, payload)
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.get("/{client_id}/statement")

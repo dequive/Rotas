@@ -1,8 +1,23 @@
+import re
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.modules.drivers.schemas import _normalize_email, _normalize_phone
+
+
+def _normalize_nuit(v: str | None) -> str | None:
+    if v is None:
+        return v
+    if not v.strip():
+        return None
+    cleaned = re.sub(r"\D", "", v)
+    if len(cleaned) != 9:
+        raise ValueError("NUIT must be exactly 9 digits.")
+    return cleaned
+
 
 # ── ThirdParty ────────────────────────────────────────────────────────────────
 
@@ -19,6 +34,21 @@ class ThirdPartyCreate(BaseModel):
     status: str = Field("active", pattern="^(active|inactive|suspended)$")
     notes: str | None = None
 
+    @field_validator("nuit")
+    @classmethod
+    def validate_nuit(cls, v: str | None) -> str | None:
+        return _normalize_nuit(v)
+
+    @field_validator("contact_phone")
+    @classmethod
+    def validate_phone(cls, v: str | None) -> str | None:
+        return _normalize_phone(v)
+
+    @field_validator("contact_email")
+    @classmethod
+    def validate_email(cls, v: str | None) -> str | None:
+        return _normalize_email(v)
+
 
 class ThirdPartyUpdate(BaseModel):
     name: str | None = Field(None, min_length=2, max_length=160)
@@ -32,6 +62,21 @@ class ThirdPartyUpdate(BaseModel):
     status: str | None = Field(None, pattern="^(active|inactive|suspended)$")
     is_verified: bool | None = None
     notes: str | None = None
+
+    @field_validator("nuit")
+    @classmethod
+    def validate_nuit(cls, v: str | None) -> str | None:
+        return _normalize_nuit(v)
+
+    @field_validator("contact_phone")
+    @classmethod
+    def validate_phone(cls, v: str | None) -> str | None:
+        return _normalize_phone(v)
+
+    @field_validator("contact_email")
+    @classmethod
+    def validate_email(cls, v: str | None) -> str | None:
+        return _normalize_email(v)
 
 
 class ThirdPartyOut(BaseModel):

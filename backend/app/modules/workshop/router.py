@@ -618,3 +618,73 @@ async def download_work_order_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=ordem-servico-{work_order_id}.pdf"},
     )
+
+
+@router.post("/maintenance-requests/{request_id}/notes")
+async def add_maintenance_request_note(
+    request_id: UUID,
+    payload: schemas.MaintenanceRequestNoteCreate,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.add_maintenance_request_note(
+        db,
+        principal.tenant_id,
+        request_id,
+        payload,
+        actor_id=principal.user_id,
+    )
+
+
+@router.get("/maintenance-requests/{request_id}/notes")
+async def list_maintenance_request_notes(
+    request_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.list_maintenance_request_notes(db, principal.tenant_id, request_id)
+
+
+@router.patch("/maintenance-requests/{request_id}/status")
+async def update_maintenance_request_status(
+    request_id: UUID,
+    payload: schemas.MaintenanceRequestStatusUpdate,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.update_maintenance_request_status(
+        db,
+        principal.tenant_id,
+        request_id,
+        payload,
+        actor_id=principal.user_id,
+    )
+
+
+@router.get("/spare-parts")
+async def list_spare_parts(
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.list_spare_parts(principal.tenant_id, db)
+
+
+@router.post("/spare-parts", status_code=201)
+async def create_spare_part(
+    payload: schemas.SparePartInventoryCreate,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    return await service.create_spare_part(principal.tenant_id, payload, db)
+
+
+@router.post("/spare-parts/{part_id}/movements", status_code=201)
+async def record_spare_part_receipt(
+    part_id: UUID,
+    payload: schemas.SparePartReceiptCreate,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    # Ensure payload.inventory_id matches URL param to avoid confusion
+    payload.inventory_id = part_id
+    return await service.record_spare_part_receipt(principal.tenant_id, payload, principal.user_id, db)

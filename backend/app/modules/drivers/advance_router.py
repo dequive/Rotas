@@ -7,7 +7,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
@@ -22,7 +22,15 @@ router = APIRouter(prefix="/trips", tags=["advances"])
 class IssueAdvanceRequest(BaseModel):
     driver_id: UUID
     amount_mzn: Decimal = Field(..., gt=0, description="Advance amount in MZN, must be positive")
+    allowance_mzn: Decimal = Field(default=Decimal("0.00"), ge=0, description="Allowance (Subsídio)")
+    expenses_mzn: Decimal = Field(default=Decimal("0.00"), ge=0, description="Operational Expenses")
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def validate_amounts(self) -> "IssueAdvanceRequest":
+        if self.allowance_mzn + self.expenses_mzn != self.amount_mzn:
+            raise ValueError("O montante total deve ser igual à soma do subsídio e das despesas.")
+        return self
 
 
 @router.post("/{trip_id}/advance", status_code=status.HTTP_201_CREATED)
@@ -54,6 +62,8 @@ async def issue_advance(
             trip_id=trip_id,
             driver_id=payload.driver_id,
             amount_mzn=payload.amount_mzn,
+            allowance_mzn=payload.allowance_mzn,
+            expenses_mzn=payload.expenses_mzn,
             notes=payload.notes,
             request_reference=str(idempotency_key) if idempotency_key else None,
         ),

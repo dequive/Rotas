@@ -1,10 +1,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import CARGO_WRITE, require_permission
@@ -16,13 +17,14 @@ router = APIRouter(prefix="/trips/{trip_id}", tags=["cargo"])
 
 @router.post("/load-permits")
 async def create_load_permit(
+    request: Request,
     trip_id: UUID,
     payload: schemas.LoadPermitCreate,
     principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -38,17 +40,20 @@ async def create_load_permit(
             actor_id=principal.user_id,
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/cargo-manifest")
 async def create_cargo_manifest(
+    request: Request,
     trip_id: UUID,
     payload: schemas.CargoManifestCreate,
     principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -64,17 +69,20 @@ async def create_cargo_manifest(
             actor_id=principal.user_id,
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/transport-documents")
 async def create_transport_document(
+    request: Request,
     trip_id: UUID,
     payload: schemas.TransportDocumentCreate,
     principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -90,17 +98,20 @@ async def create_transport_document(
             actor_id=principal.user_id,
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/delivery-proof")
 async def create_delivery_proof(
+    request: Request,
     trip_id: UUID,
     payload: schemas.DeliveryProofCreate,
     principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -116,10 +127,13 @@ async def create_delivery_proof(
             actor_id=principal.user_id,
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/delivery-proof/{proof_id}/validate")
 async def validate_delivery_proof(
+    request: Request,
     trip_id: UUID,
     proof_id: UUID,
     payload: schemas.ValidateDeliveryProofRequest,
@@ -127,7 +141,7 @@ async def validate_delivery_proof(
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -144,10 +158,13 @@ async def validate_delivery_proof(
             payload,
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/delivery-proof/{proof_id}/dispute")
 async def dispute_delivery_proof(
+    request: Request,
     trip_id: UUID,
     proof_id: UUID,
     payload: schemas.DisputeDeliveryProofRequest,
@@ -155,7 +172,7 @@ async def dispute_delivery_proof(
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -172,10 +189,13 @@ async def dispute_delivery_proof(
             payload,
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/delivery-proof/{proof_id}/resolve-dispute")
 async def resolve_delivery_proof_dispute(
+    request: Request,
     trip_id: UUID,
     proof_id: UUID,
     payload: schemas.ResolveDeliveryProofDisputeRequest,
@@ -183,7 +203,7 @@ async def resolve_delivery_proof_dispute(
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -200,10 +220,13 @@ async def resolve_delivery_proof_dispute(
             payload,
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.patch("/delivery-proof/{proof_id}/accept", summary="Accept delivery proof (SM-03)")
 async def accept_delivery_proof_endpoint(
+    request: Request,
     trip_id: UUID,
     proof_id: UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -219,11 +242,13 @@ async def accept_delivery_proof_endpoint(
     )
     await db.commit()
     await db.refresh(proof)
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
     return proof
 
 
 @router.patch("/delivery-proof/{proof_id}/reject", summary="Reject delivery proof (SM-03)")
 async def reject_delivery_proof_endpoint(
+    request: Request,
     trip_id: UUID,
     proof_id: UUID,
     body: DeliveryProofRejectRequest,
@@ -241,6 +266,7 @@ async def reject_delivery_proof_endpoint(
     )
     await db.commit()
     await db.refresh(proof)
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
     return proof
 
 
@@ -249,19 +275,22 @@ async def reject_delivery_proof_endpoint(
 
 @router.post("/guia-remessa", status_code=201)
 async def create_guia_remessa(
+    request: Request,
     trip_id: UUID,
     payload: schemas.GuiaRemessaCreate,
     principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """OPDOC-02: Create a Guia de Remessa and generate its PDF. Returns document + pdf_url."""
-    return await service.create_guia_remessa(
+    res = await service.create_guia_remessa(
         db,
         principal.tenant_id,
         trip_id,
         payload,
         actor_id=principal.user_id,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 # ── OPDOC-03: Carta de Porte Internacional ────────────────────────────────────
@@ -269,6 +298,7 @@ async def create_guia_remessa(
 
 @router.post("/carta-porte-internacional", status_code=201)
 async def create_carta_porte(
+    request: Request,
     trip_id: UUID,
     payload: schemas.CartaPorteCreate,
     principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
@@ -278,13 +308,15 @@ async def create_carta_porte(
 
     Returns document + pdf_url.
     """
-    return await service.create_carta_porte(
+    res = await service.create_carta_porte(
         db,
         principal.tenant_id,
         trip_id,
         payload,
         actor_id=principal.user_id,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 # ── OPDOC-04: DAV ─────────────────────────────────────────────────────────────
@@ -292,19 +324,22 @@ async def create_carta_porte(
 
 @router.post("/dav", status_code=201)
 async def create_dav(
+    request: Request,
     trip_id: UUID,
     payload: schemas.DAVCreate,
     principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """OPDOC-04: Record a DAV (Declaração de Aprovação de Viagem). Digital record only — no PDF."""
-    return await service.create_dav(
+    res = await service.create_dav(
         db,
         principal.tenant_id,
         trip_id,
         payload,
         actor_id=principal.user_id,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 # ── OPDOC-05: Document checklist ──────────────────────────────────────────────
@@ -312,19 +347,22 @@ async def create_dav(
 
 @router.post("/declaracao-carga-perigosa", status_code=201)
 async def create_declaracao_carga_perigosa(
+    request: Request,
     trip_id: UUID,
     payload: schemas.DeclaracaoCargaPerisgosaCreate,
     principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """Declaração de Carga Perigosa — digital record for hazmat trips (no PDF)."""
-    return await service.create_declaracao_carga_perigosa(
+    res = await service.create_declaracao_carga_perigosa(
         db,
         principal.tenant_id,
         trip_id,
         payload,
         actor_id=principal.user_id,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.get("/document-checklist")

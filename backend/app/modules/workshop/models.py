@@ -47,6 +47,19 @@ class MaintenanceRequest(Base):
     )
 
 
+class MaintenanceRequestNote(Base):
+    __tablename__ = "maintenance_request_notes"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    maintenance_request_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("maintenance_requests.id", ondelete="CASCADE"), index=True
+    )
+    author_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class WorkOrder(Base):
     __tablename__ = "work_orders"
     __table_args__ = (
@@ -56,12 +69,15 @@ class WorkOrder(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
     maintenance_request_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("maintenance_requests.id"), index=True
+        ForeignKey("maintenance_requests.id"), index=True, nullable=True
+    )
+    governance_case_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), index=True, nullable=True
     )
     plan_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("maintenance_plans.id"), index=True, nullable=True
     )
-    vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"), index=True)
+    vehicle_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("vehicles.id"), index=True, nullable=True)
     work_order_number: Mapped[str] = mapped_column(String(80), index=True)
     diagnosis: Mapped[str | None] = mapped_column(Text)
     planned_work: Mapped[str] = mapped_column(Text)

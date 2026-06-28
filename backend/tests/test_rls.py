@@ -149,6 +149,7 @@ EXPECTED_RLS_TABLES = sorted(
         "load_permits",
         "maintenance_parts_used",
         "maintenance_plans",
+        "maintenance_request_notes",
         "maintenance_requests",
         "maintenance_schedule",
         "email_verification_tokens",

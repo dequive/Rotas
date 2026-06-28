@@ -40,19 +40,30 @@ export async function loadTrips(status?: string): Promise<Trip[]> {
   }
 }
 
-async function createTrip(payload: CreateTripPayload): Promise<Trip> {
+export async function createTrip(payload: CreateTripPayload): Promise<Trip> {
   return apiFetch<Trip>("/api/v1/trips", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-async function startTrip(id: string): Promise<Trip> {
+export async function startTrip(id: string): Promise<Trip> {
   return apiFetch<Trip>(`/api/v1/trips/${id}/start`, { method: "POST" });
 }
 
-async function completeTrip(id: string, payload: { km_end: number }): Promise<Trip> {
+export async function completeTrip(id: string, payload: { km_end: number }): Promise<Trip> {
   return apiFetch<Trip>(`/api/v1/trips/${id}/complete`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function dispatchTrip(id: string): Promise<Trip> {
+  return apiFetch<Trip>(`/api/v1/trips/${id}/dispatch`, { method: "POST" });
+}
+
+export async function closeTrip(id: string, payload: { pod_received: boolean, pod_waiver: boolean }): Promise<Trip> {
+  return apiFetch<Trip>(`/api/v1/trips/${id}/close`, { 
     method: "POST",
     body: JSON.stringify(payload),
   });

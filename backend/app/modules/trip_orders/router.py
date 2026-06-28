@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import ADMIN_USERS, TRIPS_DISPATCH, TRIPS_READ, require_permission
@@ -37,12 +38,14 @@ async def list_trip_orders(
 
 @router.post("")
 async def create_trip_order(
+    request: Request,
     payload: schemas.TripOrderCreate,
     principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    redis = getattr(request.app.state, "redis", None)
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -57,6 +60,8 @@ async def create_trip_order(
             actor_id=principal.user_id,
         ),
     )
+    await invalidate_tenant_caches(redis, principal.tenant_id)
+    return res
 
 
 @router.get("/{order_id}")
@@ -70,13 +75,15 @@ async def get_trip_order(
 
 @router.post("/{order_id}/confirm")
 async def confirm_trip_order(
+    request: Request,
     order_id: UUID,
     payload: schemas.TripOrderConfirmRequest,
     principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    redis = getattr(request.app.state, "redis", None)
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -92,17 +99,21 @@ async def confirm_trip_order(
             actor_id=principal.user_id,
         ),
     )
+    await invalidate_tenant_caches(redis, principal.tenant_id)
+    return res
 
 
 @router.post("/{order_id}/assign")
 async def assign_trip_order(
+    request: Request,
     order_id: UUID,
     payload: schemas.TripOrderAssignRequest,
     principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    redis = getattr(request.app.state, "redis", None)
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -118,17 +129,21 @@ async def assign_trip_order(
             actor_id=principal.user_id,
         ),
     )
+    await invalidate_tenant_caches(redis, principal.tenant_id)
+    return res
 
 
 @router.post("/{order_id}/cancel")
 async def cancel_trip_order(
+    request: Request,
     order_id: UUID,
     payload: schemas.TripOrderCancelRequest,
     principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    redis = getattr(request.app.state, "redis", None)
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -144,6 +159,8 @@ async def cancel_trip_order(
             actor_id=principal.user_id,
         ),
     )
+    await invalidate_tenant_caches(redis, principal.tenant_id)
+    return res
 
 
 @router.patch("/{order_id}/reject", summary="Reject dispatch clearance (SM-04)")
@@ -172,4 +189,6 @@ async def reject_dispatch_endpoint(
             order_id=str(order.id),
             tenant_id=str(principal.tenant_id),
         )
+    redis = getattr(request.app.state, "redis", None) if request else None
+    await invalidate_tenant_caches(redis, principal.tenant_id)
     return order

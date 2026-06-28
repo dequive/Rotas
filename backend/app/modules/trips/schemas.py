@@ -130,6 +130,9 @@ class TripPatch(BaseModel):
     origin: str | None = None
     destination: str | None = None
     notes: str | None = None
+    cargo_weight: Decimal | None = None
+    payload_override_reason: str | None = None
+
 
 
 class TripStopPatch(BaseModel):

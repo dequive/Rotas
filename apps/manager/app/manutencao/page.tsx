@@ -4,7 +4,8 @@ import { SidebarLayout } from "@/app/components/SidebarLayout";
 import { PageHeader } from "@/app/components/ui/PageHeader";
 import { MaintenanceImminentPanel } from "@/app/components/MaintenanceImminentPanel";
 import { loadImminentMaintenanceAlerts } from "@/app/lib/control-tower-api";
-import { loadWorkOrders, loadSparePartsInventory, loadTools } from "@/app/lib/workshop-api";
+import { loadWorkOrders, loadTools } from "@/app/lib/workshop-api";
+import { fetchItems, fetchWarehouses } from "@/app/lib/inventory-api";
 import { loadVehicles } from "@/app/lib/vehicles-api";
 import { KpiCard } from "@/app/components/ui/KpiCard";
 import {
@@ -26,11 +27,12 @@ export default async function ManutencaoPage() {
   await requireSession();
 
   // Load backend data concurrently
-  const [imminentAlerts, workOrdersResult, vehicles, parts, tools] = await Promise.all([
+  const [imminentAlerts, workOrdersResult, vehicles, items, warehouses, tools] = await Promise.all([
     loadImminentMaintenanceAlerts(),
     loadWorkOrders(),
     loadVehicles(),
-    loadSparePartsInventory(),
+    fetchItems(),
+    fetchWarehouses(),
     loadTools(),
   ]);
 
@@ -173,8 +175,8 @@ export default async function ManutencaoPage() {
             </section>
           </TabsContent>
 
-          <TabsContent value="pecas">
-            <PartsInventoryTable parts={parts} />
+          <TabsContent value="pecas" className="mt-6">
+            <PartsInventoryTable parts={items} warehouses={warehouses} vehicles={vehicles} />
           </TabsContent>
 
           <TabsContent value="ferramentas">

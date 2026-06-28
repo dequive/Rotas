@@ -35,6 +35,16 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ == "table" and name:
+        if name.startswith("gps_positions") or name in [
+            "vehicle_last_position",
+            "tracking_tokens",
+            "gps_devices"
+        ]:
+            return False
+    return True
+
 def run_migrations_online() -> None:
     connectable = create_engine(_alembic_url, poolclass=pool.NullPool)
 
@@ -48,6 +58,7 @@ def run_migrations_online() -> None:
             target_metadata=target_metadata,
             compare_type=True,
             transaction_per_migration=False,  # Required for CREATE INDEX CONCURRENTLY
+            include_object=include_object,
         )
 
         context.run_migrations()

@@ -17,8 +17,9 @@ from app.modules.auth.service import create_dashboard_tokens
 from app.modules.notifications.schemas import EmailNotificationCreate
 from app.modules.notifications.service import enqueue_email
 from app.modules.onboarding.schemas import EmailVerificationRequest, OnboardingRegisterRequest
-from app.modules.tenants.models import Tenant
+from app.modules.tenants.models import Tenant, TenantDocumentProfile
 from app.modules.users.models import User
+from app.modules.accounting.seed import seed_pgc_nirf
 
 _SLUG_RE = re.compile(r"[^a-z0-9-]+")
 
@@ -210,6 +211,20 @@ async def register_tenant(
         ip_address=ip_address,
         user_agent=user_agent,
     )
+
+    # Hooks de Provisionamento Automático
+    await seed_pgc_nirf(db, tenant.id)
+    
+    # Criar perfil de PDFs por omissão
+    doc_profile = TenantDocumentProfile(
+        tenant_id=tenant.id,
+        primary_color="#4F46E5",
+        accent_color="#4338CA",
+        font_family="Helvetica",
+        is_active=True
+    )
+    db.add(doc_profile)
+
     await db.commit()
     await db.refresh(tenant)
     await db.refresh(owner)

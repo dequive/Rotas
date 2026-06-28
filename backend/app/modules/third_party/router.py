@@ -3,10 +3,11 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query, Response
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
@@ -51,13 +52,16 @@ async def list_provinces(
 
 @router.post("", status_code=201)
 async def create_third_party(
+    request: Request,
     payload: ThirdPartyCreate,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.create_third_party(
+    res = await service.create_third_party(
         db, principal.tenant_id, payload, actor_id=principal.user_id
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.get("")
@@ -112,13 +116,16 @@ async def party_directory(
 
 @router.post("/documents", status_code=201)
 async def create_document(
+    request: Request,
     payload: DocumentCreate,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.create_document(
+    res = await service.create_document(
         db, principal.tenant_id, payload, actor_id=principal.user_id
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.get("/documents/expiring")
@@ -153,14 +160,17 @@ async def list_documents(
 
 @router.post("/documents/{doc_id}/verify")
 async def verify_document(
+    request: Request,
     doc_id: UUID,
     payload: DocumentVerify,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.verify_document(
+    res = await service.verify_document(
         db, principal.tenant_id, doc_id, payload, actor_id=principal.user_id
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 # ── Sub-resource routes BEFORE /{tp_id} to avoid UUID path conflicts ──────────
@@ -177,38 +187,47 @@ async def list_roles(
 
 @router.post("/{tp_id}/roles", status_code=201)
 async def create_role(
+    request: Request,
     tp_id: UUID,
     payload: RoleCreate,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.create_role(
+    res = await service.create_role(
         db, principal.tenant_id, tp_id, payload, actor_id=principal.user_id
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.put("/{tp_id}/supplier-profile", status_code=200)
 async def upsert_supplier_profile(
+    request: Request,
     tp_id: UUID,
     payload: SupplierProfileCreate,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.upsert_supplier_profile(
+    res = await service.upsert_supplier_profile(
         db, principal.tenant_id, tp_id, payload, actor_id=principal.user_id
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.put("/{tp_id}/service-provider-profile", status_code=200)
 async def upsert_service_provider_profile(
+    request: Request,
     tp_id: UUID,
     payload: ServiceProviderProfileCreate,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.upsert_service_provider_profile(
+    res = await service.upsert_service_provider_profile(
         db, principal.tenant_id, tp_id, payload, actor_id=principal.user_id
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 # ── Single third party (after all sub-resource routes) ───────────────────────
@@ -225,14 +244,17 @@ async def get_third_party(
 
 @router.patch("/{tp_id}")
 async def update_third_party(
+    request: Request,
     tp_id: UUID,
     payload: ThirdPartyUpdate,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.update_third_party(
+    res = await service.update_third_party(
         db, principal.tenant_id, tp_id, payload, actor_id=principal.user_id
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 # ── Driver-Vehicle Assignments ────────────────────────────────────────────────
@@ -240,13 +262,16 @@ async def update_third_party(
 
 @router.post("/driver-vehicle-assignments", status_code=201)
 async def assign_driver_to_vehicle(
+    request: Request,
     payload: AssignmentCreate,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.assign_driver_to_vehicle(
+    res = await service.assign_driver_to_vehicle(
         db, principal.tenant_id, payload, actor_id=principal.user_id
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.get("/driver-vehicle-assignments")
@@ -272,13 +297,16 @@ async def list_assignments(
 
 @router.delete("/driver-vehicle-assignments/{assignment_id}", status_code=200)
 async def unassign_driver_from_vehicle(
+    request: Request,
     assignment_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.unassign_driver_from_vehicle(
+    res = await service.unassign_driver_from_vehicle(
         db, principal.tenant_id, assignment_id, actor_id=principal.user_id
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 # ── Contacts ──────────────────────────────────────────────────────────────────
@@ -286,13 +314,14 @@ async def unassign_driver_from_vehicle(
 
 @router.post("/{third_party_id}/contacts", status_code=201)
 async def create_contact(
+    request: Request,
     third_party_id: UUID,
     payload: ContactCreate,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -304,6 +333,8 @@ async def create_contact(
             db, principal.tenant_id, third_party_id, payload, principal.user_id
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.get("/{third_party_id}/contacts")
@@ -317,6 +348,7 @@ async def list_contacts(
 
 @router.delete("/{third_party_id}/contacts/{contact_id}", status_code=204)
 async def delete_contact(
+    request: Request,
     third_party_id: UUID,
     contact_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
@@ -325,6 +357,7 @@ async def delete_contact(
     await service.delete_contact(
         db, principal.tenant_id, third_party_id, contact_id, principal.user_id
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
 
 
 # ── Ledger / account ──────────────────────────────────────────────────────────
@@ -412,13 +445,14 @@ async def get_supplier_statement_pdf(
 
 @router.post("/{third_party_id}/payments", status_code=201)
 async def create_payment(
+    request: Request,
     third_party_id: UUID,
     payload: PaymentCreate,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -430,6 +464,8 @@ async def create_payment(
             db, principal.tenant_id, third_party_id, payload, principal.user_id
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 # ── Evaluations ───────────────────────────────────────────────────────────────
@@ -437,13 +473,14 @@ async def create_payment(
 
 @router.post("/{third_party_id}/evaluations", status_code=201)
 async def create_evaluation(
+    request: Request,
     third_party_id: UUID,
     payload: EvaluationCreate,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -455,6 +492,8 @@ async def create_evaluation(
             db, principal.tenant_id, third_party_id, payload, principal.user_id
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.get("/{third_party_id}/evaluations")

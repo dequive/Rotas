@@ -41,6 +41,8 @@ class TripOrderAssignRequest(BaseModel):
     vehicle_id: UUID
     driver_id: UUID
     reason: str | None = None
+    payload_override_reason: str | None = None
+
 
 
 class TripOrderCancelRequest(BaseModel):

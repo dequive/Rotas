@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
+from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.core.idempotency import execute_http_idempotent
@@ -50,12 +51,13 @@ async def list_billable_trips(
 
 @router.post("/documents")
 async def create_document(
+    request: Request,
     payload: schemas.BillingDocumentCreate,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -65,6 +67,8 @@ async def create_document(
         payload=payload,
         handler=lambda: service.create_document(db, principal.tenant_id, payload),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.get("/documents")
@@ -119,13 +123,14 @@ async def export_document(
 
 @router.post("/documents/{document_id}/issue")
 async def issue_document(
+    request: Request,
     document_id: UUID,
     payload: schemas.IssueBillingDocumentRequest,
     principal: Annotated[Principal, Depends(require_permission(BILLING_ISSUE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -135,10 +140,13 @@ async def issue_document(
         payload={"document_id": document_id, **payload.model_dump()},
         handler=lambda: service.issue_document(db, principal.tenant_id, document_id, payload),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/waivers", status_code=201)
 async def create_waiver(
+    request: Request,
     payload: schemas.CreateBillingWaiver,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -146,43 +154,51 @@ async def create_waiver(
     """BILL-03: Create a billing waiver request for a negative-margin trip.
     Available to: manager, admin, owner.
     """
-    return await service.create_billing_waiver(
+    res = await service.create_billing_waiver(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
         trip_id=payload.trip_id,
         reason=payload.reason,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/waivers/{waiver_id}/approve")
 async def approve_waiver(
+    request: Request,
     waiver_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(BILLING_VOID))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """BILL-03: Approve a pending billing waiver. Requires owner or admin role."""
-    return await service.approve_billing_waiver(
+    res = await service.approve_billing_waiver(
         db,
         tenant_id=principal.tenant_id,
         waiver_id=waiver_id,
         approver_id=principal.user_id,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/waivers/{waiver_id}/reject")
 async def reject_waiver(
+    request: Request,
     waiver_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(BILLING_VOID))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """BILL-03: Reject a pending billing waiver. Requires owner or admin role."""
-    return await service.reject_billing_waiver(
+    res = await service.reject_billing_waiver(
         db,
         tenant_id=principal.tenant_id,
         waiver_id=waiver_id,
         rejector_id=principal.user_id,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/documents/{document_id}/export-job", status_code=202)
@@ -293,6 +309,7 @@ async def download_job_file(
 
 @router.patch("/documents/{document_id}/mark-paid", summary="Mark billing document as paid (SM-01)")
 async def mark_billing_document_paid(
+    request: Request,
     document_id: UUID,
     payload: schemas.BillingDocumentMarkPaidRequest,
     principal: Annotated[Principal, Depends(require_permission(BILLING_VOID))],
@@ -310,11 +327,13 @@ async def mark_billing_document_paid(
     )
     await db.commit()
     await db.refresh(doc)
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
     return {"id": doc.id, "status": doc.status, "paid_at": doc.paid_at}
 
 
 @router.patch("/documents/{document_id}/cancel", summary="Cancel billing document (SM-01)")
 async def cancel_billing_document(
+    request: Request,
     document_id: UUID,
     payload: schemas.BillingDocumentCancelRequest,
     principal: Annotated[Principal, Depends(require_permission(BILLING_VOID))],
@@ -332,6 +351,7 @@ async def cancel_billing_document(
     )
     await db.commit()
     await db.refresh(doc)
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
     return {"id": doc.id, "status": doc.status, "cancellation_reason": doc.cancellation_reason}
 
 
@@ -340,13 +360,14 @@ async def cancel_billing_document(
 
 @router.post("/documents/{document_id}/debit-note", status_code=201)
 async def create_debit_note(
+    request: Request,
     document_id: UUID,
     payload: schemas.CreateDebitNoteRequest,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """FDOC-02: Create a Nota de Débito against an issued invoice. Returns the new document."""
-    return await service.create_debit_note(
+    res = await service.create_debit_note(
         db,
         tenant_id=principal.tenant_id,
         parent_id=document_id,
@@ -354,6 +375,8 @@ async def create_debit_note(
         reason=payload.reason,
         iva_rate=payload.iva_rate,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 # ── FDOC-03: Nota de Crédito ──────────────────────────────────────────────────
@@ -361,13 +384,14 @@ async def create_debit_note(
 
 @router.post("/documents/{document_id}/credit-note", status_code=201)
 async def create_credit_note(
+    request: Request,
     document_id: UUID,
     payload: schemas.CreateCreditNoteRequest,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """FDOC-03: Create a Nota de Crédito against an issued invoice. Returns the new document."""
-    return await service.create_credit_note(
+    res = await service.create_credit_note(
         db,
         tenant_id=principal.tenant_id,
         parent_id=document_id,
@@ -375,6 +399,8 @@ async def create_credit_note(
         reason=payload.reason,
         iva_rate=payload.iva_rate,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 # ── FDOC-04: Fatura-Recibo + Recibo ──────────────────────────────────────────
@@ -382,32 +408,38 @@ async def create_credit_note(
 
 @router.post("/documents/{document_id}/invoice-receipt", status_code=201)
 async def create_invoice_receipt(
+    request: Request,
     document_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """FDOC-04: Transition parent invoice to paid and create a Fatura-Recibo."""
-    return await service.create_invoice_receipt(
+    res = await service.create_invoice_receipt(
         db,
         tenant_id=principal.tenant_id,
         parent_id=document_id,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/documents/{document_id}/receipt", status_code=201)
 async def create_receipt(
+    request: Request,
     document_id: UUID,
     payload: schemas.CreateReceiptRequest,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """FDOC-04: Create a standalone Recibo for a partial or out-of-band payment."""
-    return await service.create_receipt(
+    res = await service.create_receipt(
         db,
         tenant_id=principal.tenant_id,
         parent_id=document_id,
         amount_paid=payload.amount_paid,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 # ── FDOC-05: AR Básico ────────────────────────────────────────────────────────
@@ -510,6 +542,7 @@ async def list_payments(
 
 @router.post("/payments", status_code=201)
 async def register_payment(
+    request: Request,
     payload: schemas.ClientPaymentCreate,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -520,7 +553,7 @@ async def register_payment(
     Requires Idempotency-Key header to prevent double-registration.
     If billing_document_id is None, creates an advance payment with no allocation.
     """
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -532,10 +565,13 @@ async def register_payment(
             db, principal.tenant_id, principal.user_id, payload
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/payments/{payment_id}/void")
 async def void_payment(
+    request: Request,
     payment_id: UUID,
     payload: schemas.VoidPaymentRequest,
     principal: Annotated[Principal, Depends(require_permission(BILLING_VOID))],
@@ -546,17 +582,20 @@ async def void_payment(
     Sets status='voided', reverses billing_document paid_at if applicable.
     Payments are never hard-deleted — financial audit trail preserved.
     """
-    return await service.void_payment(
+    res = await service.void_payment(
         db,
         payment_id=payment_id,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
         void_reason=payload.void_reason,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.post("/payments/{payment_id}/apply", status_code=201)
 async def apply_advance_to_invoice(
+    request: Request,
     payment_id: UUID,
     payload: schemas.ApplyAdvanceRequest,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
@@ -566,7 +605,7 @@ async def apply_advance_to_invoice(
 
     Creates a PaymentAllocation row. Verifies advance has not been over-applied.
     """
-    return await service.apply_advance_to_invoice(
+    res = await service.apply_advance_to_invoice(
         db,
         payment_id=payment_id,
         tenant_id=principal.tenant_id,
@@ -574,6 +613,8 @@ async def apply_advance_to_invoice(
         billing_document_id=payload.billing_document_id,
         amount_applied=payload.amount_applied,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.get("/ar")

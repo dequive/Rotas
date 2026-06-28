@@ -1,9 +1,22 @@
+import re
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+def _normalize_nuit(v: str | None) -> str | None:
+    if v is None:
+        return v
+    if not v.strip():
+        return None
+    cleaned = re.sub(r"\D", "", v)
+    if len(cleaned) != 9:
+        raise ValueError("NUIT must be exactly 9 digits.")
+    return cleaned
+
 
 
 class ContractCreate(BaseModel):
@@ -27,6 +40,17 @@ class ContractCreate(BaseModel):
     ends_at: datetime | None = None
     notes: str | None = None
 
+    @field_validator("client_nuit")
+    @classmethod
+    def validate_nuit(cls, v: str | None) -> str | None:
+        return _normalize_nuit(v)
+
+    @model_validator(mode="after")
+    def validate_dates(self) -> "ContractCreate":
+        if self.starts_at and self.ends_at and self.ends_at <= self.starts_at:
+            raise ValueError("ends_at must be after starts_at.")
+        return self
+
 
 class ContractPatch(BaseModel):
     client_id: UUID | None = None
@@ -43,6 +67,12 @@ class ContractPatch(BaseModel):
     starts_at: datetime | None = None
     ends_at: datetime | None = None
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def validate_dates(self) -> "ContractPatch":
+        if self.starts_at and self.ends_at and self.ends_at <= self.starts_at:
+            raise ValueError("ends_at must be after starts_at.")
+        return self
 
 
 class ContractResponse(ContractCreate):

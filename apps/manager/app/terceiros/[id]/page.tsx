@@ -14,6 +14,7 @@ import { OperationalDocumentsList } from "@/app/components/OperationalDocumentsL
 import { DocumentUploadModal } from "@/app/components/DocumentUploadModal";
 import { notFound } from "next/navigation";
 import ContaCorrenteTab from "./ContaCorrenteTab";
+import PayablesTab from "./PayablesTab";
 
 export default async function TerceiroDetailPage({
   params,
@@ -80,6 +81,7 @@ export default async function TerceiroDetailPage({
             </TabsTrigger>
             <TabsTrigger value="documentos">Documentos</TabsTrigger>
             <TabsTrigger value="conta">Conta Corrente</TabsTrigger>
+            <TabsTrigger value="payables">Faturas & Pedidos</TabsTrigger>
             <TabsTrigger value="avaliacoes">
               Avalia&#231;&#245;es
               {evalsResult.evaluations.length > 0
@@ -193,6 +195,11 @@ export default async function TerceiroDetailPage({
           {/* Tab: Conta Corrente */}
           <TabsContent value="conta">
             <ContaCorrenteTab thirdPartyId={id} />
+          </TabsContent>
+
+          {/* Tab: Faturas & Pedidos */}
+          <TabsContent value="payables">
+            <PayablesTab thirdPartyId={id} />
           </TabsContent>
 
           {/* Tab: Avaliações */}

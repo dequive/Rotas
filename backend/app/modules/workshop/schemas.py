@@ -15,9 +15,28 @@ class MaintenanceRequestCreate(BaseModel):
     odometer_reading: int | None = Field(default=None, ge=0)
 
 
+class MaintenanceRequestNoteCreate(BaseModel):
+    body: str = Field(min_length=1)
+
+
+class MaintenanceRequestNoteResponse(BaseModel):
+    id: UUID
+    author_id: UUID
+    body: str
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MaintenanceRequestStatusUpdate(BaseModel):
+    status: str = Field(min_length=1, max_length=30)
+
+
+
 class WorkOrderCreate(BaseModel):
     maintenance_request_id: UUID | None = None
-    vehicle_id: UUID
+    governance_case_id: UUID | None = None
+    vehicle_id: UUID | None = None
     diagnosis: str | None = None
     planned_work: str = Field(min_length=1)
     estimated_cost: float | None = Field(default=None, ge=0)

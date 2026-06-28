@@ -366,6 +366,54 @@ class SparePartMovementService:
             ) / new_balance
         db.add(item)
         await db.flush()
+        
+        # --- HOOK CONTABILISTICO (Fase 6) ---
+        if direction == "out" and item.total_cost and item.total_cost > 0:
+            from app.modules.accounting.service import create_journal_entry
+            from app.modules.accounting.schemas import JournalEntryCreate, JournalEntryLineCreate
+            from app.modules.accounting.models import Account
+            
+            vehicle_id_for_cost = None
+            if source_type == "vehicle":
+                vehicle_id_for_cost = source_id
+            elif source_type == "work_order" and source_id:
+                from app.modules.workshop.models import WorkOrder
+                wo = await db.get(WorkOrder, source_id)
+                if wo:
+                    vehicle_id_for_cost = wo.vehicle_id
+                    
+            if vehicle_id_for_cost:
+                acct_inv = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.account_code.like("32%")).limit(1))
+                acct_exp = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.account_code.like("622%")).limit(1))
+                
+                if acct_inv and acct_exp:
+                    await create_journal_entry(
+                        db,
+                        tenant_id=tenant_id,
+                        payload=JournalEntryCreate(
+                            date=occurred_at.date(),
+                            journal_type="OD",
+                            description=f"Consumo de peca {inventory.sku} no veiculo",
+                            lines=[
+                                JournalEntryLineCreate(
+                                    account_id=acct_exp.id,
+                                    description=f"Custo de Manutencao ({inventory.name})",
+                                    debit=float(item.total_cost),
+                                    credit=0,
+                                    vehicle_id=vehicle_id_for_cost
+                                ),
+                                JournalEntryLineCreate(
+                                    account_id=acct_inv.id,
+                                    description="Saida de Armazem",
+                                    debit=0,
+                                    credit=float(item.total_cost)
+                                )
+                            ]
+                        ),
+                        actor_id=actor_id
+                    )
+        # ------------------------------------
+
         await record_audit_log(
             db,
             tenant_id=tenant_id,
@@ -1464,6 +1512,84 @@ async def _trigger_maintenance_work_order(
     return work_order
 
 
+async def list_spare_parts(tenant_id: UUID, db: AsyncSession):
+    result = await db.execute(
+        select(SparePartInventory).where(SparePartInventory.tenant_id == tenant_id).order_by(SparePartInventory.name)
+    )
+    return list(result.scalars().all())
+
+
+async def create_spare_part(
+    tenant_id: UUID,
+    payload: SparePartInventoryCreate,
+    db: AsyncSession
+) -> SparePartInventory:
+    stmt = select(SparePartInventory).where(
+        SparePartInventory.tenant_id == tenant_id,
+        SparePartInventory.sku == payload.sku
+    )
+    existing = await db.scalar(stmt)
+    if existing:
+        raise ApiError("SKU_EXISTS", status.HTTP_400_BAD_REQUEST, "Já existe uma peça com este SKU.")
+        
+    part = SparePartInventory(
+        tenant_id=tenant_id,
+        sku=payload.sku,
+        name=payload.name,
+        unit=payload.unit,
+        minimum_quantity=_decimal(payload.minimum_quantity),
+        current_quantity=0,
+        average_unit_cost=0
+    )
+    db.add(part)
+    await db.commit()
+    await db.refresh(part)
+    return part
+
+
+async def record_spare_part_receipt(
+    tenant_id: UUID,
+    payload: SparePartReceiptCreate,
+    actor_id: UUID,
+    db: AsyncSession
+) -> SparePartMovement:
+    part = await db.get(SparePartInventory, payload.inventory_id)
+    if not part or part.tenant_id != tenant_id:
+        raise ApiError("PART_NOT_FOUND", status.HTTP_404_NOT_FOUND, "Peça não encontrada.")
+        
+    old_qty = part.current_quantity
+    new_qty = old_qty + _decimal(payload.quantity)
+    total_cost = _decimal(payload.quantity) * _decimal(payload.unit_cost)
+    
+    old_total_value = old_qty * part.average_unit_cost
+    new_total_value = old_total_value + total_cost
+    if new_qty > 0:
+        part.average_unit_cost = new_total_value / new_qty
+        
+    part.current_quantity = new_qty
+    
+    movement = SparePartMovement(
+        tenant_id=tenant_id,
+        inventory_id=part.id,
+        movement_type="receipt",
+        direction="in",
+        quantity=_decimal(payload.quantity),
+        balance_after_quantity=new_qty,
+        unit_cost=_decimal(payload.unit_cost),
+        total_cost=total_cost,
+        request_reference=payload.request_reference,
+        source_type="manual_receipt",
+        source_id=None,
+        occurred_at=payload.occurred_at,
+        recorded_by=actor_id,
+        notes=payload.notes
+    )
+    db.add(movement)
+    await db.commit()
+    await db.refresh(movement)
+    return movement
+
+
 async def evaluate_maintenance_schedule_all_tenants(
     db: AsyncSession,
 ) -> dict:
@@ -2067,3 +2193,94 @@ async def _validate_trip_and_incident(
                 "Trip incident not found for vehicle.",
                 status_code=404,
             )
+
+
+# ── Maintenance Request Notes & Status ──────────────────────────────────────────────
+
+from app.modules.workshop.models import MaintenanceRequestNote
+from app.modules.workshop.schemas import MaintenanceRequestNoteCreate, MaintenanceRequestStatusUpdate
+
+
+def serialize_maintenance_request_note(item: MaintenanceRequestNote) -> dict:
+    return {
+        "id": item.id,
+        "author_id": item.author_id,
+        "body": item.body,
+        "created_at": item.created_at,
+    }
+
+
+async def add_maintenance_request_note(
+    db: AsyncSession,
+    tenant_id: UUID,
+    request_id: UUID,
+    payload: MaintenanceRequestNoteCreate,
+    actor_id: UUID,
+) -> dict:
+    req = await _require_maintenance_request(db, tenant_id, request_id)
+    note = MaintenanceRequestNote(
+        tenant_id=tenant_id,
+        maintenance_request_id=req.id,
+        author_id=actor_id,
+        body=payload.body,
+    )
+    db.add(note)
+    
+    await record_audit_log(
+        db,
+        tenant_id,
+        actor_id,
+        "workshop.maintenance_request.note_added",
+        "maintenance_request",
+        req.id,
+        {"body": payload.body},
+    )
+    
+    await db.commit()
+    await db.refresh(note)
+    return serialize_maintenance_request_note(note)
+
+
+async def list_maintenance_request_notes(
+    db: AsyncSession,
+    tenant_id: UUID,
+    request_id: UUID,
+) -> list[dict]:
+    req = await _require_maintenance_request(db, tenant_id, request_id)
+    stmt = (
+        select(MaintenanceRequestNote)
+        .where(
+            MaintenanceRequestNote.tenant_id == tenant_id,
+            MaintenanceRequestNote.maintenance_request_id == req.id,
+        )
+        .order_by(MaintenanceRequestNote.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    return [serialize_maintenance_request_note(r) for r in result.scalars().all()]
+
+
+async def update_maintenance_request_status(
+    db: AsyncSession,
+    tenant_id: UUID,
+    request_id: UUID,
+    payload: MaintenanceRequestStatusUpdate,
+    actor_id: UUID,
+) -> dict:
+    req = await _require_maintenance_request(db, tenant_id, request_id)
+    old_status = req.status
+    req.status = payload.status
+    
+    await record_audit_log(
+        db,
+        tenant_id,
+        actor_id,
+        "workshop.maintenance_request.status_updated",
+        "maintenance_request",
+        req.id,
+        {"old_status": old_status, "new_status": payload.status},
+    )
+    
+    await db.commit()
+    await db.refresh(req)
+    return serialize_maintenance_request(req)
+

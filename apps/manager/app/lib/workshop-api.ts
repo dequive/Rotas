@@ -249,3 +249,52 @@ export async function loadVehicleHistory(
     return { events: [], next_cursor: null, total_count: 0 };
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Inventory (Spare Parts) API
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SparePartInventory {
+  id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  current_quantity: number;
+  minimum_quantity: number;
+  average_unit_cost: number;
+  status: string;
+  category: string | null;
+  shelf_location: string | null;
+}
+
+export interface SparePartReceiptCreate {
+  inventory_id: string;
+  request_reference: string;
+  quantity: number;
+  unit_cost: number;
+  occurred_at: string;
+  notes?: string;
+}
+
+export async function loadSpareParts(): Promise<SparePartInventory[]> {
+  try {
+    return await apiFetch<SparePartInventory[]>("/api/v1/workshop/spare-parts", { revalidate: 0 });
+  } catch (err) {
+    console.error("Erro ao carregar peças", err);
+    return [];
+  }
+}
+
+export async function createSparePart(payload: { sku: string; name: string; unit: string; minimum_quantity: number }) {
+  return apiFetch("/api/v1/workshop/spare-parts", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function recordSparePartReceipt(partId: string, payload: SparePartReceiptCreate) {
+  return apiFetch(`/api/v1/workshop/spare-parts/${partId}/movements`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}

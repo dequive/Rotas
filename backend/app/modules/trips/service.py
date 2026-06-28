@@ -203,6 +203,8 @@ def serialize_trip(trip: Trip) -> dict:
         "destination": trip.destination,
         "cargo_type": trip.cargo_type,
         "cargo_class": trip.cargo_class,
+        "cargo_weight": float(trip.cargo_weight) if trip.cargo_weight is not None else None,
+        "payload_override_reason": trip.payload_override_reason,
         "load_state": trip.load_state,
         "requires_load_permit": trip.requires_load_permit,
         "requires_cargo_manifest": trip.requires_cargo_manifest,
@@ -1420,6 +1422,7 @@ async def operational_close_trip(
     old_status = trip.status
     await reconcile_trip_costs(db, tenant_id, trip)
     trip.status = "closed"
+    trip.billing_status = "billable" # Mark as ready for billing
     trip.closed_at = payload.closed_at or now_utc()
     trip.closed_by = actor_id
     trip.operational_close_notes = payload.notes
@@ -1587,6 +1590,28 @@ async def patch_trip(
 ) -> dict:
     trip = await _require_trip(db, tenant_id, trip_id)
     patch_data = patch.model_dump(exclude_none=True)
+
+    if "cargo_weight" in patch_data and patch_data["cargo_weight"] is not None:
+        _vehicle = await db.get(Vehicle, trip.vehicle_id)
+        override = patch_data.get("payload_override_reason") or trip.payload_override_reason
+        if (
+            _vehicle is not None
+            and _vehicle.max_payload_kg is not None
+            and patch_data["cargo_weight"] > _vehicle.max_payload_kg
+            and not override
+        ):
+            excess = float(patch_data["cargo_weight"] - _vehicle.max_payload_kg)
+            raise ApiError(
+                "payload_exceeded",
+                f"Cargo weight exceeds vehicle max payload capacity by {excess:.2f} kg.",
+                status_code=409,
+                details={
+                    "cargo_weight_kg": float(patch_data["cargo_weight"]),
+                    "max_payload_kg": float(_vehicle.max_payload_kg),
+                    "excess_kg": excess,
+                },
+            )
+
     old_values = {f: getattr(trip, f, None) for f in patch_data}
     for field, value in patch_data.items():
         setattr(trip, field, value)

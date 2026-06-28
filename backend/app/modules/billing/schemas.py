@@ -1,8 +1,21 @@
+import re
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+def _normalize_nuit(v: str | None) -> str | None:
+    if v is None:
+        return v
+    if not v.strip():
+        return None
+    cleaned = re.sub(r"\D", "", v)
+    if len(cleaned) != 9:
+        raise ValueError("NUIT must be exactly 9 digits.")
+    return cleaned
+
 
 
 class BillingDocumentCreate(BaseModel):
@@ -14,6 +27,17 @@ class BillingDocumentCreate(BaseModel):
     currency: str = "MZN"
     trip_ids: list[UUID] = Field(default_factory=list)
     client_nuit: str | None = None
+
+    @field_validator("client_nuit")
+    @classmethod
+    def validate_nuit(cls, v: str | None) -> str | None:
+        return _normalize_nuit(v)
+
+    @model_validator(mode="after")
+    def validate_periods(self) -> "BillingDocumentCreate":
+        if self.billing_period_end <= self.billing_period_start:
+            raise ValueError("billing_period_end must be after billing_period_start.")
+        return self
 
 
 class IssueBillingDocumentRequest(BaseModel):

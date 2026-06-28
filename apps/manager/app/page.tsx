@@ -25,6 +25,10 @@ import {
 import { loadControlTower } from "./lib/control-tower-api";
 import { loadFleetHistories } from "./lib/fleet-history-api";
 import { loadFuelControlBoard } from "./lib/fuel-operations-api";
+import { loadPendingTripOrders } from "./lib/trip-orders-api";
+import { loadVehicles } from "./lib/vehicles-api";
+import { loadDrivers } from "./lib/drivers-api";
+import { DispatchBoard } from "./components/DispatchBoard";
 
 
 export default async function ManagerHome() {
@@ -35,11 +39,18 @@ export default async function ManagerHome() {
   const { trips } = await loadBillingTrips();
   const apiConfig = getApiConfig();
 
+  const [pendingOrders, vehicles, drivers] = await Promise.all([
+    loadPendingTripOrders(),
+    loadVehicles(),
+    loadDrivers()
+  ]);
+
   return (
     <SidebarLayout active="operacao">
       <div className="w-full">
         <TmsExecutiveDashboard controlTower={controlTower} billingTrips={trips} />
         <ControlTowerOverview result={controlTower} />
+        <DispatchBoard pendingOrders={pendingOrders} vehicles={vehicles} drivers={drivers} />
         <TransportCargoBoard apiConfig={apiConfig} result={controlTower} />
         <FleetComplianceBoard apiConfig={apiConfig} result={controlTower} />
         <FleetHistoryBoard result={fleetHistories} />

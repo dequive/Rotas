@@ -560,3 +560,17 @@ async def download_trip_report_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=relatorio-viagem-{trip_id}.pdf"},
     )
+
+
+@router.patch("/{trip_id}")
+async def patch_trip(
+    request: Request,
+    trip_id: UUID,
+    payload: schemas.TripPatch,
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    res = await service.patch_trip(db, principal.tenant_id, trip_id, payload)
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
+

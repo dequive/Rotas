@@ -81,7 +81,7 @@ async def test_driver_not_accessible_from_other_tenant():
             headers=auth_headers(tenant_a.id),
             json={
                 "full_name": "CrossTenant Driver",
-                "phone": f"2581{uuid4().hex[:7]}",
+                "phone": f"25884{uuid4().hex[:7]}",
                 "license_number": f"LIC{uuid4().hex[:6].upper()}",
             },
         )

@@ -13,6 +13,8 @@ from app.core.rbac import DRIVERS_PAIRING, DRIVERS_READ, DRIVERS_WRITE, require_
 from app.modules.availability import service as availability_service
 from app.modules.drivers import schemas, service
 
+from app.modules.drivers.schemas import DriverHub360Response
+
 router = APIRouter(prefix="/drivers", tags=["drivers"])
 
 
@@ -83,6 +85,16 @@ async def get_driver(
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.get_driver(db, principal.tenant_id, driver_id)
+
+
+@router.get("/{driver_id}/hub360", response_model=DriverHub360Response)
+async def get_driver_hub360(
+    driver_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(DRIVERS_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """Retorna um perfil a 360º do Motorista (Viagens, Alertas Documentais, Finanças)."""
+    return await service.get_driver_hub360(db, principal.tenant_id, driver_id)
 
 
 @router.get("/{driver_id}/scorecard")

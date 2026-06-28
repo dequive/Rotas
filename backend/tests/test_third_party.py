@@ -203,7 +203,7 @@ async def test_create_third_party(async_client, auth_headers):
 
 async def test_create_third_party_duplicate_nuit(async_client, auth_headers):
     """POST with duplicate NUIT for same tenant returns 409."""
-    payload = {"name": "Empresa A", "nuit": f"5001{uuid.uuid4().hex[:5]}"}
+    payload = {"name": "Empresa A", "nuit": f"5001{str(uuid.uuid4().int)[:5]}"}
     await async_client.post("/api/v1/third-party", json=payload, headers=auth_headers)
     resp = await async_client.post("/api/v1/third-party", json=payload, headers=auth_headers)
     assert resp.status_code == 409

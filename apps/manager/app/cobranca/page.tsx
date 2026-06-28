@@ -21,6 +21,7 @@ import { DataSourceBadge } from "@/app/components/ui/DataSourceBadge";
 import { BillingTripActions } from "@/app/components/BillingTripActions";
 import { PaymentModal } from "@/app/components/PaymentModal";
 import { IssueDocumentButton } from "@/app/cobranca/IssueDocumentButton";
+import { MassBillingModal } from "@/app/cobranca/MassBillingModal";
 import {
   type BillingStatus,
   getApiConfig,
@@ -122,14 +123,7 @@ export default async function CobrancaPage() {
             description="Viagens entregues, provas de descarga, contratos e documentos mensais."
           />
           <div className="flex items-center gap-2">
-            <button
-              disabled
-              className="inline-flex items-center gap-1.5 h-9 px-4 text-[13px] font-semibold bg-primary text-primary-foreground border-0 rounded-md opacity-50 cursor-not-allowed"
-              title="Selecione viagens prontas a cobrar para gerar um documento de cobrança"
-            >
-              <ReceiptText size={15} />
-              Gerar Documento
-            </button>
+            <MassBillingModal trips={trips} />
             <button
               className="inline-flex items-center justify-center h-9 w-9 bg-surface border border-border rounded-md hover:bg-surface-2 transition-colors duration-75"
               title="Exportar Relatório — a preparar download, disponível em breve"

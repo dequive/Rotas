@@ -1,5 +1,7 @@
 import re
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal
+from typing import List
 from uuid import UUID
 
 from pydantic import BaseModel, field_validator
@@ -124,4 +126,23 @@ class DriverDocumentRenewalRequest(BaseModel):
     @classmethod
     def validate_expiry_date(cls, v: date) -> date:
         return _validate_future_date(v)
+
+
+class DocumentAlert(BaseModel):
+    type: str
+    status: str
+    message: str
+
+class RecentTripRead(BaseModel):
+    id: UUID
+    route_name: str | None
+    status: str
+    date: datetime
+
+class DriverHub360Response(BaseModel):
+    driver: dict
+    recent_trips: List[RecentTripRead]
+    pending_advances_count: int
+    pending_advances_total: Decimal
+    document_alerts: List[DocumentAlert]
 

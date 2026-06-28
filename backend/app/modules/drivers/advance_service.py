@@ -72,6 +72,8 @@ async def issue_advance(
     trip_id: UUID,
     driver_id: UUID,
     amount_mzn: Decimal,
+    allowance_mzn: Decimal,
+    expenses_mzn: Decimal,
     notes: str | None = None,
     request_reference: str | None = None,
 ) -> dict[str, Any]:
@@ -111,6 +113,8 @@ async def issue_advance(
         trip_id=trip_id,
         driver_id=driver_id,
         amount_mzn=amount_mzn,
+        allowance_mzn=allowance_mzn,
+        expenses_mzn=expenses_mzn,
         currency="MZN",
         status="issued",
         issued_by=user_id,
@@ -127,8 +131,53 @@ async def issue_advance(
         action="driver_advance.issued",
         entity_type="driver_advance",
         entity_id=advance.id,
-        new_values={"amount_mzn": str(amount_mzn), "trip_id": str(trip_id)},
+        new_values={
+            "amount_mzn": str(amount_mzn), 
+            "allowance_mzn": str(allowance_mzn),
+            "expenses_mzn": str(expenses_mzn),
+            "trip_id": str(trip_id)
+        },
     )
+    # --- HOOK CONTABILISTICO (Fase 9) ---
+    from app.modules.accounting.services import create_journal_entry
+    from app.modules.accounting.schemas import ManualEntryCreate
+    from app.modules.accounting.schemas import JournalItemCreate as AccJournalItemCreate
+    from app.modules.accounting.models import Account
+    from sqlalchemy import select
+    from datetime import datetime
+    
+    if amount_mzn > 0:
+        acct_advances = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("42%")).limit(1))
+        acct_bank = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("12%")).limit(1))
+        
+        if acct_advances and acct_bank:
+            await create_journal_entry(
+                db,
+                tenant_id=tenant_id,
+                payload=ManualEntryCreate(
+                    journal_type="TES",
+                    date=datetime.now(),
+                    reference=f"ADV-{str(advance.id)[:8]}",
+                    description=f"Adiantamento de Viagem (Motorista: {driver_id})",
+                    items=[
+                        AccJournalItemCreate(
+                            account_id=acct_advances.id,
+                            description=f"Subsidio e Despesas - Viagem {trip_id}",
+                            debit=amount_mzn,
+                            credit=Decimal("0.00")
+                        ),
+                        AccJournalItemCreate(
+                            account_id=acct_bank.id,
+                            description="Saida de Tesouraria",
+                            debit=Decimal("0.00"),
+                            credit=amount_mzn
+                        )
+                    ]
+                ),
+                actor_id=user_id
+            )
+    # ------------------------------------
+
     await db.commit()
     await db.refresh(advance)
     return serialize_advance(advance)

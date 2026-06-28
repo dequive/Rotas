@@ -43,10 +43,12 @@ from app.modules.files.router import router as files_router
 from app.modules.fuel.operations_router import router as fuel_operations_router
 from app.modules.fuel.router import router as fuel_router
 from app.modules.gps.router import router as gps_router
+from app.modules.hr.router import router as hr_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.onboarding.router import router as onboarding_router
 from app.modules.operational_exceptions.router import router as operational_exceptions_router
 from app.modules.operations.router import router as operations_router
+from app.modules.payables.router import router as payables_router
 from app.modules.platform.auth_router import router as platform_auth_router
 from app.modules.platform.router import router as platform_router
 from app.modules.sync.router import router as sync_router
@@ -59,6 +61,7 @@ from app.modules.trips.router import router as trips_router
 from app.modules.users.router import router as users_router
 from app.modules.vehicles.router import router as vehicles_router
 from app.modules.workshop.router import router as workshop_router
+from app.modules.inventory.router import router as inventory_router
 
 settings = get_settings()
 import_all_models()
@@ -282,8 +285,12 @@ app.include_router(billing_router, prefix=api)
 app.include_router(operations_router, prefix=api)
 app.include_router(operational_exceptions_router, prefix=api)
 app.include_router(workshop_router, prefix=api)
+app.include_router(hr_router, prefix=api)
+app.include_router(inventory_router, prefix=api)
 app.include_router(documents_router, prefix=api)
 app.include_router(third_party_router, prefix=api)
+app.include_router(payables_router, prefix=api)
+app.include_router(accounting_router, prefix=api)
 app.include_router(control_tower_router, prefix=api)
 app.include_router(alerts_router, prefix=api)
 app.include_router(sync_router, prefix=api)

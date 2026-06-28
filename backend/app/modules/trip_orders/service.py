@@ -19,6 +19,7 @@ from app.modules.trip_orders.schemas import (
 )
 from app.modules.trips.models import Trip
 from app.modules.trips.service import serialize_trip
+from app.modules.vehicles.models import Vehicle
 
 ALLOWED_CREATE_VALUES = {
     "priority": {"low", "normal", "high", "urgent"},
@@ -226,6 +227,27 @@ async def assign_trip_order(
         driver_id=payload.driver_id,
     )
 
+    # LOAD-01: Payload weight guard on assignment
+    vehicle = await db.get(Vehicle, payload.vehicle_id)
+    if (
+        vehicle is not None
+        and vehicle.max_payload_kg is not None
+        and order.estimated_weight is not None
+        and order.estimated_weight > vehicle.max_payload_kg
+        and not payload.payload_override_reason
+    ):
+        excess = float(order.estimated_weight - vehicle.max_payload_kg)
+        raise ApiError(
+            "payload_exceeded",
+            f"Cargo weight exceeds vehicle max payload capacity by {excess:.2f} kg.",
+            status_code=409,
+            details={
+                "cargo_weight_kg": float(order.estimated_weight),
+                "max_payload_kg": float(vehicle.max_payload_kg),
+                "excess_kg": excess,
+            },
+        )
+
     old_values = {
         "status": order.status,
         "assigned_vehicle_id": (
@@ -260,6 +282,7 @@ async def assign_trip_order(
         planned_arrival=order.sla_delivery_deadline,
         status="planned",
         billing_status="pending_delivery_proof",
+        payload_override_reason=payload.payload_override_reason,
     )
     if order.contract_id:
         contract = await db.get(Contract, order.contract_id)

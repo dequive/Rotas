@@ -113,11 +113,16 @@ MODEL_MODULES = (
     "operational_exceptions",
     "workshop",
     "control_tower",
+    "payables",
+    "accounting",
     "alerts",
     "notifications",
     "sync",
     "audit",
     "gps",
+    "payables",
+    "hr",
+    "inventory",
 )
 
 

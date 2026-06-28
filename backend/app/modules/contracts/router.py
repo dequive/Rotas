@@ -1,8 +1,10 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.cache import invalidate_tenant_caches
 
 from app.core.auth import Principal
 from app.core.deps import get_session
@@ -38,12 +40,13 @@ async def list_contracts(
 
 @router.post("/")
 async def create_contract(
+    request: Request,
     payload: schemas.ContractCreate,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -58,6 +61,8 @@ async def create_contract(
             actor_id=principal.user_id,
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.get("/{contract_id}")
@@ -71,18 +76,21 @@ async def get_contract(
 
 @router.patch("/{contract_id}")
 async def patch_contract(
+    request: Request,
     contract_id: UUID,
     payload: schemas.ContractPatch,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.patch_contract(
+    res = await service.patch_contract(
         db,
         principal.tenant_id,
         contract_id,
         payload,
         actor_id=principal.user_id,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 # ── SM-02: Contract state machine endpoint ───────────────────────────────────
@@ -90,6 +98,7 @@ async def patch_contract(
 
 @router.patch("/{contract_id}/status", summary="Transition contract status (SM-02)")
 async def transition_contract_status(
+    request: Request,
     contract_id: UUID,
     payload: schemas.ContractTransitionRequest,
     principal: Annotated[Principal, Depends(require_permission(BILLING_ISSUE))],
@@ -130,6 +139,7 @@ async def transition_contract_status(
     )
     await db.commit()
     await db.refresh(updated)
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
     return service.serialize_contract(updated)
 
 
@@ -144,13 +154,14 @@ async def list_contract_tariffs(
 
 @router.post("/{contract_id}/tariffs")
 async def create_contract_tariff(
+    request: Request,
     contract_id: UUID,
     payload: schemas.ContractTariffCreate,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
-    return await execute_http_idempotent(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
         user_id=principal.user_id,
@@ -166,17 +177,20 @@ async def create_contract_tariff(
             actor_id=principal.user_id,
         ),
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.patch("/{contract_id}/tariffs/{tariff_id}")
 async def update_contract_tariff(
+    request: Request,
     contract_id: UUID,
     tariff_id: UUID,
     payload: schemas.ContractTariffPatch,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.update_contract_tariff(
+    res = await service.update_contract_tariff(
         db,
         principal.tenant_id,
         contract_id,
@@ -184,10 +198,13 @@ async def update_contract_tariff(
         payload,
         actor_id=principal.user_id,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
 
 
 @router.delete("/{contract_id}/tariffs/{tariff_id}")
 async def delete_contract_tariff(
+    request: Request,
     contract_id: UUID,
     tariff_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
@@ -200,4 +217,5 @@ async def delete_contract_tariff(
         tariff_id,
         actor_id=principal.user_id,
     )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
     return {"status": "success"}

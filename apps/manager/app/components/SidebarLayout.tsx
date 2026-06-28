@@ -7,6 +7,7 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   DollarSign,
   FileText,
   LogOut,
@@ -43,6 +44,7 @@ const NAV_SECTIONS: NavSection[] = [
     section: "Operações",
     items: [
       { key: "operacao",           label: "Torre de Controlo", href: "/",                    icon: Map      },
+      { key: "tarefas",            label: "Central de Tarefas", href: "/tarefas",             icon: ClipboardList },
       { key: "viagens",            label: "Viagens",           href: "/viagens",              icon: Route    },
       { key: "despacho",           label: "Despacho",           href: "/despacho",             icon: FileText },
     ],

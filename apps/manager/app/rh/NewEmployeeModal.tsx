@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X, CheckCircle, UserPlus, FileText, BadgePercent } from "lucide-react";
-import { createEmployee } from "../../lib/hr-api";
+import { createEmployee } from "@/app/lib/hr-api";
 
 export function NewEmployeeModal({
   onClose,

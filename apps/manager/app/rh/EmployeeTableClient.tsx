@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { UserPlus, Search, Briefcase } from "lucide-react";
-import { Employee } from "../../lib/hr-api";
-import { StatusBadge } from "../../components/ui/StatusBadge";
+import { Employee } from "@/app/lib/hr-api";
+import { StatusBadge } from "@/app/components/ui/StatusBadge";
 import { NewEmployeeModal } from "./NewEmployeeModal";
 
 export function EmployeeTableClient({ initialEmployees }: { initialEmployees: Employee[] }) {

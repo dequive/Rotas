@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { fetchBillableTrips, createBillingDocument, BillableTrip } from "../../lib/billing-api";
+import { loadBillingTrips, createBillingDocument, BillingTrip } from "@/app/lib/billing-api";
 import { Calculator, Truck, Loader2, Calendar, CheckSquare, Square, Filter } from "lucide-react";
 
 export function FaturacaoClient() {
-  const [trips, setTrips] = useState<BillableTrip[]>([]);
+  const [trips, setTrips] = useState<BillingTrip[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingClient, setProcessingClient] = useState<string | null>(null);
 
@@ -23,13 +23,10 @@ export function FaturacaoClient() {
   const loadTrips = async () => {
     setLoading(true);
     try {
-      const data = await fetchBillableTrips(
-        periodStart ? new Date(periodStart).toISOString() : undefined,
-        periodEnd ? new Date(periodEnd + "T23:59:59").toISOString() : undefined
-      );
-      setTrips(data);
+      const result = await loadBillingTrips();
+      setTrips(result.trips);
       // Por defeito, selecionamos todas as viagens que aparecem
-      setSelectedIds(new Set(data.map(t => t.id)));
+      setSelectedIds(new Set(result.trips.map(t => t.id)));
     } catch (error) {
       console.error("Failed to load billable trips", error);
     } finally {
@@ -47,7 +44,7 @@ export function FaturacaoClient() {
     setSelectedIds(newSet);
   };
 
-  const toggleClientSelection = (clientTrips: BillableTrip[], isAllSelected: boolean) => {
+  const toggleClientSelection = (clientTrips: BillingTrip[], isAllSelected: boolean) => {
     const newSet = new Set(selectedIds);
     clientTrips.forEach(t => {
       if (isAllSelected) newSet.delete(t.id);
@@ -56,7 +53,7 @@ export function FaturacaoClient() {
     setSelectedIds(newSet);
   };
 
-  const handleCreateDocument = async (clientName: string, clientTrips: BillableTrip[]) => {
+  const handleCreateDocument = async (clientName: string, clientTrips: BillingTrip[]) => {
     // Filtrar apenas as selecionadas
     const tripsToBill = clientTrips.filter(t => selectedIds.has(t.id));
     
@@ -74,14 +71,14 @@ export function FaturacaoClient() {
       const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59).toISOString();
 
       await createBillingDocument({
-        contract_id: tripsToBill[0].contract_id || null,
+        contract_id: tripsToBill[0].contractId || null,
+        client_nuit: null,
         client_name: clientName,
-        contract_reference: tripsToBill[0].contract_reference || null,
+        contract_reference: tripsToBill[0].contractReference || null,
         billing_period_start: periodStart ? new Date(periodStart).toISOString() : firstDay,
         billing_period_end: periodEnd ? new Date(periodEnd + "T23:59:59").toISOString() : lastDay,
         currency: "MZN",
         trip_ids: tripIds,
-        client_nuit: null
       });
 
       await loadTrips();
@@ -96,11 +93,11 @@ export function FaturacaoClient() {
   // Agrupar as viagens por client_name
   const groupedTrips = useMemo(() => {
     return trips.reduce((acc, trip) => {
-      const key = trip.client_name || "Cliente Não Definido";
+      const key = trip.client || "Cliente Não Definido";
       if (!acc[key]) acc[key] = [];
       acc[key].push(trip);
       return acc;
-    }, {} as Record<string, BillableTrip[]>);
+    }, {} as Record<string, BillingTrip[]>);
   }, [trips]);
 
   return (
@@ -156,7 +153,7 @@ export function FaturacaoClient() {
             
             const selectedTrips = clientTrips.filter(t => selectedIds.has(t.id));
             const isAllSelected = selectedTrips.length === clientTrips.length;
-            const totalRevenue = selectedTrips.reduce((sum, trip) => sum + Number(trip.actual_revenue || 0), 0);
+            const totalRevenue = selectedTrips.reduce((sum, trip) => sum + Number(trip.amount || 0), 0);
             const isProcessing = processingClient === clientName;
 
             return (
@@ -204,13 +201,13 @@ export function FaturacaoClient() {
                               </button>
                             </td>
                             <td className="px-4 py-3 font-medium text-ink">
-                              {trip.origin} <span className="text-muted mx-1">→</span> {trip.destination}
+                              {trip.route}
                             </td>
                             <td className="px-4 py-3 font-mono text-xs text-muted">
-                              {trip.contract_reference || "-"}
+                              {trip.contractReference || "-"}
                             </td>
                             <td className="px-4 py-3 text-right font-mono font-medium text-ink">
-                              {Number(trip.actual_revenue || 0).toLocaleString("pt-MZ", { style: "currency", currency: "MZN" })}
+                              {Number(trip.amount || 0).toLocaleString("pt-MZ", { style: "currency", currency: "MZN" })}
                             </td>
                           </tr>
                         );

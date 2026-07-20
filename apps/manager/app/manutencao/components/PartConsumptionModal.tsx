@@ -128,7 +128,7 @@ export function PartConsumptionModal({ part, warehouses, vehicles }: Props) {
                   type="number" 
                   step="0.01" 
                   min="0.01" 
-                  max={Number(part.current_quantity)}
+                  max={Number(part.current_stock)}
                   defaultValue={1}
                   className="h-11 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-3 font-mono text-slate-900 font-bold"
                 />

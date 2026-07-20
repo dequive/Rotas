@@ -1,5 +1,5 @@
 import React from "react";
-import { PayrollSlip, Employee } from "../../../lib/hr-api";
+import { PayrollSlip, Employee } from "@/app/lib/hr-api";
 
 export function PayslipTemplate({ slip, employee }: { slip: PayrollSlip, employee: Employee }) {
   

@@ -1,5 +1,4 @@
-import { getAuthToken } from "./auth";
-import { API_BASE_URL } from "./api";
+import { apiFetch } from "./api";
 
 export interface Warehouse {
   id: string;
@@ -58,65 +57,37 @@ export interface StockMovementResponse {
 }
 
 export async function fetchWarehouses(): Promise<Warehouse[]> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/inventory/warehouses`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error("Failed to fetch warehouses");
-  return res.json();
+  return apiFetch<Warehouse[]>("/api/v1/inventory/warehouses", { revalidate: 15 });
 }
 
 export async function fetchItems(): Promise<Item[]> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/inventory/items`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error("Failed to fetch items");
-  return res.json();
+  return apiFetch<Item[]>("/api/v1/inventory/items", { revalidate: 15 });
 }
 
 export async function createWarehouse(data: { name: string; location?: string }): Promise<Warehouse> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/inventory/warehouses`, {
+  return apiFetch<Warehouse>("/api/v1/inventory/warehouses", {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to create warehouse");
-  return res.json();
 }
 
 export async function createItem(data: { name: string; sku?: string; description?: string; unit_of_measure?: string }): Promise<Item> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/inventory/items`, {
+  return apiFetch<Item>("/api/v1/inventory/items", {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to create item");
-  return res.json();
 }
 
 export async function registerStockIn(data: StockMovementIn): Promise<StockMovementResponse> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/inventory/movements/in`, {
+  return apiFetch<StockMovementResponse>("/api/v1/inventory/movements/in", {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to register stock IN");
-  return res.json();
 }
 
 export async function registerStockOut(data: StockMovementOut): Promise<StockMovementResponse> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/inventory/movements/out`, {
+  return apiFetch<StockMovementResponse>("/api/v1/inventory/movements/out", {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to register stock OUT");
-  return res.json();
 }

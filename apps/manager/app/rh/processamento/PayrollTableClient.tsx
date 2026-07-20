@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { PlayCircle, CheckCircle, Calculator, FileText, Printer, X } from "lucide-react";
-import { PayrollSlip, generatePayroll } from "../../../lib/hr-api";
-import { StatusBadge } from "../../../components/ui/StatusBadge";
+import { PayrollSlip, generatePayroll } from "@/app/lib/hr-api";
+import { StatusBadge } from "@/app/components/ui/StatusBadge";
 import { PayslipTemplate } from "./PayslipTemplate";
 
 export function PayrollTableClient({ 

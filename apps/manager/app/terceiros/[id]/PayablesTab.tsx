@@ -12,7 +12,7 @@ interface SupplierInvoice {
   description: string;
   amount: string;
   currency: string;
-  status: "draft" | "approved" | "paid" | "cancelled";
+  status: "draft" | "approved" | "pending" | "paid" | "void";
   issued_at: string;
 }
 
@@ -223,9 +223,9 @@ export default function PayablesTab({ thirdPartyId }: { thirdPartyId: string }) 
                     <td className="py-3 px-4 text-muted whitespace-nowrap">
                       {new Date(ord.created_at).toLocaleDateString("pt-MZ")}
                     </td>
-                    <td className="py-3 px-4 font-medium text-ink">{ord.po_number || ord.order_number}</td>
+                    <td className="py-3 px-4 font-medium text-ink">{ord.order_number}</td>
                     <td className="py-3 px-4 text-muted max-w-xs truncate">{ord.description || "-"}</td>
-                    <td className="py-3 px-4 font-mono text-ink">{fmt(ord.estimated_amount || ord.estimated_cost, ord.currency)}</td>
+                    <td className="py-3 px-4 font-mono text-ink">{fmt(ord.estimated_cost, "MZN")}</td>
                     <td className="py-3 px-4 text-right">
                       <span className={cn("px-2 py-1 rounded text-[11px] font-semibold uppercase tracking-wider", statusColors[ord.status])}>
                         {ord.status}
@@ -266,7 +266,7 @@ export default function PayablesTab({ thirdPartyId }: { thirdPartyId: string }) 
           }}
           thirdPartyId={thirdPartyId}
           invoiceId={invoiceToPay.id}
-          maxAmount={invoiceToPay.amount}
+          maxAmount={Number(invoiceToPay.amount)}
         />
       )}
     </div>

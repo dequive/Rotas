@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { SupplierInvoice } from "../../../lib/payables-api";
-import { SupplierPaymentModal } from "../../../components/SupplierPaymentModal";
-import { StatusBadge } from "../../../components/ui/StatusBadge";
+import { SupplierInvoice } from "@/app/lib/payables-api";
+import { SupplierPaymentModal } from "@/app/components/SupplierPaymentModal";
+import { StatusBadge } from "@/app/components/ui/StatusBadge";
 import { Building2, DollarSign } from "lucide-react";
 
 export type InvoiceWithSupplier = SupplierInvoice & { supplierName: string };

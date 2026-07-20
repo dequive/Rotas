@@ -1,8 +1,8 @@
-import { requireSession } from "../../../lib/auth";
-import { SidebarLayout } from "../../../components/SidebarLayout";
-import { PageHeader } from "../../../components/ui/PageHeader";
-import { loadSupplierInvoices } from "../../../lib/payables-api";
-import { loadThirdParties } from "../../../lib/third-party-api";
+import { requireSession } from "@/app/lib/auth";
+import { SidebarLayout } from "@/app/components/SidebarLayout";
+import { PageHeader } from "@/app/components/ui/PageHeader";
+import { loadSupplierInvoices } from "@/app/lib/payables-api";
+import { loadThirdParties } from "@/app/lib/third-party-api";
 import { PayablesTableClient, InvoiceWithSupplier } from "./PayablesTableClient";
 
 export default async function PagamentosPage() {

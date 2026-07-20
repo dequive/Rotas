@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { PackagePlus, Truck, Search, AlertCircle } from "lucide-react";
 import { Item, Warehouse } from "../lib/inventory-api";
-import { StatusBadge } from "../../components/ui/StatusBadge";
-import { NewPartModal } from "../../components/NewPartModal";
-import { GoodsReceiptModal } from "../../components/GoodsReceiptModal";
+import { StatusBadge } from "@/app/components/ui/StatusBadge";
+import { NewPartModal } from "@/app/components/NewPartModal";
+import { GoodsReceiptModal } from "@/app/components/GoodsReceiptModal";
 
 export function ArmazemTableClient({ initialItems, warehouses }: { initialItems: Item[], warehouses: Warehouse[] }) {
   const [search, setSearch] = useState("");
@@ -82,7 +82,7 @@ export function ArmazemTableClient({ initialItems, warehouses }: { initialItems:
                       </td>
                       <td className="px-4 py-3 text-center">
                         {isZero ? (
-                          <StatusBadge status="erro" label="Ruptura" icon={AlertCircle} />
+                          <StatusBadge status="erro" label="Ruptura" />
                         ) : isLowStock ? (
                           <StatusBadge status="alerta" label="Baixo" />
                         ) : (

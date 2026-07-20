@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { FileText, CheckCircle, Clock, AlertCircle, FilePlus, DollarSign } from "lucide-react";
-import { StatCard } from "../../components/ui/StatCard";
+import { StatCard } from "@/app/components/ui/StatCard";
 import { FaturacaoClient } from "./FaturacaoClient";
 
 export default function FaturacaoPage() {

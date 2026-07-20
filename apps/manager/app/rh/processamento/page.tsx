@@ -1,7 +1,7 @@
-import { requireSession } from "../../../lib/auth";
-import { SidebarLayout } from "../../../components/SidebarLayout";
-import { PageHeader } from "../../../components/ui/PageHeader";
-import { loadPayrollSlips } from "../../../lib/hr-api";
+import { requireSession } from "@/app/lib/auth";
+import { SidebarLayout } from "@/app/components/SidebarLayout";
+import { PageHeader } from "@/app/components/ui/PageHeader";
+import { loadPayrollSlips } from "@/app/lib/hr-api";
 import { PayrollTableClient } from "./PayrollTableClient";
 
 export default async function PayrollPage({

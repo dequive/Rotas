@@ -477,3 +477,19 @@ export async function getClientStatement(
   if (!res.ok) throw new Error(`Statement fetch failed: ${res.status}`);
   return res.json() as Promise<ClientStatement>;
 }
+
+export async function createBillingDocument(payload: {
+  contract_id: string | null;
+  client_nuit: string | null;
+  client_name: string;
+  contract_reference: string | null;
+  billing_period_start: string;
+  billing_period_end: string;
+  currency: string;
+  trip_ids: string[];
+}): Promise<void> {
+  await apiFetch("/api/v1/billing/documents", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

@@ -1,6 +1,6 @@
-import { requireSession } from "../../lib/auth";
-import { SidebarLayout } from "../../components/SidebarLayout";
-import { PageHeader } from "../../components/ui/PageHeader";
+import { requireSession } from "@/app/lib/auth";
+import { SidebarLayout } from "@/app/components/SidebarLayout";
+import { PageHeader } from "@/app/components/ui/PageHeader";
 import { fetchItems, fetchWarehouses } from "../lib/inventory-api";
 import { ArmazemTableClient } from "./ArmazemTableClient";
 import { Package } from "lucide-react";
@@ -22,7 +22,7 @@ export default async function ArmazemPage() {
         <PageHeader
           eyebrow="Oficina & Manutenção"
           title="Armazém de Peças"
-          description={`Catálogo com ${parts.length} referências registadas.`}
+          description={`Catálogo com ${items.length} referências registadas.`}
         />
         
         {/* Sumário Rápido */}

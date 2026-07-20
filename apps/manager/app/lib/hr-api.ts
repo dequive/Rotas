@@ -39,6 +39,7 @@ export interface PayrollSlipLine {
 export interface PayrollSlip {
   id: string;
   employee_id: string;
+  tenant_id: string;
   period_month: number;
   period_year: number;
   

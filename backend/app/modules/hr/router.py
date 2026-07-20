@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import Principal, get_current_principal
 from app.core.deps import get_session
 from app.core.rbac import require_permission
 from app.modules.hr import schemas, service
@@ -14,11 +14,14 @@ from app.modules.hr import schemas, service
 
 router = APIRouter(prefix="/hr", tags=["hr"])
 
+PrincipalDep = Annotated[Principal, Depends(get_current_principal)]
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
+
 # Aqui assumimos que apenas um utilizador logado de uma Tenant pode aceder:
 @router.get("/employees", response_model=List[schemas.EmployeeResponse])
 async def list_employees(
-    principal: Annotated[Principal, Depends(Principal.require)],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: PrincipalDep,
+    db: SessionDep,
 ):
     return await service.list_employees(principal.tenant_id, db)
 
@@ -26,8 +29,8 @@ async def list_employees(
 @router.post("/employees", response_model=schemas.EmployeeResponse, status_code=201)
 async def create_employee(
     payload: schemas.EmployeeCreate,
-    principal: Annotated[Principal, Depends(Principal.require)],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: PrincipalDep,
+    db: SessionDep,
 ):
     return await service.create_employee(principal.tenant_id, payload, db)
 
@@ -35,8 +38,8 @@ async def create_employee(
 @router.get("/employees/{employee_id}/documents", response_model=List[schemas.EmployeeDocumentResponse])
 async def list_employee_documents(
     employee_id: UUID,
-    principal: Annotated[Principal, Depends(Principal.require)],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: PrincipalDep,
+    db: SessionDep,
 ):
     return await service.list_employee_documents(principal.tenant_id, employee_id, db)
 
@@ -45,8 +48,8 @@ async def list_employee_documents(
 async def add_employee_document(
     employee_id: UUID,
     payload: schemas.EmployeeDocumentCreate,
-    principal: Annotated[Principal, Depends(Principal.require)],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: PrincipalDep,
+    db: SessionDep,
 ):
     return await service.add_employee_document(principal.tenant_id, employee_id, payload, db)
 
@@ -54,8 +57,8 @@ async def add_employee_document(
 @router.post("/payroll/generate", response_model=List[schemas.PayrollSlipResponse], status_code=201)
 async def generate_payroll(
     payload: schemas.PayrollGenerationRequest,
-    principal: Annotated[Principal, Depends(Principal.require)],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: PrincipalDep,
+    db: SessionDep,
 ):
     return await service.generate_payroll(principal.tenant_id, payload, principal.user_id, db)
 
@@ -64,8 +67,8 @@ async def generate_payroll(
 async def list_payroll_slips(
     month: int,
     year: int,
-    principal: Annotated[Principal, Depends(Principal.require)],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: PrincipalDep,
+    db: SessionDep,
 ):
     return await service.list_payroll_slips(principal.tenant_id, month, year, db)
 
@@ -76,8 +79,8 @@ async def list_payroll_slips(
 
 @router.get("/advances", response_model=List[schemas.SalaryAdvanceResponse])
 async def list_salary_advances(
-    principal: Annotated[Principal, Depends(Principal.require)],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: PrincipalDep,
+    db: SessionDep,
 ):
     from sqlalchemy import select
     from app.modules.hr.models import SalaryAdvance
@@ -89,8 +92,8 @@ async def list_salary_advances(
 @router.post("/advances", response_model=schemas.SalaryAdvanceResponse, status_code=201)
 async def create_salary_advance(
     payload: schemas.SalaryAdvanceCreate,
-    principal: Annotated[Principal, Depends(Principal.require)],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: PrincipalDep,
+    db: SessionDep,
 ):
     from app.modules.hr.models import SalaryAdvance
     advance = SalaryAdvance(
@@ -106,8 +109,8 @@ async def create_salary_advance(
 @router.patch("/advances/{advance_id}/approve", response_model=schemas.SalaryAdvanceResponse)
 async def approve_salary_advance(
     advance_id: UUID,
-    principal: Annotated[Principal, Depends(Principal.require)],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: PrincipalDep,
+    db: SessionDep,
 ):
     from sqlalchemy import select
     from fastapi import HTTPException
@@ -133,8 +136,8 @@ async def approve_salary_advance(
 async def export_ps2_file(
     month: int,
     year: int,
-    principal: Annotated[Principal, Depends(Principal.require)],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: PrincipalDep,
+    db: SessionDep,
 ):
     """
     Gera um ficheiro CSV limpo com NOME, NIB e VALOR LÍQUIDO 

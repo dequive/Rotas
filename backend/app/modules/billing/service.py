@@ -816,21 +816,21 @@ async def issue_document(
 
     # --- HOOK CONTABILISTICO (Fase 7) ---
     from app.modules.accounting.services import create_journal_entry
-    from app.modules.accounting.schemas import ManualEntryCreate
+    from app.modules.accounting.schemas import JournalEntryCreate
     from app.modules.accounting.schemas import JournalItemCreate as AccJournalItemCreate
     from app.modules.accounting.models import Account
     from sqlalchemy import select
     from datetime import datetime
-    
+
     if document.total_amount and document.total_amount > 0:
         acct_clients = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("411%")).limit(1))
         acct_sales = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("711%")).limit(1))
-        
+
         if acct_clients and acct_sales:
             await create_journal_entry(
                 db,
                 tenant_id=tenant_id,
-                payload=ManualEntryCreate(
+                payload=JournalEntryCreate(
                     date=datetime.now(),
                     journal_type="VEN",
                     description=f"Fatura {document.invoice_number or str(document.id)[:8]} ao Cliente {document.client_name}",

@@ -10,6 +10,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    CheckConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -91,6 +92,11 @@ class JournalItem(Base):
     """
 
     __tablename__ = "accounting_journal_items"
+    __table_args__ = (
+        CheckConstraint('debit >= 0 AND credit >= 0', name='check_debit_credit_positive'),
+        CheckConstraint('debit = 0 OR credit = 0', name='check_mutually_exclusive'),
+        CheckConstraint('debit > 0 OR credit > 0', name='check_not_both_zero'),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -120,6 +126,7 @@ class JournalItem(Base):
     work_order_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("work_orders.id"), index=True, nullable=True
     )
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

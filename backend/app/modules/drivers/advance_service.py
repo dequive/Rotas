@@ -140,21 +140,21 @@ async def issue_advance(
     )
     # --- HOOK CONTABILISTICO (Fase 9) ---
     from app.modules.accounting.services import create_journal_entry
-    from app.modules.accounting.schemas import ManualEntryCreate
+    from app.modules.accounting.schemas import JournalEntryCreate
     from app.modules.accounting.schemas import JournalItemCreate as AccJournalItemCreate
     from app.modules.accounting.models import Account
     from sqlalchemy import select
     from datetime import datetime
-    
+
     if amount_mzn > 0:
         acct_advances = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("42%")).limit(1))
         acct_bank = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("12%")).limit(1))
-        
+
         if acct_advances and acct_bank:
             await create_journal_entry(
                 db,
                 tenant_id=tenant_id,
-                payload=ManualEntryCreate(
+                payload=JournalEntryCreate(
                     journal_type="TES",
                     date=datetime.now(),
                     reference=f"ADV-{str(advance.id)[:8]}",

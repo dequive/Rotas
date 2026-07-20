@@ -62,6 +62,7 @@ from app.modules.users.router import router as users_router
 from app.modules.vehicles.router import router as vehicles_router
 from app.modules.workshop.router import router as workshop_router
 from app.modules.inventory.router import router as inventory_router
+from app.modules.accounting.router import router as accounting_router
 
 settings = get_settings()
 import_all_models()

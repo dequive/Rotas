@@ -369,10 +369,10 @@ class SparePartMovementService:
         
         # --- HOOK CONTABILISTICO (Fase 6) ---
         if direction == "out" and item.total_cost and item.total_cost > 0:
-            from app.modules.accounting.service import create_journal_entry
-            from app.modules.accounting.schemas import JournalEntryCreate, JournalEntryLineCreate
+            from app.modules.accounting.services import create_journal_entry
+            from app.modules.accounting.schemas import JournalEntryCreate, JournalItemCreate
             from app.modules.accounting.models import Account
-            
+
             vehicle_id_for_cost = None
             if source_type == "vehicle":
                 vehicle_id_for_cost = source_id
@@ -381,28 +381,28 @@ class SparePartMovementService:
                 wo = await db.get(WorkOrder, source_id)
                 if wo:
                     vehicle_id_for_cost = wo.vehicle_id
-                    
+
             if vehicle_id_for_cost:
-                acct_inv = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.account_code.like("32%")).limit(1))
-                acct_exp = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.account_code.like("622%")).limit(1))
-                
+                acct_inv = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("32%")).limit(1))
+                acct_exp = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("622%")).limit(1))
+
                 if acct_inv and acct_exp:
                     await create_journal_entry(
                         db,
                         tenant_id=tenant_id,
                         payload=JournalEntryCreate(
-                            date=occurred_at.date(),
+                            date=occurred_at.date() if hasattr(occurred_at, "date") else occurred_at,
                             journal_type="OD",
                             description=f"Consumo de peca {inventory.sku} no veiculo",
                             lines=[
-                                JournalEntryLineCreate(
+                                JournalItemCreate(
                                     account_id=acct_exp.id,
                                     description=f"Custo de Manutencao ({inventory.name})",
                                     debit=float(item.total_cost),
                                     credit=0,
                                     vehicle_id=vehicle_id_for_cost
                                 ),
-                                JournalEntryLineCreate(
+                                JournalItemCreate(
                                     account_id=acct_inv.id,
                                     description="Saida de Armazem",
                                     debit=0,

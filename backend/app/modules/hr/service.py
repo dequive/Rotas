@@ -12,7 +12,7 @@ from app.core.errors import ApiError
 from app.modules.hr.models import Employee, EmployeeDocument, PayrollSlip, PayrollSlipLine, Absence, SalaryAdvance
 from app.modules.hr.schemas import EmployeeCreate, EmployeeDocumentCreate, PayrollGenerationRequest
 from app.modules.accounting.services import create_journal_entry
-from app.modules.accounting.schemas import ManualEntryCreate, ManualEntryItemCreate
+from app.modules.accounting.schemas import JournalEntryCreate, JournalItemCreate
 import calendar
 
 
@@ -344,31 +344,31 @@ async def generate_payroll(
                     await db.flush()
                 return str(acc.id)
                 
-            acc_622 = await get_account("6.2.2", "Remunerações dos trabalhadores", "Expense")
-            acc_623 = await get_account("6.2.3", "Encargos sobre remunerações (INSS)", "Expense")
-            acc_442 = await get_account("4.4.2", "Impostos retidos na fonte (IRPS)", "Liability")
-            acc_449 = await get_account("4.4.9", "Contribuições para o INSS", "Liability")
-            acc_4512 = await get_account("4.5.1.2", "Adiantamentos aos trabalhadores", "Asset")
-            acc_4622 = await get_account("4.6.2.2", "Remunerações a pagar aos trabalhadores", "Liability")
+            acc_622 = UUID(await get_account("6.2.2", "Remunerações dos trabalhadores", "Expense"))
+            acc_623 = UUID(await get_account("6.2.3", "Encargos sobre remunerações (INSS)", "Expense"))
+            acc_442 = UUID(await get_account("4.4.2", "Impostos retidos na fonte (IRPS)", "Liability"))
+            acc_449 = UUID(await get_account("4.4.9", "Contribuições para o INSS", "Liability"))
+            acc_4512 = UUID(await get_account("4.5.1.2", "Adiantamentos aos trabalhadores", "Asset"))
+            acc_4622 = UUID(await get_account("4.6.2.2", "Remunerações a pagar aos trabalhadores", "Liability"))
             
             items = []
             if total_gross > 0:
-                items.append(ManualEntryItemCreate(account_id=acc_622, debit=total_gross, credit=Decimal("0.00")))
+                items.append(JournalItemCreate(account_id=acc_622, debit=total_gross, credit=Decimal("0.00")))
             if total_inss_employer > 0:
-                items.append(ManualEntryItemCreate(account_id=acc_623, debit=total_inss_employer, credit=Decimal("0.00")))
+                items.append(JournalItemCreate(account_id=acc_623, debit=total_inss_employer, credit=Decimal("0.00")))
                 
             if total_irps > 0:
-                items.append(ManualEntryItemCreate(account_id=acc_442, debit=Decimal("0.00"), credit=total_irps))
+                items.append(JournalItemCreate(account_id=acc_442, debit=Decimal("0.00"), credit=total_irps))
             if (total_inss_employee + total_inss_employer) > 0:
-                items.append(ManualEntryItemCreate(account_id=acc_449, debit=Decimal("0.00"), credit=(total_inss_employee + total_inss_employer)))
+                items.append(JournalItemCreate(account_id=acc_449, debit=Decimal("0.00"), credit=(total_inss_employee + total_inss_employer)))
             if total_advances > 0:
-                items.append(ManualEntryItemCreate(account_id=acc_4512, debit=Decimal("0.00"), credit=total_advances))
+                items.append(JournalItemCreate(account_id=acc_4512, debit=Decimal("0.00"), credit=total_advances))
             if total_net > 0:
-                items.append(ManualEntryItemCreate(account_id=acc_4622, debit=Decimal("0.00"), credit=total_net))
+                items.append(JournalItemCreate(account_id=acc_4622, debit=Decimal("0.00"), credit=total_net))
 
-            entry_payload = ManualEntryCreate(
+            entry_payload = JournalEntryCreate(
                 journal_type="VENC",
-                date=now.date(),
+                date=date(payload.period_year, payload.period_month, 1),
                 reference=f"Processamento Salarial {payload.period_month}/{payload.period_year}",
                 description=f"Reconhecimento de salários e encargos do mês {payload.period_month}/{payload.period_year}",
                 items=items

@@ -82,6 +82,14 @@ class Settings(BaseSettings):
     governance_engine_url: str = Field(default="", validation_alias="GOVERNANCE_ENGINE_URL")
     governance_api_key: str = Field(default="", validation_alias="GOVERNANCE_API_KEY")
 
+    # Stabilization feature flags (P0). All default to off.
+    # STAB-F0: gates incomplete integrations until they hit the acceptance criteria below.
+    ff_governance_outbox: bool = Field(default=False, validation_alias="FF_GOVERNANCE_OUTBOX")
+    ff_manager_bff: bool = Field(default=False, validation_alias="FF_MANAGER_BFF")
+    ff_pwa_offline_lifecycle: bool = Field(
+        default=False, validation_alias="FF_PWA_OFFLINE_LIFECYCLE"
+    )
+
     @property
     def resolved_admin_database_url(self) -> str:
         return self.admin_database_url if self.admin_database_url else self.database_url

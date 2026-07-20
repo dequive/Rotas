@@ -13,8 +13,8 @@ from app.core.deps import get_session
 from app.modules.accounting.models import Account, JournalEntry, JournalItem
 from app.modules.accounting.schemas import (
     AccountResponse,
+    JournalEntryCreate,
     JournalEntryResponse,
-    ManualEntryCreate,
     ProfitAndLossResponse,
     TrialBalanceLine
 )
@@ -30,15 +30,17 @@ async def list_accounts(session: SessionDep, principal: PrincipalDep):
     result = await session.execute(stmt)
     return list(result.scalars().all())
 
-@router.post("/manual-entry", response_model=JournalEntryResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/journal-entries", response_model=JournalEntryResponse, status_code=status.HTTP_201_CREATED)
 async def create_manual_entry(
-    payload: ManualEntryCreate,
+    payload: JournalEntryCreate,
     session: SessionDep,
     principal: PrincipalDep,
 ):
+    from app.modules.accounting.services import create_journal_entry as _create_journal_entry
     # Validar Partidas Dobradas (Total Debitos == Total Creditos)
-    total_debit = sum(item.debit for item in payload.items)
-    total_credit = sum(item.credit for item in payload.items)
+    lines = payload.lines or payload.items or []
+    total_debit = sum(item.debit for item in lines)
+    total_credit = sum(item.credit for item in lines)
 
     if total_debit != total_credit:
         raise HTTPException(
@@ -46,41 +48,21 @@ async def create_manual_entry(
             detail=f"Lançamento Desequilibrado: Débitos ({total_debit}) != Créditos ({total_credit})"
         )
 
-    # Criar Cabeçalho
-    entry = JournalEntry(
-        tenant_id=principal.tenant_id,
-        journal_type=payload.journal_type,
-        date=payload.date,
-        reference=payload.reference,
-        description=payload.description,
-        status="posted",
-        source_document_type="ManualEntry"
-    )
-    session.add(entry)
-    await session.flush()
-
-    # Criar Partidas (JournalItems)
-    for item_data in payload.items:
-        # Validar se a conta existe
+    # Validar se as contas existem e pertencem ao tenant
+    for item_data in lines:
         acc = await session.get(Account, item_data.account_id)
         if not acc or acc.tenant_id != principal.tenant_id:
             raise HTTPException(status_code=400, detail=f"Conta {item_data.account_id} não encontrada.")
-            
-        item = JournalItem(
-            tenant_id=principal.tenant_id,
-            journal_entry_id=entry.id,
-            account_id=acc.id,
-            debit=item_data.debit,
-            credit=item_data.credit,
-            third_party_id=item_data.third_party_id,
-            vehicle_id=item_data.vehicle_id,
-            trip_id=item_data.trip_id,
-        )
-        session.add(item)
 
+    entry = await _create_journal_entry(
+        session,
+        principal.tenant_id,
+        payload,
+        actor_id=principal.user_id,
+        source_type="ManualEntry",
+    )
     await session.commit()
-    
-    # Refresh with items and account details
+
     stmt = select(JournalEntry).options(
         selectinload(JournalEntry.items).selectinload(JournalItem.account)
     ).where(JournalEntry.id == entry.id)

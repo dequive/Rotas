@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
@@ -11,7 +12,7 @@ from app.core.deps import get_session
 from app.modules.payables.models import PurchaseOrder, SupplierInvoice, SupplierPayment
 from app.modules.payables.pdf_templates import generate_purchase_order_pdf
 from app.modules.tenants.models import Tenant, TenantDocumentProfile
-from app.modules.third_parties.models import ThirdParty
+from app.modules.third_party.models import ThirdParty
 from app.modules.payables.schemas import (
     PurchaseOrderCreate,
     PurchaseOrderResponse,
@@ -22,7 +23,7 @@ from app.modules.payables.schemas import (
     InvoicePaymentRequest,
 )
 from app.modules.accounting.services import create_journal_entry
-from app.modules.accounting.schemas import ManualEntryCreate, ManualEntryItem
+from app.modules.accounting.schemas import JournalEntryCreate, JournalItemCreate
 
 router = APIRouter(prefix="/payables", tags=["payables"])
 
@@ -175,34 +176,34 @@ async def pay_supplier_invoice(
         invoice.status = "partially_paid" # assuming the schema accepts this
         
     # 4. Magia Contabilística: Saída de Bancos, Abate em Fornecedores
-    entry_payload = ManualEntryCreate(
+    entry_payload = JournalEntryCreate(
         date=payload.value_date,
         description=f"Liquidação de Fatura {invoice.invoice_number or invoice.id}",
         reference=payload.reference,
         items=[
-            ManualEntryItem(
-                account_id=None,
-                account_number="42", # Fornecedores
-                amount=payload.amount,
+            JournalItemCreate(
+                account_number="42",
+                debit=payload.amount,
+                credit=Decimal("0.00"),
                 type="debit"
             ),
-            ManualEntryItem(
-                account_id=None,
-                account_number="12", # Bancos
-                amount=payload.amount,
+            JournalItemCreate(
+                account_number="12",
+                debit=Decimal("0.00"),
+                credit=payload.amount,
                 type="credit"
             )
         ]
     )
-    
+
     # Executa o Lançamento
     await create_journal_entry(
         session,
         tenant_id=principal.tenant_id,
-        user_id=principal.user_id,
+        payload=entry_payload,
+        actor_id=principal.user_id,
         source_type="supplier_payment",
         source_id=payment.id,
-        payload=entry_payload
     )
     
     await session.commit()

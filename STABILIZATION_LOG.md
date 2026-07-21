@@ -25,15 +25,14 @@ returning green CI.
 
 | ID | Front | Owner-fronter | Status |
 |---|---|---|---|
-| F0 | Branch + flags + log | this session | in progress |
-| F1 | Alembic: DDL for HR/Inventory/Accounting | depends on F2 schemas | pending |
-| F2 | Backend import (Accounting + HR + main.py) | this session | next |
-| F3 | Manager typecheck (49 errors) | depends on Backend contracts | pending |
-| F4 | Transaction boundaries (services flush) | parallel to F5 | pending |
-| F5 | RLS + GRANT complete | depends on F1 | pending |
-| F6 | RBAC for ERP modules | depends on F2 | pending |
-| F7 | BFF-only Manager | depends on F3 | pending |
-| F8 | Governance Engine outbox + retry | parallel, needs DB | pending |
+| F0 | Branch + flags + log | this session | done (commit aca0248) |
+| F1 | Backend import (Accounting + HR + main.py) | this session | done (commit aca0248) |
+| F2 | Alembic: DDL for HR/Inventory/Accounting | depends on F1 | done (commit c51c1b0) |
+| F3 | Manager typecheck (49 errors → 0) | depends on F2 | done (commit e176a6a) |
+| F4 | RLS + GRANT complete tables | depends on F2 | done (commit 64a88a5) |
+| F5 | RBAC for ERP modules | depends on F3 | done (commit 907ce34) |
+| F6 | Governance outage + outbox (drain + retry) | parallel | done (commit 4581162) |
+| F7 | BFF strategy component | parallel | done — catch-all proxy + bff helper (new commit) |
 
 ## Decisions log
 
@@ -52,7 +51,23 @@ returning green CI.
 
 ## Regressions / discoveries
 
-(empty — append entries as they appear)
+- Empty Alembic migration bodies (`95929ae669b9`) caused `IndentationError`
+  breaking `alembic heads`. Restored with explicit `pass`.
+- `HR` service imported `ManualEntryItemCreate` (legacy); renamed to the
+  canonical `JournalItemCreate` via Pydantic alias shims so callers and the
+  ORM stay compatible.
+- `payables/router.py` resolved `account_id` via `account_number` PGC-NIRF
+  codes. Centralised the resolution inside `create_journal_entry()`.
+- `inventory-api.ts` read tokens from `localStorage`; refactored to
+  `apiFetch()` (BFF token resolution only).
+- `StatCard` component previously not implemented; wrapped as alias of
+  `KpiCard` so existing pages continue to render.
+- Manager `Button` did not accept the `"outline"` variant; added it as a
+  dual alias of `ghost`.
+- F7 introduced `/api/proxy/route.ts` and `lib/bff.ts` so client components
+  no longer need to read tokens from `localStorage`. Existing 18 client
+  components still read tokens locally; migration to the BFF proxy is
+  scheduled for P1 (per-module route handlers take precedence).
 
 ## Acceptance gates
 

@@ -60,7 +60,27 @@ ADMIN_TENANT = "admin.tenant"
 
 AUDIT_READ = "audit.read"
 
-# ── Role → Permission mapping ──────────────────────────────────────────────────
+# Stabilization/P0-F6: ERP module permissions (HR, Accounting, Payables, Inventory)
+HR_READ = "hr.read"
+HR_WRITE = "hr.write"
+HR_SALARY_VIEW = "hr.salary.view"
+HR_PAYROLL_GENERATE = "hr.payroll.generate"
+HR_PAYROLL_APPROVE = "hr.payroll.approve"
+
+ACCOUNTING_READ = "accounting.read"
+ACCOUNTING_POST = "accounting.post"
+ACCOUNTING_REVERSE = "accounting.reverse"
+
+PAYABLES_READ = "payables.read"
+PAYABLES_WRITE = "payables.write"
+PAYABLES_APPROVE = "payables.approve"
+PAYABLES_PAY = "payables.pay"
+
+INVENTORY_READ = "inventory.read"
+INVENTORY_WRITE = "inventory.write"
+INVENTORY_ADJUST = "inventory.adjust"
+
+# Role -> Permission mapping
 
 ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "owner": frozenset(
@@ -89,6 +109,22 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             ADMIN_USERS,
             ADMIN_TENANT,
             AUDIT_READ,
+            # Stabilization/P0-F6: ERP modules
+            HR_READ,
+            HR_WRITE,
+            HR_SALARY_VIEW,
+            HR_PAYROLL_GENERATE,
+            HR_PAYROLL_APPROVE,
+            ACCOUNTING_READ,
+            ACCOUNTING_POST,
+            ACCOUNTING_REVERSE,
+            PAYABLES_READ,
+            PAYABLES_WRITE,
+            PAYABLES_APPROVE,
+            PAYABLES_PAY,
+            INVENTORY_READ,
+            INVENTORY_WRITE,
+            INVENTORY_ADJUST,
         }
     ),
     "admin": frozenset(
@@ -116,6 +152,20 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             WORKSHOP_RELEASE,
             ADMIN_USERS,
             AUDIT_READ,
+            # Stabilization/P0-F6: ERP modules (admin can post but not reverse accounting)
+            HR_READ,
+            HR_WRITE,
+            HR_SALARY_VIEW,
+            HR_PAYROLL_GENERATE,
+            ACCOUNTING_READ,
+            ACCOUNTING_POST,
+            PAYABLES_READ,
+            PAYABLES_WRITE,
+            PAYABLES_APPROVE,
+            PAYABLES_PAY,
+            INVENTORY_READ,
+            INVENTORY_WRITE,
+            INVENTORY_ADJUST,
         }
     ),
     "manager": frozenset(
@@ -137,6 +187,17 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             FUEL_WRITE,
             WORKSHOP_READ,
             WORKSHOP_WRITE,
+            # Stabilization/P0-F6: billing approval, payroll approve, accounting approve
+            HR_READ,
+            HR_WRITE,
+            HR_PAYROLL_GENERATE,
+            ACCOUNTING_READ,
+            ACCOUNTING_POST,
+            PAYABLES_READ,
+            PAYABLES_WRITE,
+            PAYABLES_PAY,
+            INVENTORY_READ,
+            INVENTORY_WRITE,
         }
     ),
     "viewer": frozenset(
@@ -148,6 +209,11 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             BILLING_READ,
             FUEL_READ,
             WORKSHOP_READ,
+            # Stabilization/P0-F6: read-only ERP, no salary visibility
+            HR_READ,
+            ACCOUNTING_READ,
+            PAYABLES_READ,
+            INVENTORY_READ,
         }
     ),
     "mechanic": frozenset(

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal, get_current_principal
 from app.core.deps import get_session
+from app.core.rbac import require_permission, PAYABLES_READ, PAYABLES_WRITE, PAYABLES_APPROVE, PAYABLES_PAY
 from app.modules.payables.models import PurchaseOrder, SupplierInvoice, SupplierPayment
 from app.modules.payables.pdf_templates import generate_purchase_order_pdf
 from app.modules.tenants.models import Tenant, TenantDocumentProfile
@@ -27,16 +28,13 @@ from app.modules.accounting.schemas import JournalEntryCreate, JournalItemCreate
 
 router = APIRouter(prefix="/payables", tags=["payables"])
 
-SessionDep = Annotated[AsyncSession, Depends(get_session)]
-PrincipalDep = Annotated[Principal, Depends(get_current_principal)]
-
 
 @router.post("/purchase-orders", response_model=PurchaseOrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_purchase_order(
     payload: PurchaseOrderCreate,
-    session: SessionDep,
-    principal: PrincipalDep,
-) -> PurchaseOrder:
+    principal: Annotated[Principal, Depends(require_permission(PAYABLES_WRITE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+):
     po = PurchaseOrder(
         tenant_id=principal.tenant_id,
         **payload.model_dump(),
@@ -49,10 +47,11 @@ async def create_purchase_order(
 
 @router.get("/purchase-orders", response_model=list[PurchaseOrderResponse])
 async def list_purchase_orders(
-    session: SessionDep,
+    principal: Annotated[Principal, Depends(require_permission(PAYABLES_READ))],
+    session: Annotated[AsyncSession, Depends(get_session)],
     third_party_id: UUID | None = None,
-) -> list[PurchaseOrder]:
-    stmt = select(PurchaseOrder)
+):
+    stmt = select(PurchaseOrder).where(PurchaseOrder.tenant_id == principal.tenant_id)
     if third_party_id:
         stmt = stmt.where(PurchaseOrder.third_party_id == third_party_id)
     result = await session.execute(stmt.order_by(PurchaseOrder.created_at.desc()))
@@ -62,38 +61,35 @@ async def list_purchase_orders(
 @router.get("/purchase-orders/{po_id}/pdf")
 async def download_purchase_order_pdf(
     po_id: UUID,
-    session: SessionDep,
-    principal: PrincipalDep,
-) -> Response:
-    # 1. Obter a Requisição
+    principal: Annotated[Principal, Depends(require_permission(PAYABLES_READ))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+):
     po = await session.get(PurchaseOrder, po_id)
     if not po or po.tenant_id != principal.tenant_id:
         raise HTTPException(status_code=404, detail="Requisição não encontrada")
-        
-    # 2. Obter o Fornecedor (ThirdParty)
+
     supplier = await session.get(ThirdParty, po.third_party_id)
-    
-    # 3. Obter dados do Tenant e Document Profile (White-Label)
     tenant = await session.get(Tenant, principal.tenant_id)
-    prof_result = await session.execute(select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == principal.tenant_id))
+    prof_result = await session.execute(
+        select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == principal.tenant_id)
+    )
     profile = prof_result.scalar_one_or_none()
-    
-    # 4. Gerar o PDF
+
     pdf_bytes = generate_purchase_order_pdf(tenant, profile, po, supplier)
-    
+
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="PO_{po.po_number}.pdf"'}
+        headers={"Content-Disposition": f'inline; filename="PO_{po.po_number}.pdf"'},
     )
 
 
 @router.post("/invoices", response_model=SupplierInvoiceResponse, status_code=status.HTTP_201_CREATED)
 async def create_supplier_invoice(
     payload: SupplierInvoiceCreate,
-    session: SessionDep,
-    principal: PrincipalDep,
-) -> SupplierInvoice:
+    principal: Annotated[Principal, Depends(require_permission(PAYABLES_WRITE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+):
     invoice = SupplierInvoice(
         tenant_id=principal.tenant_id,
         **payload.model_dump(),
@@ -106,10 +102,11 @@ async def create_supplier_invoice(
 
 @router.get("/invoices", response_model=list[SupplierInvoiceResponse])
 async def list_supplier_invoices(
-    session: SessionDep,
+    principal: Annotated[Principal, Depends(require_permission(PAYABLES_READ))],
+    session: Annotated[AsyncSession, Depends(get_session)],
     third_party_id: UUID | None = None,
-) -> list[SupplierInvoice]:
-    stmt = select(SupplierInvoice)
+):
+    stmt = select(SupplierInvoice).where(SupplierInvoice.tenant_id == principal.tenant_id)
     if third_party_id:
         stmt = stmt.where(SupplierInvoice.third_party_id == third_party_id)
     result = await session.execute(stmt.order_by(SupplierInvoice.created_at.desc()))
@@ -119,9 +116,9 @@ async def list_supplier_invoices(
 @router.post("/payments", response_model=SupplierPaymentResponse, status_code=status.HTTP_201_CREATED)
 async def create_supplier_payment(
     payload: SupplierPaymentCreate,
-    session: SessionDep,
-    principal: PrincipalDep,
-) -> SupplierPayment:
+    principal: Annotated[Principal, Depends(require_permission(PAYABLES_PAY))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+):
     payment = SupplierPayment(
         tenant_id=principal.tenant_id,
         created_by=principal.user_id,
@@ -134,8 +131,15 @@ async def create_supplier_payment(
 
 
 @router.get("/payments", response_model=list[SupplierPaymentResponse])
-async def list_supplier_payments(session: SessionDep) -> list[SupplierPayment]:
-    result = await session.execute(select(SupplierPayment).order_by(SupplierPayment.created_at.desc()))
+async def list_supplier_payments(
+    principal: Annotated[Principal, Depends(require_permission(PAYABLES_READ))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+):
+    result = await session.execute(
+        select(SupplierPayment)
+        .where(SupplierPayment.tenant_id == principal.tenant_id)
+        .order_by(SupplierPayment.created_at.desc())
+    )
     return list(result.scalars().all())
 
 
@@ -143,17 +147,15 @@ async def list_supplier_payments(session: SessionDep) -> list[SupplierPayment]:
 async def pay_supplier_invoice(
     invoice_id: UUID,
     payload: InvoicePaymentRequest,
-    session: SessionDep,
-    principal: PrincipalDep,
-) -> SupplierPayment:
-    # 1. Obter a Fatura
+    principal: Annotated[Principal, Depends(require_permission(PAYABLES_PAY))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+):
     invoice = await session.get(SupplierInvoice, invoice_id)
     if not invoice or invoice.tenant_id != principal.tenant_id:
         raise HTTPException(status_code=404, detail="Fatura de Fornecedor não encontrada")
     if invoice.status == "paid":
         raise HTTPException(status_code=400, detail="Esta fatura já foi paga")
-        
-    # 2. Registar o Pagamento
+
     payment = SupplierPayment(
         tenant_id=principal.tenant_id,
         third_party_id=invoice.third_party_id,
@@ -165,17 +167,15 @@ async def pay_supplier_invoice(
         reference=payload.reference,
         notes=payload.notes,
         created_by=principal.user_id,
-        status="confirmed"
+        status="confirmed",
     )
     session.add(payment)
-    
-    # 3. Atualizar Fatura
+
     if payload.amount >= invoice.amount:
         invoice.status = "paid"
     else:
-        invoice.status = "partially_paid" # assuming the schema accepts this
-        
-    # 4. Magia Contabilística: Saída de Bancos, Abate em Fornecedores
+        invoice.status = "partially_paid"
+
     entry_payload = JournalEntryCreate(
         date=payload.value_date,
         description=f"Liquidação de Fatura {invoice.invoice_number or invoice.id}",
@@ -185,18 +185,17 @@ async def pay_supplier_invoice(
                 account_number="42",
                 debit=payload.amount,
                 credit=Decimal("0.00"),
-                type="debit"
+                type="debit",
             ),
             JournalItemCreate(
                 account_number="12",
                 debit=Decimal("0.00"),
                 credit=payload.amount,
-                type="credit"
-            )
-        ]
+                type="credit",
+            ),
+        ],
     )
 
-    # Executa o Lançamento
     await create_journal_entry(
         session,
         tenant_id=principal.tenant_id,
@@ -205,7 +204,7 @@ async def pay_supplier_invoice(
         source_type="supplier_payment",
         source_id=payment.id,
     )
-    
+
     await session.commit()
     await session.refresh(payment)
     return payment

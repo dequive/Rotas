@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal, get_current_principal
 from app.core.deps import get_session
-from app.core.rbac import require_permission
+from app.core.rbac import require_permission, HR_READ, HR_WRITE, HR_PAYROLL_GENERATE, HR_PAYROLL_APPROVE
 from app.modules.hr import schemas, service
 
 # Em produção real teríamos permissões específicas para RH, mas para já utilizamos WORKSHOP_WRITE ou similar, 
@@ -20,8 +20,8 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 # Aqui assumimos que apenas um utilizador logado de uma Tenant pode aceder:
 @router.get("/employees", response_model=List[schemas.EmployeeResponse])
 async def list_employees(
-    principal: PrincipalDep,
-    db: SessionDep,
+    principal: Annotated[Principal, Depends(require_permission(HR_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.list_employees(principal.tenant_id, db)
 
@@ -29,8 +29,8 @@ async def list_employees(
 @router.post("/employees", response_model=schemas.EmployeeResponse, status_code=201)
 async def create_employee(
     payload: schemas.EmployeeCreate,
-    principal: PrincipalDep,
-    db: SessionDep,
+    principal: Annotated[Principal, Depends(require_permission(HR_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.create_employee(principal.tenant_id, payload, db)
 
@@ -38,8 +38,8 @@ async def create_employee(
 @router.get("/employees/{employee_id}/documents", response_model=List[schemas.EmployeeDocumentResponse])
 async def list_employee_documents(
     employee_id: UUID,
-    principal: PrincipalDep,
-    db: SessionDep,
+    principal: Annotated[Principal, Depends(require_permission(HR_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.list_employee_documents(principal.tenant_id, employee_id, db)
 
@@ -48,8 +48,8 @@ async def list_employee_documents(
 async def add_employee_document(
     employee_id: UUID,
     payload: schemas.EmployeeDocumentCreate,
-    principal: PrincipalDep,
-    db: SessionDep,
+    principal: Annotated[Principal, Depends(require_permission(HR_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.add_employee_document(principal.tenant_id, employee_id, payload, db)
 
@@ -57,8 +57,8 @@ async def add_employee_document(
 @router.post("/payroll/generate", response_model=List[schemas.PayrollSlipResponse], status_code=201)
 async def generate_payroll(
     payload: schemas.PayrollGenerationRequest,
-    principal: PrincipalDep,
-    db: SessionDep,
+    principal: Annotated[Principal, Depends(require_permission(HR_PAYROLL_GENERATE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.generate_payroll(principal.tenant_id, payload, principal.user_id, db)
 
@@ -67,8 +67,8 @@ async def generate_payroll(
 async def list_payroll_slips(
     month: int,
     year: int,
-    principal: PrincipalDep,
-    db: SessionDep,
+    principal: Annotated[Principal, Depends(require_permission(HR_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.list_payroll_slips(principal.tenant_id, month, year, db)
 
@@ -92,8 +92,8 @@ async def list_salary_advances(
 @router.post("/advances", response_model=schemas.SalaryAdvanceResponse, status_code=201)
 async def create_salary_advance(
     payload: schemas.SalaryAdvanceCreate,
-    principal: PrincipalDep,
-    db: SessionDep,
+    principal: Annotated[Principal, Depends(require_permission(HR_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
 ):
     from app.modules.hr.models import SalaryAdvance
     advance = SalaryAdvance(
@@ -109,8 +109,8 @@ async def create_salary_advance(
 @router.patch("/advances/{advance_id}/approve", response_model=schemas.SalaryAdvanceResponse)
 async def approve_salary_advance(
     advance_id: UUID,
-    principal: PrincipalDep,
-    db: SessionDep,
+    principal: Annotated[Principal, Depends(require_permission(HR_PAYROLL_APPROVE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
 ):
     from sqlalchemy import select
     from fastapi import HTTPException

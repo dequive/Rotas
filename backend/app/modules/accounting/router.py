@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal, get_current_principal
 from app.core.deps import get_session
+from app.core.rbac import require_permission, ACCOUNTING_READ, ACCOUNTING_POST, ACCOUNTING_REVERSE
 from app.modules.accounting.models import Account, JournalEntry, JournalItem
 from app.modules.accounting.schemas import (
     AccountResponse,
@@ -25,7 +26,10 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 PrincipalDep = Annotated[Principal, Depends(get_current_principal)]
 
 @router.get("/accounts", response_model=list[AccountResponse])
-async def list_accounts(session: SessionDep, principal: PrincipalDep):
+async def list_accounts(
+    principal: Annotated[Principal, Depends(require_permission(ACCOUNTING_READ))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+):
     stmt = select(Account).where(Account.tenant_id == principal.tenant_id).order_by(Account.code.asc())
     result = await session.execute(stmt)
     return list(result.scalars().all())
@@ -33,8 +37,8 @@ async def list_accounts(session: SessionDep, principal: PrincipalDep):
 @router.post("/journal-entries", response_model=JournalEntryResponse, status_code=status.HTTP_201_CREATED)
 async def create_manual_entry(
     payload: JournalEntryCreate,
-    session: SessionDep,
-    principal: PrincipalDep,
+    principal: Annotated[Principal, Depends(require_permission(ACCOUNTING_POST))],
+    session: Annotated[AsyncSession, Depends(get_session)],
 ):
     from app.modules.accounting.services import create_journal_entry as _create_journal_entry
     # Validar Partidas Dobradas (Total Debitos == Total Creditos)
@@ -71,8 +75,8 @@ async def create_manual_entry(
 
 @router.get("/journal-entries", response_model=list[JournalEntryResponse])
 async def list_journal_entries(
-    session: SessionDep, 
-    principal: PrincipalDep,
+    principal: Annotated[Principal, Depends(require_permission(ACCOUNTING_READ))],
+    session: Annotated[AsyncSession, Depends(get_session)],
     journal_type: str | None = None
 ):
     stmt = select(JournalEntry).options(
@@ -88,8 +92,8 @@ async def list_journal_entries(
 
 @router.get("/profit-and-loss", response_model=ProfitAndLossResponse)
 async def get_profit_and_loss(
-    session: SessionDep, 
-    principal: PrincipalDep,
+    principal: Annotated[Principal, Depends(require_permission(ACCOUNTING_READ))],
+    session: Annotated[AsyncSession, Depends(get_session)],
     month: int | None = None,
     year: int | None = None,
     vehicle_id: UUID | None = None
@@ -157,8 +161,8 @@ async def get_profit_and_loss(
 
 @router.get("/trial-balance", response_model=list[TrialBalanceLine])
 async def get_trial_balance(
-    session: SessionDep, 
-    principal: PrincipalDep,
+    principal: Annotated[Principal, Depends(require_permission(ACCOUNTING_READ))],
+    session: Annotated[AsyncSession, Depends(get_session)],
 ):
     """
     Balancete de Verificação (Trial Balance).

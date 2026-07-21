@@ -862,6 +862,31 @@ async def task_expire_gps_partitions(ctx: dict) -> str:
     return f"Dropped {len(dropped)} GPS partitions: {dropped}"
 
 
+async def task_outbox_drain(ctx: dict) -> str:
+    """Stabilization/P0-F8: drain the ROTAS -> Governance transactional outbox.
+
+    Picks up pending outbox rows (respecting next_attempt_at), ships them to
+    the configured governance engine, records the returned ``case_id`` and
+    reschedules failures with exponential backoff. Honors
+    ``FF_GOVERNANCE_OUTBOX`` — when the flag is off, the cycle is a no-op.
+    """
+    import structlog
+
+    from app.modules.outbox import drain_outbox
+
+    logger = structlog.get_logger("worker.outbox")
+    async with ctx["db_factory"]() as db:
+        counts = await drain_outbox(db, max_rows=100)
+
+    if counts["scanned"] == 0:
+        return "outbox_drain: nothing to do"
+    logger.info("outbox_drain", **counts)
+    return (
+        f'outbox_drain: scanned={counts["scanned"]} sent={counts["sent"]} '
+        f'retried={counts["retried"]} dead_letter={counts["dead_letter"]}'
+    )
+
+
 class WorkerSettings:
     functions = [
         # Billing
@@ -891,6 +916,8 @@ class WorkerSettings:
         check_vehicle_maintenance,
         # GPS
         task_expire_gps_partitions,
+        # Stabilization/P0-F8: governability-outbox drainer
+        task_outbox_drain,
     ]
     cron_jobs = [
         # SM-01: Mark overdue billing documents — 01:00 Africa/Maputo = 23:00 UTC
@@ -928,6 +955,11 @@ class WorkerSettings:
         ),
         # GPS-07: Drop gps_positions partitions older than 90 days — daily 06:00 UTC
         cron(task_expire_gps_partitions, hour=6, minute=0),
+        # STAB-F8: Outbox drainer every 5 minutes (gated by FF_GOVERNANCE_OUTBOX)
+        cron(
+            task_outbox_drain,
+            minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
+        ),
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     max_jobs = 10

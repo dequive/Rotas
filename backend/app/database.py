@@ -123,6 +123,7 @@ MODEL_MODULES = (
     "payables",
     "hr",
     "inventory",
+    "outbox",
 )
 
 

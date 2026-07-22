@@ -106,7 +106,7 @@ export function PhotoEvidenceUploader({
     <div className="space-y-3">
       {/* Label */}
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-foreground">{label}</label>
+        <label htmlFor="photo-file-input" className="text-sm font-medium text-foreground">{label}</label>
         <span className="text-xs text-muted-foreground">
           {photos.length}/{maxPhotos} fotos
         </span>
@@ -169,6 +169,7 @@ export function PhotoEvidenceUploader({
       {/* Hidden file input */}
       <input
         ref={inputRef}
+        id="photo-file-input"
         type="file"
         accept="image/*"
         capture="environment"

@@ -55,3 +55,8 @@ select = ["E", "F", "I", "UP", "B"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.pyright]
+include = ["app", "tests"]
+extraPaths = ["."]
+

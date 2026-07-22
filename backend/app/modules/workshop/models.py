@@ -20,6 +20,16 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.modules.workshop.catalog_models import ServiceCatalogItem
+from app.modules.workshop.quote_models import WorkshopQuote, WorkshopQuoteItem
+from app.modules.workshop.reception_models import (
+    ReceptionPhoto,
+    TenantSequence,
+    VehicleReception,
+    VehicleRelease,
+)
+from app.modules.workshop.warranty_models import ServiceWarranty
+from app.modules.workshop.workbay_models import WorkBay
 
 
 class MaintenanceRequest(Base):
@@ -93,6 +103,18 @@ class WorkOrder(Base):
         ForeignKey("third_parties.id", ondelete="SET NULL"), nullable=True, index=True
     )
     labor_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), server_default="0", nullable=False)
+    reception_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("vehicle_receptions.id"), nullable=True, index=True
+    )
+    work_bay_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("work_bays.id"), nullable=True, index=True
+    )
+    origin_type: Mapped[str] = mapped_column(
+        String(30), server_default="direct", default="direct"
+    )  # direct | reception | quote | warranty
+    warranty_original_wo_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("work_orders.id"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -133,8 +155,8 @@ class SparePartInventory(Base):
     sku: Mapped[str] = mapped_column(String(80), index=True)
     name: Mapped[str] = mapped_column(String(160))
     unit: Mapped[str] = mapped_column(String(30), default="unit")
-    current_quantity: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    minimum_quantity: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
+    current_quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), default=0)
+    minimum_quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), default=0)
     average_unit_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
     status: Mapped[str] = mapped_column(String(30), default="active", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -168,8 +190,8 @@ class SparePartMovement(Base):
     )
     movement_type: Mapped[str] = mapped_column(String(40), index=True)
     direction: Mapped[str] = mapped_column(String(10), index=True)
-    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 2))
-    balance_after_quantity: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3))
+    balance_after_quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3))
     unit_cost: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     total_cost: Mapped[Decimal | None] = mapped_column(Numeric(16, 2))
     request_reference: Mapped[str] = mapped_column(String(120), index=True)
@@ -201,12 +223,97 @@ class MaintenancePartUsed(Base):
         ForeignKey("spare_part_movements.id"), index=True
     )
     request_reference: Mapped[str] = mapped_column(String(120), index=True)
-    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3))
     unit_cost: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     total_cost: Mapped[Decimal | None] = mapped_column(Numeric(16, 2))
     issued_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     notes: Mapped[str | None] = mapped_column(Text)
+
+
+class PartReservation(Base):
+    """Reserva de stock vinculada a um orçamento aceite ou Ordem de Serviço."""
+    __tablename__ = "part_reservations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    inventory_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("spare_parts_inventory.id"), index=True)
+    quote_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("workshop_quotes.id"), index=True, nullable=True)
+    work_order_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("work_orders.id"), index=True, nullable=True)
+    quantity_reserved: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="active", index=True)  # active | consumed | released | active_backorder
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class SparePartRequisition(Base):
+    """Requisição interna de peças/óleos de um mecânico ao fiel de armazém para uma OS."""
+    __tablename__ = "spare_part_requisitions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    work_order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("work_orders.id"), index=True)
+    inventory_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("spare_parts_inventory.id"), index=True)
+    requested_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    quantity_requested: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    quantity_issued: Mapped[Decimal] = mapped_column(Numeric(14, 3), default=0)
+    status: Mapped[str] = mapped_column(String(30), default="pending", index=True)  # pending | issued | rejected | cancelled
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class WorkshopPurchaseOrder(Base):
+    """Encomenda de compra de peças a um Fornecedor Terceiro (ThirdParty)."""
+    __tablename__ = "workshop_purchase_orders"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "po_number", name="uq_workshop_purchase_orders_tenant_number"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    supplier_third_party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("third_parties.id"), index=True)
+    po_number: Mapped[str] = mapped_column(String(80), index=True)  # PO-2026-XXXX
+    status: Mapped[str] = mapped_column(String(30), default="draft", index=True)  # draft | ordered | partially_received | received | cancelled
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
+    supplier_invoice_number: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class WorkshopPurchaseOrderItem(Base):
+    """Item de uma encomenda de compra de peças."""
+    __tablename__ = "workshop_purchase_order_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    purchase_order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workshop_purchase_orders.id", ondelete="CASCADE"), index=True)
+    inventory_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("spare_parts_inventory.id"), index=True)
+    quantity_ordered: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    quantity_received: Mapped[Decimal] = mapped_column(Numeric(14, 3), default=0)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
+    total_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CoreReturnItem(Base):
+    """Rastreio de peças velhas substituídas que são devolvidas ao fornecedor para crédito/garantia."""
+    __tablename__ = "core_return_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    work_order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("work_orders.id"), index=True)
+    inventory_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("spare_parts_inventory.id"), index=True)
+    description: Mapped[str] = mapped_column(String(200))
+    serial_number: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    evidence_photo_file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="pending_return", index=True)  # pending_return | returned_to_supplier | credited
+    credit_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    supplier_third_party_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("third_parties.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class WorkshopTool(Base):
@@ -278,13 +385,17 @@ class MaintenancePlan(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
-    vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"), index=True)
+    vehicle_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("vehicles.id"), index=True, nullable=True)
+    service_catalog_item_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("service_catalog_items.id"), index=True, nullable=True)
     request_reference: Mapped[str] = mapped_column(String(120), index=True)
     name: Mapped[str] = mapped_column(String(160))
-    interval_km: Mapped[int | None] = mapped_column(Integer)
-    interval_days: Mapped[int | None] = mapped_column(Integer)
-    next_due_km: Mapped[int | None] = mapped_column(Integer, index=True)
-    next_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    interval_km: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    interval_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    next_due_km: Mapped[int | None] = mapped_column(Integer, index=True, nullable=True)
+    next_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True, nullable=True)
+    ownership_scope: Mapped[str] = mapped_column(
+        String(20), server_default="fleet", default="fleet"
+    )  # fleet | customer | all
     status: Mapped[str] = mapped_column(String(30), default="active", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -294,22 +405,18 @@ class MaintenancePlan(Base):
 
 class MaintenanceSchedule(Base):
     __tablename__ = "maintenance_schedule"
-    __table_args__ = (
-        UniqueConstraint(
-            "tenant_id",
-            "plan_id",
-            "status",
-            name="uq_maintenance_schedule_tenant_plan_status",
-        ),
-    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
     plan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("maintenance_plans.id"), index=True)
     vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"), index=True)
-    due_km: Mapped[int | None] = mapped_column(Integer)
-    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
-    status: Mapped[str] = mapped_column(String(30), default="overdue", index=True)
+    quote_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("workshop_quotes.id"), index=True, nullable=True)
+    work_order_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("work_orders.id"), index=True, nullable=True)
+    due_km: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True, nullable=True)
+    notified_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    notified_overdue_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="pending", index=True)  # pending | due | overdue | converted_to_wo | converted_to_quote | completed | cancelled
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -319,8 +426,26 @@ class WorkshopStaffRate(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
-    hourly_rate: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    hourly_rate: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     effective_from: Mapped[date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TaskLaborLog(Base):
+    """Registo de sessões de mão de obra efetuadas por mecânicos numa tarefa da OS."""
+    __tablename__ = "task_labor_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    work_order_task_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("work_order_tasks.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    minutes_worked: Mapped[int] = mapped_column(Integer, nullable=False)
+    hourly_rate_applied: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    total_labor_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    void_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

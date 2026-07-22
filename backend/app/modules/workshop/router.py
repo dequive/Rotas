@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.rbac import WORKSHOP_READ, WORKSHOP_RELEASE, WORKSHOP_WRITE, require_permission
+from app.core.rbac import BILLING_ISSUE, WORKSHOP_INVENTORY_ADJUST, WORKSHOP_READ, WORKSHOP_RELEASE, WORKSHOP_WRITE, require_permission
 from app.modules.tenants.models import TenantDocumentProfile
 from app.modules.vehicles.models import Vehicle
 from app.modules.workshop import schemas, service
@@ -122,6 +122,38 @@ async def close_work_order(
         principal.tenant_id,
         work_order_id,
         payload,
+        actor_id=principal.user_id,
+    )
+
+
+@router.post("/work-orders/{work_order_id}/invoice")
+async def generate_workshop_invoice(
+    work_order_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """POST /workshop/work-orders/{id}/invoice — Gerar rascunho de fatura fiscal a partir de OS concluída."""
+    from app.modules.workshop.workshop_billing_service import create_workshop_invoice
+    return await create_workshop_invoice(
+        db,
+        principal.tenant_id,
+        work_order_id,
+        actor_id=principal.user_id,
+    )
+
+
+@router.post("/invoices/{document_id}/confirm")
+async def confirm_workshop_invoice(
+    document_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(BILLING_ISSUE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """POST /workshop/invoices/{id}/confirm — Emitir fiscalmente a fatura (atribui número sequencial, imutável)."""
+    from app.modules.workshop.workshop_billing_service import confirm_workshop_invoice as _confirm
+    return await _confirm(
+        db,
+        principal.tenant_id,
+        document_id,
         actor_id=principal.user_id,
     )
 
@@ -688,3 +720,237 @@ async def record_spare_part_receipt(
     # Ensure payload.inventory_id matches URL param to avoid confusion
     payload.inventory_id = part_id
     return await service.record_spare_part_receipt(principal.tenant_id, payload, principal.user_id, db)
+
+
+# --- Advanced Inventory & Requisition Endpoints ---
+
+
+@router.post("/work-orders/{work_order_id}/parts/issue")
+async def issue_parts_for_work_order(
+    work_order_id: UUID,
+    payload: schemas.PartIssueRequest,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """POST /workshop/work-orders/{id}/parts/issue — Fiel de armazém entrega peças/óleos com lock FOR UPDATE e verificação de aprovação."""
+    from app.modules.workshop import inventory_service
+    return await inventory_service.issue_parts_for_work_order(
+        db,
+        principal.tenant_id,
+        work_order_id,
+        payload.inventory_id,
+        payload.quantity,
+        actor_id=principal.user_id,
+        notes=payload.notes,
+    )
+
+
+@router.post("/work-orders/{work_order_id}/parts/return")
+async def return_part_from_work_order(
+    work_order_id: UUID,
+    payload: schemas.PartReturnRequest,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """POST /workshop/work-orders/{id}/parts/return — Devolver sobras ao stock (bloqueado com 409 se OS fechada/facturada)."""
+    from app.modules.workshop import inventory_service
+    return await inventory_service.return_part_from_work_order(
+        db,
+        principal.tenant_id,
+        work_order_id,
+        payload.inventory_id,
+        payload.quantity,
+        reason=payload.reason,
+        actor_id=principal.user_id,
+    )
+
+
+@router.post("/work-orders/{work_order_id}/cancel")
+async def cancel_work_order(
+    work_order_id: UUID,
+    reason: Annotated[str, Query(min_length=1)],
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """POST /workshop/work-orders/{id}/cancel — Cancelar OS, libertar reservas órfãs e anular invoice draft (se existir)."""
+    from app.modules.workshop import inventory_service
+    return await inventory_service.cancel_work_order(
+        db,
+        principal.tenant_id,
+        work_order_id,
+        reason=reason,
+        actor_id=principal.user_id,
+    )
+
+
+@router.post("/spare-parts/adjust")
+async def record_inventory_adjustment(
+    payload: schemas.InventoryAdjustmentRequest,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_INVENTORY_ADJUST))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """POST /workshop/spare-parts/adjust — Dar baixa/acerto de stock por perda residual (requer permissão WORKSHOP_INVENTORY_ADJUST)."""
+    from app.modules.workshop import inventory_service
+    return await inventory_service.record_inventory_adjustment(
+        db,
+        principal.tenant_id,
+        payload.inventory_id,
+        payload.quantity,
+        payload.direction,
+        payload.reason,
+        actor_id=principal.user_id,
+    )
+
+
+@router.get("/spare-parts/reorder-suggestions")
+async def get_reorder_suggestions(
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """GET /workshop/spare-parts/reorder-suggestions — Lista de peças em risco de rotura com rastreabilidade de orçamentos."""
+    from app.modules.workshop import inventory_service
+    return await inventory_service.get_reorder_suggestions(db, principal.tenant_id)
+
+
+@router.get("/spare-parts/valuation")
+async def get_inventory_valuation_summary(
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """GET /workshop/spare-parts/valuation — Balancete de valorização de stock total e por categoria."""
+    from app.modules.workshop import inventory_service
+    return await inventory_service.get_inventory_valuation_summary(db, principal.tenant_id)
+
+
+# --- Preventive Maintenance Endpoints ---
+
+
+@router.post("/preventive/plans", status_code=201)
+async def create_maintenance_plan(
+    payload: schemas.MaintenancePlanCreate,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """POST /workshop/preventive/plans — Criar novo plano de manutenção preventiva."""
+    from app.modules.workshop import preventive_service
+    return await preventive_service.create_maintenance_plan(
+        db,
+        principal.tenant_id,
+        payload.name,
+        service_catalog_item_id=payload.service_catalog_item_id,
+        vehicle_id=payload.vehicle_id,
+        interval_km=payload.interval_km,
+        interval_days=payload.interval_days,
+        ownership_scope=payload.ownership_scope,
+        actor_id=principal.user_id,
+    )
+
+
+@router.get("/preventive/plans")
+async def list_maintenance_plans(
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    ownership_scope: str | None = Query(default=None),
+):
+    """GET /workshop/preventive/plans — Listar planos de manutenção preventiva."""
+    from app.modules.workshop import preventive_service
+    return await preventive_service.list_maintenance_plans(
+        db, principal.tenant_id, ownership_scope=ownership_scope
+    )
+
+
+@router.post("/preventive/schedules", status_code=201)
+async def schedule_preventive_maintenance(
+    payload: schemas.PreventiveScheduleCreate,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """POST /workshop/preventive/schedules — Agendar manutenção preventiva (com dedup estrito)."""
+    from app.modules.workshop import preventive_service
+    return await preventive_service.schedule_preventive_maintenance(
+        db,
+        principal.tenant_id,
+        payload.vehicle_id,
+        payload.plan_id,
+        actor_id=principal.user_id,
+    )
+
+
+@router.post("/preventive/schedules/{schedule_id}/convert")
+async def convert_schedule_to_action(
+    schedule_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """POST /workshop/preventive/schedules/{id}/convert — Converter agendamento em OS (frota) ou Orçamento Draft ORC-2026-XXXX (cliente)."""
+    from app.modules.workshop import preventive_service
+    return await preventive_service.convert_schedule_to_action(
+        db, principal.tenant_id, schedule_id, actor_id=principal.user_id
+    )
+
+
+# --- Labor Tracking & OS Profitability Endpoints ---
+
+
+@router.post("/staff-rates", status_code=201)
+async def set_staff_hourly_rate(
+    payload: schemas.StaffRateCreate,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """POST /workshop/staff-rates — Registrar/Atualizar taxa horária histórica do mecânico."""
+    from app.modules.workshop import labor_service
+    return await labor_service.set_staff_hourly_rate(
+        db,
+        principal.tenant_id,
+        payload.user_id,
+        payload.hourly_rate,
+        payload.effective_from,
+        actor_id=principal.user_id,
+    )
+
+
+@router.post("/tasks/{task_id}/labor", status_code=201)
+async def add_task_labor_session(
+    task_id: UUID,
+    payload: schemas.TaskLaborCreate,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """POST /workshop/tasks/{task_id}/labor — Registrar sessão de mão de obra efetuada numa tarefa."""
+    from app.modules.workshop import labor_service
+    return await labor_service.add_task_labor_session(
+        db,
+        principal.tenant_id,
+        task_id,
+        payload.user_id,
+        payload.minutes_worked,
+        started_at=payload.started_at,
+        completed_at=payload.completed_at,
+        actor_id=principal.user_id,
+    )
+
+
+@router.post("/labor-logs/{labor_log_id}/void")
+async def void_task_labor_session(
+    labor_log_id: UUID,
+    payload: schemas.TaskLaborVoid,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """POST /workshop/labor-logs/{labor_log_id}/void — Estornar sessão de mão de obra errónea (Void com justificativa)."""
+    from app.modules.workshop import labor_service
+    return await labor_service.void_task_labor_session(
+        db, principal.tenant_id, labor_log_id, payload.void_reason, actor_id=principal.user_id
+    )
+
+
+@router.get("/work-orders/{work_order_id}/profitability")
+async def get_work_order_profitability(
+    work_order_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    """GET /workshop/work-orders/{work_order_id}/profitability — Relatório de Margem Bruta e Rentabilidade Direta da OS."""
+    from app.modules.workshop import labor_service
+    return await labor_service.get_work_order_profitability(db, principal.tenant_id, work_order_id)

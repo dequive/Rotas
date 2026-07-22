@@ -1,0 +1,11 @@
+{
+  "include": [
+    "app",
+    "tests"
+  ],
+  "extraPaths": [
+    "."
+  ],
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Windows"
+}

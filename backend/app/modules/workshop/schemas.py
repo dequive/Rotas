@@ -106,13 +106,17 @@ class ToolReturnCreate(BaseModel):
 
 
 class MaintenancePlanCreate(BaseModel):
-    vehicle_id: UUID
-    request_reference: str = Field(min_length=1, max_length=120)
     name: str = Field(min_length=1, max_length=160)
+    service_catalog_item_id: UUID | None = None
+    vehicle_id: UUID | None = None
     interval_km: int | None = Field(default=None, gt=0)
     interval_days: int | None = Field(default=None, gt=0)
-    next_due_km: int | None = Field(default=None, ge=0)
-    next_due_at: datetime | None = None
+    ownership_scope: str = Field(default="fleet", pattern="^(fleet|customer|all)$")
+
+
+class PreventiveScheduleCreate(BaseModel):
+    vehicle_id: UUID
+    plan_id: UUID
 
 
 class WorkOrderCloseRequest(BaseModel):
@@ -219,3 +223,68 @@ class VehicleHistoryResponse(BaseModel):
     events: list[VehicleHistoryEvent]
     next_cursor: str | None
     total_count: int
+
+
+# --- Advanced Inventory & Parts Schemas ---
+
+
+class PartIssueRequest(BaseModel):
+    inventory_id: UUID
+    quantity: Decimal = Field(gt=0)
+    notes: str | None = None
+
+
+class PartReturnRequest(BaseModel):
+    inventory_id: UUID
+    quantity: Decimal = Field(gt=0)
+    reason: str = Field(min_length=1)
+
+
+class InventoryAdjustmentRequest(BaseModel):
+    inventory_id: UUID
+    quantity: Decimal = Field(gt=0)
+    direction: str = Field(pattern="^(in|out)$")
+    reason: str = Field(min_length=1)
+
+
+class PurchaseOrderItemCreate(BaseModel):
+    inventory_id: UUID
+    quantity_ordered: Decimal = Field(gt=0)
+    unit_price: Decimal = Field(ge=0)
+
+
+class PurchaseOrderCreate(BaseModel):
+    supplier_third_party_id: UUID
+    items: list[PurchaseOrderItemCreate] = Field(min_length=1)
+    supplier_invoice_number: str | None = None
+    notes: str | None = None
+
+
+class CoreReturnCreate(BaseModel):
+    inventory_id: UUID
+    description: str = Field(min_length=1, max_length=200)
+    serial_number: str | None = None
+    evidence_photo_file_id: UUID | None = None
+
+
+# --- Labor Tracking Schemas ---
+
+
+class StaffRateCreate(BaseModel):
+    user_id: UUID
+    hourly_rate: Decimal = Field(gt=0)
+    effective_from: date
+
+
+class TaskLaborCreate(BaseModel):
+    user_id: UUID
+    minutes_worked: int = Field(gt=0)
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+
+
+class TaskLaborVoid(BaseModel):
+    void_reason: str = Field(min_length=1)
+    evidence_photo_file_id: UUID | None = None
+    credit_amount: Decimal | None = Field(default=None, ge=0)
+    supplier_third_party_id: UUID | None = None

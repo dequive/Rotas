@@ -2300,9 +2300,16 @@ async def register_payment(
 
     billing_doc = None
     if payload.billing_document_id:
-        # 2a. Verify billing document belongs to tenant
-        billing_doc = await db.get(BillingDocument, payload.billing_document_id)
-        if not billing_doc or billing_doc.tenant_id != tenant_id:
+        # 2a. Verify billing document belongs to tenant (with FOR UPDATE lock to prevent allocation races)
+        billing_doc = await db.scalar(
+            select(BillingDocument)
+            .where(
+                BillingDocument.id == payload.billing_document_id,
+                BillingDocument.tenant_id == tenant_id,
+            )
+            .with_for_update()
+        )
+        if not billing_doc:
             raise ApiError("billing_document_not_found", "Invoice not found", status_code=404)
         # 2b. Cross-client mismatch guard
         if billing_doc.client_id != payload.client_id:

@@ -28,7 +28,10 @@ async def reset_rate_limiter_storage():
     yield
 
     if hasattr(limiter, "_storage") and hasattr(limiter._storage, "reset"):
-        limiter._storage.reset()
+        try:
+            limiter._storage.reset()
+        except Exception:
+            pass
 
 
 @pytest.fixture(autouse=True)
@@ -63,6 +66,22 @@ def auth_headers(tenant_id):
         "X-Tenant-Id": str(tenant_id),
     }
 
+
+@pytest.fixture
+async def test_user(db, tenant_id):
+    from app.modules.users.models import User
+    from uuid import uuid4
+    user = User(
+        id=uuid4(),
+        tenant_id=tenant_id,
+        email=f"{uuid4()}@example.com",
+        password_hash="fake",
+        full_name="Mock User",
+        is_active=True
+    )
+    db.add(user)
+    await db.flush()
+    return user
 
 @pytest.fixture
 async def async_client():

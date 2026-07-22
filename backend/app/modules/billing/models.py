@@ -82,6 +82,15 @@ class BillingDocument(Base):
     payment_conditions: Mapped[str | None] = mapped_column(String(80), nullable=True)
     commercial_discount: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
     financial_discount: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    document_source: Mapped[str] = mapped_column(
+        String(20), server_default="transport", default="transport", index=True
+    )  # transport | workshop
+    reception_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("vehicle_receptions.id"), nullable=True, index=True
+    )
+    quote_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("workshop_quotes.id"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -116,7 +125,7 @@ class BillingItem(Base):
     billing_document_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("billing_documents.id"), index=True
     )
-    trip_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("trips.id"), index=True)
+    trip_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("trips.id"), nullable=True, index=True)
     load_permit_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("load_permits.id"))
     cargo_manifest_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("cargo_manifests.id"))
     transport_document_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -139,6 +148,15 @@ class BillingItem(Base):
     iva_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
     iva_basis: Mapped[str | None] = mapped_column(String(40), nullable=True)
     iva_amount: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    work_order_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("work_orders.id"), nullable=True, index=True
+    )
+    catalog_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("service_catalog_items.id"), nullable=True, index=True
+    )
+    item_source: Mapped[str] = mapped_column(
+        String(30), server_default="transport", default="transport"
+    )  # transport | workshop_service | workshop_part | workshop_labor
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

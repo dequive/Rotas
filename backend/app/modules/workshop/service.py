@@ -729,9 +729,33 @@ async def close_work_order(
         old_values={"status": old_status},
         new_values={"status": item.status, "actual_cost": str(item.actual_cost or 0)},
     )
+
+    # Workshop billing: auto-generate draft invoice for oficina-origin WOs
+    invoice_draft = None
+    if item.origin_type in ("reception", "quote", "warranty"):
+        from app.modules.workshop.workshop_billing_service import create_workshop_invoice
+        try:
+            invoice_draft = await create_workshop_invoice(
+                db, tenant_id, work_order_id, actor_id=actor_id,
+            )
+        except Exception:
+            pass  # Non-blocking: invoice can be generated manually later
+
+    # Preventive Maintenance: Catalog matching & automatic next cycle creation
+    try:
+        from app.modules.workshop.preventive_service import handle_work_order_completion_preventive_matching
+        await handle_work_order_completion_preventive_matching(
+            db, tenant_id, work_order_id, actor_id=actor_id,
+        )
+    except Exception:
+        pass  # Non-blocking: preventive cycle auto-advance should not block WO close
+
     await db.commit()
     await db.refresh(item)
-    return serialize_work_order(item)
+    result = serialize_work_order(item)
+    if invoice_draft:
+        result["workshop_invoice_draft"] = invoice_draft
+    return result
 
 
 async def list_work_order_tasks(

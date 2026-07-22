@@ -116,3 +116,87 @@ async def test_authorized_release_with_override_and_reason(db, tenant_id, test_u
     assert release["picked_up_by_name"] == "Fernando Motorista"
     assert release["override_unauthorized_pickup"] is True
     assert release["override_reason"] == "Autorização telefónica confirmada pelo Diretor de Operações às 14:30."
+
+
+@pytest.mark.asyncio
+async def test_vehicle_intervention_history_populated_data(db, tenant_id, test_user):
+    """Teste #5: Histórico populado com recepções, OS concluída, peças montadas e garantias ativas."""
+    from datetime import datetime, timedelta, UTC
+    from decimal import Decimal
+    from uuid import uuid4
+    from app.modules.workshop.models import WorkOrder, MaintenancePartUsed, SparePartInventory
+    from app.modules.workshop.warranty_models import ServiceWarranty
+
+    vehicle = Vehicle(tenant_id=tenant_id, plate="POP-100", current_km=48500)
+    db.add(vehicle)
+    await db.flush()
+
+    # 1. Recepção
+    rec_payload = ReceptionCreate(
+        vehicle_id=vehicle.id,
+        odometer_at_reception=45000,
+        reported_issues="Mudança de óleo e pastilhas",
+    )
+    await create_reception(db, tenant_id, rec_payload, actor_id=test_user.id)
+
+    # 2. Ordem de Serviço Concluída
+    wo = WorkOrder(
+        tenant_id=tenant_id,
+        vehicle_id=vehicle.id,
+        work_order_number="OS-2026-0099",
+        planned_work="Mudança de óleo",
+        status="closed",
+    )
+    db.add(wo)
+    await db.flush()
+
+    # 3. Peça em Inventário & Utilização
+    inv = SparePartInventory(
+        tenant_id=tenant_id,
+        sku="FIL-001",
+        name="Filtro de Óleo",
+        current_quantity=Decimal("10.000"),
+        average_unit_cost=Decimal("1500.00"),
+    )
+    db.add(inv)
+    await db.flush()
+
+    part = MaintenancePartUsed(
+        tenant_id=tenant_id,
+        work_order_id=wo.id,
+        inventory_id=inv.id,
+        request_reference="REQ-123",
+        quantity=1,
+        unit_cost=Decimal("1500.00"),
+    )
+    db.add(part)
+
+    # 4. Garantia Emitida
+    warranty = ServiceWarranty(
+        tenant_id=tenant_id,
+        work_order_id=wo.id,
+        vehicle_id=vehicle.id,
+        warranty_type="parts",
+        duration_months=6,
+        expires_at=datetime.now(UTC) + timedelta(days=180),
+        status="active",
+        notes="Garantia de peças 6 meses",
+    )
+    db.add(warranty)
+    await db.flush()
+
+    history = await get_vehicle_intervention_history(db, tenant_id, vehicle.id)
+
+    assert history["vehicle_id"] == vehicle.id
+    assert history["plate"] == "POP-100"
+    assert history["current_odometer_km"] == 48500
+    assert len(history["receptions"]) == 1
+    assert len(history["work_orders"]) == 1
+    assert len(history["parts_used"]) == 1
+    assert len(history["warranties"]) == 1
+
+    assert history["receptions"][0]["reported_issues"] == "Mudança de óleo e pastilhas"
+    assert history["work_orders"][0]["status"] == "closed"
+    assert history["warranties"][0]["warranty_type"] == "parts"
+    assert history["warranties"][0]["status"] == "active"
+

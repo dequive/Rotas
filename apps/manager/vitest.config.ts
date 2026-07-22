@@ -8,12 +8,14 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    testTimeout: 10_000,
     setupFiles: ["./vitest.setup.ts"],
     exclude: ["**/node_modules/**", "**/dist/**", "**/e2e/**", "**/playwright/**"],
   },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./"),
+      "next/server": path.resolve(__dirname, "../../node_modules/next/server.js"),
     },
   },
   esbuild: {

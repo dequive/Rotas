@@ -425,7 +425,7 @@ async def get_vehicle_intervention_history(
         parts_res = await db.execute(
             select(MaintenancePartUsed)
             .where(MaintenancePartUsed.tenant_id == tenant_id, MaintenancePartUsed.work_order_id.in_(wo_ids))
-            .order_by(MaintenancePartUsed.created_at.desc())
+            .order_by(MaintenancePartUsed.issued_at.desc())
         )
         parts_used = [
             {
@@ -434,7 +434,7 @@ async def get_vehicle_intervention_history(
                 "part_name": getattr(p, "part_name", "Peça de substituição"),
                 "quantity": p.quantity,
                 "unit_cost": float(p.unit_cost or 0.0),
-                "created_at": p.created_at,
+                "created_at": p.issued_at,
             }
             for p in parts_res.scalars().all()
         ]

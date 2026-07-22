@@ -7,6 +7,8 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  BookOpen,
+  ClipboardCheck,
   ClipboardList,
   DollarSign,
   FileText,
@@ -23,7 +25,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -35,6 +37,7 @@ type NavItem = {
 
 type NavSection = {
   section: string;
+  module?: "tms" | "oficina";
   items: NavItem[];
 };
 
@@ -42,6 +45,7 @@ type NavSection = {
 const NAV_SECTIONS: NavSection[] = [
   {
     section: "Operações",
+    module: "tms",
     items: [
       { key: "operacao",           label: "Torre de Controlo", href: "/",                    icon: Map      },
       { key: "tarefas",            label: "Central de Tarefas", href: "/tarefas",             icon: ClipboardList },
@@ -51,11 +55,26 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     section: "Frota",
+    module: "tms",
     items: [
       { key: "viaturas",   label: "Viaturas",   href: "/viaturas",   icon: Truck     },
       { key: "motoristas", label: "Motoristas", href: "/motoristas", icon: Users     },
       { key: "manutencao", label: "Manutenção", href: "/manutencao", icon: Wrench   },
       { key: "terceiros",  label: "Terceiros",  href: "/terceiros",  icon: Building2 },
+    ],
+  },
+  {
+    section: "Oficina",
+    module: "oficina",
+    items: [
+      { key: "recepcao",             label: "Recepção",       href: "/oficina",                     icon: ClipboardCheck },
+      { key: "orcamentos",           label: "Orçamentos",     href: "/oficina/orcamentos",          icon: FileText       },
+      { key: "os-oficina",           label: "Ordens Serviço", href: "/oficina/ordens-servico",      icon: Wrench         },
+      { key: "pecas-oficina",        label: "Peças",          href: "/oficina/pecas",               icon: BookOpen       },
+      { key: "faturacao-oficina",    label: "Faturação",      href: "/oficina/faturacao",           icon: ReceiptText    },
+      { key: "rentabilidade-oficina",label: "Rentabilidade",  href: "/oficina/rentabilidade",       icon: BarChart2      },
+      { key: "catalogo",             label: "Catálogo",       href: "/oficina/catalogo",            icon: BookOpen       },
+      { key: "garantias",            label: "Garantias",      href: "/oficina/garantias",           icon: ShieldCheck    },
     ],
   },
   {
@@ -90,6 +109,22 @@ export function SidebarLayout({
 }) {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [tenantModules, setTenantModules] = useState<string[]>(["tms", "oficina"]);
+
+  useEffect(() => {
+    fetch("/api/tenants/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.product_modules) {
+          setTenantModules(data.product_modules);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const visibleSections = NAV_SECTIONS.filter(
+    (sec) => !sec.module || tenantModules.includes(sec.module)
+  );
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -142,7 +177,7 @@ export function SidebarLayout({
           className="flex-1 flex flex-col px-2 pb-3 overflow-y-auto overflow-x-hidden"
           aria-label="Navegação principal"
         >
-          {NAV_SECTIONS.map((section, sectionIdx) => (
+          {visibleSections.map((section, sectionIdx) => (
             <div key={section.section}>
               {/* Section label — hidden when collapsed */}
               {!collapsed && (

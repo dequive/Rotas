@@ -512,6 +512,12 @@ async def create_trip(
 
     # LOAD-01: Payload weight guard
     _vehicle = await db.get(Vehicle, payload.vehicle_id)
+    if _vehicle is not None and getattr(_vehicle, "ownership_type", "fleet") != "fleet":
+        raise ApiError(
+            "invalid_vehicle_ownership",
+            "Customer vehicles cannot be assigned to cargo trips.",
+            status_code=409,
+        )
     if (
         _vehicle is not None
         and _vehicle.max_payload_kg is not None

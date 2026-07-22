@@ -448,6 +448,12 @@ async def require_vehicle_available(
     vehicle = vehicle_result.scalar_one_or_none()
     if not vehicle:
         raise ApiError("vehicle_not_found", "Vehicle not found.", status_code=404)
+    if getattr(vehicle, "ownership_type", "fleet") != "fleet":
+        raise ApiError(
+            "invalid_vehicle_ownership",
+            "Customer vehicles cannot be assigned to trips.",
+            status_code=status.HTTP_409_CONFLICT,
+        )
     if vehicle.status != "active":
         raise ApiError(
             "vehicle_unavailable",

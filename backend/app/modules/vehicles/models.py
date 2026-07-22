@@ -50,6 +50,12 @@ class Vehicle(Base):
     avg_consumption_target: Mapped[float | None] = mapped_column(Numeric(10, 2))
     fuel_limit_daily: Mapped[float | None] = mapped_column(Numeric(10, 2))
     max_payload_kg: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    ownership_type: Mapped[str] = mapped_column(
+        String(20), server_default="fleet", default="fleet", index=True
+    )
+    customer_client_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

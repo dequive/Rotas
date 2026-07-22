@@ -13,6 +13,7 @@ class TenantRead(BaseModel):
     name: str
     slug: str
     plan: str
+    product_modules: list[str] = ["tms"]
     is_active: bool
     timezone: str
     currency: str
@@ -24,6 +25,11 @@ class TenantPatch(BaseModel):
     currency: str | None = None
     whatsapp_number: str | None = None
     compliance_policy: dict | None = None
+    product_modules: list[str] | None = None
+
+
+class ProductModulesUpdate(BaseModel):
+    product_modules: list[str]
 
 
 class DriverDespachoTableTier(BaseModel):

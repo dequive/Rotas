@@ -22,6 +22,7 @@ def serialize_tenant(tenant: Tenant) -> dict:
         "name": tenant.name,
         "slug": tenant.slug,
         "plan": tenant.plan,
+        "product_modules": tenant.product_modules or ["tms"],
         "max_vehicles": tenant.max_vehicles,
         "max_drivers": tenant.max_drivers,
         "max_users": tenant.max_users,
@@ -35,6 +36,24 @@ def serialize_tenant(tenant: Tenant) -> dict:
         "created_at": tenant.created_at,
         "updated_at": tenant.updated_at,
     }
+
+
+def _validate_product_modules(modules: list[str]) -> list[str]:
+    if not isinstance(modules, list) or not modules:
+        raise ApiError(
+            "invalid_product_modules",
+            "At least one product module must be selected.",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    allowed = {"tms", "oficina"}
+    invalid = set(modules) - allowed
+    if invalid:
+        raise ApiError(
+            "invalid_product_modules",
+            f"Invalid product module(s): {sorted(invalid)}. Allowed: {sorted(allowed)}.",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    return sorted(list(set(modules)))
 
 
 async def get_current_tenant(db: AsyncSession, tenant_id: UUID) -> dict:
@@ -73,6 +92,8 @@ async def patch_current_tenant(
             )
     if "compliance_policy" in values and values["compliance_policy"] is not None:
         _validate_compliance_policy(values["compliance_policy"])
+    if "product_modules" in values and values["product_modules"] is not None:
+        values["product_modules"] = _validate_product_modules(values["product_modules"])
 
     old_values = serialize_tenant(tenant)
     for field, value in values.items():
@@ -84,6 +105,34 @@ async def patch_current_tenant(
         tenant_id=tenant_id,
         user_id=actor_id,
         action="tenant.updated",
+        entity_type="tenant",
+        entity_id=tenant.id,
+        old_values=old_values,
+        new_values=serialize_tenant(tenant),
+    )
+    await db.commit()
+    await db.refresh(tenant)
+    return serialize_tenant(tenant)
+
+
+async def update_product_modules(
+    db: AsyncSession,
+    tenant_id: UUID,
+    product_modules: list[str],
+    *,
+    actor_id: UUID | None = None,
+) -> dict:
+    tenant = await _require_active_tenant(db, tenant_id)
+    validated = _validate_product_modules(product_modules)
+    old_values = serialize_tenant(tenant)
+    tenant.product_modules = validated
+    await db.flush()
+    await db.refresh(tenant)
+    await record_audit_log(
+        db,
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="tenant.product_modules.updated",
         entity_type="tenant",
         entity_id=tenant.id,
         old_values=old_values,

@@ -13,6 +13,18 @@ class OnboardingRegisterRequest(BaseModel):
     phone: str | None = None
     timezone: str = "Africa/Maputo"
     currency: str = "MZN"
+    product_modules: list[str] = ["tms"]
+
+    @field_validator("product_modules")
+    @classmethod
+    def validate_product_modules(cls, value: list[str]) -> list[str]:
+        if not value:
+            raise ValueError("At least one product module must be selected.")
+        allowed = {"tms", "oficina"}
+        invalid = set(value) - allowed
+        if invalid:
+            raise ValueError(f"Invalid product module(s): {sorted(invalid)}. Allowed: {sorted(allowed)}.")
+        return sorted(list(set(value)))
 
     @field_validator("company_name", "owner_full_name")
     @classmethod
@@ -51,6 +63,7 @@ class OnboardingTenant(BaseModel):
     name: str
     slug: str
     plan: str
+    product_modules: list[str] = ["tms"]
     trial_ends_at: str | None
 
 

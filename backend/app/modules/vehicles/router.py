@@ -22,12 +22,14 @@ async def list_vehicles(
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
+    ownership_type: str | None = None,
+    customer_client_id: UUID | None = None,
     search: str | None = None,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
     redis = getattr(request.app.state, "redis", None)
-    cache_key = f"tenant:{principal.tenant_id}:vehicles:status={status}:search={search}:limit={limit}:offset={offset}"
+    cache_key = f"tenant:{principal.tenant_id}:vehicles:status={status}:own={ownership_type}:client={customer_client_id}:search={search}:limit={limit}:offset={offset}"
     if redis is not None:
         cached = await redis.get(cache_key)
         if cached:
@@ -37,6 +39,8 @@ async def list_vehicles(
         db,
         principal.tenant_id,
         status_filter=status,
+        ownership_type_filter=ownership_type,
+        client_id_filter=customer_client_id,
         search=search,
         limit=limit,
         offset=offset,

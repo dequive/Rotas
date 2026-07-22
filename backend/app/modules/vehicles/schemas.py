@@ -18,6 +18,16 @@ class VehicleCreate(BaseModel):
     documents: dict | None = None
     avg_consumption_target: float | None = None
     fuel_limit_daily: float | None = None
+    ownership_type: str = "fleet"
+    customer_client_id: UUID | None = None
+
+    @field_validator("ownership_type")
+    @classmethod
+    def validate_ownership_type(cls, v: str) -> str:
+        val = v.strip().lower()
+        if val not in {"fleet", "customer"}:
+            raise ValueError("ownership_type must be 'fleet' or 'customer'")
+        return val
 
 
 class VehiclePatch(BaseModel):
@@ -34,6 +44,18 @@ class VehiclePatch(BaseModel):
     documents: dict | None = None
     avg_consumption_target: float | None = None
     fuel_limit_daily: float | None = None
+    ownership_type: str | None = None
+    customer_client_id: UUID | None = None
+
+    @field_validator("ownership_type")
+    @classmethod
+    def validate_ownership_type(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        val = v.strip().lower()
+        if val not in {"fleet", "customer"}:
+            raise ValueError("ownership_type must be 'fleet' or 'customer'")
+        return val
 
 
 class VehicleRead(BaseModel):
@@ -42,6 +64,8 @@ class VehicleRead(BaseModel):
     plate: str
     status: str
     current_km: int
+    ownership_type: str = "fleet"
+    customer_client_id: UUID | None = None
 
 
 class VehicleDocumentRenewalRequest(BaseModel):

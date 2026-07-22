@@ -43,6 +43,8 @@ def serialize_vehicle(vehicle: Vehicle) -> dict:
         "max_payload_kg": float(vehicle.max_payload_kg)
         if vehicle.max_payload_kg is not None
         else None,
+        "ownership_type": getattr(vehicle, "ownership_type", "fleet") or "fleet",
+        "customer_client_id": getattr(vehicle, "customer_client_id", None),
         "created_at": vehicle.created_at,
         "updated_at": vehicle.updated_at,
     }
@@ -119,6 +121,8 @@ async def list_vehicles(
     tenant_id: UUID,
     *,
     status_filter: str | None = None,
+    ownership_type_filter: str | None = None,
+    client_id_filter: UUID | None = None,
     search: str | None = None,
     limit: int = 50,
     offset: int = 0,
@@ -127,6 +131,10 @@ async def list_vehicles(
 
     if status_filter:
         query = query.where(Vehicle.status == status_filter)
+    if ownership_type_filter:
+        query = query.where(Vehicle.ownership_type == ownership_type_filter)
+    if client_id_filter:
+        query = query.where(Vehicle.customer_client_id == client_id_filter)
     if search:
         pattern = f"%{search}%"
         query = query.where(

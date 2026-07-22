@@ -61,6 +61,11 @@ from app.modules.trips.router import router as trips_router
 from app.modules.users.router import router as users_router
 from app.modules.vehicles.router import router as vehicles_router
 from app.modules.workshop.router import router as workshop_router
+from app.modules.workshop.reception_router import router as reception_router
+from app.modules.workshop.quote_router import router as quote_router
+from app.modules.workshop.catalog_router import router as catalog_router
+from app.modules.workshop.warranty_router import router as warranty_router
+from app.modules.workshop.workbay_router import router as workbay_router
 from app.modules.inventory.router import router as inventory_router
 from app.modules.accounting.router import router as accounting_router
 
@@ -286,6 +291,11 @@ app.include_router(billing_router, prefix=api)
 app.include_router(operations_router, prefix=api)
 app.include_router(operational_exceptions_router, prefix=api)
 app.include_router(workshop_router, prefix=api)
+app.include_router(reception_router, prefix=api)
+app.include_router(quote_router, prefix=api)
+app.include_router(catalog_router, prefix=api)
+app.include_router(warranty_router, prefix=api)
+app.include_router(workbay_router, prefix=api)
 app.include_router(hr_router, prefix=api)
 app.include_router(inventory_router, prefix=api)
 app.include_router(documents_router, prefix=api)

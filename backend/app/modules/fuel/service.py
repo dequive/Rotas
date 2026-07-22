@@ -156,6 +156,12 @@ async def create_fuel_log(
     vehicle = vehicle_result.scalar_one_or_none()
     if not vehicle or vehicle.status not in {"active", "maintenance"}:
         raise ApiError("vehicle_not_found", "Vehicle not found or inactive.", status_code=404)
+    if getattr(vehicle, "ownership_type", "fleet") != "fleet":
+        raise ApiError(
+            "invalid_vehicle_ownership",
+            "Fuel logs can only be recorded for fleet vehicles.",
+            status_code=409,
+        )
 
     driver = await db.get(Driver, payload.driver_id)
     if not driver or driver.tenant_id != tenant_id or driver.status != "active":

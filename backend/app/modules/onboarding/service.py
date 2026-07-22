@@ -57,6 +57,7 @@ def _tenant_payload(tenant: Tenant) -> dict:
         "name": tenant.name,
         "slug": tenant.slug,
         "plan": tenant.plan,
+        "product_modules": tenant.product_modules or ["tms"],
         "trial_ends_at": tenant.trial_ends_at.isoformat() if tenant.trial_ends_at else None,
     }
 
@@ -146,6 +147,7 @@ async def register_tenant(
         name=payload.company_name.strip(),
         slug=slug,
         plan="trial",
+        product_modules=payload.product_modules,
         is_trial=True,
         trial_ends_at=trial_ends_at,
         whatsapp_number=payload.phone,
@@ -218,10 +220,8 @@ async def register_tenant(
     # Criar perfil de PDFs por omissão
     doc_profile = TenantDocumentProfile(
         tenant_id=tenant.id,
-        primary_color="#4F46E5",
-        accent_color="#4338CA",
-        font_family="Helvetica",
-        is_active=True
+        legal_name=payload.company_name.strip(),
+        country="Moçambique",
     )
     db.add(doc_profile)
 

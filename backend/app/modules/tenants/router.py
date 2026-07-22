@@ -207,3 +207,15 @@ async def get_tenant_limits(
         },
         "upgrade_url": get_settings().upgrade_url,
     }
+
+
+@router.patch("/me/modules")
+async def update_my_product_modules(
+    payload: schemas.ProductModulesUpdate,
+    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> dict:
+    """PATCH /api/v1/tenants/me/modules — update active product modules (tms, oficina) for tenant."""
+    return await service.update_product_modules(
+        db, principal.tenant_id, payload.product_modules, actor_id=principal.user_id
+    )

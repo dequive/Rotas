@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -15,6 +15,9 @@ class Tenant(Base):
     name: Mapped[str] = mapped_column(String(160))
     slug: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     plan: Mapped[str] = mapped_column(String(40), default="trial")
+    product_modules: Mapped[list | None] = mapped_column(
+        JSONB, server_default='["tms"]', nullable=False
+    )
     max_vehicles: Mapped[int | None] = mapped_column(Integer, nullable=True, default=5)
     max_drivers: Mapped[int | None] = mapped_column(Integer, nullable=True, default=5)
     max_users: Mapped[int | None] = mapped_column(Integer, nullable=True, default=3)

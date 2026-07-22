@@ -54,6 +54,10 @@ FUEL_APPROVE = "fuel.approve_adjustment"
 WORKSHOP_READ = "workshop.read"
 WORKSHOP_WRITE = "workshop.write"
 WORKSHOP_RELEASE = "workshop.release_vehicle"
+WORKSHOP_RECEPTION = "workshop.reception"
+WORKSHOP_QUOTE = "workshop.quote"
+WORKSHOP_QUOTE_APPROVE = "workshop.quote_approve"
+WORKSHOP_INVENTORY_ADJUST = "workshop.inventory_adjust"
 
 ADMIN_USERS = "admin.users"
 ADMIN_TENANT = "admin.tenant"
@@ -214,6 +218,19 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             ACCOUNTING_READ,
             PAYABLES_READ,
             INVENTORY_READ,
+        }
+    ),
+    "receptionist": frozenset(
+        {
+            # Receptionist handles vehicle check-in/out, quotes, client contact
+            FLEET_READ,
+            DRIVERS_READ,
+            BILLING_READ,
+            WORKSHOP_READ,
+            WORKSHOP_WRITE,
+            WORKSHOP_RELEASE,
+            WORKSHOP_RECEPTION,
+            WORKSHOP_QUOTE,
         }
     ),
     "mechanic": frozenset(

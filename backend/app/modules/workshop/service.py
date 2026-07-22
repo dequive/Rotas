@@ -17,6 +17,7 @@ from app.modules.workshop.models import (
     MaintenancePartUsed,
     MaintenancePlan,
     MaintenanceRequest,
+    MaintenanceRequestNote,
     MaintenanceSchedule,
     SparePartInventory,
     SparePartMovement,
@@ -32,6 +33,8 @@ from app.modules.workshop.schemas import (
     MaintenancePartIssueCreate,
     MaintenancePlanCreate,
     MaintenanceRequestCreate,
+    MaintenanceRequestNoteCreate,
+    MaintenanceRequestStatusUpdate,
     SerialItemCreate,
     SparePartInventoryCreate,
     SparePartReceiptCreate,
@@ -337,11 +340,7 @@ class SparePartMovementService:
 
         previous_average_cost = _decimal(inventory.average_unit_cost)
         movement_unit_cost = (
-            _decimal(unit_cost)
-            if unit_cost is not None
-            else previous_average_cost
-            if direction == "out"
-            else None
+            _decimal(unit_cost) if unit_cost is not None else previous_average_cost if direction == "out" else None
         )
         item = SparePartMovement(
             tenant_id=tenant_id,
@@ -366,25 +365,30 @@ class SparePartMovementService:
             ) / new_balance
         db.add(item)
         await db.flush()
-        
+
         # --- HOOK CONTABILISTICO (Fase 6) ---
         if direction == "out" and item.total_cost and item.total_cost > 0:
-            from app.modules.accounting.services import create_journal_entry
-            from app.modules.accounting.schemas import JournalEntryCreate, JournalItemCreate
             from app.modules.accounting.models import Account
+            from app.modules.accounting.schemas import JournalEntryCreate, JournalItemCreate
+            from app.modules.accounting.services import create_journal_entry
 
             vehicle_id_for_cost = None
             if source_type == "vehicle":
                 vehicle_id_for_cost = source_id
             elif source_type == "work_order" and source_id:
                 from app.modules.workshop.models import WorkOrder
+
                 wo = await db.get(WorkOrder, source_id)
                 if wo:
                     vehicle_id_for_cost = wo.vehicle_id
 
             if vehicle_id_for_cost:
-                acct_inv = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("32%")).limit(1))
-                acct_exp = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("622%")).limit(1))
+                acct_inv = await db.scalar(
+                    select(Account).where(Account.tenant_id == tenant_id, Account.code.like("32%")).limit(1)
+                )
+                acct_exp = await db.scalar(
+                    select(Account).where(Account.tenant_id == tenant_id, Account.code.like("622%")).limit(1)
+                )
 
                 if acct_inv and acct_exp:
                     await create_journal_entry(
@@ -400,17 +404,17 @@ class SparePartMovementService:
                                     description=f"Custo de Manutencao ({inventory.name})",
                                     debit=float(item.total_cost),
                                     credit=0,
-                                    vehicle_id=vehicle_id_for_cost
+                                    vehicle_id=vehicle_id_for_cost,
                                 ),
                                 JournalItemCreate(
                                     account_id=acct_inv.id,
                                     description="Saida de Armazem",
                                     debit=0,
-                                    credit=float(item.total_cost)
-                                )
-                            ]
+                                    credit=float(item.total_cost),
+                                ),
+                            ],
                         ),
-                        actor_id=actor_id
+                        actor_id=actor_id,
                     )
         # ------------------------------------
 
@@ -734,18 +738,28 @@ async def close_work_order(
     invoice_draft = None
     if item.origin_type in ("reception", "quote", "warranty"):
         from app.modules.workshop.workshop_billing_service import create_workshop_invoice
+
         try:
             invoice_draft = await create_workshop_invoice(
-                db, tenant_id, work_order_id, actor_id=actor_id,
+                db,
+                tenant_id,
+                work_order_id,
+                actor_id=actor_id,
             )
         except Exception:
             pass  # Non-blocking: invoice can be generated manually later
 
     # Preventive Maintenance: Catalog matching & automatic next cycle creation
     try:
-        from app.modules.workshop.preventive_service import handle_work_order_completion_preventive_matching
+        from app.modules.workshop.preventive_service import (
+            handle_work_order_completion_preventive_matching,
+        )
+
         await handle_work_order_completion_preventive_matching(
-            db, tenant_id, work_order_id, actor_id=actor_id,
+            db,
+            tenant_id,
+            work_order_id,
+            actor_id=actor_id,
         )
     except Exception:
         pass  # Non-blocking: preventive cycle auto-advance should not block WO close
@@ -944,9 +958,7 @@ async def _transition_work_order(
 
 async def list_spare_parts(db: AsyncSession, tenant_id: UUID) -> list[dict]:
     rows = await db.execute(
-        select(SparePartInventory)
-        .where(SparePartInventory.tenant_id == tenant_id)
-        .order_by(SparePartInventory.sku)
+        select(SparePartInventory).where(SparePartInventory.tenant_id == tenant_id).order_by(SparePartInventory.sku)
     )
     return [serialize_spare_part(item) for item in rows.scalars()]
 
@@ -955,8 +967,7 @@ async def create_spare_part(
     db: AsyncSession,
     tenant_id: UUID,
     payload: SparePartInventoryCreate,
-    *,
-    actor_id: UUID | None,
+    actor_id: UUID | None = None,
 ) -> dict:
     existing = await db.scalar(
         select(SparePartInventory.id).where(
@@ -1096,9 +1107,7 @@ async def issue_spare_part_to_work_order(
 
 
 async def list_tools(db: AsyncSession, tenant_id: UUID) -> list[dict]:
-    rows = await db.execute(
-        select(WorkshopTool).where(WorkshopTool.tenant_id == tenant_id).order_by(WorkshopTool.code)
-    )
+    rows = await db.execute(select(WorkshopTool).where(WorkshopTool.tenant_id == tenant_id).order_by(WorkshopTool.code))
     return [serialize_tool(item) for item in rows.scalars()]
 
 
@@ -1340,6 +1349,16 @@ async def create_maintenance_plan(
     item = MaintenancePlan(tenant_id=tenant_id, **payload.model_dump())
     db.add(item)
     await db.flush()
+    if item.vehicle_id:
+        schedule = MaintenanceSchedule(
+            tenant_id=tenant_id,
+            plan_id=item.id,
+            vehicle_id=item.vehicle_id,
+            due_km=item.next_due_km,
+            due_at=item.next_due_at,
+            status="pending",
+        )
+        db.add(schedule)
     await record_audit_log(
         db,
         tenant_id=tenant_id,
@@ -1383,7 +1402,7 @@ async def evaluate_maintenance_schedule(
     )
     created: list[MaintenanceSchedule] = []
     for plan, vehicle in rows:
-        overdue = (plan.next_due_km is not None and vehicle.current_km >= plan.next_due_km) or (
+        overdue = (plan.next_due_km is not None and (vehicle.current_km or 0) >= plan.next_due_km) or (
             plan.next_due_at is not None and plan.next_due_at <= now_utc()
         )
         if not overdue:
@@ -1402,6 +1421,7 @@ async def evaluate_maintenance_schedule(
                 vehicle_id=plan.vehicle_id,
                 due_km=plan.next_due_km,
                 due_at=plan.next_due_at,
+                status="overdue",
             )
             db.add(schedule)
             await db.flush()
@@ -1453,11 +1473,7 @@ async def evaluate_maintenance_schedule(
                 if (plan.interval_km is not None and vehicle.current_km is not None)
                 else None
             )
-            next_at = (
-                (now_utc() + timedelta(days=plan.interval_days))
-                if plan.interval_days is not None
-                else None
-            )
+            next_at = (now_utc() + timedelta(days=plan.interval_days)) if plan.interval_days is not None else None
             next_schedule = MaintenanceSchedule(
                 tenant_id=tenant_id,
                 plan_id=plan.id,
@@ -1536,62 +1552,24 @@ async def _trigger_maintenance_work_order(
     return work_order
 
 
-async def list_spare_parts(tenant_id: UUID, db: AsyncSession):
-    result = await db.execute(
-        select(SparePartInventory).where(SparePartInventory.tenant_id == tenant_id).order_by(SparePartInventory.name)
-    )
-    return list(result.scalars().all())
-
-
-async def create_spare_part(
-    tenant_id: UUID,
-    payload: SparePartInventoryCreate,
-    db: AsyncSession
-) -> SparePartInventory:
-    stmt = select(SparePartInventory).where(
-        SparePartInventory.tenant_id == tenant_id,
-        SparePartInventory.sku == payload.sku
-    )
-    existing = await db.scalar(stmt)
-    if existing:
-        raise ApiError("SKU_EXISTS", status.HTTP_400_BAD_REQUEST, "Já existe uma peça com este SKU.")
-        
-    part = SparePartInventory(
-        tenant_id=tenant_id,
-        sku=payload.sku,
-        name=payload.name,
-        unit=payload.unit,
-        minimum_quantity=_decimal(payload.minimum_quantity),
-        current_quantity=0,
-        average_unit_cost=0
-    )
-    db.add(part)
-    await db.commit()
-    await db.refresh(part)
-    return part
-
-
 async def record_spare_part_receipt(
-    tenant_id: UUID,
-    payload: SparePartReceiptCreate,
-    actor_id: UUID,
-    db: AsyncSession
+    tenant_id: UUID, payload: SparePartReceiptCreate, actor_id: UUID, db: AsyncSession
 ) -> SparePartMovement:
     part = await db.get(SparePartInventory, payload.inventory_id)
     if not part or part.tenant_id != tenant_id:
         raise ApiError("PART_NOT_FOUND", status.HTTP_404_NOT_FOUND, "Peça não encontrada.")
-        
+
     old_qty = part.current_quantity
     new_qty = old_qty + _decimal(payload.quantity)
     total_cost = _decimal(payload.quantity) * _decimal(payload.unit_cost)
-    
+
     old_total_value = old_qty * part.average_unit_cost
     new_total_value = old_total_value + total_cost
     if new_qty > 0:
         part.average_unit_cost = new_total_value / new_qty
-        
+
     part.current_quantity = new_qty
-    
+
     movement = SparePartMovement(
         tenant_id=tenant_id,
         inventory_id=part.id,
@@ -1606,7 +1584,7 @@ async def record_spare_part_receipt(
         source_id=None,
         occurred_at=payload.occurred_at,
         recorded_by=actor_id,
-        notes=payload.notes
+        notes=payload.notes,
     )
     db.add(movement)
     await db.commit()
@@ -1664,18 +1642,12 @@ async def get_imminent_maintenance_alerts(
     alerts = []
     for plan, vehicle in rows:
         overdue = (plan.next_due_at is not None and plan.next_due_at < now) or (
-            plan.next_due_km is not None
-            and vehicle.current_km is not None
-            and vehicle.current_km >= plan.next_due_km
+            plan.next_due_km is not None and vehicle.current_km is not None and vehicle.current_km >= plan.next_due_km
         )
         trigger_type = (
             "overdue"
             if overdue
-            else (
-                "calendar"
-                if (plan.next_due_at is not None and plan.next_due_at <= threshold_date)
-                else "odometer"
-            )
+            else ("calendar" if (plan.next_due_at is not None and plan.next_due_at <= threshold_date) else "odometer")
         )
         alerts.append(
             {
@@ -2028,9 +2000,7 @@ async def install_serial_item(
     item.vehicle_id = vehicle_id
     item.installed_at = now_utc()
 
-    part_result = await db.execute(
-        select(SparePartInventory).where(SparePartInventory.id == item.part_id)
-    )
+    part_result = await db.execute(select(SparePartInventory).where(SparePartInventory.id == item.part_id))
     part = part_result.scalar_one()
     new_quantity = (part.current_quantity or Decimal("0")) - Decimal("1")
     movement = SparePartMovement(
@@ -2221,9 +2191,6 @@ async def _validate_trip_and_incident(
 
 # ── Maintenance Request Notes & Status ──────────────────────────────────────────────
 
-from app.modules.workshop.models import MaintenanceRequestNote
-from app.modules.workshop.schemas import MaintenanceRequestNoteCreate, MaintenanceRequestStatusUpdate
-
 
 def serialize_maintenance_request_note(item: MaintenanceRequestNote) -> dict:
     return {
@@ -2249,7 +2216,7 @@ async def add_maintenance_request_note(
         body=payload.body,
     )
     db.add(note)
-    
+
     await record_audit_log(
         db,
         tenant_id,
@@ -2259,7 +2226,7 @@ async def add_maintenance_request_note(
         req.id,
         {"body": payload.body},
     )
-    
+
     await db.commit()
     await db.refresh(note)
     return serialize_maintenance_request_note(note)
@@ -2293,7 +2260,7 @@ async def update_maintenance_request_status(
     req = await _require_maintenance_request(db, tenant_id, request_id)
     old_status = req.status
     req.status = payload.status
-    
+
     await record_audit_log(
         db,
         tenant_id,
@@ -2303,8 +2270,7 @@ async def update_maintenance_request_status(
         req.id,
         {"old_status": old_status, "new_status": payload.status},
     )
-    
+
     await db.commit()
     await db.refresh(req)
     return serialize_maintenance_request(req)
-

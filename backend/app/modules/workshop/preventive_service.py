@@ -6,7 +6,8 @@ Resolução das Regras de Ouro:
      Se sim, marca o agendamento atual como `completed` e cria o PRÓXIMO agendamento com base no odómetro real
      e data real do momento de entrega (due_km = odometer_release + interval_km).
   2. Deduplicação Estrita (`schedule_preventive_maintenance`):
-     Impede agendamentos duplicados se já existir um agendamento em ('pending', 'due', 'overdue') para (vehicle_id, plan_id).
+     Impede duplicados se já existir agendamento em ('pending', 'due',
+     'overdue') para (vehicle_id, plan_id).
   3. Idempotência em Conversão (`convert_schedule_to_action`):
      Se já convertido, retorna a referência da OS/Quote existente sem duplicar.
   4. Guard Anti-Duplicação WhatsApp (`notified_due_at` e `notified_overdue_at`):
@@ -28,12 +29,10 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
-from app.modules.audit.service import record_audit_log
-from app.modules.clients.models import Client
 from app.modules.vehicles.models import Vehicle
 from app.modules.workshop.catalog_models import ServiceCatalogItem
 from app.modules.workshop.models import (
@@ -42,8 +41,8 @@ from app.modules.workshop.models import (
     WorkOrder,
     WorkOrderTask,
 )
-from app.modules.workshop.quote_models import WorkshopQuote, WorkshopQuoteItem
-from app.modules.workshop.quote_schemas import QuoteCreate as WorkshopQuoteCreate, QuoteItemCreate as WorkshopQuoteItemCreate
+from app.modules.workshop.quote_schemas import QuoteCreate as WorkshopQuoteCreate
+from app.modules.workshop.quote_schemas import QuoteItemCreate as WorkshopQuoteItemCreate
 from app.modules.workshop.quote_service import create_quote
 
 
@@ -182,8 +181,7 @@ async def evaluate_preventive_schedules(
       - 'overdue' escalado urgentemente grava `notified_overdue_at`.
     """
     res = await db.execute(
-        select(MaintenanceSchedule)
-        .where(
+        select(MaintenanceSchedule).where(
             MaintenanceSchedule.tenant_id == tenant_id,
             MaintenanceSchedule.status.in_(("pending", "due")),
         )
@@ -206,7 +204,7 @@ async def evaluate_preventive_schedules(
         # Tolerâncias de fasquia
         is_km_due = False
         is_km_overdue = False
-        if sched.due_km and plan.interval_km:
+        if sched.due_km is not None and plan.interval_km:
             km_margin = int(plan.interval_km * 0.10)
             if current_km >= (sched.due_km - km_margin):
                 is_km_due = True
@@ -286,7 +284,9 @@ async def convert_schedule_to_action(
     # Determinar o escopo efetivo (herança de 'all')
     effective_scope = plan.ownership_scope
     if effective_scope == "all":
-        effective_scope = "customer" if (vehicle.customer_client_id or vehicle.ownership_type == "customer") else "fleet"
+        effective_scope = (
+            "customer" if (vehicle.customer_client_id or vehicle.ownership_type == "customer") else "fleet"
+        )
 
     # Buscar item de catálogo associado (se houver) para estimativa de custo
     catalog_item = None
@@ -308,16 +308,16 @@ async def convert_schedule_to_action(
             work_order_number=wo_number,
             vehicle_id=vehicle.id,
             planned_work=f"Manutenção Preventiva Frota: {plan.name}",
-                        status="approved",
+            status="approved",
             estimated_cost=est_cost,
-                    )
+        )
         db.add(wo)
         await db.flush()
 
         task = WorkOrderTask(
             tenant_id=tenant_id,
             work_order_id=wo.id,
-                        description=f"Revisão Preventiva: {plan.name}",
+            description=f"Revisão Preventiva: {plan.name}",
             status="pending",
         )
         db.add(task)
@@ -337,7 +337,9 @@ async def convert_schedule_to_action(
     else:
         # FLUXO WORKSHOP MULTIMARCAS / CLIENTE EXTERNO: Rascunho de Orçamento (ORC-2026-XXXX)
         if not vehicle.customer_client_id:
-            raise ApiError("client_required", "Customer client reference missing for external vehicle.", status_code=409)
+            raise ApiError(
+                "client_required", "Customer client reference missing for external vehicle.", status_code=409
+            )
 
         quote_create = WorkshopQuoteCreate(
             client_id=vehicle.customer_client_id,
@@ -348,7 +350,7 @@ async def convert_schedule_to_action(
                     description=f"Revisão Preventiva Recomendada: {plan.name}",
                     quantity=1.0,
                     unit_price=float(est_cost) if est_cost > 0 else 1000.0,
-                                    )
+                )
             ],
             notes=f"Orçamento rascunho de preventiva gerado automaticamente para o plano {plan.name}.",
         )
@@ -426,7 +428,7 @@ async def handle_work_order_completion_preventive_matching(
 
     await db.commit()
     return {
-        "matched_plans": len(matched_plans),
+        "matched_plans": len(active_scheds),
         "new_schedules_created": new_schedules_created,
         "release_odometer": release_odometer,
     }

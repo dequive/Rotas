@@ -20,13 +20,15 @@ interface UploadedPhoto {
 
 interface PhotoEvidenceUploaderProps {
   /** Context label shown above the uploader (e.g., "Fotos de Entrada" or "Peça Substituída") */
-  label: string;
+  label?: string;
   /** Maximum number of photos to upload */
   maxPhotos?: number;
   /** Already uploaded photos (e.g., when editing an existing reception) */
   existingPhotos?: UploadedPhoto[];
   /** Called after successful upload with the new photo metadata */
   onUpload?: (photo: UploadedPhoto) => void;
+  /** Optional simplified callback returning (fileId, hash) */
+  onUploadSuccess?: (fileId: string, sha256Hash?: string) => void;
   /** Called when a photo is removed */
   onRemove?: (photoId: string) => void;
   /** Whether the uploader is disabled */
@@ -34,10 +36,11 @@ interface PhotoEvidenceUploaderProps {
 }
 
 export function PhotoEvidenceUploader({
-  label,
+  label = "Evidências fotográficas",
   maxPhotos = 6,
   existingPhotos = [],
   onUpload,
+  onUploadSuccess,
   onRemove,
   disabled = false,
 }: PhotoEvidenceUploaderProps) {
@@ -83,6 +86,7 @@ export function PhotoEvidenceUploader({
         const uploaded = (await res.json()) as UploadedPhoto;
         setPhotos((prev) => [...prev, uploaded]);
         onUpload?.(uploaded);
+        onUploadSuccess?.(uploaded.id, uploaded.sha256_hash);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erro no upload.");
       } finally {

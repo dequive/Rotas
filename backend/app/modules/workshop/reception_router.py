@@ -116,3 +116,16 @@ async def release_vehicle(
     return await service.release_vehicle(
         db, principal.tenant_id, reception_id, payload, actor_id=principal.user_id
     )
+
+
+@router.get(
+    "/vehicles/{vehicle_id}/history",
+    dependencies=[Depends(require_module(MODULE_OFICINA))],
+)
+async def get_vehicle_intervention_history(
+    vehicle_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> dict:
+    """Return the vehicle's aggregated workshop intervention history."""
+    return await service.get_vehicle_intervention_history(db, principal.tenant_id, vehicle_id)

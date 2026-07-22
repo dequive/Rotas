@@ -12,6 +12,10 @@ class ReceptionCreate(BaseModel):
     visual_condition: str | None = None
     personal_items: str | None = None
     fuel_level: str = "half"
+    delivered_by_name: str | None = None
+    delivered_by_phone: str | None = None
+    pickup_authorized_by_name: str | None = None
+    pickup_authorized_by_phone: str | None = None
     client_signature_file_id: UUID | None = None
     estimated_completion_at: datetime | None = None
 
@@ -44,6 +48,10 @@ class ReceptionStatusUpdate(BaseModel):
 class VehicleReleaseCreate(BaseModel):
     odometer_at_release: int = Field(ge=0, default=0)
     condition_at_release: str | None = None
+    picked_up_by_name: str | None = None
+    picked_up_by_phone: str | None = None
+    override_unauthorized_pickup: bool = False
+    override_reason: str | None = None
     client_signature_file_id: UUID | None = None
     release_type: str = "after_service"
     notes: str | None = None

@@ -45,6 +45,9 @@ class Client(Base):
         nullable=True,
         index=True,
     )
+    client_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="individual", server_default="individual"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

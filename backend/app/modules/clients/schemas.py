@@ -26,6 +26,7 @@ class ClientCreate(BaseModel):
     city: str | None = None
     phone: str | None = None
     email: str | None = None
+    client_type: str = Field("individual", pattern="^(individual|organization)$")
     payment_terms_days: int = Field(30, ge=1, le=365)
     credit_limit: Decimal | None = None
 

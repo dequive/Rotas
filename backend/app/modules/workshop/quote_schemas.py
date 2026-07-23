@@ -9,8 +9,8 @@ class QuoteItemCreate(BaseModel):
     item_type: str = "labor"  # labor | part
     description: str
     part_id: UUID | None = None
-    quantity: Decimal = Field(gt=0, default=Decimal("1"))
-    unit_price: Decimal = Field(ge=0, default=Decimal("0"))
+    quantity: Decimal = Field(gt=Decimal("0"), default=Decimal("1"))
+    unit_price: Decimal = Field(ge=Decimal("0"), default=Decimal("0"))
     warranty_months: int = Field(ge=0, default=0)
     warranty_km: int = Field(ge=0, default=0)
 
@@ -29,7 +29,7 @@ class QuoteCreate(BaseModel):
     is_supplemental: bool = False
     related_work_order_id: UUID | None = None
     valid_until: datetime | None = None
-    tax_total: Decimal = Field(ge=0, default=Decimal("0"))
+    tax_total: Decimal = Field(ge=Decimal("0"), default=Decimal("0"))
     notes: str | None = None
     items: list[QuoteItemCreate] = Field(default_factory=list)
 

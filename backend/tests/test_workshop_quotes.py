@@ -1,5 +1,4 @@
-from datetime import datetime, timedelta, UTC
-from decimal import Decimal
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -236,6 +235,7 @@ async def test_quote_rejection_and_expiration(async_client, workshop_tenant_head
         assert expired_count >= 1
 
         q2_db = await db.get(WorkshopQuote, q2_id)
+        assert q2_db is not None
         assert q2_db.status == "expired"
 
 @pytest.mark.asyncio
@@ -279,6 +279,7 @@ async def test_accept_quote_with_traceable_channel_and_person_name(async_client,
     # Verify DB persistence
     async with AsyncSessionLocal() as db:
         quote_db = await db.get(WorkshopQuote, q1_id)
+        assert quote_db is not None
         assert quote_db.acceptance_channel == "whatsapp"
         assert quote_db.accepted_by_person_name == "Antonio Muchanga"
 
@@ -305,5 +306,6 @@ async def test_accept_quote_with_traceable_channel_and_person_name(async_client,
 
     async with AsyncSessionLocal() as db:
         quote2_db = await db.get(WorkshopQuote, q2_id)
+        assert quote2_db is not None
         assert quote2_db.acceptance_channel is None
         assert quote2_db.accepted_by_person_name is None

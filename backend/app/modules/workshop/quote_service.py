@@ -1,8 +1,7 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import status
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -350,4 +349,4 @@ async def expire_outdated_quotes(db: AsyncSession) -> int:
     )
     res = await db.execute(stmt)
     await db.commit()
-    return res.rowcount
+    return getattr(res, "rowcount", 0)

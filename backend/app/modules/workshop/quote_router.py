@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
@@ -12,6 +12,12 @@ from app.modules.workshop import quote_schemas as schemas
 from app.modules.workshop import quote_service as service
 
 router = APIRouter(prefix="/workshop/quotes", tags=["workshop-quotes"])
+
+
+def _get_tenant_id(principal: Principal) -> UUID:
+    if principal.tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Tenant context required")
+    return principal.tenant_id
 
 
 @router.post(
@@ -25,9 +31,7 @@ async def create_quote(
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
     """POST /api/v1/workshop/quotes — Criar orçamento de oficina (MODULE_OFICINA)."""
-    return await service.create_quote(
-        db, principal.tenant_id, payload, actor_id=principal.user_id
-    )
+    return await service.create_quote(db, _get_tenant_id(principal), payload, actor_id=principal.user_id)
 
 
 @router.get(
@@ -45,7 +49,7 @@ async def list_quotes(
     """GET /api/v1/workshop/quotes — Listar orçamentos de oficina (MODULE_OFICINA)."""
     return await service.list_quotes(
         db,
-        principal.tenant_id,
+        _get_tenant_id(principal),
         status_filter=status,
         vehicle_id=vehicle_id,
         limit=limit,
@@ -63,7 +67,7 @@ async def get_quote_detail(
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
     """GET /api/v1/workshop/quotes/{id} — Detalhes do orçamento com itens (MODULE_OFICINA)."""
-    return await service.get_quote_detail(db, principal.tenant_id, quote_id)
+    return await service.get_quote_detail(db, _get_tenant_id(principal), quote_id)
 
 
 @router.post(
@@ -76,11 +80,15 @@ async def accept_quote(
     principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
-    """POST /api/v1/workshop/quotes/{id}/accept — Aceitar orçamento (converte em OS ou anexa a OS existente se for suplementar).
+    """Aceitar orçamento.
+
+    Converte em OS ou anexa a uma OS existente quando for suplementar.
     Garante FOR UPDATE lock no orcamento para prevenir duplo clique ou race conditions.
     """
     return await service.accept_quote(
-        db, principal.tenant_id, quote_id,
+        db,
+        _get_tenant_id(principal),
+        quote_id,
         acceptance_channel=payload.acceptance_channel,
         accepted_by_person_name=payload.accepted_by_person_name,
         actor_id=principal.user_id,
@@ -99,5 +107,5 @@ async def reject_quote(
 ) -> dict:
     """POST /api/v1/workshop/quotes/{id}/reject — Rejeitar orçamento com motivo (MODULE_OFICINA)."""
     return await service.reject_quote(
-        db, principal.tenant_id, quote_id, reason=payload.reason, actor_id=principal.user_id
+        db, _get_tenant_id(principal), quote_id, reason=payload.reason, actor_id=principal.user_id
     )

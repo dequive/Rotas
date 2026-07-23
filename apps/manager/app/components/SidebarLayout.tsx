@@ -216,13 +216,13 @@ export function SidebarLayout({
                         color: isActive ? "var(--sidebar-text-active)" : "var(--sidebar-text)",
                         background: isActive ? "var(--sidebar-active)" : "transparent",
                       }}
-                      onMouseEnter={(e) => {
+                      onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
                         if (!isActive) {
                           (e.currentTarget as HTMLElement).style.background = "var(--sidebar-hover)";
                           (e.currentTarget as HTMLElement).style.color = "var(--sidebar-text-active)";
                         }
                       }}
-                      onMouseLeave={(e) => {
+                      onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
                         if (!isActive) {
                           (e.currentTarget as HTMLElement).style.background = "transparent";
                           (e.currentTarget as HTMLElement).style.color = "var(--sidebar-text)";

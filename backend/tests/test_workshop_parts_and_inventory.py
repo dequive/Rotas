@@ -1,26 +1,24 @@
-from app.modules.workshop.workshop_billing_service import create_workshop_invoice, confirm_workshop_invoice
-from app.modules.workshop.models import WorkOrder
-from app.modules.workshop.schemas import WorkOrderCloseRequest
-from app.database import AsyncSessionLocal
 import sys
 from pathlib import Path
+
+from app.database import AsyncSessionLocal
+from app.modules.workshop.schemas import WorkOrderCloseRequest
 
 # Add backend directory to sys.path for IDE module resolution
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import asyncio
-import pytest
-from datetime import UTC, datetime
 from decimal import Decimal
 
+import pytest
 from sqlalchemy import select
+
 from app.core.errors import ApiError
 from app.modules.billing.models import BillingDocument
 from app.modules.clients.models import Client
 from app.modules.vehicles.models import Vehicle
 from app.modules.workshop.inventory_service import (
     cancel_work_order,
-    create_part_reservations,
     get_available_stock,
     get_inventory_valuation_summary,
     get_reorder_suggestions,
@@ -29,24 +27,26 @@ from app.modules.workshop.inventory_service import (
     return_part_from_work_order,
 )
 from app.modules.workshop.models import (
-    MaintenancePartUsed,
     PartReservation,
     SparePartInventory,
-    SparePartMovement,
     WorkOrder,
 )
-from app.modules.workshop.quote_models import WorkshopQuote, WorkshopQuoteItem
+from app.modules.workshop.quote_schemas import QuoteCreate as WorkshopQuoteCreate
+from app.modules.workshop.quote_schemas import QuoteItemCreate as WorkshopQuoteItemCreate
 from app.modules.workshop.quote_service import accept_quote, create_quote
-from app.modules.workshop.quote_schemas import QuoteCreate as WorkshopQuoteCreate, QuoteItemCreate as WorkshopQuoteItemCreate
-from app.modules.workshop.schemas import MaintenancePartIssueCreate, SparePartInventoryCreate, SparePartReceiptCreate, WorkOrderCreate
+from app.modules.workshop.schemas import (
+    WorkOrderCreate,
+)
 from app.modules.workshop.service import close_work_order, create_work_order
-from app.modules.workshop.workshop_billing_service import confirm_workshop_invoice, create_workshop_invoice
+from app.modules.workshop.workshop_billing_service import (
+    confirm_workshop_invoice,
+    create_workshop_invoice,
+)
 
 
 @pytest.mark.asyncio
 async def test_unapproved_excess_quantity_blocking_409(db, tenant_id, test_user):
     """Teste do Portão Comercial #1: Consumo acima da reserva aprovada pelo cliente é estritamente BLOQUEADO com 409."""
-    
 
     # 1. Cadastrar Cliente e Viatura
     client = Client(
@@ -83,7 +83,8 @@ async def test_unapproved_excess_quantity_blocking_409(db, tenant_id, test_user)
 
     # 3. Criar e Aceitar Orçamento Original de 5.000 Litros de óleo
     quote_create = WorkshopQuoteCreate(
-        client_id=client.id, vehicle_id=vehicle.id,
+        client_id=client.id,
+        vehicle_id=vehicle.id,
         items=[
             WorkshopQuoteItemCreate(
                 item_type="part",
@@ -117,8 +118,11 @@ async def test_unapproved_excess_quantity_blocking_409(db, tenant_id, test_user)
 
     # 5. Criar e Aceitar Orçamento Suplementar de 1.500 L adicionais (evidência fotográfica no suplementar)
     supp_quote_create = WorkshopQuoteCreate(
-        client_id=client.id, vehicle_id=vehicle.id,
-        is_supplemental=True, related_work_order_id=accept_res["work_order_id"], items=[
+        client_id=client.id,
+        vehicle_id=vehicle.id,
+        is_supplemental=True,
+        related_work_order_id=accept_res["work_order_id"],
+        items=[
             WorkshopQuoteItemCreate(
                 item_type="part",
                 description="Complemento Óleo Motor +1.5L",
@@ -130,7 +134,12 @@ async def test_unapproved_excess_quantity_blocking_409(db, tenant_id, test_user)
     )
     supp_quote = await create_quote(db, tenant_id, supp_quote_create, actor_id=test_user.id)
     supp_quote["is_supplemental"] = True
-    await accept_quote(db, tenant_id, supp_quote["id"], actor_id=test_user.id, )
+    await accept_quote(
+        db,
+        tenant_id,
+        supp_quote["id"],
+        actor_id=test_user.id,
+    )
 
     # Tecto aprovado agora = 5.000 + 1.500 = 6.500 Litros. Stock disponível = 220 - 6.5 = 213.5
     avail_after_supp = await get_available_stock(db, tenant_id, oil_part.id)
@@ -156,7 +165,6 @@ async def test_unapproved_excess_quantity_blocking_409(db, tenant_id, test_user)
 @pytest.mark.asyncio
 async def test_multi_quote_fifo_reservation_consumption_and_surplus_release(db, tenant_id, test_user):
     """Teste #3: FIFO determinístico de consumo de reservas multi-quote e libertação da sobra."""
-    
 
     client = Client(tenant_id=tenant_id, trading_name="Auto Frota", nuit="987654321")
     db.add(client)
@@ -183,8 +191,11 @@ async def test_multi_quote_fifo_reservation_consumption_and_surplus_release(db, 
         db,
         tenant_id,
         WorkshopQuoteCreate(
-            client_id=client.id, vehicle_id=vehicle.id,
-            items=[WorkshopQuoteItemCreate(item_type="part", description="Filtros 5x", quantity=5.000, part_id=part.id)],
+            client_id=client.id,
+            vehicle_id=vehicle.id,
+            items=[
+                WorkshopQuoteItemCreate(item_type="part", description="Filtros 5x", quantity=5.000, part_id=part.id)
+            ],
         ),
         actor_id=test_user.id,
     )
@@ -196,13 +207,23 @@ async def test_multi_quote_fifo_reservation_consumption_and_surplus_release(db, 
         db,
         tenant_id,
         WorkshopQuoteCreate(
-            client_id=client.id, vehicle_id=vehicle.id, related_work_order_id=wo_id, is_supplemental=True,
-            items=[WorkshopQuoteItemCreate(item_type="part", description="Filtros 2x", quantity=2.000, part_id=part.id)],
+            client_id=client.id,
+            vehicle_id=vehicle.id,
+            related_work_order_id=wo_id,
+            is_supplemental=True,
+            items=[
+                WorkshopQuoteItemCreate(item_type="part", description="Filtros 2x", quantity=2.000, part_id=part.id)
+            ],
         ),
         actor_id=test_user.id,
     )
     q2["is_supplemental"] = True
-    await accept_quote(db, tenant_id, q2["id"], actor_id=test_user.id, )
+    await accept_quote(
+        db,
+        tenant_id,
+        q2["id"],
+        actor_id=test_user.id,
+    )
 
     # Entregar 6 unidades (consome 5 da reserva 1 totalmente, 1 da reserva 2, e liberta 1 da reserva 2)
     issue_result = await issue_parts_for_work_order(
@@ -218,12 +239,16 @@ async def test_multi_quote_fifo_reservation_consumption_and_surplus_release(db, 
 
     # Verificar estados das reservas
     res_rows = (
-        await db.execute(
-            select(PartReservation)
-            .where(PartReservation.work_order_id == wo_id, PartReservation.inventory_id == part.id)
-            .order_by(PartReservation.created_at.asc(), PartReservation.id.asc())
+        (
+            await db.execute(
+                select(PartReservation)
+                .where(PartReservation.work_order_id == wo_id, PartReservation.inventory_id == part.id)
+                .order_by(PartReservation.created_at.asc(), PartReservation.id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert len(res_rows) == 3  # Res 1 (consumed 5), Res 2 (consumed 1), Surplus Res (released 1)
     assert res_rows[0].status == "consumed" and res_rows[0].quantity_reserved == Decimal("5.000")
@@ -234,7 +259,6 @@ async def test_multi_quote_fifo_reservation_consumption_and_surplus_release(db, 
 @pytest.mark.asyncio
 async def test_post_billing_immutability_guard_and_wo_cancel_cleanup(db, tenant_id, test_user):
     """Testes #4 e #5: Imutabilidade pós-faturação com 409 e cancelamento de OS com libertação de rascunhos."""
-    
 
     client = Client(tenant_id=tenant_id, trading_name="Expresso Pemba", nuit="555444333")
     db.add(client)
@@ -261,7 +285,8 @@ async def test_post_billing_immutability_guard_and_wo_cancel_cleanup(db, tenant_
         db,
         tenant_id,
         WorkshopQuoteCreate(
-            client_id=client.id, vehicle_id=vehicle.id,
+            client_id=client.id,
+            vehicle_id=vehicle.id,
             items=[WorkshopQuoteItemCreate(item_type="part", description="Pastilhas", quantity=2.000, part_id=part.id)],
         ),
         actor_id=test_user.id,
@@ -275,7 +300,9 @@ async def test_post_billing_immutability_guard_and_wo_cancel_cleanup(db, tenant_
     wo_obj = await db.get(WorkOrder, wo_id)
     wo_obj.status = "quality_check"
     await db.flush()
-    close_res = await close_work_order(db, tenant_id, wo_id, payload=WorkOrderCloseRequest(notes="Done"), actor_id=test_user.id)
+    await close_work_order(
+        db, tenant_id, wo_id, payload=WorkOrderCloseRequest(notes="Done"), actor_id=test_user.id
+    )
     inv = await create_workshop_invoice(db, tenant_id, wo_id, actor_id=test_user.id)
     inv_id = inv["id"]
     await confirm_workshop_invoice(db, tenant_id, inv_id, actor_id=test_user.id)
@@ -299,8 +326,13 @@ async def test_post_billing_immutability_guard_and_wo_cancel_cleanup(db, tenant_
         db,
         tenant_id,
         WorkshopQuoteCreate(
-            client_id=client.id, vehicle_id=vehicle.id,
-            items=[WorkshopQuoteItemCreate(item_type="part", description="Pastilhas Extra", quantity=4.000, part_id=part.id)],
+            client_id=client.id,
+            vehicle_id=vehicle.id,
+            items=[
+                WorkshopQuoteItemCreate(
+                    item_type="part", description="Pastilhas Extra", quantity=4.000, part_id=part.id
+                )
+            ],
         ),
         actor_id=test_user.id,
     )
@@ -326,7 +358,6 @@ async def test_post_billing_immutability_guard_and_wo_cancel_cleanup(db, tenant_
 @pytest.mark.asyncio
 async def test_inventory_adjustment_and_valuation(db, tenant_id, test_user):
     """Teste de Ajuste de Inventário por Perda Residual e Valorização de Stock."""
-    
 
     oil_part = SparePartInventory(
         tenant_id=tenant_id,
@@ -367,9 +398,6 @@ async def test_asyncio_gather_real_concurrency_contention(db, tenant_id, test_us
     Dispara duas entregas simultâneas via asyncio.gather.
     Confirma que o lock with_for_update() força isolamento transacional estrito.
     """
-    
-    engine = db.get_bind()
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     session_factory = AsyncSessionLocal
 
@@ -399,8 +427,11 @@ async def test_asyncio_gather_real_concurrency_contention(db, tenant_id, test_us
         db,
         tenant_id,
         WorkshopQuoteCreate(
-            client_id=client.id, vehicle_id=vehicle.id,
-            items=[WorkshopQuoteItemCreate(item_type="part", description="Óleo 10L", quantity=10.000, part_id=oil_part.id)],
+            client_id=client.id,
+            vehicle_id=vehicle.id,
+            items=[
+                WorkshopQuoteItemCreate(item_type="part", description="Óleo 10L", quantity=10.000, part_id=oil_part.id)
+            ],
         ),
         actor_id=test_user.id,
     )
@@ -411,9 +442,7 @@ async def test_asyncio_gather_real_concurrency_contention(db, tenant_id, test_us
     # Função executada numa transação/sessão independente
     async def issue_in_separate_session(qty: Decimal):
         async with session_factory() as sess:
-            return await issue_parts_for_work_order(
-                sess, tenant_id, wo_id, oil_part.id, qty, actor_id=test_user.id
-            )
+            return await issue_parts_for_work_order(sess, tenant_id, wo_id, oil_part.id, qty, actor_id=test_user.id)
 
     # Disparar 2 entregas simultâneas de 5.000 L em transações SEPARADAS via asyncio.gather
     results = await asyncio.gather(
@@ -426,17 +455,17 @@ async def test_asyncio_gather_real_concurrency_contention(db, tenant_id, test_us
     successful_results = [r for r in results if not isinstance(r, Exception)]
     if len(successful_results) == 0:
         print("EXCEPTIONS:", results)
-        assert False
+        raise AssertionError("Both concurrent inventory operations failed")
 
     async with session_factory() as check_sess:
         check_part = await check_sess.get(SparePartInventory, oil_part.id)
+        assert check_part is not None
         assert check_part.current_quantity >= Decimal("0.000")
 
 
 @pytest.mark.asyncio
 async def test_reorder_suggestions_with_blocked_work_orders(db, tenant_id, test_user):
     """Teste de Alertas de Reposição Inteligente (Reorder Suggestions) com rastreio de OSs em backorder."""
-    
 
     part = SparePartInventory(
         tenant_id=tenant_id,
@@ -464,8 +493,11 @@ async def test_reorder_suggestions_with_blocked_work_orders(db, tenant_id, test_
         db,
         tenant_id,
         WorkshopQuoteCreate(
-            client_id=client.id, vehicle_id=vehicle.id,
-            items=[WorkshopQuoteItemCreate(item_type="part", description="Filtros Ar 3x", quantity=3.000, part_id=part.id)],
+            client_id=client.id,
+            vehicle_id=vehicle.id,
+            items=[
+                WorkshopQuoteItemCreate(item_type="part", description="Filtros Ar 3x", quantity=3.000, part_id=part.id)
+            ],
         ),
         actor_id=test_user.id,
     )
@@ -484,7 +516,7 @@ async def test_reorder_suggestions_with_blocked_work_orders(db, tenant_id, test_
 @pytest.mark.asyncio
 async def test_purchase_order_creation_and_reception_wacc(db, tenant_id, test_user):
     """Teste de Encomenda de Compra a Fornecedor e Recepção com Recálculo de Custo Médio WACC."""
-    
+
     from app.modules.third_party.models import ThirdParty, ThirdPartyRole
     from app.modules.workshop.inventory_service import create_purchase_order, receive_purchase_order
 
@@ -544,7 +576,7 @@ async def test_purchase_order_creation_and_reception_wacc(db, tenant_id, test_us
 @pytest.mark.asyncio
 async def test_core_return_with_photo_evidence_and_supplier_credit(db, tenant_id, test_user):
     """Teste de Rastreio de Peça Velha em Retoma (Core Return) com Foto de Evidência e Crédito de Fornecedor."""
-    
+
     from app.modules.workshop.inventory_service import credit_core_return, register_core_return
 
     part = SparePartInventory(
@@ -598,5 +630,3 @@ async def test_core_return_with_photo_evidence_and_supplier_credit(db, tenant_id
     )
     assert credited.status == "credited"
     assert credited.credit_amount == Decimal("3500.00")
-
-

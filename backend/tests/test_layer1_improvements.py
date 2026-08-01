@@ -1,13 +1,13 @@
-import pytest
 import uuid
-import httpx
-from unittest.mock import AsyncMock
 from datetime import date, timedelta
+from unittest.mock import AsyncMock
+
+import pytest
+
 from app.main import app
-from app.modules.tenants.models import Tenant
-from app.modules.vehicles.models import Vehicle
 from app.modules.drivers.models import Driver
-from app.modules.users.models import User
+from app.modules.vehicles.models import Vehicle
+
 
 @pytest.fixture
 def mock_redis():
@@ -15,6 +15,7 @@ def mock_redis():
     redis.delete = AsyncMock(return_value=1)
     redis.keys = AsyncMock(return_value=[])
     return redis
+
 
 @pytest.mark.asyncio
 async def test_vehicle_plate_normalization(async_client, db, tenant_id, auth_headers):
@@ -27,7 +28,7 @@ async def test_vehicle_plate_normalization(async_client, db, tenant_id, auth_hea
         "year": 2020,
         "category": "pesado",
         "fuel_type": "gasoleo",
-        "current_km": 100
+        "current_km": 100,
     }
     response = await async_client.post("/api/v1/vehicles", json=payload, headers=auth_headers)
     assert response.status_code == 200
@@ -40,16 +41,17 @@ async def test_vehicle_plate_normalization(async_client, db, tenant_id, auth_hea
     assert vehicle.plate == "MC-88-29-GP"
 
     # Test patch plate normalization
-    patch_payload = {
-        "plate": "   lh-00-11-mc   "
-    }
-    patch_response = await async_client.patch(f"/api/v1/vehicles/{vehicle_id}", json=patch_payload, headers=auth_headers)
+    patch_payload = {"plate": "   lh-00-11-mc   "}
+    patch_response = await async_client.patch(
+        f"/api/v1/vehicles/{vehicle_id}", json=patch_payload, headers=auth_headers
+    )
     assert patch_response.status_code == 200
     assert patch_response.json()["plate"] == "LH-00-11-MC"
 
     # Verify db updated to normalized value
     await db.refresh(vehicle)
     assert vehicle.plate == "LH-00-11-MC"
+
 
 @pytest.mark.asyncio
 async def test_driver_data_normalization_and_validation(async_client, db, tenant_id, auth_headers):
@@ -60,7 +62,7 @@ async def test_driver_data_normalization_and_validation(async_client, db, tenant
         "email": "   ANTONIO@Muchanga.co.mz   ",
         "emergency_contact_name": "Maria Muchanga",
         "emergency_contact_phone": "  82-999-2222  ",
-        "employment_type": "full_time"
+        "employment_type": "full_time",
     }
     response = await async_client.post("/api/v1/drivers", json=payload, headers=auth_headers)
     assert response.status_code == 200
@@ -81,6 +83,7 @@ async def test_driver_data_normalization_and_validation(async_client, db, tenant
     response = await async_client.post("/api/v1/drivers", json=invalid_phone, headers=auth_headers)
     assert response.status_code == 422
 
+
 @pytest.mark.asyncio
 async def test_driver_document_expiration_validation(async_client, db, tenant_id, auth_headers):
     # Past expiration date on create
@@ -89,7 +92,7 @@ async def test_driver_document_expiration_validation(async_client, db, tenant_id
         "full_name": "António Muchanga",
         "phone": "849991111",
         "email": "antonio@muchanga.co.mz",
-        "license_valid_until": yesterday
+        "license_valid_until": yesterday,
     }
     response = await async_client.post("/api/v1/drivers", json=payload, headers=auth_headers)
     assert response.status_code == 422
@@ -99,41 +102,30 @@ async def test_driver_document_expiration_validation(async_client, db, tenant_id
     driver_id = uuid.uuid4()
     # seed driver
     async with db.begin_nested():
-        d = Driver(
-            id=driver_id,
-            tenant_id=tenant_id,
-            full_name="Driver Test",
-            status="active"
-        )
+        d = Driver(id=driver_id, tenant_id=tenant_id, full_name="Driver Test", status="active")
         db.add(d)
         await db.commit()
 
-    renewal_payload = {
-        "valid_until": yesterday
-    }
+    renewal_payload = {"valid_until": yesterday}
     response = await async_client.post(
         f"/api/v1/drivers/{driver_id}/documents/license/renew",
         json=renewal_payload,
-        headers=auth_headers
+        headers=auth_headers,
     )
     assert response.status_code == 422
     assert "Date must be today or in the future" in response.text
+
 
 @pytest.mark.asyncio
 async def test_vehicle_insurance_dates_validation(async_client, db, tenant_id, auth_headers):
     # Insurance valid_until <= valid_from
     today = date.today().isoformat()
     yesterday = (date.today() - timedelta(days=1)).isoformat()
-    
+
     # seed vehicle
     vehicle_id = uuid.uuid4()
     async with db.begin_nested():
-        v = Vehicle(
-            id=vehicle_id,
-            tenant_id=tenant_id,
-            plate="MZ-99-99-GP",
-            status="active"
-        )
+        v = Vehicle(id=vehicle_id, tenant_id=tenant_id, plate="MZ-99-99-GP", status="active")
         db.add(v)
         await db.commit()
 
@@ -142,15 +134,14 @@ async def test_vehicle_insurance_dates_validation(async_client, db, tenant_id, a
         "insurer": "Fidelidade",
         "coverage_type": "comprehensive",
         "valid_from": today,
-        "valid_until": yesterday
+        "valid_until": yesterday,
     }
     response = await async_client.post(
-        f"/api/v1/vehicles/{vehicle_id}/insurance",
-        json=insurance_payload,
-        headers=auth_headers
+        f"/api/v1/vehicles/{vehicle_id}/insurance", json=insurance_payload, headers=auth_headers
     )
     assert response.status_code == 422
     assert "Insurance valid_until must be after valid_from" in response.text
+
 
 @pytest.mark.asyncio
 async def test_cache_invalidation_triggered(async_client, db, tenant_id, auth_headers, mock_redis):
@@ -162,11 +153,11 @@ async def test_cache_invalidation_triggered(async_client, db, tenant_id, auth_he
         payload = {
             "full_name": "António Muchanga",
             "phone": "849991111",
-            "email": "antonio@muchanga.co.mz"
+            "email": "antonio@muchanga.co.mz",
         }
         response = await async_client.post("/api/v1/drivers", json=payload, headers=auth_headers)
         assert response.status_code == 200
-        
+
         # Verify redis.delete was called for the tenant limits key
         mock_redis.delete.assert_any_call(f"tenant:limits:{tenant_id}")
     finally:

@@ -4,13 +4,14 @@ from pathlib import Path
 # Add backend directory to sys.path for IDE module resolution
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import pytest
 from datetime import UTC, datetime
 from decimal import Decimal
 
+import pytest
 from sqlalchemy import select
+
 from app.core.errors import ApiError
-from app.modules.billing.models import BillingDocument, ClientPayment, PaymentAllocation
+from app.modules.billing.models import BillingDocument
 from app.modules.billing.schemas import ClientPaymentCreate
 from app.modules.billing.service import (
     get_client_statement,
@@ -27,8 +28,8 @@ from app.modules.workshop.models import (
 )
 from app.modules.workshop.quote_models import WorkshopQuote, WorkshopQuoteItem
 from app.modules.workshop.quote_service import accept_quote
-from app.modules.workshop.service import close_work_order
 from app.modules.workshop.schemas import WorkOrderCloseRequest
+from app.modules.workshop.service import close_work_order
 from app.modules.workshop.workshop_billing_service import (
     confirm_workshop_invoice,
     create_workshop_invoice,
@@ -124,9 +125,7 @@ async def test_workshop_invoice_multi_quote_idempotency_and_confirmation(db, ten
     await db.flush()
 
     # Complete tasks so labor gets priced
-    tasks_res = await db.execute(
-        select(WorkOrderTask).where(WorkOrderTask.work_order_id == wo_id)
-    )
+    tasks_res = await db.execute(select(WorkOrderTask).where(WorkOrderTask.work_order_id == wo_id))
     for t in tasks_res.scalars():
         t.status = "completed"
         t.actual_minutes = 60
@@ -250,7 +249,7 @@ async def test_payment_allocation_overpayment_guard_and_partial_voiding(db, tena
     assert doc.status == "issued"
 
     # 3. Register Partial Payment 2: 5,600 MZN (completes 11,600 MZN total)
-    pay2 = await register_payment(
+    await register_payment(
         db,
         tenant_id,
         user_id=None,
@@ -286,4 +285,4 @@ async def test_payment_allocation_overpayment_guard_and_partial_voiding(db, tena
     stmt_after_void = await get_client_statement(db, tenant_id, client.id)
     assert stmt_after_void["total_invoiced"] == Decimal("11600.00")
     assert stmt_after_void["total_paid"] == Decimal("5600.00")  # Payment 2 remains confirmed
-    assert stmt_after_void["balance"] == Decimal("6000.00")    # 6,000 MZN remaining balance
+    assert stmt_after_void["balance"] == Decimal("6000.00")  # 6,000 MZN remaining balance

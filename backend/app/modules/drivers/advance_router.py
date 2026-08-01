@@ -22,12 +22,14 @@ router = APIRouter(prefix="/trips", tags=["advances"])
 class IssueAdvanceRequest(BaseModel):
     driver_id: UUID
     amount_mzn: Decimal = Field(..., gt=0, description="Advance amount in MZN, must be positive")
-    allowance_mzn: Decimal = Field(default=Decimal("0.00"), ge=0, description="Allowance (Subsídio)")
+    allowance_mzn: Decimal = Field(
+        default=Decimal("0.00"), ge=0, description="Allowance (Subsídio)"
+    )
     expenses_mzn: Decimal = Field(default=Decimal("0.00"), ge=0, description="Operational Expenses")
     notes: str | None = None
 
     @model_validator(mode="after")
-    def validate_amounts(self) -> "IssueAdvanceRequest":
+    def validate_amounts(self) -> IssueAdvanceRequest:
         if self.allowance_mzn + self.expenses_mzn != self.amount_mzn:
             raise ValueError("O montante total deve ser igual à soma do subsídio e das despesas.")
         return self

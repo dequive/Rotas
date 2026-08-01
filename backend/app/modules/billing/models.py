@@ -125,7 +125,9 @@ class BillingItem(Base):
     billing_document_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("billing_documents.id"), index=True
     )
-    trip_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("trips.id"), nullable=True, index=True)
+    trip_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("trips.id"), nullable=True, index=True
+    )
     load_permit_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("load_permits.id"))
     cargo_manifest_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("cargo_manifests.id"))
     transport_document_id: Mapped[uuid.UUID | None] = mapped_column(

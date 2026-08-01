@@ -1,7 +1,5 @@
-from decimal import Decimal
 from uuid import UUID
 
-from fastapi import status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -87,7 +85,9 @@ async def list_catalog_items(
     if is_active is not None:
         query = query.where(ServiceCatalogItem.is_active == is_active)
 
-    res = await db.execute(query.order_by(ServiceCatalogItem.code.asc()).limit(limit).offset(offset))
+    res = await db.execute(
+        query.order_by(ServiceCatalogItem.code.asc()).limit(limit).offset(offset)
+    )
     return [serialize_catalog_item(it) for it in res.scalars().all()]
 
 

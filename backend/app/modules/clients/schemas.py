@@ -17,7 +17,6 @@ def _normalize_nuit(v: str | None) -> str | None:
     return cleaned
 
 
-
 class ClientCreate(BaseModel):
     trading_name: str = Field(..., min_length=1, max_length=160)
     legal_name: str | None = None

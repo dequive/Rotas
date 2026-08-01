@@ -160,7 +160,9 @@ async def list_quotes(
     if vehicle_id:
         query = query.where(WorkshopQuote.vehicle_id == vehicle_id)
 
-    res = await db.execute(query.order_by(WorkshopQuote.created_at.desc()).limit(limit).offset(offset))
+    res = await db.execute(
+        query.order_by(WorkshopQuote.created_at.desc()).limit(limit).offset(offset)
+    )
     quotes = res.scalars().all()
     return [serialize_quote(q) for q in quotes]
 
@@ -171,8 +173,9 @@ async def get_quote_detail(db: AsyncSession, tenant_id: UUID, quote_id: UUID) ->
         raise ApiError("quote_not_found", "Quote not found.", status_code=404)
 
     items_res = await db.execute(
-        select(WorkshopQuoteItem)
-        .where(WorkshopQuoteItem.quote_id == quote_id, WorkshopQuoteItem.tenant_id == tenant_id)
+        select(WorkshopQuoteItem).where(
+            WorkshopQuoteItem.quote_id == quote_id, WorkshopQuoteItem.tenant_id == tenant_id
+        )
     )
     items = [serialize_quote_item(it) for it in items_res.scalars().all()]
     return serialize_quote(quote, items=items)
@@ -203,7 +206,9 @@ async def accept_quote(
         raise ApiError("quote_not_found", "Quote not found.", status_code=404)
 
     if quote.status == "converted":
-        raise ApiError("quote_already_converted", "Quote has already been accepted.", status_code=409)
+        raise ApiError(
+            "quote_already_converted", "Quote has already been accepted.", status_code=409
+        )
 
     if quote.status != "sent":
         raise ApiError(
@@ -277,6 +282,7 @@ async def accept_quote(
 
     # Create part stock reservations for this quote and WO
     from app.modules.workshop.inventory_service import create_part_reservations
+
     await create_part_reservations(db, tenant_id, quote.id, target_wo_id)
 
     await record_audit_log(

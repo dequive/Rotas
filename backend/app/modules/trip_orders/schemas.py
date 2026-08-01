@@ -44,7 +44,6 @@ class TripOrderAssignRequest(BaseModel):
     payload_override_reason: str | None = None
 
 
-
 class TripOrderCancelRequest(BaseModel):
     reason: str
 

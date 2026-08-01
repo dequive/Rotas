@@ -123,7 +123,7 @@ async def _post_to_governance(row: OutboxEvent) -> tuple[bool, dict[str, Any] | 
         body_json = response.json()
     except ValueError:
         body_json = {}
-    case_id = body_json.get("case_id")
+    body_json.get("case_id")
     return True, body_json, None
 
 

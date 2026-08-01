@@ -15,6 +15,7 @@ def mock_redis():
     redis.keys = AsyncMock(return_value=[])
     return redis
 
+
 @pytest.mark.asyncio
 async def test_client_nuit_phone_email_and_cache(
     async_client, db, tenant_id, auth_headers, mock_redis
@@ -32,11 +33,9 @@ async def test_client_nuit_phone_email_and_cache(
             "phone": "  84 123 4567  ",  # Should be normalized to "+258841234567"
             "email": "  TEST@Client.co.mz  ",  # Should be normalized to "test@client.co.mz"
             "payment_terms_days": 30,
-            "credit_limit": "5000.00"
+            "credit_limit": "5000.00",
         }
-        response = await async_client.post(
-            "/api/v1/clients", json=payload, headers=auth_headers
-        )
+        response = await async_client.post("/api/v1/clients", json=payload, headers=auth_headers)
         assert response.status_code == 201, response.text
         data = response.json()
         assert data["nuit"] == "400123456"
@@ -57,10 +56,7 @@ async def test_client_nuit_phone_email_and_cache(
 
         # 3. Patch client should normalize phone and email, and invalidate cache
         client_id = data["id"]
-        patch_payload = {
-            "phone": " 82 999 0000 ",
-            "email": " UPDATE@client.co.mz "
-        }
+        patch_payload = {"phone": " 82 999 0000 ", "email": " UPDATE@client.co.mz "}
         response3 = await async_client.patch(
             f"/api/v1/clients/{client_id}", json=patch_payload, headers=auth_headers
         )
@@ -73,6 +69,7 @@ async def test_client_nuit_phone_email_and_cache(
 
     finally:
         app.state.redis = old_redis
+
 
 @pytest.mark.asyncio
 async def test_third_party_nuit_phone_email_and_cache(
@@ -88,7 +85,7 @@ async def test_third_party_nuit_phone_email_and_cache(
             "nuit": " 400 999 111 ",
             "contact_phone": " 82 999 2222 ",
             "contact_email": " FORNECEDOR@TESTE.COM ",
-            "status": "active"
+            "status": "active",
         }
         response = await async_client.post(
             "/api/v1/third-party", json=payload, headers=auth_headers
@@ -112,10 +109,7 @@ async def test_third_party_nuit_phone_email_and_cache(
 
         # 3. Patch third party normalizes email/phone & invalidates cache
         tp_id = data["id"]
-        patch_payload = {
-            "contact_phone": " 87 111 2222 ",
-            "contact_email": " UPDATE@TESTE.COM "
-        }
+        patch_payload = {"contact_phone": " 87 111 2222 ", "contact_email": " UPDATE@TESTE.COM "}
         response3 = await async_client.patch(
             f"/api/v1/third-party/{tp_id}", json=patch_payload, headers=auth_headers
         )
@@ -129,15 +123,14 @@ async def test_third_party_nuit_phone_email_and_cache(
     finally:
         app.state.redis = old_redis
 
+
 @pytest.mark.asyncio
 async def test_contract_nuit_date_validation_and_cache(
     async_client, db, tenant_id, auth_headers, mock_redis
 ):
     # Seed a client first
     client = Client(
-        tenant_id=tenant_id,
-        trading_name="Client for Layer 3 Contract",
-        nuit="400999123"
+        tenant_id=tenant_id, trading_name="Client for Layer 3 Contract", nuit="400999123"
     )
     db.add(client)
     await db.commit()
@@ -155,11 +148,9 @@ async def test_contract_nuit_date_validation_and_cache(
             "contract_reference": f"CTR-L3-{uuid.uuid4().hex[:6]}",
             "title": "Contract Title",
             "starts_at": "2026-01-01T00:00:00",
-            "ends_at": "2026-12-31T23:59:59"
+            "ends_at": "2026-12-31T23:59:59",
         }
-        response = await async_client.post(
-            "/api/v1/contracts/", json=payload, headers=auth_headers
-        )
+        response = await async_client.post("/api/v1/contracts/", json=payload, headers=auth_headers)
         assert response.status_code in (200, 201), response.text
         data = response.json()
 
@@ -188,7 +179,7 @@ async def test_contract_nuit_date_validation_and_cache(
         contract_id = data["id"]
         patch_payload = {
             "starts_at": "2026-06-01T00:00:00",
-            "ends_at": "2026-05-31T23:59:59"  # invalid range
+            "ends_at": "2026-05-31T23:59:59",  # invalid range
         }
         response4 = await async_client.patch(
             f"/api/v1/contracts/{contract_id}", json=patch_payload, headers=auth_headers
@@ -196,9 +187,7 @@ async def test_contract_nuit_date_validation_and_cache(
         assert response4.status_code == 422
 
         # Valid patch should invalidate cache
-        patch_payload_valid = {
-            "ends_at": "2026-10-31T23:59:59"
-        }
+        patch_payload_valid = {"ends_at": "2026-10-31T23:59:59"}
         response5 = await async_client.patch(
             f"/api/v1/contracts/{contract_id}", json=patch_payload_valid, headers=auth_headers
         )
@@ -209,6 +198,7 @@ async def test_contract_nuit_date_validation_and_cache(
     finally:
         app.state.redis = old_redis
 
+
 @pytest.mark.asyncio
 async def test_billing_document_nuit_and_periods(
     async_client, db, tenant_id, auth_headers, mock_redis
@@ -218,7 +208,7 @@ async def test_billing_document_nuit_and_periods(
         tenant_id=tenant_id,
         client_name="Client for Billing",
         contract_reference=f"CTR-BILL-{uuid.uuid4().hex[:6]}",
-        status="active"
+        status="active",
     )
     db.add(contract)
     await db.commit()
@@ -237,7 +227,7 @@ async def test_billing_document_nuit_and_periods(
             "billing_period_end": "2026-06-30T23:59:59",
             "client_nuit": " 400-333-222 ",
             "currency": "MZN",
-            "trip_ids": []
+            "trip_ids": [],
         }
         response = await async_client.post(
             "/api/v1/billing/documents", json=payload, headers=auth_headers

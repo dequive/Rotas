@@ -208,7 +208,9 @@ async def list_receptions(
     if client_id:
         query = query.where(VehicleReception.client_id == client_id)
 
-    result = await db.execute(query.order_by(VehicleReception.created_at.desc()).limit(limit).offset(offset))
+    result = await db.execute(
+        query.order_by(VehicleReception.created_at.desc()).limit(limit).offset(offset)
+    )
     receptions = result.scalars().all()
     return [serialize_reception(r) for r in receptions]
 
@@ -310,7 +312,9 @@ async def release_vehicle(
         raise ApiError("reception_not_found", "Vehicle reception not found.", status_code=404)
 
     if reception.status in {"delivered", "returned_no_service"}:
-        raise ApiError("reception_already_closed", "Vehicle has already been released.", status_code=409)
+        raise ApiError(
+            "reception_already_closed", "Vehicle has already been released.", status_code=409
+        )
 
     # Validação de Levantamento (#2): Comparação de Nomes
     if reception.pickup_authorized_by_name and payload.picked_up_by_name:
@@ -341,7 +345,9 @@ async def release_vehicle(
     db.add(release)
 
     # Set reception status matching release_type
-    reception.status = "delivered" if payload.release_type == "after_service" else "returned_no_service"
+    reception.status = (
+        "delivered" if payload.release_type == "after_service" else "returned_no_service"
+    )
     await db.flush()
 
     if payload.override_unauthorized_pickup:
@@ -424,7 +430,10 @@ async def get_vehicle_intervention_history(
     if wo_ids:
         parts_res = await db.execute(
             select(MaintenancePartUsed)
-            .where(MaintenancePartUsed.tenant_id == tenant_id, MaintenancePartUsed.work_order_id.in_(wo_ids))
+            .where(
+                MaintenancePartUsed.tenant_id == tenant_id,
+                MaintenancePartUsed.work_order_id.in_(wo_ids),
+            )
             .order_by(MaintenancePartUsed.issued_at.desc())
         )
         parts_used = [

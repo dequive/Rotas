@@ -573,4 +573,3 @@ async def patch_trip(
     res = await service.patch_trip(db, principal.tenant_id, trip_id, payload)
     await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
     return res
-

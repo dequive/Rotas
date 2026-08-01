@@ -49,9 +49,7 @@ def test_contract_rejects_missing_codeowner_scope(tmp_path):
 
 
 def test_ci_enforces_contract_on_stabilization_branches():
-    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 
     assert '"stabilization/**"' in workflow
     assert "Validate PR-00 release governance contract" in workflow

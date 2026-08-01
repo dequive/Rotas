@@ -1,6 +1,5 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -14,12 +13,13 @@ class WarehouseCreate(BaseModel):
     location: str | None = Field(default=None, max_length=200)
     is_active: bool = True
 
+
 class WarehouseResponse(WarehouseCreate):
     id: UUID
     tenant_id: UUID
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -29,11 +29,12 @@ class WarehouseResponse(WarehouseCreate):
 class ItemCategoryCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
 
+
 class ItemCategoryResponse(ItemCategoryCreate):
     id: UUID
     tenant_id: UUID
     created_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -47,6 +48,7 @@ class ItemCreate(BaseModel):
     description: str | None = None
     unit_of_measure: str = Field(default="UN", max_length=20)
 
+
 class ItemResponse(ItemCreate):
     id: UUID
     tenant_id: UUID
@@ -54,7 +56,7 @@ class ItemResponse(ItemCreate):
     average_unit_cost: Decimal
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -63,6 +65,7 @@ class ItemResponse(ItemCreate):
 # ---------------------------------------------------------
 class StockMovementIn(BaseModel):
     """Payload for registering incoming stock (Purchases)"""
+
     item_id: UUID
     warehouse_id: UUID
     quantity: Decimal = Field(gt=0)
@@ -73,6 +76,7 @@ class StockMovementIn(BaseModel):
 
 class StockMovementOut(BaseModel):
     """Payload for registering outgoing stock (Consumption/Workshop)"""
+
     item_id: UUID
     warehouse_id: UUID
     quantity: Decimal = Field(gt=0)
@@ -93,5 +97,5 @@ class StockMovementResponse(BaseModel):
     notes: str | None
     created_by: UUID | None
     created_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)

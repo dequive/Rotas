@@ -4,7 +4,6 @@ import pytest
 from sqlalchemy import select
 
 from app.core.limiter import limiter
-from app.core.modules import MODULE_OFICINA, MODULE_TMS, require_module
 from app.database import AsyncSessionLocal
 from app.modules.tenants.models import Tenant
 

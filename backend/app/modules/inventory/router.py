@@ -1,5 +1,4 @@
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -7,9 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
 from app.core.deps import get_session
-from app.core.rbac import require_permission, INVENTORY_READ, INVENTORY_WRITE, INVENTORY_ADJUST
+from app.core.rbac import INVENTORY_ADJUST, INVENTORY_READ, INVENTORY_WRITE, require_permission
 from app.modules.inventory import schemas, service
-from app.modules.inventory.models import Item, StockMovement, Warehouse
+from app.modules.inventory.models import Item, Warehouse
 
 # Stabilization/P0-F6: use the new INVENTORY_* permissions.
 router = APIRouter(prefix="/inventory", tags=["inventory"])
@@ -22,6 +21,7 @@ async def create_warehouse(
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.create_warehouse(db, principal.tenant_id, payload.name, payload.location)
+
 
 @router.get("/warehouses", response_model=list[schemas.WarehouseResponse])
 async def list_warehouses(

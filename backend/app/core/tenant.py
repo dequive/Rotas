@@ -20,7 +20,7 @@ async def validate_active_tenant(tenant_id: UUID) -> Tenant:
     """Raise ApiError if tenant is not active."""
     async with AsyncSessionLocal() as session:
         result = await session.execute(
-            select(Tenant).where(Tenant.id == tenant_id, Tenant.is_active == True)
+            select(Tenant).where(Tenant.id == tenant_id, Tenant.is_active)
         )
         tenant = result.scalar_one_or_none()
         if not tenant:

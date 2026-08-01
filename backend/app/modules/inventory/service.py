@@ -1,21 +1,22 @@
 from decimal import Decimal
-from typing import List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.inventory.models import Item, ItemCategory, StockMovement, Warehouse
+from app.modules.inventory.models import Item, StockMovement, Warehouse
 from app.modules.inventory.schemas import ItemCreate, StockMovementIn, StockMovementOut
 
 
-async def create_warehouse(db: AsyncSession, tenant_id: UUID, name: str, location: Optional[str] = None) -> Warehouse:
+async def create_warehouse(
+    db: AsyncSession, tenant_id: UUID, name: str, location: str | None = None
+) -> Warehouse:
     wh = Warehouse(tenant_id=tenant_id, name=name, location=location)
     db.add(wh)
     await db.commit()
     await db.refresh(wh)
     return wh
+
 
 async def create_item(db: AsyncSession, tenant_id: UUID, payload: ItemCreate) -> Item:
     item = Item(
@@ -31,7 +32,10 @@ async def create_item(db: AsyncSession, tenant_id: UUID, payload: ItemCreate) ->
     await db.refresh(item)
     return item
 
-async def register_stock_in(db: AsyncSession, tenant_id: UUID, payload: StockMovementIn, actor_id: Optional[UUID] = None) -> StockMovement:
+
+async def register_stock_in(
+    db: AsyncSession, tenant_id: UUID, payload: StockMovementIn, actor_id: UUID | None = None
+) -> StockMovement:
     item = await db.get(Item, payload.item_id)
     if not item or item.tenant_id != tenant_id:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -61,7 +65,7 @@ async def register_stock_in(db: AsyncSession, tenant_id: UUID, payload: StockMov
         total_value=incoming_qty * incoming_cost,
         reference_doc=payload.reference_doc,
         notes=payload.notes,
-        created_by=actor_id
+        created_by=actor_id,
     )
     db.add(movement)
 
@@ -74,7 +78,9 @@ async def register_stock_in(db: AsyncSession, tenant_id: UUID, payload: StockMov
     return movement
 
 
-async def register_stock_out(db: AsyncSession, tenant_id: UUID, payload: StockMovementOut, actor_id: Optional[UUID] = None) -> StockMovement:
+async def register_stock_out(
+    db: AsyncSession, tenant_id: UUID, payload: StockMovementOut, actor_id: UUID | None = None
+) -> StockMovement:
     item = await db.get(Item, payload.item_id)
     if not item or item.tenant_id != tenant_id:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -100,7 +106,7 @@ async def register_stock_out(db: AsyncSession, tenant_id: UUID, payload: StockMo
         total_value=out_total_value,
         reference_doc=payload.reference_doc,
         notes=payload.notes,
-        created_by=actor_id
+        created_by=actor_id,
     )
     db.add(movement)
 

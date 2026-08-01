@@ -10,6 +10,7 @@ from app.database import Base
 
 class WorkBay(Base):
     """Estação / Baía de trabalho na oficina."""
+
     __tablename__ = "work_bays"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

@@ -101,7 +101,6 @@ class VehicleInsuranceCreate(BaseModel):
         return self
 
 
-
 class VehicleInsuranceRead(BaseModel):
     id: UUID
     tenant_id: UUID

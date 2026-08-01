@@ -18,7 +18,6 @@ def _normalize_nuit(v: str | None) -> str | None:
     return cleaned
 
 
-
 class ContractCreate(BaseModel):
     client_id: UUID | None = None  # preferred path after Phase 5 migration
     client_name: str | None = (

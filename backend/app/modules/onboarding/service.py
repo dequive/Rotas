@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.core.errors import ApiError
 from app.core.passwords import hash_password
 from app.core.tokens import create_opaque_token, hash_token
+from app.modules.accounting.seed import seed_pgc_nirf
 from app.modules.audit.service import record_audit_log
 from app.modules.auth.models import EmailVerificationToken
 from app.modules.auth.service import create_dashboard_tokens
@@ -19,7 +20,6 @@ from app.modules.notifications.service import enqueue_email
 from app.modules.onboarding.schemas import EmailVerificationRequest, OnboardingRegisterRequest
 from app.modules.tenants.models import Tenant, TenantDocumentProfile
 from app.modules.users.models import User
-from app.modules.accounting.seed import seed_pgc_nirf
 
 _SLUG_RE = re.compile(r"[^a-z0-9-]+")
 
@@ -216,7 +216,7 @@ async def register_tenant(
 
     # Hooks de Provisionamento Automático
     await seed_pgc_nirf(db, tenant.id)
-    
+
     # Criar perfil de PDFs por omissão
     doc_profile = TenantDocumentProfile(
         tenant_id=tenant.id,

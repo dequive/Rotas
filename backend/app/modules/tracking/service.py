@@ -94,7 +94,7 @@ async def get_public_tracking_payload(db: AsyncSession, token_val: str) -> dict[
     )
 
     # Latest delivery proof photo
-    delivery_proof = (
+    (
         await db.scalar(
             select(DeliveryProof)
             .where(DeliveryProof.trip_id == token.trip_id)

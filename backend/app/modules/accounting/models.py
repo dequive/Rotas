@@ -3,6 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -10,7 +11,6 @@ from sqlalchemy import (
     String,
     Text,
     func,
-    CheckConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -37,7 +37,9 @@ class Account(Base):
     )
     code: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    account_type: Mapped[str] = mapped_column(String(50), nullable=False) # Asset, Liability, Equity, Revenue, Expense
+    account_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # Asset, Liability, Equity, Revenue, Expense
     parent_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("accounting_accounts.id"), nullable=True
     )
@@ -56,9 +58,7 @@ class JournalEntry(Base):
     """
 
     __tablename__ = "accounting_journal_entries"
-    __table_args__ = (
-        Index("ix_accounting_journal_entries_tenant_date", "tenant_id", "date"),
-    )
+    __table_args__ = (Index("ix_accounting_journal_entries_tenant_date", "tenant_id", "date"),)
 
     id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -66,13 +66,23 @@ class JournalEntry(Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("tenants.id"), index=True, nullable=False
     )
-    journal_type: Mapped[str] = mapped_column(String(10), default="OD", nullable=False) # VEN, COM, TES, OD
+    journal_type: Mapped[str] = mapped_column(
+        String(10), default="OD", nullable=False
+    )  # VEN, COM, TES, OD
     date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    reference: Mapped[str | None] = mapped_column(String(120), nullable=True) # Ex: "Fatura PUMA-102"
+    reference: Mapped[str | None] = mapped_column(
+        String(120), nullable=True
+    )  # Ex: "Fatura PUMA-102"
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    source_document_type: Mapped[str | None] = mapped_column(String(100), nullable=True) # Ex: SupplierInvoice
-    source_document_id: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
-    status: Mapped[str] = mapped_column(String(30), default="draft", nullable=False) # draft, posted, reversed
+    source_document_type: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )  # Ex: SupplierInvoice
+    source_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), nullable=True
+    )
+    status: Mapped[str] = mapped_column(
+        String(30), default="draft", nullable=False
+    )  # draft, posted, reversed
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -93,9 +103,9 @@ class JournalItem(Base):
 
     __tablename__ = "accounting_journal_items"
     __table_args__ = (
-        CheckConstraint('debit >= 0 AND credit >= 0', name='check_debit_credit_positive'),
-        CheckConstraint('debit = 0 OR credit = 0', name='check_mutually_exclusive'),
-        CheckConstraint('debit > 0 OR credit > 0', name='check_not_both_zero'),
+        CheckConstraint("debit >= 0 AND credit >= 0", name="check_debit_credit_positive"),
+        CheckConstraint("debit = 0 OR credit = 0", name="check_mutually_exclusive"),
+        CheckConstraint("debit > 0 OR credit > 0", name="check_not_both_zero"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -105,14 +115,17 @@ class JournalItem(Base):
         PG_UUID(as_uuid=True), ForeignKey("tenants.id"), index=True, nullable=False
     )
     journal_entry_id: Mapped[uuid.UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("accounting_journal_entries.id"), index=True, nullable=False
+        PG_UUID(as_uuid=True),
+        ForeignKey("accounting_journal_entries.id"),
+        index=True,
+        nullable=False,
     )
     account_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("accounting_accounts.id"), index=True, nullable=False
     )
     debit: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0, nullable=False)
     credit: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0, nullable=False)
-    
+
     # Tags Analíticas para Activity Based Costing / TCO
     third_party_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("third_parties.id"), index=True, nullable=True

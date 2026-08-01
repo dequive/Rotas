@@ -1,21 +1,23 @@
 import uuid
 from decimal import Decimal
-from typing import Any, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from typing import Any
+
 from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.accounting.models import Account, JournalEntry, JournalItem
-from app.modules.payables.models import SupplierInvoice
 from app.modules.accounting.schemas import JournalEntryCreate
+from app.modules.payables.models import SupplierInvoice
+
 
 async def create_journal_entry(
     session: AsyncSession,
     tenant_id: uuid.UUID,
     payload: JournalEntryCreate,
-    actor_id: Optional[uuid.UUID] = None,
-    source_type: Optional[str] = None,
-    source_id: Optional[uuid.UUID] = None,
+    actor_id: uuid.UUID | None = None,
+    source_type: str | None = None,
+    source_id: uuid.UUID | None = None,
 ) -> JournalEntry:
     """Função universal para injetar lançamentos a partir de hooks internos.
 
@@ -33,7 +35,9 @@ async def create_journal_entry(
     total_credit = sum(_decimal_or_zero(getattr(item, "credit", 0)) for item in raw_lines)
 
     if total_debit != total_credit:
-        raise ValueError(f"Lançamento Desequilibrado: Débitos ({total_debit}) != Créditos ({total_credit})")
+        raise ValueError(
+            f"Lançamento Desequilibrado: Débitos ({total_debit}) != Créditos ({total_credit})"
+        )
 
     if total_debit <= Decimal("0.00"):
         raise ValueError("Lançamentos de valor zero não são permitidos.")
@@ -108,7 +112,7 @@ def _resolve_account_uuid(item_data: Any, tenant_id: uuid.UUID, session: AsyncSe
 async def post_supplier_invoice(session: AsyncSession, invoice_id: uuid.UUID) -> JournalEntry:
     """
     Traduz a aprovação de uma SupplierInvoice num lançamento contabilístico de Partidas Dobradas.
-    Regra ERP: 
+    Regra ERP:
       - DÉBITO: Conta de Gastos (62 - Fornecimentos e Serviços de Terceiros)
       - CRÉDITO: Conta de Passivo (42 - Fornecedores)
     """
@@ -133,7 +137,10 @@ async def post_supplier_invoice(session: AsyncSession, invoice_id: uuid.UUID) ->
     payable_account = result_payable.scalars().first()
 
     if not expense_account or not payable_account:
-        raise HTTPException(status_code=500, detail="Chart of Accounts is missing required PGC-NIRF accounts (62 or 42).")
+        raise HTTPException(
+            status_code=500,
+            detail="Chart of Accounts is missing required PGC-NIRF accounts (62 or 42).",
+        )
 
     # 3. Criar o Lançamento através da Porta de Segurança (create_journal_entry)
     from app.modules.accounting.schemas import JournalEntryCreate, JournalItemCreate
@@ -156,15 +163,18 @@ async def post_supplier_invoice(session: AsyncSession, invoice_id: uuid.UUID) ->
                 account_id=payable_account.id,
                 debit=Decimal("0.00"),
                 credit=invoice.amount,
-                third_party_id=invoice.third_party_id
-            )
-        ]
+                third_party_id=invoice.third_party_id,
+            ),
+        ],
     )
 
     try:
         journal_entry = await create_journal_entry(session, invoice.tenant_id, entry_payload)
         await session.commit()
         return journal_entry
-    except ValueError as e:
+    except ValueError as exc:
         await session.rollback()
-        raise HTTPException(status_code=500, detail=f"Erro Contabilístico: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro Contabilístico: {exc}",
+        ) from exc

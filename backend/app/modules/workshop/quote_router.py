@@ -16,7 +16,9 @@ router = APIRouter(prefix="/workshop/quotes", tags=["workshop-quotes"])
 
 def _get_tenant_id(principal: Principal) -> UUID:
     if principal.tenant_id is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Tenant context required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Tenant context required"
+        )
     return principal.tenant_id
 
 
@@ -31,7 +33,9 @@ async def create_quote(
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
     """POST /api/v1/workshop/quotes — Criar orçamento de oficina (MODULE_OFICINA)."""
-    return await service.create_quote(db, _get_tenant_id(principal), payload, actor_id=principal.user_id)
+    return await service.create_quote(
+        db, _get_tenant_id(principal), payload, actor_id=principal.user_id
+    )
 
 
 @router.get(

@@ -1,7 +1,6 @@
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from fastapi import status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -74,7 +73,10 @@ async def create_warranty(
         action="service_warranty.created",
         entity_type="service_warranty",
         entity_id=warranty.id,
-        new_values={"warranty_type": warranty.warranty_type, "expires_at": warranty.expires_at.isoformat()},
+        new_values={
+            "warranty_type": warranty.warranty_type,
+            "expires_at": warranty.expires_at.isoformat(),
+        },
     )
     await db.commit()
     await db.refresh(warranty)
@@ -96,7 +98,9 @@ async def list_warranties(
     if status_filter:
         query = query.where(ServiceWarranty.status == status_filter)
 
-    res = await db.execute(query.order_by(ServiceWarranty.created_at.desc()).limit(limit).offset(offset))
+    res = await db.execute(
+        query.order_by(ServiceWarranty.created_at.desc()).limit(limit).offset(offset)
+    )
     return [serialize_warranty(w) for w in res.scalars().all()]
 
 
@@ -113,20 +117,28 @@ async def claim_warranty(
         raise ApiError("warranty_not_found", "Warranty not found.", status_code=404)
 
     if warranty.status != "active":
-        raise ApiError("warranty_not_active", f"Warranty is in status '{warranty.status}'.", status_code=409)
+        raise ApiError(
+            "warranty_not_active", f"Warranty is in status '{warranty.status}'.", status_code=409
+        )
 
     now = datetime.now(UTC)
     if warranty.expires_at and now > warranty.expires_at:
         warranty.status = "expired"
         await db.commit()
-        raise ApiError("warranty_expired", "Warranty duration by time has expired.", status_code=409)
+        raise ApiError(
+            "warranty_expired", "Warranty duration by time has expired.", status_code=409
+        )
 
     if warranty.duration_km and warranty.km_at_service:
         km_elapsed = payload.current_km - warranty.km_at_service
         if km_elapsed > warranty.duration_km:
             warranty.status = "expired"
             await db.commit()
-            raise ApiError("warranty_km_exceeded", f"Warranty km limit exceeded by {km_elapsed - warranty.duration_km} km.", status_code=409)
+            raise ApiError(
+                "warranty_km_exceeded",
+                f"Warranty km limit exceeded by {km_elapsed - warranty.duration_km} km.",
+                status_code=409,
+            )
 
     warranty.status = "claimed"
     warranty.notes = f"{warranty.notes or ''}\nAcionamento garantia: {payload.claim_reason}".strip()

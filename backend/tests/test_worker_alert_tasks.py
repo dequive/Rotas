@@ -80,7 +80,7 @@ async def test_task_check_driver_document_expiry_skips_non_expiring(db, tenant_i
 
     from app.worker import task_check_driver_document_expiry
 
-    result = await task_check_driver_document_expiry(_make_ctx(db))
+    await task_check_driver_document_expiry(_make_ctx(db))
 
     alert = await db.scalar(
         select(Alert).where(
@@ -211,7 +211,7 @@ async def test_task_check_hos_violations_ok_driver_no_alert(db, tenant_id):
 
     from app.worker import task_check_hos_violations
 
-    result = await task_check_hos_violations(_make_ctx(db))
+    await task_check_hos_violations(_make_ctx(db))
 
     # Warnings and violations for this driver should be 0
     # (other test data may have produced alerts, check this driver specifically)

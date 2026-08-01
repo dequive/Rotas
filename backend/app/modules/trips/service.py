@@ -1428,7 +1428,7 @@ async def operational_close_trip(
     old_status = trip.status
     await reconcile_trip_costs(db, tenant_id, trip)
     trip.status = "closed"
-    trip.billing_status = "billable" # Mark as ready for billing
+    trip.billing_status = "billable"  # Mark as ready for billing
     trip.closed_at = payload.closed_at or now_utc()
     trip.closed_by = actor_id
     trip.operational_close_notes = payload.notes

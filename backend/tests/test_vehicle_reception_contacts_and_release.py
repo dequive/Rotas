@@ -38,11 +38,21 @@ async def test_empty_vehicle_intervention_history(db, tenant_id):
 @pytest.mark.asyncio
 async def test_reception_contact_fields_and_individual_client_type(db, tenant_id, test_user):
     """Teste #2: Criação de recepção com campos de contacto e cliente default individual."""
-    client = Client(tenant_id=tenant_id, trading_name="João Muchanga", nuit="123456789", client_type="individual")
+    client = Client(
+        tenant_id=tenant_id,
+        trading_name="João Muchanga",
+        nuit="123456789",
+        client_type="individual",
+    )
     db.add(client)
     await db.flush()
 
-    vehicle = Vehicle(tenant_id=tenant_id, plate="CUST-888", ownership_type="customer", customer_client_id=client.id)
+    vehicle = Vehicle(
+        tenant_id=tenant_id,
+        plate="CUST-888",
+        ownership_type="customer",
+        customer_client_id=client.id,
+    )
     db.add(vehicle)
     await db.flush()
 
@@ -84,7 +94,9 @@ async def test_unauthorized_pickup_person_raises_409(db, tenant_id, test_user):
     )
 
     with pytest.raises(ApiError) as exc_info:
-        await release_vehicle(db, tenant_id, reception["id"], release_payload, actor_id=test_user.id)
+        await release_vehicle(
+            db, tenant_id, reception["id"], release_payload, actor_id=test_user.id
+        )
 
     assert exc_info.value.status_code == 409
     assert exc_info.value.code == "unauthorized_pickup_person"
@@ -111,20 +123,25 @@ async def test_authorized_release_with_override_and_reason(db, tenant_id, test_u
         override_reason="Autorização telefónica confirmada pelo Diretor de Operações às 14:30.",
     )
 
-    release = await release_vehicle(db, tenant_id, reception["id"], release_payload, actor_id=test_user.id)
+    release = await release_vehicle(
+        db, tenant_id, reception["id"], release_payload, actor_id=test_user.id
+    )
 
     assert release["picked_up_by_name"] == "Fernando Motorista"
     assert release["override_unauthorized_pickup"] is True
-    assert release["override_reason"] == "Autorização telefónica confirmada pelo Diretor de Operações às 14:30."
+    assert (
+        release["override_reason"]
+        == "Autorização telefónica confirmada pelo Diretor de Operações às 14:30."
+    )
 
 
 @pytest.mark.asyncio
 async def test_vehicle_intervention_history_populated_data(db, tenant_id, test_user):
     """Teste #5: Histórico populado com recepções, OS concluída, peças montadas e garantias ativas."""
-    from datetime import datetime, timedelta, UTC
+    from datetime import UTC, datetime, timedelta
     from decimal import Decimal
-    from uuid import uuid4
-    from app.modules.workshop.models import WorkOrder, MaintenancePartUsed, SparePartInventory
+
+    from app.modules.workshop.models import MaintenancePartUsed, SparePartInventory, WorkOrder
     from app.modules.workshop.warranty_models import ServiceWarranty
 
     vehicle = Vehicle(tenant_id=tenant_id, plate="POP-100", current_km=48500)
@@ -199,4 +216,3 @@ async def test_vehicle_intervention_history_populated_data(db, tenant_id, test_u
     assert history["work_orders"][0]["status"] == "closed"
     assert history["warranties"][0]["warranty_type"] == "parts"
     assert history["warranties"][0]["status"] == "active"
-

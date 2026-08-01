@@ -340,7 +340,11 @@ class SparePartMovementService:
 
         previous_average_cost = _decimal(inventory.average_unit_cost)
         movement_unit_cost = (
-            _decimal(unit_cost) if unit_cost is not None else previous_average_cost if direction == "out" else None
+            _decimal(unit_cost)
+            if unit_cost is not None
+            else previous_average_cost
+            if direction == "out"
+            else None
         )
         item = SparePartMovement(
             tenant_id=tenant_id,
@@ -384,10 +388,14 @@ class SparePartMovementService:
 
             if vehicle_id_for_cost:
                 acct_inv = await db.scalar(
-                    select(Account).where(Account.tenant_id == tenant_id, Account.code.like("32%")).limit(1)
+                    select(Account)
+                    .where(Account.tenant_id == tenant_id, Account.code.like("32%"))
+                    .limit(1)
                 )
                 acct_exp = await db.scalar(
-                    select(Account).where(Account.tenant_id == tenant_id, Account.code.like("622%")).limit(1)
+                    select(Account)
+                    .where(Account.tenant_id == tenant_id, Account.code.like("622%"))
+                    .limit(1)
                 )
 
                 if acct_inv and acct_exp:
@@ -395,7 +403,9 @@ class SparePartMovementService:
                         db,
                         tenant_id=tenant_id,
                         payload=JournalEntryCreate(
-                            date=occurred_at.date() if hasattr(occurred_at, "date") else occurred_at,
+                            date=occurred_at.date()
+                            if hasattr(occurred_at, "date")
+                            else occurred_at,
                             journal_type="OD",
                             description=f"Consumo de peca {inventory.sku} no veiculo",
                             lines=[
@@ -958,7 +968,9 @@ async def _transition_work_order(
 
 async def list_spare_parts(db: AsyncSession, tenant_id: UUID) -> list[dict]:
     rows = await db.execute(
-        select(SparePartInventory).where(SparePartInventory.tenant_id == tenant_id).order_by(SparePartInventory.sku)
+        select(SparePartInventory)
+        .where(SparePartInventory.tenant_id == tenant_id)
+        .order_by(SparePartInventory.sku)
     )
     return [serialize_spare_part(item) for item in rows.scalars()]
 
@@ -1107,7 +1119,9 @@ async def issue_spare_part_to_work_order(
 
 
 async def list_tools(db: AsyncSession, tenant_id: UUID) -> list[dict]:
-    rows = await db.execute(select(WorkshopTool).where(WorkshopTool.tenant_id == tenant_id).order_by(WorkshopTool.code))
+    rows = await db.execute(
+        select(WorkshopTool).where(WorkshopTool.tenant_id == tenant_id).order_by(WorkshopTool.code)
+    )
     return [serialize_tool(item) for item in rows.scalars()]
 
 
@@ -1402,9 +1416,9 @@ async def evaluate_maintenance_schedule(
     )
     created: list[MaintenanceSchedule] = []
     for plan, vehicle in rows:
-        overdue = (plan.next_due_km is not None and (vehicle.current_km or 0) >= plan.next_due_km) or (
-            plan.next_due_at is not None and plan.next_due_at <= now_utc()
-        )
+        overdue = (
+            plan.next_due_km is not None and (vehicle.current_km or 0) >= plan.next_due_km
+        ) or (plan.next_due_at is not None and plan.next_due_at <= now_utc())
         if not overdue:
             continue
         schedule = await db.scalar(
@@ -1473,7 +1487,11 @@ async def evaluate_maintenance_schedule(
                 if (plan.interval_km is not None and vehicle.current_km is not None)
                 else None
             )
-            next_at = (now_utc() + timedelta(days=plan.interval_days)) if plan.interval_days is not None else None
+            next_at = (
+                (now_utc() + timedelta(days=plan.interval_days))
+                if plan.interval_days is not None
+                else None
+            )
             next_schedule = MaintenanceSchedule(
                 tenant_id=tenant_id,
                 plan_id=plan.id,
@@ -1642,12 +1660,18 @@ async def get_imminent_maintenance_alerts(
     alerts = []
     for plan, vehicle in rows:
         overdue = (plan.next_due_at is not None and plan.next_due_at < now) or (
-            plan.next_due_km is not None and vehicle.current_km is not None and vehicle.current_km >= plan.next_due_km
+            plan.next_due_km is not None
+            and vehicle.current_km is not None
+            and vehicle.current_km >= plan.next_due_km
         )
         trigger_type = (
             "overdue"
             if overdue
-            else ("calendar" if (plan.next_due_at is not None and plan.next_due_at <= threshold_date) else "odometer")
+            else (
+                "calendar"
+                if (plan.next_due_at is not None and plan.next_due_at <= threshold_date)
+                else "odometer"
+            )
         )
         alerts.append(
             {
@@ -2000,7 +2024,9 @@ async def install_serial_item(
     item.vehicle_id = vehicle_id
     item.installed_at = now_utc()
 
-    part_result = await db.execute(select(SparePartInventory).where(SparePartInventory.id == item.part_id))
+    part_result = await db.execute(
+        select(SparePartInventory).where(SparePartInventory.id == item.part_id)
+    )
     part = part_result.scalar_one()
     new_quantity = (part.current_quantity or Decimal("0")) - Decimal("1")
     movement = SparePartMovement(

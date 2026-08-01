@@ -134,7 +134,6 @@ class TripPatch(BaseModel):
     payload_override_reason: str | None = None
 
 
-
 class TripStopPatch(BaseModel):
     stop_type: str | None = None
     location: dict | None = None

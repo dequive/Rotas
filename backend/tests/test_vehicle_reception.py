@@ -1,7 +1,6 @@
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 
 from app.core.limiter import limiter
 from app.database import AsyncSessionLocal
@@ -52,7 +51,9 @@ async def tms_only_tenant_headers(async_client):
 
 
 @pytest.mark.asyncio
-async def test_reception_module_guard_and_crud(async_client, workshop_tenant_headers, tms_only_tenant_headers):
+async def test_reception_module_guard_and_crud(
+    async_client, workshop_tenant_headers, tms_only_tenant_headers
+):
     headers, tenant_id = workshop_tenant_headers
     tms_headers, _ = tms_only_tenant_headers
 
@@ -168,7 +169,9 @@ async def test_reception_module_guard_and_crud(async_client, workshop_tenant_hea
 
 
 @pytest.mark.asyncio
-async def test_customer_vehicle_isolation_from_tms_trips_and_fuel(async_client, workshop_tenant_headers):
+async def test_customer_vehicle_isolation_from_tms_trips_and_fuel(
+    async_client, workshop_tenant_headers
+):
     headers, tenant_id = workshop_tenant_headers
 
     async with AsyncSessionLocal() as db:

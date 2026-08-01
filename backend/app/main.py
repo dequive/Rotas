@@ -22,6 +22,7 @@ from app.core.middleware import StructlogRequestMiddleware
 from app.core.request_context import RequestContextMiddleware
 from app.database import engine as _engine
 from app.database import import_all_models
+from app.modules.accounting.router import router as accounting_router
 from app.modules.alerts.router import router as alerts_router
 from app.modules.analytics.router import router as analytics_router
 from app.modules.audit.router import router as audit_router
@@ -44,6 +45,7 @@ from app.modules.fuel.operations_router import router as fuel_operations_router
 from app.modules.fuel.router import router as fuel_router
 from app.modules.gps.router import router as gps_router
 from app.modules.hr.router import router as hr_router
+from app.modules.inventory.router import router as inventory_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.onboarding.router import router as onboarding_router
 from app.modules.operational_exceptions.router import router as operational_exceptions_router
@@ -60,14 +62,12 @@ from app.modules.trips.known_routes_router import router as known_routes_router
 from app.modules.trips.router import router as trips_router
 from app.modules.users.router import router as users_router
 from app.modules.vehicles.router import router as vehicles_router
-from app.modules.workshop.router import router as workshop_router
-from app.modules.workshop.reception_router import router as reception_router
-from app.modules.workshop.quote_router import router as quote_router
 from app.modules.workshop.catalog_router import router as catalog_router
+from app.modules.workshop.quote_router import router as quote_router
+from app.modules.workshop.reception_router import router as reception_router
+from app.modules.workshop.router import router as workshop_router
 from app.modules.workshop.warranty_router import router as warranty_router
 from app.modules.workshop.workbay_router import router as workbay_router
-from app.modules.inventory.router import router as inventory_router
-from app.modules.accounting.router import router as accounting_router
 
 settings = get_settings()
 import_all_models()

@@ -1,0 +1,9 @@
+# PR-00 interim repository ownership. Independent release approvals remain
+# mandatory even when one person temporarily accumulates functional roles.
+* @dequive
+/.github/ @dequive
+/backend/ @dequive
+/apps/manager/ @dequive
+/apps/driver/ @dequive
+/infra/ @dequive
+/docs/ @dequive

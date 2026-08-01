@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "policy_id": "PR00-RELEASE-GOVERNANCE-V1",
+  "repository": "dequive/Rotas",
+  "owners": {
+    "TL": "dequive",
+    "BE": "dequive",
+    "FE-M": "dequive",
+    "FE-D": "dequive",
+    "QA": "dequive",
+    "SEC": "dequive",
+    "SRE": "dequive",
+    "PO": "dequive"
+  },
+  "feature_freeze": {
+    "active": true,
+    "allowed_change_classes": ["gate_fix", "security_fix", "release_blocker"]
+  },
+  "branch_policy": {
+    "target_patterns": ["master", "main", "stabilization/**"],
+    "direct_pushes_allowed": false,
+    "pull_request_required": true,
+    "required_approvals": 2,
+    "dismiss_stale_reviews": true,
+    "code_owner_review_required": true,
+    "conversation_resolution_required": true,
+    "required_status_checks": ["Backend", "Frontend", "E2E"]
+  },
+  "release_candidate": {
+    "clean_tree_required": true,
+    "full_git_sha_required": true,
+    "remote_ci_required": true,
+    "same_sha_for_all_gates": true
+  }
+}

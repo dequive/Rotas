@@ -4,9 +4,13 @@ import re
 import zlib
 from decimal import Decimal
 from io import BytesIO
+from typing import cast
 from unittest.mock import MagicMock
 
 from openpyxl import load_workbook
+from openpyxl.worksheet.worksheet import Worksheet
+
+from app.modules.billing.models import BillingDocument, BillingItem
 
 
 def _pdf_text(pdf_bytes: bytes) -> str:
@@ -21,7 +25,7 @@ def _pdf_text(pdf_bytes: bytes) -> str:
     return "\n".join(parts)
 
 
-def _make_mock_document():
+def _make_mock_document() -> BillingDocument:
     doc = MagicMock()
     doc.id = "test-doc-id"
     doc.client_name = "Transportes Quelimane Lda"
@@ -49,10 +53,10 @@ def _make_mock_document():
     doc.invoice_number = "FAT-2026/001"
     doc.document_type = "invoice"
     doc.payment_conditions = None
-    return doc
+    return cast(BillingDocument, doc)
 
 
-def _make_mock_item(unit_price=1500.50, amount=3001.00):
+def _make_mock_item(unit_price=1500.50, amount=3001.00) -> BillingItem:
     item = MagicMock()
     item.delivered_at = None
     item.origin = "Maputo"
@@ -62,7 +66,13 @@ def _make_mock_item(unit_price=1500.50, amount=3001.00):
     item.quantity = 2
     item.unit_price = unit_price
     item.amount = amount
-    return item
+    return cast(BillingItem, item)
+
+
+def _active_sheet(workbook) -> Worksheet:
+    worksheet = workbook.active
+    assert worksheet is not None
+    return worksheet
 
 
 def test_pdf_renders_utf8_characters():
@@ -98,7 +108,7 @@ def test_xlsx_header_row_is_bold():
     doc = _make_mock_document()
     artifact = render_billing_export(doc, [_make_mock_item()], "xlsx")
     wb = load_workbook(BytesIO(artifact.content))
-    ws = wb.active
+    ws = _active_sheet(wb)
     # Row 1: ROTAS institutional title — must be bold
     assert ws.cell(row=1, column=1).font.bold is True
     # Row 7: table column header — must be bold (row 8 was Estado which was removed in CME)
@@ -115,7 +125,7 @@ def test_xlsx_currency_columns_have_format():
     doc = _make_mock_document()
     artifact = render_billing_export(doc, [_make_mock_item()], "xlsx")
     wb = load_workbook(BytesIO(artifact.content))
-    ws = wb.active
+    ws = _active_sheet(wb)
     # Row 8 = first data row; columns 7-8 = unit price / total
     # (row 9 was data when Estado row existed; Estado removed in CME, data shifts up by 1)
     assert "#,##0.00" in ws.cell(row=8, column=7).number_format
@@ -163,7 +173,7 @@ def test_xlsx_iva_rows():
     doc = _make_mock_document()
     artifact = render_billing_export(doc, [_make_mock_item()], "xlsx")
     wb = load_workbook(BytesIO(artifact.content))
-    ws = wb.active
+    ws = _active_sheet(wb)
 
     all_values = [ws.cell(row=r, column=1).value for r in range(1, ws.max_row + 1)]
     assert "SUBTOTAL" in all_values, f"SUBTOTAL not found in column A. Values: {all_values}"

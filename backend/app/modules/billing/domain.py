@@ -76,6 +76,9 @@ def belongs_to_billing_period(
     period_start, period_end = normalize_period_bounds(period_start, period_end)
 
     delivered_at = candidate.delivered_at
+    if delivered_at is None:
+        # Keep this boundary fail-closed even if eligibility rules change.
+        return False
     if delivered_at.tzinfo is None:
         delivered_at = delivered_at.replace(tzinfo=UTC)
 

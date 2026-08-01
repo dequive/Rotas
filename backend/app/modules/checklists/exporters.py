@@ -65,6 +65,13 @@ def _get(obj: object, attr: str, default: object = None) -> object:
     return getattr(obj, attr, default)
 
 
+def _int(value: object) -> int:
+    try:
+        return int(str(value))
+    except (TypeError, ValueError):
+        return 0
+
+
 class _ChecklistPDF(FPDF):
     """FPDF2 subclass for vehicle inspection PDFs."""
 
@@ -191,7 +198,7 @@ def render_checklist_report(
     started_str = _date(_get(checklist, "started_at"))
     completed_str = _date(_get(checklist, "completed_at"))
     duration_sec = _get(checklist, "duration_seconds")
-    dur_str = f"{int(duration_sec) // 60}min" if duration_sec else "—"
+    dur_str = f"{_int(duration_sec) // 60}min" if duration_sec else "—"
 
     bar_y = pdf.get_y()
     bar_h = 9.0
@@ -222,7 +229,7 @@ def render_checklist_report(
     items: list = []
     if template is not None:
         raw_items = _get(template, "items") or []
-        items = list(raw_items) if not isinstance(raw_items, list) else raw_items
+        items = raw_items if isinstance(raw_items, list) else []
 
     responses: dict = {}
     raw_resp = _get(checklist, "responses")
@@ -325,7 +332,7 @@ def render_checklist_report(
     pdf.cell(95, 3, "Data: ___/___/______")
 
     pdf.set_text_color(*_INK)
-    total_pages_ref[0] = pdf.pages
+    total_pages_ref[0] = len(pdf.pages)
     buf = BytesIO()
     pdf.output(buf)
     return buf.getvalue()

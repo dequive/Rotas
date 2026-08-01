@@ -1,7 +1,15 @@
+from collections.abc import Callable
+from typing import cast
+
 import pytest
 from pydantic import ValidationError
 
-from app.config import get_settings
+from app.config import Settings, get_settings
+
+
+def _settings_without_env_file() -> Settings:
+    factory = cast(Callable[..., Settings], Settings)
+    return factory(_env_file=None)
 
 
 @pytest.fixture(autouse=True)
@@ -17,9 +25,7 @@ async def test_missing_jwt_secret_raises_validation_error(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://rotas:rotas@localhost:55432/rotas")
     monkeypatch.setenv("ENVIRONMENT", "development")
     with pytest.raises((ValidationError, SystemExit)):
-        from app.config import Settings
-
-        Settings(_env_file=None)
+        _settings_without_env_file()
 
 
 async def test_missing_environment_raises_validation_error(monkeypatch):
@@ -29,9 +35,7 @@ async def test_missing_environment_raises_validation_error(monkeypatch):
     monkeypatch.setenv("JWT_SECRET_KEY", "test-secret-at-least-32-chars-long-abc")
     monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://rotas:rotas@localhost:55432/rotas")
     with pytest.raises((ValidationError, SystemExit)):
-        from app.config import Settings
-
-        Settings(_env_file=None)
+        _settings_without_env_file()
 
 
 async def test_production_cors_origins_empty_raises(monkeypatch):
@@ -42,9 +46,7 @@ async def test_production_cors_origins_empty_raises(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.delenv("CORS_ORIGINS", raising=False)
     with pytest.raises((ValidationError, ValueError)):
-        from app.config import Settings
-
-        Settings(_env_file=None)
+        _settings_without_env_file()
 
 
 async def test_production_cors_wildcard_raises(monkeypatch):
@@ -55,9 +57,7 @@ async def test_production_cors_wildcard_raises(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("CORS_ORIGINS", '["*"]')
     with pytest.raises((ValidationError, ValueError)):
-        from app.config import Settings
-
-        Settings(_env_file=None)
+        _settings_without_env_file()
 
 
 async def test_production_local_storage_raises(monkeypatch):
@@ -70,9 +70,7 @@ async def test_production_local_storage_raises(monkeypatch):
     monkeypatch.setenv("REDIS_URL", "redis://redis.internal:6379")
     monkeypatch.setenv("STORAGE_PROVIDER", "local")
     with pytest.raises((ValidationError, ValueError)):
-        from app.config import Settings
-
-        Settings(_env_file=None)
+        _settings_without_env_file()
 
 
 async def test_production_r2_requires_all_settings(monkeypatch):
@@ -89,9 +87,7 @@ async def test_production_r2_requires_all_settings(monkeypatch):
     monkeypatch.setenv("R2_ACCESS_KEY_ID", "access-key")
     monkeypatch.delenv("R2_SECRET_ACCESS_KEY", raising=False)
     with pytest.raises((ValidationError, ValueError)):
-        from app.config import Settings
-
-        Settings(_env_file=None)
+        _settings_without_env_file()
 
 
 async def test_production_requires_transactional_email(monkeypatch):
@@ -111,6 +107,4 @@ async def test_production_requires_transactional_email(monkeypatch):
     monkeypatch.setenv("EMAIL_FROM_ADDRESS", "suporte@rotas.co.mz")
     monkeypatch.setenv("MANAGER_PUBLIC_URL", "https://app.rotas.co.mz")
     with pytest.raises((ValidationError, ValueError)):
-        from app.config import Settings
-
-        Settings(_env_file=None)
+        _settings_without_env_file()

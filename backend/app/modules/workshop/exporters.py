@@ -59,6 +59,13 @@ def _get(obj: object, attr: str, default: object = None) -> object:
     return getattr(obj, attr, default)
 
 
+def _int(v: object) -> int:
+    try:
+        return int(str(v))
+    except (TypeError, ValueError):
+        return 0
+
+
 # ── Base PDF class ────────────────────────────────────────────────────────────
 
 
@@ -333,8 +340,8 @@ def render_work_order(
             t_status = str(_get(task, "status") or "—")
             est_min = _get(task, "estimated_minutes")
             real_min = _get(task, "actual_minutes")
-            est_str = f"{int(est_min) // 60}h{int(est_min) % 60:02d}m" if est_min else "—"
-            real_str = f"{int(real_min) // 60}h{int(real_min) % 60:02d}m" if real_min else "—"
+            est_str = f"{_int(est_min) // 60}h{_int(est_min) % 60:02d}m" if est_min else "—"
+            real_str = f"{_int(real_min) // 60}h{_int(real_min) % 60:02d}m" if real_min else "—"
             row_vals = [str(idx + 1), desc, t_status, est_str, real_str]
             x0 = LM
             ry = pdf.get_y()

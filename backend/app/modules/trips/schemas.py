@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Annotated
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -26,7 +27,7 @@ class TripCreate(BaseModel):
     hazmat_class: str | None = None
     un_number: str | None = None
     hazmat_label: str | None = None
-    hos_override_reason: str | None = Field(None, max_length=500)
+    hos_override_reason: Annotated[str, Field(max_length=500)] | None = None
 
 
 class StartTripRequest(BaseModel):
@@ -132,6 +133,7 @@ class TripPatch(BaseModel):
     notes: str | None = None
     cargo_weight: Decimal | None = None
     payload_override_reason: str | None = None
+
 
 
 class TripStopPatch(BaseModel):

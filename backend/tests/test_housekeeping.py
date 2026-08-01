@@ -47,7 +47,10 @@ async def test_cleanup_expired_idempotency_keys_deletes_only_expired(db) -> None
     db.add_all([expired, active])
     await db.commit()
 
-    result = await cleanup_expired_idempotency_keys({"session_factory": AsyncSessionLocal})
+    result = await cleanup_expired_idempotency_keys(
+        {"session_factory": AsyncSessionLocal},
+        limit=100_000,
+    )
 
     assert result["deleted"] >= 1
     remaining = (
@@ -80,7 +83,10 @@ async def test_prune_old_audit_logs_respects_retention(db, monkeypatch) -> None:
     settings = type("SettingsStub", (), {"audit_log_retention_days": 30})()
     monkeypatch.setattr(housekeeping, "get_settings", lambda: settings)
 
-    result = await prune_old_audit_logs({"session_factory": AsyncSessionLocal})
+    result = await prune_old_audit_logs(
+        {"session_factory": AsyncSessionLocal},
+        limit=100_000,
+    )
 
     assert result["deleted"] >= 1
     remaining_actions = (

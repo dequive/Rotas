@@ -50,6 +50,11 @@ class Account(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
+    journal_items: Mapped[list["JournalItem"]] = relationship(
+        "JournalItem",
+        back_populates="account",
+    )
+
 
 class JournalEntry(Base):
     """
@@ -149,3 +154,4 @@ class JournalItem(Base):
     )
 
     journal_entry: Mapped["JournalEntry"] = relationship("JournalEntry", back_populates="items")
+    account: Mapped["Account"] = relationship("Account", back_populates="journal_items")

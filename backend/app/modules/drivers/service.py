@@ -3,11 +3,11 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import status
-from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy import func, literal, or_, select, text, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.cache import AsyncRedisHashClient
 from app.core.errors import ApiError
 from app.core.tokens import hash_token
 from app.modules.audit.models import AuditLog
@@ -54,7 +54,7 @@ def serialize_driver(driver: Driver) -> dict:
 
 
 async def _get_cached_driver_count(
-    db: AsyncSession, tenant_id: UUID, redis: AsyncRedis | None
+    db: AsyncSession, tenant_id: UUID, redis: AsyncRedisHashClient | None
 ) -> int:
     """Return active driver count from Redis cache (TTL 30s) or DB (D-15)."""
     cache_key = f"tenant:limits:{tenant_id}"
@@ -72,12 +72,14 @@ async def _get_cached_driver_count(
     )
     count = result.scalar_one()
     if redis is not None:
-        await redis.hset(cache_key, "driver_count", count)
+        await redis.hset(cache_key, "driver_count", str(count))
         await redis.expire(cache_key, 30)
     return count
 
 
-async def _check_driver_limit(db: AsyncSession, tenant: Tenant, redis: AsyncRedis | None) -> None:
+async def _check_driver_limit(
+    db: AsyncSession, tenant: Tenant, redis: AsyncRedisHashClient | None
+) -> None:
     """Raise plan_limit_reached if tenant is at or over max_drivers (D-13, D-14).
 
     Skip entirely when max_drivers is None (unlimited enterprise plan).
@@ -153,7 +155,7 @@ async def create_driver(
     payload: DriverCreate,
     *,
     actor_id: UUID | None = None,
-    redis: AsyncRedis | None = None,
+    redis: AsyncRedisHashClient | None = None,
 ) -> dict:
     tenant = await db.get(Tenant, tenant_id)
     if not tenant or not tenant.is_active:
@@ -774,7 +776,12 @@ async def get_driver_hub360(db: AsyncSession, tenant_id: UUID, driver_id: UUID) 
     return {
         "driver": serialize_driver(driver),
         "recent_trips": [
-            {"id": t.id, "route_name": t.route_name, "status": t.status, "date": t.created_at}
+            {
+                "id": t.id,
+                "route_name": f"{t.origin} → {t.destination}",
+                "status": t.status,
+                "date": t.created_at,
+            }
             for t in trips
         ],
         "pending_advances_count": len(advances),

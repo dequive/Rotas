@@ -16,13 +16,17 @@ from app.modules.gps import service
 router = APIRouter(tags=["gps"])
 
 
-@router.post("/gps/webhook/{imei}", status_code=status.HTTP_200_OK)
+@router.post(
+    "/gps/webhook/{imei}",
+    status_code=status.HTTP_200_OK,
+    response_model=None,
+)
 async def gps_webhook(
     imei: str,
     request: Request,
     x_device_signature: str = Header(..., alias="X-Device-Signature"),
     db: AsyncSession = Depends(get_session_raw),
-) -> dict:
+) -> dict | Response:
     """Ingest a GPS position event from a device. No JWT — HMAC-SHA256 auth."""
     body = await request.body()
     try:

@@ -1,6 +1,7 @@
 import re
 from datetime import date, datetime
 from decimal import Decimal
+from typing import overload
 from uuid import UUID
 
 from pydantic import BaseModel, field_validator
@@ -33,6 +34,14 @@ def _normalize_email(v: str | None) -> str | None:
     if not re.match(r"^[^@]+@[^@]+\.[^@]+$", cleaned):
         raise ValueError("Invalid email address format.")
     return cleaned
+
+
+@overload
+def _validate_future_date(v: date) -> date: ...
+
+
+@overload
+def _validate_future_date(v: None) -> None: ...
 
 
 def _validate_future_date(v: date | None) -> date | None:
@@ -132,13 +141,11 @@ class DocumentAlert(BaseModel):
     status: str
     message: str
 
-
 class RecentTripRead(BaseModel):
     id: UUID
     route_name: str | None
     status: str
     date: datetime
-
 
 class DriverHub360Response(BaseModel):
     driver: dict

@@ -6,6 +6,7 @@ Usage: from app.storage import upload_file, generate_presigned_url, StorageProvi
 
 from enum import StrEnum
 from pathlib import Path
+from typing import Protocol, cast
 
 import aiobotocore.session
 
@@ -15,6 +16,18 @@ from app.config import get_settings
 class StorageProvider(StrEnum):
     LOCAL = "local"
     R2 = "r2"
+
+
+class _AsyncS3Client(Protocol):
+    async def put_object(self, **kwargs: object) -> object: ...
+
+    async def generate_presigned_url(
+        self,
+        client_method: str,
+        *,
+        Params: dict[str, str],
+        ExpiresIn: int,
+    ) -> str: ...
 
 
 def _local_path(storage_key: str) -> Path:
@@ -41,7 +54,8 @@ async def upload_file(storage_key: str, content: bytes, *, mime_type: str) -> St
             aws_access_key_id=settings.r2_access_key_id,
             aws_secret_access_key=settings.r2_secret_access_key.get_secret_value(),
         ) as client:
-            await client.put_object(
+            s3 = cast(_AsyncS3Client, client)
+            await s3.put_object(
                 Bucket=settings.r2_bucket,
                 Key=storage_key,
                 Body=content,
@@ -66,7 +80,8 @@ async def generate_presigned_url(storage_key: str, *, expires_in: int = 900) -> 
             aws_access_key_id=settings.r2_access_key_id,
             aws_secret_access_key=settings.r2_secret_access_key.get_secret_value(),
         ) as client:
-            url = await client.generate_presigned_url(
+            s3 = cast(_AsyncS3Client, client)
+            url = await s3.generate_presigned_url(
                 "put_object",
                 Params={"Bucket": settings.r2_bucket, "Key": storage_key},
                 ExpiresIn=expires_in,
@@ -87,7 +102,8 @@ async def get_file_url(storage_key: str, *, expires_in: int = 3600) -> str | Non
             aws_access_key_id=settings.r2_access_key_id,
             aws_secret_access_key=settings.r2_secret_access_key.get_secret_value(),
         ) as client:
-            return await client.generate_presigned_url(
+            s3 = cast(_AsyncS3Client, client)
+            return await s3.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": settings.r2_bucket, "Key": storage_key},
                 ExpiresIn=expires_in,

@@ -25,6 +25,15 @@ async def reset_rate_limiter_storage():
     """
     from app.core.limiter import limiter
 
+    # Some legacy test modules disable the shared limiter during collection.
+    # Re-enable and reset it before each test so security checks are order-independent.
+    limiter.enabled = True
+    if hasattr(limiter, "_storage") and hasattr(limiter._storage, "reset"):
+        try:
+            limiter._storage.reset()
+        except Exception:
+            pass
+
     yield
 
     if hasattr(limiter, "_storage") and hasattr(limiter._storage, "reset"):

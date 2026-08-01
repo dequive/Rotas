@@ -47,4 +47,9 @@ async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
 
 
 def install_error_handlers(app: FastAPI) -> None:
-    app.add_exception_handler(ApiError, api_error_handler)
+    # FastAPI accepts handlers specialised by exception class at runtime, but
+    # its public type aliases currently require a handler accepting Exception.
+    app.add_exception_handler(
+        ApiError,
+        api_error_handler,  # pyright: ignore[reportArgumentType]
+    )

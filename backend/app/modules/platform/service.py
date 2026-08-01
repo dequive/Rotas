@@ -4,11 +4,9 @@ All mutating functions call record_platform_audit() inside the same DB session
 before db.commit() — audit and mutation are committed atomically.
 
 Cross-tenant read pattern:
-  The Tenant table has RLS enabled. Platform operators must SET LOCAL app.tenant_id
-  before querying individual tenants. For list_tenants (cross-tenant scan), we use
-  SET LOCAL row_security = off, which requires BYPASSRLS or superuser privileges on
-  the DB role. In dev/test the rotas user is the DB owner; in production, grant
-  BYPASSRLS to rotas_app if needed.
+  Platform routes use AdminSessionLocal, backed by the dedicated rotas_admin
+  NOSUPERUSER+BYPASSRLS role in production. The tenant-facing API continues to
+  use rotas_app, which must never receive BYPASSRLS.
 """
 
 from uuid import UUID
@@ -94,21 +92,26 @@ def _serialize_audit_log(log: PlatformAuditLog) -> dict:
     }
 
 
+def require_platform_actor(actor: Principal) -> tuple[UUID, str]:
+    """Return an auditable platform identity or fail closed."""
+    if actor.scope != "platform" or actor.user_id is None or actor.role is None:
+        raise ApiError(
+            "platform_identity_required",
+            "An authenticated platform identity is required.",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+    return actor.user_id, actor.role
+
+
 # ── public service functions ───────────────────────────────────────────────────
 
 
-async def list_tenants(
-    db: AsyncSession,
-    *,
-    actor_id: UUID,
-    actor_role: str,
-) -> list[dict]:
+async def list_tenants(db: AsyncSession) -> list[dict]:
     """Return all tenants.
 
     Disables row-level security for this transaction so the cross-tenant scan
-    succeeds. Requires BYPASSRLS or superuser on the connected DB role.
-    In dev/test the rotas user owns the DB; in production grant BYPASSRLS to
-    rotas_app on the tenants table.
+    succeeds. Requires the dedicated administrative DB role used by
+    AdminSessionLocal; the tenant-facing application role remains restricted.
     """
     await db.execute(text("SET LOCAL row_security = off"))
     rows = (await db.scalars(select(Tenant).order_by(Tenant.created_at))).all()
@@ -119,8 +122,7 @@ async def get_tenant_detail(
     db: AsyncSession,
     tenant_id: UUID,
     *,
-    actor_id: UUID,
-    actor_role: str,
+    actor: Principal,
 ) -> dict:
     """Return detail for a single tenant.
 
@@ -129,6 +131,7 @@ async def get_tenant_detail(
     """
     tenant = await _require_tenant(db, tenant_id)
 
+    actor_id, actor_role = require_platform_actor(actor)
     if actor_role == PLATFORM_SUPPORT:
         await record_platform_audit(
             db,
@@ -146,6 +149,7 @@ async def get_tenant_detail(
 
 async def suspend_tenant(db: AsyncSession, tenant_id: UUID, *, actor: Principal) -> dict:
     """Set tenant.is_active=False. Records audit log before commit. Raises 409 if inactive."""
+    actor_id, actor_role = require_platform_actor(actor)
     tenant = await _require_tenant(db, tenant_id)
 
     if not tenant.is_active:
@@ -158,8 +162,8 @@ async def suspend_tenant(db: AsyncSession, tenant_id: UUID, *, actor: Principal)
     tenant.is_active = False
     await record_platform_audit(
         db,
-        actor_id=actor.user_id,
-        actor_role=actor.role,
+        actor_id=actor_id,
+        actor_role=actor_role,
         action="tenant.suspend",
         target_tenant_id=tenant_id,
         resource_type="tenant",
@@ -172,6 +176,7 @@ async def suspend_tenant(db: AsyncSession, tenant_id: UUID, *, actor: Principal)
 
 async def reactivate_tenant(db: AsyncSession, tenant_id: UUID, *, actor: Principal) -> dict:
     """Set tenant.is_active=True. Records audit log before commit. Raises 409 if active."""
+    actor_id, actor_role = require_platform_actor(actor)
     tenant = await _require_tenant(db, tenant_id)
 
     if tenant.is_active:
@@ -184,8 +189,8 @@ async def reactivate_tenant(db: AsyncSession, tenant_id: UUID, *, actor: Princip
     tenant.is_active = True
     await record_platform_audit(
         db,
-        actor_id=actor.user_id,
-        actor_role=actor.role,
+        actor_id=actor_id,
+        actor_role=actor_role,
         action="tenant.reactivate",
         target_tenant_id=tenant_id,
         resource_type="tenant",
@@ -204,13 +209,14 @@ async def change_tenant_plan(
     actor: Principal,
 ) -> dict:
     """Update tenant.plan. Records audit log before commit."""
+    actor_id, actor_role = require_platform_actor(actor)
     tenant = await _require_tenant(db, tenant_id)
     old_plan = tenant.plan
     tenant.plan = new_plan
     await record_platform_audit(
         db,
-        actor_id=actor.user_id,
-        actor_role=actor.role,
+        actor_id=actor_id,
+        actor_role=actor_role,
         action="tenant.plan_changed",
         target_tenant_id=tenant_id,
         resource_type="tenant",
@@ -257,6 +263,7 @@ async def create_platform_user(
     actor: Principal,
 ) -> dict:
     """Create a new PlatformUser with a hashed password. Raises 409 on duplicate email."""
+    actor_id, actor_role = require_platform_actor(actor)
     existing = await db.scalar(select(PlatformUser).where(PlatformUser.email == email))
     if existing:
         raise ApiError(
@@ -274,8 +281,8 @@ async def create_platform_user(
 
     await record_platform_audit(
         db,
-        actor_id=actor.user_id,
-        actor_role=actor.role,
+        actor_id=actor_id,
+        actor_role=actor_role,
         action="platform_user.created",
         resource_type="platform_user",
         payload={"email": email, "role": role},

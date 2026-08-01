@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.auth import Principal, get_current_principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.rbac import ACCOUNTING_POST, ACCOUNTING_READ, require_permission
 from app.modules.accounting.models import Account, JournalEntry, JournalItem
@@ -20,10 +20,6 @@ from app.modules.accounting.schemas import (
 )
 
 router = APIRouter(prefix="/accounting", tags=["accounting"])
-
-SessionDep = Annotated[AsyncSession, Depends(get_session)]
-PrincipalDep = Annotated[Principal, Depends(get_current_principal)]
-
 
 @router.get("/accounts", response_model=list[AccountResponse])
 async def list_accounts(
@@ -149,32 +145,34 @@ async def get_profit_and_loss(
     lines = []
 
     for row in rows:
+        total_debit = Decimal(str(row.total_debit or 0))
+        total_credit = Decimal(str(row.total_credit or 0))
         bal = Decimal("0.00")
         if row.code.startswith("7"):
             # Receita: Creditos aumentam, Debitos diminuem
-            bal = (row.total_credit or 0) - (row.total_debit or 0)
+            bal = total_credit - total_debit
             total_revenue += bal
             lines.append(
                 TrialBalanceLine(
                     account_id=row.id,
                     code=row.code,
                     name=row.name,
-                    debit_total=row.total_debit or 0,
-                    credit_total=row.total_credit or 0,
+                    debit_total=total_debit,
+                    credit_total=total_credit,
                     balance=bal,
                 )
             )
         elif row.code.startswith("6"):
             # Despesa: Debitos aumentam, Creditos diminuem
-            bal = (row.total_debit or 0) - (row.total_credit or 0)
+            bal = total_debit - total_credit
             total_expense += bal
             lines.append(
                 TrialBalanceLine(
                     account_id=row.id,
                     code=row.code,
                     name=row.name,
-                    debit_total=row.total_debit or 0,
-                    credit_total=row.total_credit or 0,
+                    debit_total=total_debit,
+                    credit_total=total_credit,
                     balance=bal,
                 )
             )

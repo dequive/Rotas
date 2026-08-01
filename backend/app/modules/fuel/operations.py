@@ -502,9 +502,10 @@ async def create_vehicle_refuel(
     )
     refuel.movement_id = movement.id
     refuel.unit_cost = movement.unit_cost
-    refuel.total_cost = movement.total_cost
-    if trip and refuel.total_cost is not None:
-        trip.total_fuel_cost = _decimal(trip.total_fuel_cost) + _decimal(refuel.total_cost)
+    total_cost = movement.total_cost
+    refuel.total_cost = total_cost
+    if trip and total_cost is not None:
+        trip.total_fuel_cost = _decimal(trip.total_fuel_cost) + _decimal(total_cost)
     vehicle.current_km = max(vehicle.current_km, payload.odometer_reading)
     await record_audit_log(
         db,

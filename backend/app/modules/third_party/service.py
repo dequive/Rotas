@@ -506,7 +506,8 @@ async def unassign_driver_from_vehicle(
     if assignment.unassigned_at is not None:
         return serialize_assignment(assignment)  # already unassigned — idempotent
 
-    assignment.unassigned_at = datetime.now(UTC)
+    unassigned_at = datetime.now(UTC)
+    assignment.unassigned_at = unassigned_at
     await db.flush()
     await db.refresh(assignment)
     await record_audit_log(
@@ -516,7 +517,7 @@ async def unassign_driver_from_vehicle(
         action="driver_vehicle_assignment.unassigned",
         entity_type="driver_vehicle_assignment",
         entity_id=assignment.id,
-        new_values={"unassigned_at": assignment.unassigned_at.isoformat()},
+        new_values={"unassigned_at": unassigned_at.isoformat()},
     )
     await db.commit()
     await db.refresh(assignment)
@@ -818,7 +819,7 @@ async def create_contact(
     tenant_id: UUID,
     third_party_id: UUID,
     payload: ContactCreate,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     party = await _require_third_party(db, tenant_id, third_party_id)
     contact = ThirdPartyContact(
@@ -868,7 +869,7 @@ async def delete_contact(
     tenant_id: UUID,
     third_party_id: UUID,
     contact_id: UUID,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> None:
     await _require_third_party(db, tenant_id, third_party_id)
     result = await db.execute(
@@ -1025,7 +1026,7 @@ async def create_payment(
     tenant_id: UUID,
     third_party_id: UUID,
     payload: PaymentCreate,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     """Creates a supplier_ledger_entry with entry_type=credit."""
     await _require_third_party(db, tenant_id, third_party_id)
@@ -1088,7 +1089,7 @@ async def create_evaluation(
     tenant_id: UUID,
     third_party_id: UUID,
     payload: EvaluationCreate,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     await _require_third_party(db, tenant_id, third_party_id)
     if not payload.criteria:

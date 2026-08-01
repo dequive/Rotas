@@ -152,7 +152,7 @@ async def approve_settlement(
     db: AsyncSession,
     *,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     settlement_id: UUID,
 ) -> dict[str, Any]:
     """Approve a pending settlement."""
@@ -195,7 +195,7 @@ async def reject_settlement(
     db: AsyncSession,
     *,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     settlement_id: UUID,
     reason: str,
 ) -> dict[str, Any]:

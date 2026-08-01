@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 import httpx
@@ -261,9 +262,11 @@ async def test_trip_first_flow_reaches_billing_document() -> None:
                 )
             )
             assert permit_audit is not None
-            assert permit_audit.new_values["client_name"] == "Cliente Industrial"
-            assert permit_audit.new_values["district"] == "Chimoio"
-            assert permit_audit.new_values["issuer_name"] == "Cliente Industrial"
+            permit_values = permit_audit.new_values
+            assert permit_values is not None
+            assert permit_values["client_name"] == "Cliente Industrial"
+            assert permit_values["district"] == "Chimoio"
+            assert permit_values["issuer_name"] == "Cliente Industrial"
 
             proof_audit = await db.scalar(
                 select(AuditLog).where(
@@ -272,9 +275,11 @@ async def test_trip_first_flow_reaches_billing_document() -> None:
                 )
             )
             assert proof_audit is not None
-            assert proof_audit.new_values["load_permit_number"] == "LP-001"
-            assert proof_audit.new_values["cargo_condition"] == "intact"
-            assert proof_audit.new_values["quantity_delivered"] == 1
+            proof_values = proof_audit.new_values
+            assert proof_values is not None
+            assert proof_values["load_permit_number"] == "LP-001"
+            assert proof_values["cargo_condition"] == "intact"
+            assert proof_values["quantity_delivered"] == 1
     except OperationalError as exc:
         pytest.skip(f"Local Postgres is not available: {exc}")
 
@@ -427,9 +432,9 @@ async def test_api_trip_first_flow_respects_billing_issue_boundary() -> None:
             async with AsyncSessionLocal() as db:
                 trip_row = await db.get(Trip, UUID(trip["id"]))
                 assert trip_row is not None
-                trip_row.total_transport_cost = 12400
-                trip_row.contract_revenue = 8800
-                trip_row.actual_margin = -3600
+                trip_row.total_transport_cost = Decimal("12400")
+                trip_row.actual_revenue = Decimal("8800")
+                trip_row.actual_margin = Decimal("-3600")
                 trip_row.costs_reconciled_at = dt("2026-07-03T12:00:00")
                 await db.commit()
 
@@ -747,7 +752,9 @@ async def test_delivery_proof_dispute_blocks_validation_and_billing() -> None:
             )
             assert exception is not None
             assert exception.status == "resolved"
-            assert exception.context["trip_id"] == trip["id"]
+            exception_context = exception.context
+            assert exception_context is not None
+            assert exception_context["trip_id"] == trip["id"]
 
             audit_rows = await db.execute(
                 select(AuditLog.action).where(
@@ -1005,6 +1012,8 @@ async def test_patch_trip_and_stop_produce_audit_logs() -> None:
                 )
             )
             assert audit_trip is not None
+            assert audit_trip.old_values is not None
+            assert audit_trip.new_values is not None
             assert audit_trip.old_values["destination"] == "Tete"
             assert audit_trip.new_values["destination"] == "Chimoio"
 
@@ -1035,6 +1044,8 @@ async def test_patch_trip_and_stop_produce_audit_logs() -> None:
                 )
             )
             assert audit_stop is not None
+            assert audit_stop.old_values is not None
+            assert audit_stop.new_values is not None
             assert audit_stop.old_values["location"] == {"name": "Inchope"}
             assert audit_stop.new_values["location"] == {"name": "Gorongosa"}
     except OperationalError as exc:

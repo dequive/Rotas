@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import DriverPrincipal
 from app.core.idempotency import IDEMPOTENCY_TTL_DAYS, canonical_request_hash, ttl_for
 from app.modules.cargo import schemas as cargo_schemas
 from app.modules.cargo import service as cargo_service
@@ -267,7 +267,7 @@ async def _dispatch_operation(
 
 async def _record_event(
     db: AsyncSession,
-    principal: Principal,
+    principal: DriverPrincipal,
     payload: SyncBatchRequest,
     operation: SyncOperation,
     result: dict,
@@ -293,7 +293,7 @@ async def _record_event(
 
 async def _process_operation(
     db: AsyncSession,
-    principal: Principal,
+    principal: DriverPrincipal,
     payload: SyncBatchRequest,
     operation: SyncOperation,
 ) -> dict:
@@ -366,7 +366,7 @@ async def _process_operation(
 async def process_batch(
     db: AsyncSession,
     payload: SyncBatchRequest,
-    principal: Principal,
+    principal: DriverPrincipal,
 ) -> dict:
     results = []
     for operation in payload.operations:
@@ -374,7 +374,7 @@ async def process_batch(
     return {"results": results}
 
 
-async def bootstrap(principal: Principal) -> dict:
+async def bootstrap(principal: DriverPrincipal) -> dict:
     return {
         "tenant_id": principal.tenant_id,
         "server_time": datetime.now(UTC),

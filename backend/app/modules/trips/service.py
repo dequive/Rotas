@@ -446,7 +446,11 @@ async def evaluate_delivery_sla(
                     "evaluated_at": evaluated_at,
                 },
             )
-        delay_minutes = int((evaluated_at - trip.planned_arrival).total_seconds() // 60)
+        delay_minutes = (
+            int((evaluated_at - trip.planned_arrival).total_seconds() // 60)
+            if trip.planned_arrival is not None
+            else 0
+        )
         await ensure_exception(
             db,
             tenant_id,
@@ -459,7 +463,11 @@ async def evaluate_delivery_sla(
             actor_id=actor_id,
             context={
                 "trip_id": str(trip.id),
-                "planned_arrival": trip.planned_arrival.isoformat(),
+                "planned_arrival": (
+                    trip.planned_arrival.isoformat()
+                    if trip.planned_arrival is not None
+                    else None
+                ),
                 "delay_minutes": delay_minutes,
             },
             source_type="trip",
@@ -1447,6 +1455,7 @@ async def operational_close_trip(
         source="system",
     )
     db.add(event)
+    closed_at = trip.closed_at
     await record_audit_log(
         db,
         tenant_id=tenant_id,
@@ -1457,7 +1466,7 @@ async def operational_close_trip(
         old_values={"status": old_status},
         new_values={
             "status": trip.status,
-            "closed_at": trip.closed_at.isoformat(),
+            "closed_at": closed_at.isoformat() if closed_at is not None else None,
             "validated_proof_id": str(validated_proof) if validated_proof else None,
             "total_transport_cost": str(trip.total_transport_cost),
             "actual_margin": str(trip.actual_margin),

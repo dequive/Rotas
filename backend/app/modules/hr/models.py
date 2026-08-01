@@ -14,7 +14,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
@@ -163,6 +163,12 @@ class PayrollSlip(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
+    lines: Mapped[list["PayrollSlipLine"]] = relationship(
+        "PayrollSlipLine",
+        back_populates="payroll_slip",
+        cascade="all, delete-orphan",
+    )
+
 
 class PayrollCode(Base):
     __tablename__ = "payroll_codes"
@@ -208,6 +214,11 @@ class PayrollSlipLine(Base):
     is_taxable_syndicate: Mapped[bool] = mapped_column(Boolean, default=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    payroll_slip: Mapped["PayrollSlip"] = relationship(
+        "PayrollSlip",
+        back_populates="lines",
+    )
 
 
 class SalaryAdvance(Base):

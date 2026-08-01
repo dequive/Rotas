@@ -2,11 +2,11 @@ import re as _re
 from uuid import UUID
 
 from fastapi import status
-from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.cache import AsyncRedisHashClient
 from app.core.errors import ApiError
 from app.core.passwords import hash_password
 from app.core.rbac import ALL_PERMISSIONS
@@ -59,7 +59,7 @@ def _validate_password(password: str) -> None:
 
 
 async def _get_cached_user_count(
-    db: AsyncSession, tenant_id: UUID, redis: AsyncRedis | None
+    db: AsyncSession, tenant_id: UUID, redis: AsyncRedisHashClient | None
 ) -> int:
     """Return active user count from Redis cache (TTL 30s) or DB (D-15)."""
     cache_key = f"tenant:limits:{tenant_id}"
@@ -77,12 +77,14 @@ async def _get_cached_user_count(
     )
     count = result.scalar_one()
     if redis is not None:
-        await redis.hset(cache_key, "user_count", count)
+        await redis.hset(cache_key, "user_count", str(count))
         await redis.expire(cache_key, 30)
     return count
 
 
-async def _check_user_limit(db: AsyncSession, tenant: Tenant, redis: AsyncRedis | None) -> None:
+async def _check_user_limit(
+    db: AsyncSession, tenant: Tenant, redis: AsyncRedisHashClient | None
+) -> None:
     """Raise plan_limit_reached if tenant is at or over max_users (D-13, D-14).
 
     Skip entirely when max_users is None (unlimited enterprise plan).
@@ -147,7 +149,7 @@ async def create_user(
     payload: UserCreate,
     *,
     actor_id: UUID | None = None,
-    redis: AsyncRedis | None = None,
+    redis: AsyncRedisHashClient | None = None,
 ) -> dict:
     tenant = await db.get(Tenant, tenant_id)
     if not tenant or not tenant.is_active:
@@ -254,7 +256,7 @@ async def create_tenant_role(
     tenant_id: UUID,
     payload: TenantRoleCreate,
     *,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     if not _SLUG_RE.match(payload.slug):
         raise ApiError(
@@ -335,7 +337,7 @@ async def assign_custom_role_to_user(
     user_id: UUID,
     *,
     custom_role_id: UUID | None,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     user = await db.get(User, user_id)
     if not user or user.tenant_id != tenant_id:

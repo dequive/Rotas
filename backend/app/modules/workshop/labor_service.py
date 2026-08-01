@@ -1,9 +1,12 @@
-"""Workshop Labor & OS Profitability Service — Gestão de Taxas Horárias, Apontamento de Mão de Obra e Rentabilidade da OS.
+"""Workshop Labor & OS Profitability Service.
+
+Gestão de Taxas Horárias, Apontamento de Mão de Obra e Rentabilidade da OS.
 
 Resolução das Regras de Ouro:
   1. Junção por FK Direta `BillingItem.work_order_id` (#1):
      Calcula a receita da OS via JOIN direto em BillingItem.work_order_id == wo.id com status ('issued', 'paid').
-     Suporta automaticamente faturas consolidadas contendo orçamento original + suplementares sem fragilidades de string.
+     Suporta faturas consolidadas com orçamento original e suplementares sem
+     depender de correspondências frágeis de texto.
   2. Suporte a Estorno (`void_task_labor_session`):
      Log de mão de obra possui `voided_at` e `void_reason`. Sessões estornadas são excluídas da soma de custos.
   3. Taxa Horária Vigente à Data `completed_at`:
@@ -21,7 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from datetime import UTC, date, datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -50,7 +53,9 @@ async def set_staff_hourly_rate(
     """Registar ou atualizar taxa horária histórica de um mecânico."""
     rate_val = Decimal(str(hourly_rate)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     if rate_val <= 0:
-        raise ApiError("invalid_hourly_rate", "Hourly rate must be greater than zero.", status_code=400)
+        raise ApiError(
+            "invalid_hourly_rate", "Hourly rate must be greater than zero.", status_code=400
+        )
 
     # Verificar se já existe registo para a mesma data
     res = await db.execute(
@@ -105,14 +110,20 @@ async def get_staff_hourly_rate(
     return rate
 
 
-async def _assert_work_order_mutable(db: AsyncSession, tenant_id: UUID, work_order_id: UUID) -> WorkOrder:
+async def _assert_work_order_mutable(
+    db: AsyncSession, tenant_id: UUID, work_order_id: UUID
+) -> WorkOrder:
     """Valida se a OS pode aceitar alterações de mão de obra (Imutabilidade Pós-Faturação 409)."""
     wo = await db.get(WorkOrder, work_order_id)
     if not wo or wo.tenant_id != tenant_id:
         raise ApiError("work_order_not_found", "Work order not found.", status_code=404)
 
     if wo.status in ("closed", "invoiced", "cancelled"):
-        raise ApiError("work_order_already_billed", "Work order is closed/billed and cannot accept labor edits.", status_code=409)
+        raise ApiError(
+            "work_order_already_billed",
+            "Work order is closed/billed and cannot accept labor edits.",
+            status_code=409,
+        )
 
     # Verificar se existe fatura emitida/paga para esta OS via BillingItem.work_order_id
     billed_res = await db.execute(
@@ -126,7 +137,11 @@ async def _assert_work_order_mutable(db: AsyncSession, tenant_id: UUID, work_ord
         .limit(1)
     )
     if billed_res.scalar_one_or_none() is not None:
-        raise ApiError("work_order_already_billed", "Work order has an issued/paid billing document.", status_code=409)
+        raise ApiError(
+            "work_order_already_billed",
+            "Work order has an issued/paid billing document.",
+            status_code=409,
+        )
 
     return wo
 
@@ -144,7 +159,9 @@ async def add_task_labor_session(
 ) -> TaskLaborLog:
     """Adicionar sessão de mão de obra efetuada por um mecânico numa tarefa."""
     if minutes_worked <= 0:
-        raise ApiError("invalid_minutes", "Minutes worked must be greater than zero.", status_code=400)
+        raise ApiError(
+            "invalid_minutes", "Minutes worked must be greater than zero.", status_code=400
+        )
 
     task = await db.get(WorkOrderTask, task_id)
     if not task or task.tenant_id != tenant_id:

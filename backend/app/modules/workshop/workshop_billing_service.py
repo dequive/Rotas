@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select, or_
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
@@ -56,15 +56,18 @@ async def create_workshop_invoice(
     """
 
     # ── 0. Idempotência ──────────────────────────────────────────────────────
-    existing = await db.scalar(
-        select(BillingDocument).where(
+    await db.scalar(
+        select(BillingDocument)
+        .where(
             BillingDocument.tenant_id == tenant_id,
             BillingDocument.document_source == "workshop",
             BillingDocument.quote_id.isnot(None),  # workshop invoices always have quote_id
-        ).join(
+        )
+        .join(
             WorkshopQuote,
             BillingDocument.quote_id == WorkshopQuote.id,
-        ).where(
+        )
+        .where(
             or_(
                 WorkshopQuote.related_work_order_id == work_order_id,
                 # For original quotes, the work_order was created from accept_quote
@@ -74,10 +77,12 @@ async def create_workshop_invoice(
     )
     # Simpler idempotency: check BillingItem.work_order_id directly
     existing_doc_id = await db.scalar(
-        select(BillingItem.billing_document_id).where(
+        select(BillingItem.billing_document_id)
+        .where(
             BillingItem.tenant_id == tenant_id,
             BillingItem.work_order_id == work_order_id,
-        ).limit(1)
+        )
+        .limit(1)
     )
     if existing_doc_id:
         existing_doc = await db.get(BillingDocument, existing_doc_id)
@@ -102,11 +107,13 @@ async def create_workshop_invoice(
         quote_conds.append(WorkshopQuote.reception_id == wo.reception_id)
 
     quotes_result = await db.execute(
-        select(WorkshopQuote).where(
+        select(WorkshopQuote)
+        .where(
             WorkshopQuote.tenant_id == tenant_id,
             WorkshopQuote.status == "converted",
             or_(*quote_conds),
-        ).order_by(WorkshopQuote.created_at.asc())
+        )
+        .order_by(WorkshopQuote.created_at.asc())
     )
     converted_quotes = list(quotes_result.scalars().all())
     original_quote = converted_quotes[0] if converted_quotes else None
@@ -135,10 +142,13 @@ async def create_workshop_invoice(
     for task in completed_tasks:
         if task.completed_by and task.completed_by not in staff_rates:
             rate = await db.scalar(
-                select(WorkshopStaffRate.hourly_rate).where(
+                select(WorkshopStaffRate.hourly_rate)
+                .where(
                     WorkshopStaffRate.tenant_id == tenant_id,
                     WorkshopStaffRate.user_id == task.completed_by,
-                ).order_by(WorkshopStaffRate.effective_from.desc()).limit(1)
+                )
+                .order_by(WorkshopStaffRate.effective_from.desc())
+                .limit(1)
             )
             staff_rates[task.completed_by] = rate or Decimal("0")
 
@@ -210,7 +220,9 @@ async def create_workshop_invoice(
             continue
 
         hours = Decimal(str(actual_mins)) / Decimal("60")
-        hourly_rate = staff_rates.get(task.completed_by, Decimal("0")) if task.completed_by else Decimal("0")
+        hourly_rate = (
+            staff_rates.get(task.completed_by, Decimal("0")) if task.completed_by else Decimal("0")
+        )
 
         desc_key = task.description.strip().lower()
         quoted_price = quote_item_prices.get(desc_key)
@@ -327,7 +339,9 @@ async def confirm_workshop_invoice(
         raise ApiError("document_not_found", "Billing document not found.", status_code=404)
 
     if doc.document_source != "workshop":
-        raise ApiError("not_workshop_document", "Document is not a workshop invoice.", status_code=409)
+        raise ApiError(
+            "not_workshop_document", "Document is not a workshop invoice.", status_code=409
+        )
 
     if doc.status == "issued":
         return _serialize_workshop_invoice(doc)  # Idempotente

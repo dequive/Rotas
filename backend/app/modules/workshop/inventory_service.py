@@ -23,7 +23,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select, or_
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
@@ -34,15 +34,13 @@ from app.modules.workshop.models import (
     CoreReturnItem,
     MaintenancePartUsed,
     PartReservation,
-    WorkshopPurchaseOrder,
-    WorkshopPurchaseOrderItem,
     SparePartInventory,
     SparePartMovement,
-    SparePartRequisition,
     WorkOrder,
-    WorkOrderTask,
+    WorkshopPurchaseOrder,
+    WorkshopPurchaseOrderItem,
 )
-from app.modules.workshop.quote_models import WorkshopQuote, WorkshopQuoteItem
+from app.modules.workshop.quote_models import WorkshopQuoteItem
 
 
 async def get_available_stock(
@@ -144,7 +142,10 @@ async def release_reservations(
     work_order_id: UUID | None = None,
 ) -> int:
     """Liberta reservas ativas associadas a um orçamento rejeitado ou OS cancelada."""
-    conds = [PartReservation.tenant_id == tenant_id, PartReservation.status.in_(("active", "active_backorder"))]
+    conds = [
+        PartReservation.tenant_id == tenant_id,
+        PartReservation.status.in_(("active", "active_backorder")),
+    ]
     if quote_id:
         conds.append(PartReservation.quote_id == quote_id)
     if work_order_id:
@@ -193,7 +194,9 @@ async def issue_parts_for_work_order(
         raise ApiError("work_order_not_found", "Work order not found.", status_code=404)
 
     if wo.status in ("closed", "cancelled"):
-        raise ApiError("work_order_not_active", f"Work order is in status '{wo.status}'.", status_code=409)
+        raise ApiError(
+            "work_order_not_active", f"Work order is in status '{wo.status}'.", status_code=409
+        )
 
     # 2. Lock FOR UPDATE no item de inventário
     inv = await db.scalar(
@@ -210,7 +213,8 @@ async def issue_parts_for_work_order(
     if inv.current_quantity < quantity_requested:
         raise ApiError(
             "insufficient_stock",
-            f"Physical stock insufficient ({inv.current_quantity} {inv.unit} available, {quantity_requested} requested).",
+            "Physical stock insufficient "
+            f"({inv.current_quantity} {inv.unit} available, {quantity_requested} requested).",
             status_code=409,
         )
 
@@ -373,18 +377,21 @@ async def return_part_from_work_order(
     if wo.status in ("closed", "cancelled"):
         raise ApiError(
             "work_order_already_billed",
-            f"Cannot return parts for a work order in status '{wo.status}'. Retifications must be handled via fiscal credit notes.",
+            f"Cannot return parts for a work order in status '{wo.status}'. "
+            "Retifications must be handled via fiscal credit notes.",
             status_code=409,
         )
 
     # Verificar se já existe fatura emitida para a OS
     existing_billed = await db.scalar(
-        select(BillingDocument.id).where(
+        select(BillingDocument.id)
+        .where(
             BillingDocument.tenant_id == tenant_id,
             BillingDocument.document_source == "workshop",
             BillingDocument.status.in_(("issued", "paid")),
             BillingDocument.contract_reference == wo.work_order_number,
-        ).limit(1)
+        )
+        .limit(1)
     )
     if existing_billed:
         raise ApiError(
@@ -467,7 +474,9 @@ async def cancel_work_order(
         raise ApiError("work_order_not_found", "Work order not found.", status_code=404)
 
     if wo.status in ("closed", "cancelled"):
-        raise ApiError("invalid_work_order_status", f"Work order is already '{wo.status}'.", status_code=409)
+        raise ApiError(
+            "invalid_work_order_status", f"Work order is already '{wo.status}'.", status_code=409
+        )
 
     wo.status = "cancelled"
     wo.close_notes = f"Cancelada: {reason}"
@@ -625,20 +634,24 @@ async def get_reorder_suggestions(
             )
             backorder_rows = list(backorders_res.scalars().all())
 
-            suggestions.append({
-                "inventory_id": item.id,
-                "sku": item.sku,
-                "name": item.name,
-                "unit": item.unit,
-                "current_quantity": float(item.current_quantity),
-                "available_stock": float(avail),
-                "minimum_quantity": float(item.minimum_quantity),
-                "reorder_quantity": item.reorder_quantity or 10,
-                "lead_time_days": item.lead_time_days,
-                "supplier_name": item.supplier_name,
-                "backorders_count": len(backorder_rows),
-                "blocked_work_order_ids": [str(b.work_order_id) for b in backorder_rows if b.work_order_id],
-            })
+            suggestions.append(
+                {
+                    "inventory_id": item.id,
+                    "sku": item.sku,
+                    "name": item.name,
+                    "unit": item.unit,
+                    "current_quantity": float(item.current_quantity),
+                    "available_stock": float(avail),
+                    "minimum_quantity": float(item.minimum_quantity),
+                    "reorder_quantity": item.reorder_quantity or 10,
+                    "lead_time_days": item.lead_time_days,
+                    "supplier_name": item.supplier_name,
+                    "backorders_count": len(backorder_rows),
+                    "blocked_work_order_ids": [
+                        str(b.work_order_id) for b in backorder_rows if b.work_order_id
+                    ],
+                }
+            )
 
     return suggestions
 
@@ -690,7 +703,9 @@ async def create_purchase_order(
     db: AsyncSession,
     tenant_id: UUID,
     supplier_third_party_id: UUID,
-    items_data: list[dict],  # [{"inventory_id": UUID, "quantity_ordered": Decimal, "unit_price": Decimal}]
+    items_data: list[
+        dict
+    ],  # [{"inventory_id": UUID, "quantity_ordered": Decimal, "unit_price": Decimal}]
     *,
     supplier_invoice_number: str | None = None,
     notes: str | None = None,
@@ -758,7 +773,9 @@ async def receive_purchase_order(
         raise ApiError("po_not_found", "Purchase order not found.", status_code=404)
 
     if po.status in ("received", "cancelled"):
-        raise ApiError("invalid_po_status", f"Purchase order is already '{po.status}'.", status_code=409)
+        raise ApiError(
+            "invalid_po_status", f"Purchase order is already '{po.status}'.", status_code=409
+        )
 
     items_res = await db.execute(
         select(WorkshopPurchaseOrderItem).where(
@@ -792,7 +809,9 @@ async def receive_purchase_order(
         new_cost = item.unit_price
 
         if (old_stock + qty_to_receive) > 0:
-            wacc = ((old_stock * old_cost) + (qty_to_receive * new_cost)) / (old_stock + qty_to_receive)
+            wacc = ((old_stock * old_cost) + (qty_to_receive * new_cost)) / (
+                old_stock + qty_to_receive
+            )
             inv.average_unit_cost = Decimal(str(wacc)).quantize(Decimal("0.02"))
 
         inv.current_quantity = (inv.current_quantity + qty_to_receive).quantize(Decimal("0.001"))

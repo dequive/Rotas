@@ -14,11 +14,15 @@ class TenantSequence(Base):
     """
 
     __tablename__ = "tenant_sequences"
-    __table_args__ = (UniqueConstraint("tenant_id", "entity_type", name="uq_tenant_sequences_entity"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "entity_type", name="uq_tenant_sequences_entity"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
-    entity_type: Mapped[str] = mapped_column(String(40), index=True)  # "reception" | "work_order" | "quote"
+    entity_type: Mapped[str] = mapped_column(
+        String(40), index=True
+    )  # "reception" | "work_order" | "quote"
     current_value: Mapped[int] = mapped_column(Integer, default=0)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -33,21 +37,33 @@ class VehicleReception(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
     vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"), index=True)
-    client_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clients.id"), nullable=True, index=True)
-    reception_number: Mapped[str] = mapped_column(String(80), index=True)  # Sequência leve REC-2026-XXXX
+    client_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("clients.id"), nullable=True, index=True
+    )
+    reception_number: Mapped[str] = mapped_column(
+        String(80), index=True
+    )  # Sequência leve REC-2026-XXXX
     received_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     odometer_at_reception: Mapped[int] = mapped_column(Integer, default=0)
     reported_issues: Mapped[str | None] = mapped_column(Text, nullable=True)
     visual_condition: Mapped[str | None] = mapped_column(Text, nullable=True)
     personal_items: Mapped[str | None] = mapped_column(Text, nullable=True)
-    fuel_level: Mapped[str] = mapped_column(String(20), default="half")  # empty|quarter|half|three_quarter|full
+    fuel_level: Mapped[str] = mapped_column(
+        String(20), default="half"
+    )  # empty|quarter|half|three_quarter|full
     delivered_by_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
     delivered_by_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
     pickup_authorized_by_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
     pickup_authorized_by_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
-    client_signature_file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"), nullable=True)
-    estimated_completion_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    client_signature_file_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("files.id"), nullable=True
+    )
+    estimated_completion_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     assigned_work_bay_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("work_bays.id"), nullable=True, index=True
     )
@@ -83,14 +99,20 @@ class VehicleRelease(Base):
     vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"), index=True)
     reception_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicle_receptions.id"), index=True)
     released_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    released_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    released_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     odometer_at_release: Mapped[int] = mapped_column(Integer, default=0)
     condition_at_release: Mapped[str | None] = mapped_column(Text, nullable=True)
     picked_up_by_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
     picked_up_by_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
     override_unauthorized_pickup: Mapped[bool] = mapped_column(Boolean, default=False)
     override_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
-    client_signature_file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"), nullable=True)
-    release_type: Mapped[str] = mapped_column(String(30), default="after_service")  # after_service | no_service
+    client_signature_file_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("files.id"), nullable=True
+    )
+    release_type: Mapped[str] = mapped_column(
+        String(30), default="after_service"
+    )  # after_service | no_service
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -132,23 +132,27 @@ async def issue_advance(
         entity_type="driver_advance",
         entity_id=advance.id,
         new_values={
-            "amount_mzn": str(amount_mzn), 
+            "amount_mzn": str(amount_mzn),
             "allowance_mzn": str(allowance_mzn),
             "expenses_mzn": str(expenses_mzn),
-            "trip_id": str(trip_id)
+            "trip_id": str(trip_id),
         },
     )
     # --- HOOK CONTABILISTICO (Fase 9) ---
-    from app.modules.accounting.services import create_journal_entry
-    from app.modules.accounting.schemas import JournalEntryCreate
-    from app.modules.accounting.schemas import JournalItemCreate as AccJournalItemCreate
-    from app.modules.accounting.models import Account
-    from sqlalchemy import select
     from datetime import datetime
 
+    from app.modules.accounting.models import Account
+    from app.modules.accounting.schemas import JournalEntryCreate
+    from app.modules.accounting.schemas import JournalItemCreate as AccJournalItemCreate
+    from app.modules.accounting.services import create_journal_entry
+
     if amount_mzn > 0:
-        acct_advances = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("42%")).limit(1))
-        acct_bank = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("12%")).limit(1))
+        acct_advances = await db.scalar(
+            select(Account).where(Account.tenant_id == tenant_id, Account.code.like("42%")).limit(1)
+        )
+        acct_bank = await db.scalar(
+            select(Account).where(Account.tenant_id == tenant_id, Account.code.like("12%")).limit(1)
+        )
 
         if acct_advances and acct_bank:
             await create_journal_entry(
@@ -164,17 +168,17 @@ async def issue_advance(
                             account_id=acct_advances.id,
                             description=f"Subsidio e Despesas - Viagem {trip_id}",
                             debit=amount_mzn,
-                            credit=Decimal("0.00")
+                            credit=Decimal("0.00"),
                         ),
                         AccJournalItemCreate(
                             account_id=acct_bank.id,
                             description="Saida de Tesouraria",
                             debit=Decimal("0.00"),
-                            credit=amount_mzn
-                        )
-                    ]
+                            credit=amount_mzn,
+                        ),
+                    ],
                 ),
-                actor_id=user_id
+                actor_id=user_id,
             )
     # ------------------------------------
 

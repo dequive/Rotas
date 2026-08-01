@@ -30,4 +30,3 @@ async def invalidate_tenant_caches(redis: Redis | None, tenant_id: UUID) -> None
         await redis.delete(f"tenant:limits:{tenant_id}")
     except Exception as e:
         logger.error(f"Failed to delete limits cache key for tenant {tenant_id}: {e}")
-

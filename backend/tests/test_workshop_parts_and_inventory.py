@@ -163,7 +163,9 @@ async def test_unapproved_excess_quantity_blocking_409(db, tenant_id, test_user)
 
 
 @pytest.mark.asyncio
-async def test_multi_quote_fifo_reservation_consumption_and_surplus_release(db, tenant_id, test_user):
+async def test_multi_quote_fifo_reservation_consumption_and_surplus_release(
+    db, tenant_id, test_user
+):
     """Teste #3: FIFO determinístico de consumo de reservas multi-quote e libertação da sobra."""
 
     client = Client(tenant_id=tenant_id, trading_name="Auto Frota", nuit="987654321")
@@ -194,7 +196,9 @@ async def test_multi_quote_fifo_reservation_consumption_and_surplus_release(db, 
             client_id=client.id,
             vehicle_id=vehicle.id,
             items=[
-                WorkshopQuoteItemCreate(item_type="part", description="Filtros 5x", quantity=5.000, part_id=part.id)
+                WorkshopQuoteItemCreate(
+                    item_type="part", description="Filtros 5x", quantity=5.000, part_id=part.id
+                )
             ],
         ),
         actor_id=test_user.id,
@@ -212,7 +216,9 @@ async def test_multi_quote_fifo_reservation_consumption_and_surplus_release(db, 
             related_work_order_id=wo_id,
             is_supplemental=True,
             items=[
-                WorkshopQuoteItemCreate(item_type="part", description="Filtros 2x", quantity=2.000, part_id=part.id)
+                WorkshopQuoteItemCreate(
+                    item_type="part", description="Filtros 2x", quantity=2.000, part_id=part.id
+                )
             ],
         ),
         actor_id=test_user.id,
@@ -242,7 +248,9 @@ async def test_multi_quote_fifo_reservation_consumption_and_surplus_release(db, 
         (
             await db.execute(
                 select(PartReservation)
-                .where(PartReservation.work_order_id == wo_id, PartReservation.inventory_id == part.id)
+                .where(
+                    PartReservation.work_order_id == wo_id, PartReservation.inventory_id == part.id
+                )
                 .order_by(PartReservation.created_at.asc(), PartReservation.id.asc())
             )
         )
@@ -287,14 +295,20 @@ async def test_post_billing_immutability_guard_and_wo_cancel_cleanup(db, tenant_
         WorkshopQuoteCreate(
             client_id=client.id,
             vehicle_id=vehicle.id,
-            items=[WorkshopQuoteItemCreate(item_type="part", description="Pastilhas", quantity=2.000, part_id=part.id)],
+            items=[
+                WorkshopQuoteItemCreate(
+                    item_type="part", description="Pastilhas", quantity=2.000, part_id=part.id
+                )
+            ],
         ),
         actor_id=test_user.id,
     )
     res_q = await accept_quote(db, tenant_id, q["id"], actor_id=test_user.id)
     wo_id = res_q["work_order_id"]
 
-    await issue_parts_for_work_order(db, tenant_id, wo_id, part.id, Decimal("2.000"), actor_id=test_user.id)
+    await issue_parts_for_work_order(
+        db, tenant_id, wo_id, part.id, Decimal("2.000"), actor_id=test_user.id
+    )
 
     # Fechar OS e confirmar fatura
     wo_obj = await db.get(WorkOrder, wo_id)
@@ -346,7 +360,9 @@ async def test_post_billing_immutability_guard_and_wo_cancel_cleanup(db, tenant_
     draft_inv = await create_workshop_invoice(db, tenant_id, wo_cancel_id)
 
     # Cancelar OS
-    cancel_res = await cancel_work_order(db, tenant_id, wo_cancel_id, reason="Desistência", actor_id=test_user.id)
+    cancel_res = await cancel_work_order(
+        db, tenant_id, wo_cancel_id, reason="Desistência", actor_id=test_user.id
+    )
     assert cancel_res["released_reservations"] >= 1
     assert cancel_res["cancelled_drafts"] == 1
 
@@ -430,7 +446,9 @@ async def test_asyncio_gather_real_concurrency_contention(db, tenant_id, test_us
             client_id=client.id,
             vehicle_id=vehicle.id,
             items=[
-                WorkshopQuoteItemCreate(item_type="part", description="Óleo 10L", quantity=10.000, part_id=oil_part.id)
+                WorkshopQuoteItemCreate(
+                    item_type="part", description="Óleo 10L", quantity=10.000, part_id=oil_part.id
+                )
             ],
         ),
         actor_id=test_user.id,
@@ -442,7 +460,9 @@ async def test_asyncio_gather_real_concurrency_contention(db, tenant_id, test_us
     # Função executada numa transação/sessão independente
     async def issue_in_separate_session(qty: Decimal):
         async with session_factory() as sess:
-            return await issue_parts_for_work_order(sess, tenant_id, wo_id, oil_part.id, qty, actor_id=test_user.id)
+            return await issue_parts_for_work_order(
+                sess, tenant_id, wo_id, oil_part.id, qty, actor_id=test_user.id
+            )
 
     # Disparar 2 entregas simultâneas de 5.000 L em transações SEPARADAS via asyncio.gather
     results = await asyncio.gather(
@@ -496,7 +516,9 @@ async def test_reorder_suggestions_with_blocked_work_orders(db, tenant_id, test_
             client_id=client.id,
             vehicle_id=vehicle.id,
             items=[
-                WorkshopQuoteItemCreate(item_type="part", description="Filtros Ar 3x", quantity=3.000, part_id=part.id)
+                WorkshopQuoteItemCreate(
+                    item_type="part", description="Filtros Ar 3x", quantity=3.000, part_id=part.id
+                )
             ],
         ),
         actor_id=test_user.id,
@@ -555,7 +577,13 @@ async def test_purchase_order_creation_and_reception_wacc(db, tenant_id, test_us
         db,
         tenant_id,
         supplier.id,
-        [{"inventory_id": part.id, "quantity_ordered": Decimal("10.000"), "unit_price": Decimal("200.00")}],
+        [
+            {
+                "inventory_id": part.id,
+                "quantity_ordered": Decimal("10.000"),
+                "unit_price": Decimal("200.00"),
+            }
+        ],
         supplier_invoice_number="FT-2026/001",
         actor_id=test_user.id,
     )
@@ -598,7 +626,9 @@ async def test_core_return_with_photo_evidence_and_supplier_credit(db, tenant_id
     db.add(vehicle)
     await db.flush()
 
-    wo_payload = WorkOrderCreate(vehicle_id=vehicle.id, client_id=client.id, planned_work="Substituição de Alternador")
+    wo_payload = WorkOrderCreate(
+        vehicle_id=vehicle.id, client_id=client.id, planned_work="Substituição de Alternador"
+    )
     wo = await create_work_order(
         db,
         tenant_id,

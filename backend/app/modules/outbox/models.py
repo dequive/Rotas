@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime
-from uuid import UUID
 
 from sqlalchemy import (
     DateTime,
@@ -10,7 +9,8 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -29,9 +29,7 @@ class OutboxEvent(Base):
     """
 
     __tablename__ = "outbox_events"
-    __table_args__ = (
-        {"extend_existing": True},
-    )
+    __table_args__ = ({"extend_existing": True},)
 
     id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -49,7 +47,9 @@ class OutboxEvent(Base):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, server_default="pending", index=True
     )
-    governance_case_id: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    governance_case_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), nullable=True
+    )
 
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)

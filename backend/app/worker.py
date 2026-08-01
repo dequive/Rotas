@@ -882,8 +882,8 @@ async def task_outbox_drain(ctx: dict) -> str:
         return "outbox_drain: nothing to do"
     logger.info("outbox_drain", **counts)
     return (
-        f'outbox_drain: scanned={counts["scanned"]} sent={counts["sent"]} '
-        f'retried={counts["retried"]} dead_letter={counts["dead_letter"]}'
+        f"outbox_drain: scanned={counts['scanned']} sent={counts['sent']} "
+        f"retried={counts['retried']} dead_letter={counts['dead_letter']}"
     )
 
 

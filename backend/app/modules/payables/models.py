@@ -50,7 +50,9 @@ class PurchaseOrder(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     estimated_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     currency: Mapped[str] = mapped_column(String(3), default="MZN", nullable=False)
-    status: Mapped[str] = mapped_column(String(30), default="draft", nullable=False)  # draft, approved, sent, completed, cancelled
+    status: Mapped[str] = mapped_column(
+        String(30), default="draft", nullable=False
+    )  # draft, approved, sent, completed, cancelled
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     approved_by: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
@@ -98,7 +100,9 @@ class SupplierInvoice(Base):
     currency: Mapped[str] = mapped_column(String(3), default="MZN", nullable=False)
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     due_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    status: Mapped[str] = mapped_column(String(30), default="pending", nullable=False)  # pending, paid, void
+    status: Mapped[str] = mapped_column(
+        String(30), default="pending", nullable=False
+    )  # pending, paid, void
     file_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("files.id"), nullable=True
     )
@@ -135,10 +139,14 @@ class SupplierPayment(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), default="MZN", nullable=False)
     value_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    payment_method: Mapped[str] = mapped_column(String(40), nullable=False)  # bank_transfer, cash, cheque
+    payment_method: Mapped[str] = mapped_column(
+        String(40), nullable=False
+    )  # bank_transfer, cash, cheque
     reference: Mapped[str | None] = mapped_column(String(120), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(30), default="confirmed", nullable=False)  # confirmed, voided
+    status: Mapped[str] = mapped_column(
+        String(30), default="confirmed", nullable=False
+    )  # confirmed, voided
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )

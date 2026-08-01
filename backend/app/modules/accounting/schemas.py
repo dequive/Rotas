@@ -1,8 +1,9 @@
-from pydantic import BaseModel, model_validator
-from typing import List, Optional, Union
-from uuid import UUID
-from datetime import datetime, date as date_type
+from datetime import date as date_type
+from datetime import datetime
 from decimal import Decimal
+from uuid import UUID
+
+from pydantic import BaseModel, model_validator
 
 # STAB-F2/P1.1: canonical names are JournalItem* / JournalEntry*.
 # Legacy names (ManualEntryCreate / ManualEntryItem / ManualEntryItemCreate) are
@@ -11,26 +12,28 @@ from decimal import Decimal
 
 # --- Contas e Lançamentos Base ---
 
+
 class AccountResponse(BaseModel):
     id: UUID
     code: str
     name: str
     account_type: str
-    parent_id: Optional[UUID] = None
+    parent_id: UUID | None = None
+
 
 class JournalItemCreate(BaseModel):
     account_id: UUID
     debit: Decimal = Decimal("0.00")
     credit: Decimal = Decimal("0.00")
-    third_party_id: Optional[UUID] = None
-    vehicle_id: Optional[UUID] = None
-    trip_id: Optional[UUID] = None
-    description: Optional[str] = None
+    third_party_id: UUID | None = None
+    vehicle_id: UUID | None = None
+    trip_id: UUID | None = None
+    description: str | None = None
 
     class Config:
         extra = "allow"
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_debit_credit(self):
         if self.debit < 0 or self.credit < 0:
             raise ValueError("Débito e Crédito não podem ser negativos")
@@ -40,28 +43,30 @@ class JournalItemCreate(BaseModel):
             raise ValueError("Uma linha não pode ter simultaneamente débito e crédito")
         return self
 
+
 class JournalItemResponse(BaseModel):
     id: UUID
     account_id: UUID
     debit: Decimal
     credit: Decimal
-    third_party_id: Optional[UUID] = None
-    vehicle_id: Optional[UUID] = None
-    trip_id: Optional[UUID] = None
-    account: Optional[AccountResponse] = None
+    third_party_id: UUID | None = None
+    vehicle_id: UUID | None = None
+    trip_id: UUID | None = None
+    account: AccountResponse | None = None
+
 
 # P1.1 will rename ManualEntryCreate → JournalEntryCreate.
 # Today we keep the legacy name as a public alias (subclass) so external
 # modules keep importing without churn.
 class JournalEntryCreate(BaseModel):
     journal_type: str
-    date: Union[datetime, date_type]
-    reference: Optional[str] = None
-    description: Optional[str] = None
-    lines: Optional[List[JournalItemCreate]] = None
-    items: Optional[List[JournalItemCreate]] = None
+    date: datetime | date_type
+    reference: str | None = None
+    description: str | None = None
+    lines: list[JournalItemCreate] | None = None
+    items: list[JournalItemCreate] | None = None
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def _normalize_lines(self):
         if not self.lines and self.items:
             self.lines = self.items
@@ -69,16 +74,18 @@ class JournalEntryCreate(BaseModel):
             raise ValueError("JournalEntryCreate requires 'lines' (or legacy 'items').")
         return self
 
+
 class JournalEntryResponse(BaseModel):
     id: UUID
     journal_type: str
     date: datetime
-    reference: Optional[str] = None
-    description: Optional[str] = None
+    reference: str | None = None
+    description: str | None = None
     status: str
-    items: List[JournalItemResponse]
-    source_document_type: Optional[str] = None
-    source_document_id: Optional[UUID] = None
+    items: list[JournalItemResponse]
+    source_document_type: str | None = None
+    source_document_id: UUID | None = None
+
 
 # --- Legacy aliases — kept only during P0 stabilisation ---
 # TODO(stabilization/P1.1): remove these after HR/Payables/Workshop rename.
@@ -91,6 +98,7 @@ JournalEntryLineCreate = JournalItemCreate
 # Kept only because some schemas/tests reference it by name. The renamed
 # canonical schema is JournalEntryCreate above.
 
+
 class TrialBalanceLine(BaseModel):
     account_id: UUID
     code: str
@@ -99,8 +107,9 @@ class TrialBalanceLine(BaseModel):
     credit_total: Decimal
     balance: Decimal
 
+
 class ProfitAndLossResponse(BaseModel):
     total_revenue: Decimal
     total_expense: Decimal
     ebitda: Decimal
-    lines: List[TrialBalanceLine]
+    lines: list[TrialBalanceLine]

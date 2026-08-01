@@ -1,28 +1,20 @@
-from app.modules.workshop.schemas import WorkOrderCloseRequest
-from app.modules.workshop.schemas import WorkOrderCreate
 import sys
 from pathlib import Path
+
+from app.modules.workshop.schemas import WorkOrderCloseRequest, WorkOrderCreate
 
 # Add backend directory to sys.path for IDE module resolution
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import asyncio
-import pytest
-from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from uuid import uuid4
 import pytest
-from app.core.errors import ApiError
-
-
-
 from sqlalchemy import select
+
 from app.modules.clients.models import Client
 from app.modules.vehicles.models import Vehicle
 from app.modules.workshop.catalog_models import ServiceCatalogItem
 from app.modules.workshop.models import (
-    MaintenancePlan,
     MaintenanceSchedule,
     WorkOrder,
     WorkOrderTask,
@@ -31,8 +23,6 @@ from app.modules.workshop.preventive_service import (
     convert_schedule_to_action,
     create_maintenance_plan,
     evaluate_preventive_schedules,
-    handle_work_order_completion_preventive_matching,
-    list_maintenance_plans,
     schedule_preventive_maintenance,
 )
 from app.modules.workshop.quote_models import WorkshopQuote
@@ -40,9 +30,10 @@ from app.modules.workshop.service import close_work_order, create_work_order
 
 
 @pytest.mark.asyncio
-async def test_preventive_matching_and_automatic_next_cycle_creation_on_release(db, tenant_id, test_user):
-    """Teste #1: Matching por catálogo no fecho da OS e geração automática do próximo ciclo a partir do odómetro real."""
-
+async def test_preventive_matching_and_automatic_next_cycle_creation_on_release(
+    db, tenant_id, test_user
+):
+    """Gera o próximo ciclo no fecho da OS a partir do odómetro real."""
 
     # 1. Serviço de Catálogo de Mudança de Óleo
     service_item = ServiceCatalogItem(
@@ -70,14 +61,16 @@ async def test_preventive_matching_and_automatic_next_cycle_creation_on_release(
         db,
         tenant_id,
         name="Revisão Óleo 10k",
-                interval_km=10000,
+        interval_km=10000,
         interval_days=180,
         ownership_scope="fleet",
         actor_id=test_user.id,
     )
 
     # 4. Criar Agendamento Inicial
-    sched1 = await schedule_preventive_maintenance(db, tenant_id, vehicle.id, plan.id, actor_id=test_user.id)
+    sched1 = await schedule_preventive_maintenance(
+        db, tenant_id, vehicle.id, plan.id, actor_id=test_user.id
+    )
     assert sched1.due_km == 60000  # 50.000 + 10.000
 
     # 5. Criar e fechar OS com a tarefa correspondente ao serviço de catálogo
@@ -92,7 +85,7 @@ async def test_preventive_matching_and_automatic_next_cycle_creation_on_release(
     task = WorkOrderTask(
         tenant_id=tenant_id,
         work_order_id=wo["id"],
-                description="Mudança de Óleo realizada",
+        description="Mudança de Óleo realizada",
         status="completed",
     )
     db.add(task)
@@ -106,7 +99,13 @@ async def test_preventive_matching_and_automatic_next_cycle_creation_on_release(
     wo_obj = await db.get(WorkOrder, wo["id"])
     wo_obj.status = "quality_check"
     await db.flush()
-    await close_work_order(db, tenant_id, wo["id"], payload=WorkOrderCloseRequest(notes="Concluído com sucesso"), actor_id=test_user.id)
+    await close_work_order(
+        db,
+        tenant_id,
+        wo["id"],
+        payload=WorkOrderCloseRequest(notes="Concluído com sucesso"),
+        actor_id=test_user.id,
+    )
 
     # Validar:
     # a) Agendamento anterior passou a "completed"
@@ -115,15 +114,19 @@ async def test_preventive_matching_and_automatic_next_cycle_creation_on_release(
 
     # b) Próximo agendamento foi criado automaticamente com baseline no odómetro real (52.000 + 10.000 = 62.000 km)
     schedules = (
-        await db.execute(
-            select(MaintenanceSchedule).where(
-                MaintenanceSchedule.tenant_id == tenant_id,
-                MaintenanceSchedule.vehicle_id == vehicle.id,
-                MaintenanceSchedule.plan_id == plan.id,
-                MaintenanceSchedule.status == "pending",
+        (
+            await db.execute(
+                select(MaintenanceSchedule).where(
+                    MaintenanceSchedule.tenant_id == tenant_id,
+                    MaintenanceSchedule.vehicle_id == vehicle.id,
+                    MaintenanceSchedule.plan_id == plan.id,
+                    MaintenanceSchedule.status == "pending",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert len(schedules) == 1
     next_sched = schedules[0]
@@ -134,18 +137,26 @@ async def test_preventive_matching_and_automatic_next_cycle_creation_on_release(
 async def test_idempotent_wo_close_and_conversion_no_duplicates(db, tenant_id, test_user):
     """Teste #2: Idempotência de close_work_order e convert_schedule_to_action (retries não duplicam registos)."""
 
-
     vehicle = Vehicle(tenant_id=tenant_id, plate="XY-99-ZZ", current_km=10000)
     db.add(vehicle)
     await db.flush()
 
     plan = await create_maintenance_plan(
-        db, tenant_id, name="Plano Frota", interval_km=5000, ownership_scope="fleet", actor_id=test_user.id
+        db,
+        tenant_id,
+        name="Plano Frota",
+        interval_km=5000,
+        ownership_scope="fleet",
+        actor_id=test_user.id,
     )
-    sched = await schedule_preventive_maintenance(db, tenant_id, vehicle.id, plan.id, actor_id=test_user.id)
+    sched = await schedule_preventive_maintenance(
+        db, tenant_id, vehicle.id, plan.id, actor_id=test_user.id
+    )
 
     # 2. Idempotência no dedup de agendamento (chamar schedule_preventive_maintenance 2 vezes)
-    dup_sched = await schedule_preventive_maintenance(db, tenant_id, vehicle.id, plan.id, actor_id=test_user.id)
+    dup_sched = await schedule_preventive_maintenance(
+        db, tenant_id, vehicle.id, plan.id, actor_id=test_user.id
+    )
     assert dup_sched.id == sched.id
 
     # 1. Idempotência em convert_schedule_to_action (chamar 2 vezes)
@@ -160,13 +171,15 @@ async def test_idempotent_wo_close_and_conversion_no_duplicates(db, tenant_id, t
 async def test_fleet_wo_direct_conversion_vs_customer_draft_quote_orc(db, tenant_id, test_user):
     """Teste #3: Diferenciação Estrita (Frota vs Cliente Comercial com numeração ORC-2026-XXXX)."""
 
-
     client = Client(tenant_id=tenant_id, trading_name="Cliente Exemplo Lda", nuit="999000111")
     db.add(client)
     await db.flush()
 
     catalog = ServiceCatalogItem(
-        tenant_id=tenant_id, code="SERV-REVISAO", name="Revisão Geral", base_price=Decimal("3000.00")
+        tenant_id=tenant_id,
+        code="SERV-REVISAO",
+        name="Revisão Geral",
+        base_price=Decimal("3000.00"),
     )
     db.add(catalog)
     await db.flush()
@@ -175,25 +188,39 @@ async def test_fleet_wo_direct_conversion_vs_customer_draft_quote_orc(db, tenant
     v_fleet = Vehicle(tenant_id=tenant_id, plate="FLT-01", ownership_type="fleet", current_km=10000)
     # Viatura de Cliente
     v_cust = Vehicle(
-        tenant_id=tenant_id, plate="CUST-01", ownership_type="customer", customer_client_id=client.id, current_km=10000
+        tenant_id=tenant_id,
+        plate="CUST-01",
+        ownership_type="customer",
+        customer_client_id=client.id,
+        current_km=10000,
     )
     db.add_all([v_fleet, v_cust])
     await db.flush()
 
     # Plano Frota
     plan_fleet = await create_maintenance_plan(
-        db, tenant_id, name="Preventiva Frota", service_catalog_item_id=catalog.id, ownership_scope="fleet"
+        db,
+        tenant_id,
+        name="Preventiva Frota",
+        service_catalog_item_id=catalog.id,
+        ownership_scope="fleet",
     )
     sched_fleet = await schedule_preventive_maintenance(db, tenant_id, v_fleet.id, plan_fleet.id)
 
     # Plano Cliente
     plan_cust = await create_maintenance_plan(
-        db, tenant_id, name="Preventiva Cliente", service_catalog_item_id=catalog.id, ownership_scope="customer"
+        db,
+        tenant_id,
+        name="Preventiva Cliente",
+        service_catalog_item_id=catalog.id,
+        ownership_scope="customer",
     )
     sched_cust = await schedule_preventive_maintenance(db, tenant_id, v_cust.id, plan_cust.id)
 
     # 1. Converter agendamento Frota -> GERA OS DIRETA com estimated_cost do catálogo
-    res_fleet = await convert_schedule_to_action(db, tenant_id, sched_fleet.id, actor_id=test_user.id)
+    res_fleet = await convert_schedule_to_action(
+        db, tenant_id, sched_fleet.id, actor_id=test_user.id
+    )
     assert res_fleet["status"] == "converted_to_wo"
     assert res_fleet["estimated_cost"] == 3000.0
 
@@ -209,7 +236,6 @@ async def test_fleet_wo_direct_conversion_vs_customer_draft_quote_orc(db, tenant
 @pytest.mark.asyncio
 async def test_notification_escalation_guards_notified_due_and_overdue(db, tenant_id, test_user):
     """Teste #4: Guards anti-duplicação de notificação (notified_due_at e notified_overdue_at)."""
-
 
     vehicle = Vehicle(tenant_id=tenant_id, plate="NOTIF-01", current_km=9500)
     db.add(vehicle)
@@ -254,17 +280,24 @@ async def test_notification_escalation_guards_notified_due_and_overdue(db, tenan
 async def test_ownership_scope_all_inheritance(db, tenant_id, test_user):
     """Teste #5: Herança de Escopo 'all' (Plano universal herda ownership_type da viatura)."""
 
-
     client = Client(tenant_id=tenant_id, trading_name="Empresa X", nuit="123123123")
     db.add(client)
     await db.flush()
 
     v_fleet = Vehicle(tenant_id=tenant_id, plate="ALL-FLT", ownership_type="fleet", current_km=1000)
-    v_cust = Vehicle(tenant_id=tenant_id, plate="ALL-CUST", ownership_type="customer", customer_client_id=client.id, current_km=1000)
+    v_cust = Vehicle(
+        tenant_id=tenant_id,
+        plate="ALL-CUST",
+        ownership_type="customer",
+        customer_client_id=client.id,
+        current_km=1000,
+    )
     db.add_all([v_fleet, v_cust])
     await db.flush()
 
-    plan_all = await create_maintenance_plan(db, tenant_id, name="Plano Universal", interval_km=5000, ownership_scope="all")
+    plan_all = await create_maintenance_plan(
+        db, tenant_id, name="Plano Universal", interval_km=5000, ownership_scope="all"
+    )
 
     sched_fleet = await schedule_preventive_maintenance(db, tenant_id, v_fleet.id, plan_all.id)
     sched_cust = await schedule_preventive_maintenance(db, tenant_id, v_cust.id, plan_all.id)

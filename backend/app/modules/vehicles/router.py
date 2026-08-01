@@ -29,7 +29,11 @@ async def list_vehicles(
     offset: int = Query(0, ge=0),
 ):
     redis = getattr(request.app.state, "redis", None)
-    cache_key = f"tenant:{principal.tenant_id}:vehicles:status={status}:own={ownership_type}:client={customer_client_id}:search={search}:limit={limit}:offset={offset}"
+    cache_key = (
+        f"tenant:{principal.tenant_id}:vehicles:status={status}:"
+        f"own={ownership_type}:client={customer_client_id}:search={search}:"
+        f"limit={limit}:offset={offset}"
+    )
     if redis is not None:
         cached = await redis.get(cache_key)
         if cached:

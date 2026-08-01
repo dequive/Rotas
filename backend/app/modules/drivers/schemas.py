@@ -1,7 +1,6 @@
 import re
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List
 from uuid import UUID
 
 from pydantic import BaseModel, field_validator
@@ -13,14 +12,14 @@ def _normalize_phone(v: str | None) -> str | None:
     cleaned = re.sub(r"[\s\-\(\)]", "", v)
     if not cleaned:
         return None
-    
+
     # If 9 digits starting with Moz operator
     if len(cleaned) == 9 and cleaned[:2] in {"82", "83", "84", "85", "86", "87"}:
         return f"+258{cleaned}"
     # If starts with 258 and 12 digits
     if cleaned.startswith("258") and len(cleaned) == 12:
         return f"+{cleaned}"
-    
+
     # Generic validation: check it's alphanumeric/plus and reasonable length
     if not re.match(r"^\+?[0-9]{7,15}$", cleaned):
         raise ValueError("Invalid phone number format. Must be a valid number.")
@@ -133,16 +132,17 @@ class DocumentAlert(BaseModel):
     status: str
     message: str
 
+
 class RecentTripRead(BaseModel):
     id: UUID
     route_name: str | None
     status: str
     date: datetime
 
+
 class DriverHub360Response(BaseModel):
     driver: dict
-    recent_trips: List[RecentTripRead]
+    recent_trips: list[RecentTripRead]
     pending_advances_count: int
     pending_advances_total: Decimal
-    document_alerts: List[DocumentAlert]
-
+    document_alerts: list[DocumentAlert]

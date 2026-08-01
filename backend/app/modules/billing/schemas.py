@@ -17,7 +17,6 @@ def _normalize_nuit(v: str | None) -> str | None:
     return cleaned
 
 
-
 class BillingDocumentCreate(BaseModel):
     contract_id: UUID | None = None
     client_name: str

@@ -69,19 +69,22 @@ def auth_headers(tenant_id):
 
 @pytest.fixture
 async def test_user(db, tenant_id):
-    from app.modules.users.models import User
     from uuid import uuid4
+
+    from app.modules.users.models import User
+
     user = User(
         id=uuid4(),
         tenant_id=tenant_id,
         email=f"{uuid4()}@example.com",
         password_hash="fake",
         full_name="Mock User",
-        is_active=True
+        is_active=True,
     )
     db.add(user)
     await db.flush()
     return user
+
 
 @pytest.fixture
 async def async_client():

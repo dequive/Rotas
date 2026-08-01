@@ -611,12 +611,15 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
         )
 
         from app.modules.vehicles.models import Vehicle
+
         vehicle = await db.get(Vehicle, trip.vehicle_id) if trip.vehicle_id else None
         vehicle_plate = vehicle.plate if vehicle else ""
 
-        lp_str = f" LP:{load_permit.permit_number}" if load_permit and load_permit.permit_number else ""
+        lp_str = (
+            f" LP:{load_permit.permit_number}" if load_permit and load_permit.permit_number else ""
+        )
         veh_str = f" [{vehicle_plate}]" if vehicle_plate else ""
-        base_cargo = trip.cargo_type or 'Serviço'
+        base_cargo = trip.cargo_type or "Serviço"
         enhanced_cargo_desc = f"{base_cargo}{veh_str}{lp_str}"
 
         amount = Decimal(str(contract.default_unit_price or 0))
@@ -815,16 +818,22 @@ async def issue_document(
     await db.flush()
 
     # --- HOOK CONTABILISTICO (Fase 7) ---
-    from app.modules.accounting.services import create_journal_entry
+    from app.modules.accounting.models import Account
     from app.modules.accounting.schemas import JournalEntryCreate
     from app.modules.accounting.schemas import JournalItemCreate as AccJournalItemCreate
-    from app.modules.accounting.models import Account
-    from sqlalchemy import select
-    from datetime import datetime
+    from app.modules.accounting.services import create_journal_entry
 
     if document.total_amount and document.total_amount > 0:
-        acct_clients = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("411%")).limit(1))
-        acct_sales = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("711%")).limit(1))
+        acct_clients = await db.scalar(
+            select(Account)
+            .where(Account.tenant_id == tenant_id, Account.code.like("411%"))
+            .limit(1)
+        )
+        acct_sales = await db.scalar(
+            select(Account)
+            .where(Account.tenant_id == tenant_id, Account.code.like("711%"))
+            .limit(1)
+        )
 
         if acct_clients and acct_sales:
             await create_journal_entry(
@@ -833,23 +842,26 @@ async def issue_document(
                 payload=JournalEntryCreate(
                     date=datetime.now(),
                     journal_type="VEN",
-                    description=f"Fatura {document.invoice_number or str(document.id)[:8]} ao Cliente {document.client_name}",
+                    description=(
+                        f"Fatura {document.invoice_number or str(document.id)[:8]} "
+                        f"ao Cliente {document.client_name}"
+                    ),
                     items=[
                         AccJournalItemCreate(
                             account_id=acct_clients.id,
                             description="Valor A Receber",
                             debit=float(document.total_amount),
-                            credit=Decimal("0.00")
+                            credit=Decimal("0.00"),
                         ),
                         AccJournalItemCreate(
                             account_id=acct_sales.id,
                             description="Prestacao de Servicos de Transporte",
                             debit=Decimal("0.00"),
-                            credit=float(document.total_amount)
-                        )
-                    ]
+                            credit=float(document.total_amount),
+                        ),
+                    ],
                 ),
-                actor_id=None
+                actor_id=None,
             )
     # ------------------------------------
 

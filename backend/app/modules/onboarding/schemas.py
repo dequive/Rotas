@@ -23,7 +23,9 @@ class OnboardingRegisterRequest(BaseModel):
         allowed = {"tms", "oficina"}
         invalid = set(value) - allowed
         if invalid:
-            raise ValueError(f"Invalid product module(s): {sorted(invalid)}. Allowed: {sorted(allowed)}.")
+            raise ValueError(
+                f"Invalid product module(s): {sorted(invalid)}. Allowed: {sorted(allowed)}."
+            )
         return sorted(list(set(value)))
 
     @field_validator("company_name", "owner_full_name")

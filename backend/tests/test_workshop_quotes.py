@@ -90,10 +90,7 @@ async def test_quote_crud_and_acceptance_initial(async_client, workshop_tenant_h
     accept_res = await async_client.post(
         f"/api/v1/workshop/quotes/{quote_id}/accept",
         headers=headers,
-        json={
-            "acceptance_channel": "email",
-            "accepted_by_person_name": "Test Client"
-        }
+        json={"acceptance_channel": "email", "accepted_by_person_name": "Test Client"},
     )
     assert accept_res.status_code == 200
     acc_data = accept_res.json()
@@ -167,10 +164,7 @@ async def test_quote_acceptance_supplemental(async_client, workshop_tenant_heade
     acc_res = await async_client.post(
         f"/api/v1/workshop/quotes/{sup_quote_id}/accept",
         headers=headers,
-        json={
-            "acceptance_channel": "telefone",
-            "accepted_by_person_name": "Test Client"
-        }
+        json={"acceptance_channel": "telefone", "accepted_by_person_name": "Test Client"},
     )
     assert acc_res.status_code == 200
     assert acc_res.json()["work_order_id"] == str(base_wo_id)
@@ -238,8 +232,11 @@ async def test_quote_rejection_and_expiration(async_client, workshop_tenant_head
         assert q2_db is not None
         assert q2_db.status == "expired"
 
+
 @pytest.mark.asyncio
-async def test_accept_quote_with_traceable_channel_and_person_name(async_client, workshop_tenant_headers):
+async def test_accept_quote_with_traceable_channel_and_person_name(
+    async_client, workshop_tenant_headers
+):
     headers, tenant_id = workshop_tenant_headers
 
     async with AsyncSessionLocal() as db:

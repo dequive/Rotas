@@ -107,8 +107,12 @@ class DriverAdvance(Base):
     trip_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("trips.id"), index=True)
     driver_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("drivers.id"), index=True)
     amount_mzn: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    allowance_mzn: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"), server_default="0.00")
-    expenses_mzn: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"), server_default="0.00")
+    allowance_mzn: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), default=Decimal("0.00"), server_default="0.00"
+    )
+    expenses_mzn: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), default=Decimal("0.00"), server_default="0.00"
+    )
     currency: Mapped[str] = mapped_column(String(3), default="MZN")
     status: Mapped[str] = mapped_column(String(20), default="issued")
     issued_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)

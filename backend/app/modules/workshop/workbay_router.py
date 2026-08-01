@@ -40,9 +40,7 @@ async def list_work_bays(
     is_active: bool | None = None,
 ) -> list[dict]:
     """GET /api/v1/workshop/bays — Listar baías de trabalho da oficina (MODULE_OFICINA)."""
-    return await service.list_work_bays(
-        db, principal.tenant_id, is_active=is_active
-    )
+    return await service.list_work_bays(db, principal.tenant_id, is_active=is_active)
 
 
 @router.patch(

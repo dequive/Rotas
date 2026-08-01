@@ -8,7 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
-from app.core.rbac import BILLING_ISSUE, WORKSHOP_INVENTORY_ADJUST, WORKSHOP_READ, WORKSHOP_RELEASE, WORKSHOP_WRITE, require_permission
+from app.core.rbac import (
+    BILLING_ISSUE,
+    WORKSHOP_INVENTORY_ADJUST,
+    WORKSHOP_READ,
+    WORKSHOP_RELEASE,
+    WORKSHOP_WRITE,
+    require_permission,
+)
 from app.modules.tenants.models import TenantDocumentProfile
 from app.modules.vehicles.models import Vehicle
 from app.modules.workshop import schemas, service
@@ -134,6 +141,7 @@ async def generate_workshop_invoice(
 ):
     """POST /workshop/work-orders/{id}/invoice — Gerar rascunho de fatura fiscal a partir de OS concluída."""
     from app.modules.workshop.workshop_billing_service import create_workshop_invoice
+
     return await create_workshop_invoice(
         db,
         principal.tenant_id,
@@ -150,6 +158,7 @@ async def confirm_workshop_invoice(
 ):
     """POST /workshop/invoices/{id}/confirm — Emitir fiscalmente a fatura (atribui número sequencial, imutável)."""
     from app.modules.workshop.workshop_billing_service import confirm_workshop_invoice as _confirm
+
     return await _confirm(
         db,
         principal.tenant_id,
@@ -693,23 +702,6 @@ async def update_maintenance_request_status(
     )
 
 
-@router.get("/spare-parts")
-async def list_spare_parts(
-    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
-    db: Annotated[AsyncSession, Depends(get_session)],
-):
-    return await service.list_spare_parts(principal.tenant_id, db)
-
-
-@router.post("/spare-parts", status_code=201)
-async def create_spare_part(
-    payload: schemas.SparePartInventoryCreate,
-    principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
-    db: Annotated[AsyncSession, Depends(get_session)],
-):
-    return await service.create_spare_part(principal.tenant_id, payload, db)
-
-
 @router.post("/spare-parts/{part_id}/movements", status_code=201)
 async def record_spare_part_receipt(
     part_id: UUID,
@@ -719,7 +711,9 @@ async def record_spare_part_receipt(
 ):
     # Ensure payload.inventory_id matches URL param to avoid confusion
     payload.inventory_id = part_id
-    return await service.record_spare_part_receipt(principal.tenant_id, payload, principal.user_id, db)
+    return await service.record_spare_part_receipt(
+        principal.tenant_id, payload, principal.user_id, db
+    )
 
 
 # --- Advanced Inventory & Requisition Endpoints ---
@@ -732,8 +726,9 @@ async def issue_parts_for_work_order(
     principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    """POST /workshop/work-orders/{id}/parts/issue — Fiel de armazém entrega peças/óleos com lock FOR UPDATE e verificação de aprovação."""
+    """Entrega peças com lock de stock e verificação de aprovação."""
     from app.modules.workshop import inventory_service
+
     return await inventory_service.issue_parts_for_work_order(
         db,
         principal.tenant_id,
@@ -752,8 +747,9 @@ async def return_part_from_work_order(
     principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    """POST /workshop/work-orders/{id}/parts/return — Devolver sobras ao stock (bloqueado com 409 se OS fechada/facturada)."""
+    """Devolve sobras ao stock; bloqueia OS fechada ou facturada."""
     from app.modules.workshop import inventory_service
+
     return await inventory_service.return_part_from_work_order(
         db,
         principal.tenant_id,
@@ -772,8 +768,9 @@ async def cancel_work_order(
     principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    """POST /workshop/work-orders/{id}/cancel — Cancelar OS, libertar reservas órfãs e anular invoice draft (se existir)."""
+    """Cancela a OS, liberta reservas órfãs e anula a factura draft."""
     from app.modules.workshop import inventory_service
+
     return await inventory_service.cancel_work_order(
         db,
         principal.tenant_id,
@@ -789,8 +786,9 @@ async def record_inventory_adjustment(
     principal: Annotated[Principal, Depends(require_permission(WORKSHOP_INVENTORY_ADJUST))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    """POST /workshop/spare-parts/adjust — Dar baixa/acerto de stock por perda residual (requer permissão WORKSHOP_INVENTORY_ADJUST)."""
+    """Regista baixa ou acerto de stock por perda residual."""
     from app.modules.workshop import inventory_service
+
     return await inventory_service.record_inventory_adjustment(
         db,
         principal.tenant_id,
@@ -807,8 +805,9 @@ async def get_reorder_suggestions(
     principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    """GET /workshop/spare-parts/reorder-suggestions — Lista de peças em risco de rotura com rastreabilidade de orçamentos."""
+    """Lista peças em risco de ruptura com rastreabilidade de orçamentos."""
     from app.modules.workshop import inventory_service
+
     return await inventory_service.get_reorder_suggestions(db, principal.tenant_id)
 
 
@@ -819,6 +818,7 @@ async def get_inventory_valuation_summary(
 ):
     """GET /workshop/spare-parts/valuation — Balancete de valorização de stock total e por categoria."""
     from app.modules.workshop import inventory_service
+
     return await inventory_service.get_inventory_valuation_summary(db, principal.tenant_id)
 
 
@@ -826,13 +826,14 @@ async def get_inventory_valuation_summary(
 
 
 @router.post("/preventive/plans", status_code=201)
-async def create_maintenance_plan(
+async def create_preventive_plan(
     payload: schemas.MaintenancePlanCreate,
     principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """POST /workshop/preventive/plans — Criar novo plano de manutenção preventiva."""
     from app.modules.workshop import preventive_service
+
     return await preventive_service.create_maintenance_plan(
         db,
         principal.tenant_id,
@@ -847,13 +848,14 @@ async def create_maintenance_plan(
 
 
 @router.get("/preventive/plans")
-async def list_maintenance_plans(
+async def list_preventive_plans(
     principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     ownership_scope: str | None = Query(default=None),
 ):
     """GET /workshop/preventive/plans — Listar planos de manutenção preventiva."""
     from app.modules.workshop import preventive_service
+
     return await preventive_service.list_maintenance_plans(
         db, principal.tenant_id, ownership_scope=ownership_scope
     )
@@ -867,6 +869,7 @@ async def schedule_preventive_maintenance(
 ):
     """POST /workshop/preventive/schedules — Agendar manutenção preventiva (com dedup estrito)."""
     from app.modules.workshop import preventive_service
+
     return await preventive_service.schedule_preventive_maintenance(
         db,
         principal.tenant_id,
@@ -882,8 +885,9 @@ async def convert_schedule_to_action(
     principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    """POST /workshop/preventive/schedules/{id}/convert — Converter agendamento em OS (frota) ou Orçamento Draft ORC-2026-XXXX (cliente)."""
+    """Converte agendamento em OS de frota ou orçamento draft de cliente."""
     from app.modules.workshop import preventive_service
+
     return await preventive_service.convert_schedule_to_action(
         db, principal.tenant_id, schedule_id, actor_id=principal.user_id
     )
@@ -900,6 +904,7 @@ async def set_staff_hourly_rate(
 ):
     """POST /workshop/staff-rates — Registrar/Atualizar taxa horária histórica do mecânico."""
     from app.modules.workshop import labor_service
+
     return await labor_service.set_staff_hourly_rate(
         db,
         principal.tenant_id,
@@ -919,6 +924,7 @@ async def add_task_labor_session(
 ):
     """POST /workshop/tasks/{task_id}/labor — Registrar sessão de mão de obra efetuada numa tarefa."""
     from app.modules.workshop import labor_service
+
     return await labor_service.add_task_labor_session(
         db,
         principal.tenant_id,
@@ -938,8 +944,9 @@ async def void_task_labor_session(
     principal: Annotated[Principal, Depends(require_permission(WORKSHOP_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    """POST /workshop/labor-logs/{labor_log_id}/void — Estornar sessão de mão de obra errónea (Void com justificativa)."""
+    """Estorna uma sessão de mão de obra errónea com justificativa."""
     from app.modules.workshop import labor_service
+
     return await labor_service.void_task_labor_session(
         db, principal.tenant_id, labor_log_id, payload.void_reason, actor_id=principal.user_id
     )
@@ -951,6 +958,7 @@ async def get_work_order_profitability(
     principal: Annotated[Principal, Depends(require_permission(WORKSHOP_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    """GET /workshop/work-orders/{work_order_id}/profitability — Relatório de Margem Bruta e Rentabilidade Direta da OS."""
+    """Devolve margem bruta e rentabilidade directa da OS."""
     from app.modules.workshop import labor_service
+
     return await labor_service.get_work_order_profitability(db, principal.tenant_id, work_order_id)

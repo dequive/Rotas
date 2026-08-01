@@ -711,11 +711,12 @@ async def renew_driver_document(
 
 async def get_driver_hub360(db: AsyncSession, tenant_id: UUID, driver_id: UUID) -> dict:
     """Hub 360: Compila Motorista + Últimas Viagens + Documentos Caducados + Adiantamentos Pendentes."""
-    from app.modules.drivers.models import DriverAdvance
     from decimal import Decimal
 
+    from app.modules.drivers.models import DriverAdvance
+
     driver = await _require_driver(db, tenant_id, driver_id)
-    
+
     # 1. Viagens
     result_trips = await db.execute(
         select(Trip)
@@ -724,41 +725,59 @@ async def get_driver_hub360(db: AsyncSession, tenant_id: UUID, driver_id: UUID) 
         .limit(5)
     )
     trips = result_trips.scalars().all()
-    
+
     # 2. Adiantamentos Pendentes
     result_advances = await db.execute(
-        select(DriverAdvance)
-        .where(
-            DriverAdvance.driver_id == driver_id, 
+        select(DriverAdvance).where(
+            DriverAdvance.driver_id == driver_id,
             DriverAdvance.tenant_id == tenant_id,
-            DriverAdvance.status == "issued"
+            DriverAdvance.status == "issued",
         )
     )
     advances = result_advances.scalars().all()
     pending_amount = sum(a.amount_mzn for a in advances)
-    
+
     # 3. Documentos (Semaforo)
     today = datetime.now().date()
     alerts = []
-    
+
     if driver.license_valid_until:
         days = (driver.license_valid_until - today).days
         if days < 0:
-            alerts.append({"type": "license", "status": "expired", "message": "Carta de Condução Caducada!"})
+            alerts.append(
+                {"type": "license", "status": "expired", "message": "Carta de Condução Caducada!"}
+            )
         elif days <= 30:
-            alerts.append({"type": "license", "status": "warning", "message": f"Carta de Condução expira em {days} dias"})
-            
+            alerts.append(
+                {
+                    "type": "license",
+                    "status": "warning",
+                    "message": f"Carta de Condução expira em {days} dias",
+                }
+            )
+
     if driver.passport_valid_until:
         days = (driver.passport_valid_until - today).days
         if days < 0:
-            alerts.append({"type": "passport", "status": "expired", "message": "Passaporte Caducado!"})
+            alerts.append(
+                {"type": "passport", "status": "expired", "message": "Passaporte Caducado!"}
+            )
         elif days <= 30:
-            alerts.append({"type": "passport", "status": "warning", "message": f"Passaporte expira em {days} dias"})
-            
+            alerts.append(
+                {
+                    "type": "passport",
+                    "status": "warning",
+                    "message": f"Passaporte expira em {days} dias",
+                }
+            )
+
     return {
         "driver": serialize_driver(driver),
-        "recent_trips": [{"id": t.id, "route_name": t.route_name, "status": t.status, "date": t.created_at} for t in trips],
+        "recent_trips": [
+            {"id": t.id, "route_name": t.route_name, "status": t.status, "date": t.created_at}
+            for t in trips
+        ],
         "pending_advances_count": len(advances),
         "pending_advances_total": pending_amount or Decimal("0.00"),
-        "document_alerts": alerts
+        "document_alerts": alerts,
     }

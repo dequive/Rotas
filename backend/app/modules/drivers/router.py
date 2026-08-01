@@ -12,7 +12,6 @@ from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import DRIVERS_PAIRING, DRIVERS_READ, DRIVERS_WRITE, require_permission
 from app.modules.availability import service as availability_service
 from app.modules.drivers import schemas, service
-
 from app.modules.drivers.schemas import DriverHub360Response
 
 router = APIRouter(prefix="/drivers", tags=["drivers"])

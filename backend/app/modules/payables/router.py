@@ -7,29 +7,36 @@ from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal, get_current_principal
+from app.core.auth import Principal
 from app.core.deps import get_session
-from app.core.rbac import require_permission, PAYABLES_READ, PAYABLES_WRITE, PAYABLES_APPROVE, PAYABLES_PAY
+from app.core.rbac import (
+    PAYABLES_PAY,
+    PAYABLES_READ,
+    PAYABLES_WRITE,
+    require_permission,
+)
+from app.modules.accounting.schemas import JournalEntryCreate, JournalItemCreate
+from app.modules.accounting.services import create_journal_entry
 from app.modules.payables.models import PurchaseOrder, SupplierInvoice, SupplierPayment
 from app.modules.payables.pdf_templates import generate_purchase_order_pdf
-from app.modules.tenants.models import Tenant, TenantDocumentProfile
-from app.modules.third_party.models import ThirdParty
 from app.modules.payables.schemas import (
+    InvoicePaymentRequest,
     PurchaseOrderCreate,
     PurchaseOrderResponse,
     SupplierInvoiceCreate,
     SupplierInvoiceResponse,
     SupplierPaymentCreate,
     SupplierPaymentResponse,
-    InvoicePaymentRequest,
 )
-from app.modules.accounting.services import create_journal_entry
-from app.modules.accounting.schemas import JournalEntryCreate, JournalItemCreate
+from app.modules.tenants.models import Tenant, TenantDocumentProfile
+from app.modules.third_party.models import ThirdParty
 
 router = APIRouter(prefix="/payables", tags=["payables"])
 
 
-@router.post("/purchase-orders", response_model=PurchaseOrderResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/purchase-orders", response_model=PurchaseOrderResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_purchase_order(
     payload: PurchaseOrderCreate,
     principal: Annotated[Principal, Depends(require_permission(PAYABLES_WRITE))],
@@ -84,7 +91,9 @@ async def download_purchase_order_pdf(
     )
 
 
-@router.post("/invoices", response_model=SupplierInvoiceResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/invoices", response_model=SupplierInvoiceResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_supplier_invoice(
     payload: SupplierInvoiceCreate,
     principal: Annotated[Principal, Depends(require_permission(PAYABLES_WRITE))],
@@ -113,7 +122,9 @@ async def list_supplier_invoices(
     return list(result.scalars().all())
 
 
-@router.post("/payments", response_model=SupplierPaymentResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/payments", response_model=SupplierPaymentResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_supplier_payment(
     payload: SupplierPaymentCreate,
     principal: Annotated[Principal, Depends(require_permission(PAYABLES_PAY))],

@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -14,7 +15,7 @@ async function getAuthHeaders() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const res = await fetch(`${API_BASE}/api/v1/known-routes`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/known-routes`, {
     method: "POST",
     headers: await getAuthHeaders(),
     body: JSON.stringify(body),
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const { id, ...body } = (await req.json()) as { id: string } & Record<string, unknown>;
-  const res = await fetch(`${API_BASE}/api/v1/known-routes/${id}`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/known-routes/${id}`, {
     method: "PATCH",
     headers: await getAuthHeaders(),
     body: JSON.stringify(body),
@@ -34,7 +35,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const { id } = (await req.json()) as { id: string };
-  const res = await fetch(`${API_BASE}/api/v1/known-routes/${id}`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/known-routes/${id}`, {
     method: "DELETE",
     headers: await getAuthHeaders(),
   });

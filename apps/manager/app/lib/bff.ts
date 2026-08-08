@@ -1,4 +1,11 @@
 "use client";
+import {
+  HttpContractError,
+  ensureIdempotencyKey,
+  requestWithPolicy,
+  responseToHttpError,
+  type HttpPolicy,
+} from "@rotas/http-contract";
 /**
  * Stabilization/P0-F7: client-side helper that proxies through the Manager BFF.
  *
@@ -10,13 +17,14 @@
  * NOTE: prefers individual route handlers under /api/<domain>/** when they
  * exist; falls back to /api/proxy only when no dedicated handler exists.
  */
-export class ClientApiError extends Error {
-  constructor(message: string, public status: number) {
-    super(message);
+export class ClientApiError extends HttpContractError {
+  constructor(message: string, status: number, code = `http_${status}`, details?: unknown, retryable = false) {
+    super(message, status, code, details, retryable);
+    this.name = "ClientApiError";
   }
 }
 
-type BffRequestInit = RequestInit & { path?: string };
+type BffRequestInit = RequestInit & { path?: string; policy?: HttpPolicy };
 
 function assertSameOriginBffPath(path: string): void {
   if (!path.startsWith("/api/") || path.startsWith("/api/v1/")) {
@@ -28,14 +36,18 @@ export async function bffRequest(
   targetPath: string,
   init: BffRequestInit = {},
 ): Promise<Response> {
-  const { path: explicit, ...rest } = init;
+  const { path: explicit, policy, ...rest } = init;
   const url = explicit ?? `/api/proxy?path=${encodeURIComponent(targetPath)}`;
   assertSameOriginBffPath(url);
   const headers = new Headers(rest.headers ?? {});
   if (rest.body != null && !(rest.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  return fetch(url, { ...rest, headers, credentials: "include" });
+  const method = (rest.method ?? "GET").toUpperCase();
+  const requestHeaders = ["GET", "HEAD", "OPTIONS"].includes(method)
+    ? headers
+    : ensureIdempotencyKey(headers);
+  return requestWithPolicy(url, { ...rest, headers: requestHeaders, credentials: "include" }, policy);
 }
 
 export async function bffFetch<T>(
@@ -44,11 +56,8 @@ export async function bffFetch<T>(
 ): Promise<T> {
   const res = await bffRequest(targetPath, init);
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as {
-      error?: { message?: string };
-    };
-    const message = body?.error?.message ?? `HTTP ${res.status}`;
-    throw new ClientApiError(message, res.status);
+    const error = await responseToHttpError(res);
+    throw new ClientApiError(error.message, error.status, error.code, error.details, error.retryable);
   }
   return (await res.json()) as T;
 }

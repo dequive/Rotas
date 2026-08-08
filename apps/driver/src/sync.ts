@@ -1,3 +1,4 @@
+import { HttpContractError, requestWithPolicy } from "@rotas/http-contract";
 import { db, type SyncQueueItem } from "./db";
 
 interface SyncResult {
@@ -54,14 +55,14 @@ async function uploadQueuedPhotos(item: SyncQueueItem, token: string) {
     form.append("file_type", photo.fileType);
     form.append("entity_type", item.entityType);
 
-    const response = await fetch(`${apiBaseUrl()}/api/v1/files/upload`, {
+    const response = await requestWithPolicy(`${apiBaseUrl()}/api/v1/files/upload`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "X-Tenant-Id": tenant
       },
       body: form
-    });
+    }, { timeoutMs: 30_000, maxRetries: 0 });
 
     if (!response.ok) {
       await db.photoQueue.update(photo.id!, {
@@ -124,11 +125,12 @@ async function syncItem(item: SyncQueueItem, token: string) {
     }
     const payload = await uploadQueuedPhotos(item, token);
 
-    const response = await fetch(`${apiBaseUrl()}/api/v1/sync/batch`, {
+    const response = await requestWithPolicy(`${apiBaseUrl()}/api/v1/sync/batch`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "X-Tenant-Id": tenant,
+        "Idempotency-Key": item.idempotencyKey,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -189,7 +191,12 @@ async function syncItem(item: SyncQueueItem, token: string) {
     await db.syncQueue.update(item.id!, {
       status: "retrying",
       retryCount: item.retryCount + 1,
-      lastError: error instanceof Error ? error.message : "unknown_error"
+      lastError:
+        error instanceof HttpContractError
+          ? error.code
+          : error instanceof Error
+            ? error.message
+            : "unknown_error"
     });
   }
 }

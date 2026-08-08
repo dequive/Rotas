@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -15,7 +16,7 @@ async function getAuthHeaders() {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.toString() ? `?${searchParams}` : "";
-  const res = await fetch(`${API_BASE}/api/v1/third-party${query}`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/third-party${query}`, {
     headers: await getAuthHeaders(),
   });
   const data = await res.json();
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const res = await fetch(`${API_BASE}/api/v1/third-party`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/third-party`, {
     method: "POST",
     headers: await getAuthHeaders(),
     body: JSON.stringify(body),

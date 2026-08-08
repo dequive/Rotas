@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
   const { _action, id, ...payload } = body;
 
   if (_action === "start") {
-    const res = await fetch(`${API_BASE}/api/v1/trips/${String(id)}/start`, {
+    const res = await upstreamFetch(`${API_BASE}/api/v1/trips/${String(id)}/start`, {
       method: "POST",
       headers: await getAuthHeaders(),
     });
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (_action === "complete") {
-    const res = await fetch(`${API_BASE}/api/v1/trips/${String(id)}/complete`, {
+    const res = await upstreamFetch(`${API_BASE}/api/v1/trips/${String(id)}/complete`, {
       method: "POST",
       headers: await getAuthHeaders(),
       body: JSON.stringify(payload),
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(await res.json(), { status: res.status });
   }
 
-  const res = await fetch(`${API_BASE}/api/v1/trips`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/trips`, {
     method: "POST",
     headers: await getAuthHeaders(),
     body: JSON.stringify(payload),

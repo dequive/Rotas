@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -18,7 +19,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await req.json();
-  const res = await fetch(`${API_BASE}/api/v1/billing/payments/${id}/void`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/billing/payments/${id}/void`, {
     method: "POST",
     headers: await getAuthHeaders(),
     body: JSON.stringify(body),

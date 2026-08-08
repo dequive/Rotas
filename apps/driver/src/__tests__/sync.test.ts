@@ -104,8 +104,9 @@ describe("Driver Offline-First & Sync Queue", () => {
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toContain("/api/v1/sync/batch");
     expect(options.method).toBe("POST");
-    expect(options.headers["Authorization"]).toBe("Bearer token-xyz");
-    expect(options.headers["X-Tenant-Id"]).toBe("00000000-0000-0000-0000-000000000001");
+    const headers = new Headers(options.headers);
+    expect(headers.get("Authorization")).toBe("Bearer token-xyz");
+    expect(headers.get("X-Tenant-Id")).toBe("00000000-0000-0000-0000-000000000001");
     
     const body = JSON.parse(options.body);
     expect(body.device_id).toBe("device-123");

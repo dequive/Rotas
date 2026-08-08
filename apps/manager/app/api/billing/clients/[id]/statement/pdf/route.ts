@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -27,7 +28,7 @@ export async function GET(
 
   let backendResponse: Response;
   try {
-    backendResponse = await fetch(backendUrl, {
+    backendResponse = await upstreamFetch(backendUrl, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),

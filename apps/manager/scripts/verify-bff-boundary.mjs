@@ -22,6 +22,22 @@ function collectSourceFiles(directory) {
   return files;
 }
 
+function collectApiRouteFiles(root) {
+  const apiRoot = path.join(root, "api");
+  if (!fs.existsSync(apiRoot)) return [];
+  return collectAllFiles(apiRoot).filter((file) => path.basename(file) === "route.ts");
+}
+
+function collectAllFiles(directory) {
+  const files = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const target = path.join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...collectAllFiles(target));
+    else files.push(path.resolve(target));
+  }
+  return files;
+}
+
 function parse(fileName, source = fs.readFileSync(fileName, "utf8")) {
   return ts.createSourceFile(
     fileName,
@@ -182,6 +198,21 @@ export function inspectSource(source, fileName = path.join(appRoot, "fixture.tsx
   return browserReachable ? inspectBrowserModule(parse(fileName, source)) : [];
 }
 
+export function inspectApiRouteSource(source, fileName = path.join(appRoot, "api", "fixture", "route.ts")) {
+  const sourceFile = parse(fileName, source);
+  const violations = [];
+  function visit(node) {
+    if (isFetchCall(node)) {
+      violations.push(
+        `${location(sourceFile, node)} [direct-upstream-fetch] API route handlers must use upstreamFetch().`,
+      );
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return violations;
+}
+
 export function verifyBoundary(root = appRoot) {
   const files = collectSourceFiles(root);
   const sourceFiles = new Map(files.map((file) => [file, parse(file)]));
@@ -214,7 +245,11 @@ export function verifyBoundary(root = appRoot) {
       ),
     );
   }
-  return { clientRoots: roots, browserModules: [...reachable], violations };
+  const routeHandlers = collectApiRouteFiles(root);
+  for (const file of routeHandlers) {
+    violations.push(...inspectApiRouteSource(fs.readFileSync(file, "utf8"), file));
+  }
+  return { clientRoots: roots, browserModules: [...reachable], routeHandlers, violations };
 }
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
@@ -227,6 +262,7 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
   }
   console.log(
     `Manager BFF boundary verified: ${result.clientRoots.length} client roots, ` +
-      `${result.browserModules.length} browser-reachable modules, 0 violations.`,
+      `${result.browserModules.length} browser-reachable modules, ` +
+      `${result.routeHandlers.length} API route handlers, 0 violations.`,
   );
 }

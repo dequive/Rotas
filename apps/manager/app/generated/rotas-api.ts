@@ -14965,8 +14965,9 @@ export interface operations {
     pay_supplier_invoice_api_v1_payables_invoices__invoice_id__pay_post: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 Authorization?: string | null;
+                "Idempotency-Key": string;
                 "X-Tenant-Id"?: string | null;
             };
             path: {

@@ -1,4 +1,5 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
+from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from importlib import import_module
@@ -16,6 +17,31 @@ class Base(DeclarativeBase):
 
 
 settings = get_settings()
+_deferred_commit_sessions: ContextVar[frozenset[int]] = ContextVar(
+    "deferred_commit_sessions",
+    default=frozenset(),
+)
+
+
+class RotasAsyncSession(AsyncSession):
+    """Session whose inner commits can be deferred by a top-level use case."""
+
+    async def commit(self) -> None:
+        if id(self) in _deferred_commit_sessions.get():
+            await self.flush()
+            return
+        await super().commit()
+
+
+@contextmanager
+def defer_session_commits(session: AsyncSession) -> Iterator[None]:
+    """Turn commits for one session into flushes until the outer use case commits."""
+    deferred_sessions = _deferred_commit_sessions.get()
+    token = _deferred_commit_sessions.set(deferred_sessions | {id(session)})
+    try:
+        yield
+    finally:
+        _deferred_commit_sessions.reset(token)
 
 # Pool tuning for Gunicorn multi-worker (D-12 / Pitfall 4)
 # 4 workers × pool_size=2 × max_overflow=3 = max 20 connections total
@@ -25,7 +51,11 @@ if settings.environment == "production":
     _pool_kwargs = {"pool_size": 2, "max_overflow": 3}
 
 engine = create_async_engine(settings.database_url, pool_pre_ping=True, **_pool_kwargs)
-AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+AsyncSessionLocal = async_sessionmaker(
+    engine,
+    class_=RotasAsyncSession,
+    expire_on_commit=False,
+)
 if settings.resolved_admin_database_url == settings.database_url:
     admin_engine = engine
 else:
@@ -37,7 +67,11 @@ else:
         pool_pre_ping=True,
         **admin_pool_kwargs,
     )
-AdminSessionLocal = async_sessionmaker(admin_engine, expire_on_commit=False)
+AdminSessionLocal = async_sessionmaker(
+    admin_engine,
+    class_=RotasAsyncSession,
+    expire_on_commit=False,
+)
 
 
 @dataclass(frozen=True)

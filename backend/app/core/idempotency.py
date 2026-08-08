@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
+from app.database import defer_session_commits
 from app.modules.sync.models import IdempotencyKey
 
 IDEMPOTENCY_TTL_DAYS = 30
@@ -58,7 +59,9 @@ async def execute_http_idempotent(
     )
     db.add(reserved)
     try:
-        await db.commit()
+        # The reservation belongs to the same transaction as the mutation.
+        # A concurrent insert waits on the unique key and replays after commit.
+        await db.flush()
     except IntegrityError as exc:
         await db.rollback()
         existing = await db.scalar(
@@ -82,15 +85,17 @@ async def execute_http_idempotent(
         return existing.response_body
 
     try:
-        response = await handler()
-    except ApiError:
-        await db.delete(reserved)
+        # Legacy services may still commit internally. Within this use case,
+        # those calls become flushes and the boundary commits exactly once.
+        with defer_session_commits(db):
+            response = await handler()
+        reserved.response_body = jsonable_encoder(response)
+        reserved.status_code = 200
+        entity_id = response.get("id")
+        if entity_id:
+            reserved.entity_id = UUID(str(entity_id))
         await db.commit()
+    except BaseException:
+        await db.rollback()
         raise
-    reserved.response_body = jsonable_encoder(response)
-    reserved.status_code = 200
-    entity_id = response.get("id")
-    if entity_id:
-        reserved.entity_id = UUID(str(entity_id))
-    await db.commit()
     return response

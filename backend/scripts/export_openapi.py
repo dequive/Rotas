@@ -5,12 +5,22 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
-from app.main import app
-
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
+from app.database import import_all_models  # noqa: E402
+
+# Keep schema-name resolution deterministic between the standalone exporter
+# and pytest, whose shared conftest imports every mapped model before the app.
+import_all_models()
+
+from app.main import app  # noqa: E402
+
 DEFAULT_OUTPUT = BACKEND_ROOT / "openapi" / "rotas-v1.json"
 
 

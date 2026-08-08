@@ -1,0 +1,37 @@
+{
+  "administrative_role": {
+    "rolbypassrls": true,
+    "rolcanlogin": true,
+    "role_name": "rotas_admin",
+    "rolsuper": false
+  },
+  "application_role": {
+    "rolbypassrls": false,
+    "rolcanlogin": true,
+    "role_name": "rotas_app",
+    "rolsuper": false
+  },
+  "blockers": [],
+  "control_plane_privileges": {
+    "alembic_read": false,
+    "platform_read": false,
+    "schema_create": false,
+    "schema_usage": true,
+    "tenant_insert": false,
+    "tenant_select": true
+  },
+  "database": "rotas",
+  "decision": "PASS",
+  "gate": "PR-06",
+  "generated_at_utc": "2026-08-08T18:06:13.924667+00:00",
+  "missing_admin_grant_count": 0,
+  "missing_admin_grants": [],
+  "missing_app_grant_count": 0,
+  "missing_app_grants": [],
+  "policy_gap_count": 0,
+  "policy_gaps": [],
+  "rls_gap_count": 0,
+  "rls_gaps": [],
+  "server_version": "16.14 (Debian 16.14-1.pgdg13+1)",
+  "tenant_table_count": 114
+}

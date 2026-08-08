@@ -49,7 +49,7 @@ O CI executa `test:bff-boundary` e `verify:bff` antes da suíte Manager.
 | `git diff --check` | verde |
 | Suíte Manager no PR08 | 74 passed; 1 suite herdada não coletada |
 | Suíte Manager no base `7b6773d` | 63 passed; a mesma suite herdada não coletada |
-| TypeScript no PR08 | mesmas 5 falhas do base; zero erro novo |
+| TypeScript no PR08 | mesmos 6 diagnósticos do base; zero erro novo |
 
 ## Bloqueios herdados e ambiente
 

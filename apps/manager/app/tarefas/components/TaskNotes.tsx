@@ -3,6 +3,7 @@
 import { User, Send } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { bffRequest } from "@/app/lib/bff";
 
 interface TaskNotesProps {
   taskId: string;
@@ -22,13 +23,13 @@ export function TaskNotes({ taskId, source }: TaskNotesProps) {
     try {
       if (source === "workshop") {
         // Mocking workshop notes endpoint, assuming it might exist or be added
-        await fetch(`/api/v1/workshop/maintenance-requests/${taskId}/notes`, {
+        await bffRequest(`/api/v1/workshop/maintenance-requests/${taskId}/notes`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ body: note })
         });
       } else {
-        await fetch(`/api/v1/governance/cases/${taskId}/notes`, {
+        await bffRequest(`/api/v1/governance/cases/${taskId}/notes`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ body: note })

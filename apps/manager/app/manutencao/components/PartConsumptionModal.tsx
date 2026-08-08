@@ -5,17 +5,13 @@ import { useRouter } from "next/navigation";
 import { Loader2, PackageMinus, Truck } from "lucide-react";
 import { Button } from "@/app/components/ui/Button";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Item, Warehouse, registerStockOut } from "@/app/lib/inventory-api";
+import { registerStockOut } from "@/app/lib/inventory-client-api";
+import type { Item, Warehouse } from "@/app/lib/inventory-api";
 
 interface Props {
   part: Item;
   warehouses: Warehouse[];
   vehicles: { id: string; plate: string }[];
-}
-
-function getApiBase() {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("rotas_api_base_url") ?? (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "");
 }
 
 export function PartConsumptionModal({ part, warehouses, vehicles }: Props) {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { SidebarLayout } from "@/app/components/SidebarLayout";
 import { BookOpen, Search } from "lucide-react";
+import { bffRequest } from "@/app/lib/bff";
 
 function fmtMZN(value: number) {
   return new Intl.NumberFormat("pt-MZ", {
@@ -10,24 +11,6 @@ function fmtMZN(value: number) {
     currency: "MZN",
     minimumFractionDigits: 2,
   }).format(value);
-}
-
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  const token = localStorage.getItem("rotas_access_token");
-  const tenantId = localStorage.getItem("rotas_tenant_id");
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),
-  };
-}
-
-function getApiBase(): string {
-  if (typeof window === "undefined") return "";
-  return (
-    localStorage.getItem("rotas_api_base_url") ??
-    (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "")
-  );
 }
 
 interface TrialBalanceLine {
@@ -47,9 +30,7 @@ export default function BalanceteERazao() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${getApiBase()}/api/v1/accounting/trial-balance`, {
-        headers: getAuthHeaders(),
-      });
+      const res = await bffRequest("/api/v1/accounting/trial-balance");
       if (res.ok) {
         setData(await res.json());
       }

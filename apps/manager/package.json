@@ -11,7 +11,9 @@
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:report": "playwright show-report",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:bff-boundary": "node --test scripts/verify-bff-boundary.node-test.mjs",
+    "verify:bff": "node scripts/verify-bff-boundary.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.16",

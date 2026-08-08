@@ -4,12 +4,8 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ReceiptText, Loader2, Filter, CalendarDays, Calculator } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { BillingTrip } from "@/app/lib/billing-api";
-
-function getApiBase() {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("rotas_api_base_url") ?? (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "");
-}
+import type { BillingTrip } from "@/app/lib/billing-api";
+import { bffRequest } from "@/app/lib/bff";
 
 export function MassBillingModal({ trips }: { trips: BillingTrip[] }) {
   const router = useRouter();
@@ -66,13 +62,8 @@ export function MassBillingModal({ trips }: { trips: BillingTrip[] }) {
     }, {} as Record<string, BillingTrip[]>);
 
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('rotas_auth_token='))?.split('=')[1] ?? "";
-      const tenantId = localStorage.getItem("rotas_tenant_id") || "default";
-
       const headers = {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Tenant-Id": tenantId
+        "Content-Type": "application/json"
       };
 
       for (const [clientName, clientTrips] of Object.entries(tripsByClient)) {
@@ -89,7 +80,7 @@ export function MassBillingModal({ trips }: { trips: BillingTrip[] }) {
           client_nuit: "000000000" // Bypass draft NUIT validation
         };
 
-        const res = await fetch(`${getApiBase()}/api/v1/billing/documents`, {
+        const res = await bffRequest("/api/v1/billing/documents", {
           method: "POST",
           headers,
           body: JSON.stringify(payload)

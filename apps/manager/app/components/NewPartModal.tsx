@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X, CheckCircle, PackagePlus } from "lucide-react";
-import { createItem } from "../lib/inventory-api";
+import { createItem } from "../lib/inventory-client-api";
 
 export function NewPartModal({
   onClose,

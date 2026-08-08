@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { loadBillingTrips, createBillingDocument, BillingTrip } from "@/app/lib/billing-api";
+import { loadBillingTrips, createBillingDocument } from "@/app/lib/billing-client-api";
+import type { BillingTrip } from "@/app/lib/billing-api";
 import { Calculator, Truck, Loader2, Calendar, CheckSquare, Square, Filter } from "lucide-react";
 
 export function FaturacaoClient() {

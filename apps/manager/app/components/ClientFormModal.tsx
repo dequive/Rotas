@@ -2,6 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { bffRequest } from "@/app/lib/bff";
 import { useState } from "react";
 import type { ClientResponse } from "../lib/clients-api";
 import { Button } from "@/app/components/ui/Button";
@@ -104,7 +105,8 @@ export function ClientFormModal({
           : `/api/clients/${client!.id}`;
       const method = mode === "create" ? "POST" : "PATCH";
 
-      const res = await fetch(url, {
+      const res = await bffRequest("", {
+        path: url,
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

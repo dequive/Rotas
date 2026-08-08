@@ -15,11 +15,10 @@ import { PageHeader } from "@/app/components/ui/PageHeader";
 import { SectionHeader } from "@/app/components/ui/SectionHeader";
 import { MonoCell, MoneyCell } from "@/app/components/ui/MonoCell";
 import { EmptyStateInline } from "@/app/components/ui/EmptyState";
+import { bffRequest } from "@/app/lib/bff";
 
 interface ApiConfig {
-  apiBaseUrl: string;
   tenantId: string | null;
-  token: string;
 }
 
 interface CostMarginBoardProps {
@@ -123,13 +122,11 @@ function NegativeMarginItem({ apiConfig, item }: { apiConfig: ApiConfig; item: N
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(`${apiConfig.apiBaseUrl}/api/v1/operations/waivers`, {
+      const response = await bffRequest("/api/v1/operations/waivers", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apiConfig.token}`,
           "Content-Type": "application/json",
           "Idempotency-Key": `negative-margin:${item.tripId}:${item.costsReconciledAt}`,
-          "X-Tenant-Id": apiConfig.tenantId,
         },
         body: JSON.stringify({
           entity_type: "trip",
@@ -208,13 +205,11 @@ function DespachoPendingItem({ apiConfig, item }: { apiConfig: ApiConfig; item: 
     setError(null);
     try {
       const reference = `driver-despacho:${item.tripId}:${Number(distanceKm).toFixed(2)}`;
-      const response = await fetch(`${apiConfig.apiBaseUrl}/api/v1/trips/${item.tripId}/driver-despacho`, {
+      const response = await bffRequest(`/api/v1/trips/${item.tripId}/driver-despacho`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apiConfig.token}`,
           "Content-Type": "application/json",
           "Idempotency-Key": reference,
-          "X-Tenant-Id": apiConfig.tenantId,
         },
         body: JSON.stringify({
           distance_km: Number(distanceKm),

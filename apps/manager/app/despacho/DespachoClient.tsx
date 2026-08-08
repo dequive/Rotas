@@ -14,22 +14,7 @@ import {
 } from "lucide-react";
 import { MonoCell } from "@/app/components/ui/MonoCell";
 import { StatusBadge } from "@/app/components/ui/StatusBadge";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-function getAuthHeaders(): Record<string, string> {
-  if (typeof document === "undefined") return {};
-  const cookie = (name: string) =>
-    document.cookie
-      .split("; ")
-      .find((c) => c.startsWith(`${name}=`))
-      ?.split("=")[1] ?? "";
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${cookie("rotas_access_token")}`,
-    "X-Tenant-Id": cookie("rotas_tenant_id"),
-  };
-}
+import { bffRequest } from "@/app/lib/bff";
 
 type Trip = {
   id: string;
@@ -123,9 +108,9 @@ function IssueAdvanceModal({
     setError(null);
     try {
       const key = crypto.randomUUID();
-      const res = await fetch(`${API_BASE}/api/v1/trips/${trip.id}/advance`, {
+      const res = await bffRequest(`/api/v1/trips/${trip.id}/advance`, {
         method: "POST",
-        headers: { ...getAuthHeaders(), "Idempotency-Key": key },
+        headers: { "Idempotency-Key": key },
         body: JSON.stringify({
           driver_id: trip.driver_id,
           amount_mzn: amountNum,
@@ -242,9 +227,8 @@ function RejectModal({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/trips/${tripId}/settlement/reject`, {
+      const res = await bffRequest(`/api/v1/trips/${tripId}/settlement/reject`, {
         method: "POST",
-        headers: getAuthHeaders(),
         body: JSON.stringify({ reason }),
       });
       if (!res.ok) {
@@ -393,9 +377,8 @@ function CompletedTripsTable({ rows, onRefresh }: { rows: SettlementRow[]; onRef
     setComputing(tripId);
     setActionError((e) => ({ ...e, [tripId]: "" }));
     try {
-      const res = await fetch(`${API_BASE}/api/v1/trips/${tripId}/settlement`, {
+      const res = await bffRequest(`/api/v1/trips/${tripId}/settlement`, {
         method: "POST",
-        headers: getAuthHeaders(),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -415,9 +398,8 @@ function CompletedTripsTable({ rows, onRefresh }: { rows: SettlementRow[]; onRef
   async function approveSettlement(tripId: string) {
     setApproving(tripId);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/trips/${tripId}/settlement/approve`, {
+      const res = await bffRequest(`/api/v1/trips/${tripId}/settlement/approve`, {
         method: "POST",
-        headers: getAuthHeaders(),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -437,11 +419,7 @@ function CompletedTripsTable({ rows, onRefresh }: { rows: SettlementRow[]; onRef
   async function downloadPdf(tripId: string) {
     setDownloading(tripId);
     try {
-      const headers = getAuthHeaders();
-      delete headers["Content-Type"];
-      const res = await fetch(`${API_BASE}/api/v1/trips/${tripId}/settlement/pdf`, {
-        headers,
-      });
+      const res = await bffRequest(`/api/v1/trips/${tripId}/settlement/pdf`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

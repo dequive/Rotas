@@ -3,24 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { SidebarLayout } from "@/app/components/SidebarLayout";
 import { Save, Plus, Trash2, CheckCircle2 } from "lucide-react";
-
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  const token = localStorage.getItem("rotas_access_token");
-  const tenantId = localStorage.getItem("rotas_tenant_id");
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),
-  };
-}
-
-function getApiBase(): string {
-  if (typeof window === "undefined") return "";
-  return (
-    localStorage.getItem("rotas_api_base_url") ??
-    (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "")
-  );
-}
+import { bffRequest } from "@/app/lib/bff";
 
 interface Account {
   id: string;
@@ -48,9 +31,7 @@ export default function LançamentosManuais() {
   useEffect(() => {
     async function fetchAccounts() {
       try {
-        const res = await fetch(`${getApiBase()}/api/v1/accounting/accounts`, {
-          headers: getAuthHeaders()
-        });
+        const res = await bffRequest("/api/v1/accounting/accounts");
         if (res.ok) {
           setAccounts(await res.json());
         }
@@ -94,11 +75,10 @@ export default function LançamentosManuais() {
 
     setSaving(true);
     try {
-      const res = await fetch(`${getApiBase()}/api/v1/accounting/manual-entry`, {
+      const res = await bffRequest("/api/v1/accounting/manual-entry", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders()
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           journal_type: journalType,
@@ -184,7 +164,7 @@ export default function LançamentosManuais() {
               <div className="flex flex-col gap-1.5 md:col-span-2">
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Documento / Referência</label>
                 <input 
-                  type="text" placeholder="Ex: Fatura Eletricidade #9822" value={reference} onChange={e => setReference(e.target.value)}
+                  type="text" placeholder="Ex.: Fatura Eletricidade 9822" value={reference} onChange={e => setReference(e.target.value)}
                   className="h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none w-full text-sm font-medium"
                 />
               </div>

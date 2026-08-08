@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PackagePlus, Truck, Search, AlertCircle } from "lucide-react";
-import { Item, Warehouse } from "../lib/inventory-api";
+import type { Item, Warehouse } from "../lib/inventory-api";
 import { StatusBadge } from "@/app/components/ui/StatusBadge";
 import { NewPartModal } from "@/app/components/NewPartModal";
 import { GoodsReceiptModal } from "@/app/components/GoodsReceiptModal";

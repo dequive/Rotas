@@ -6,13 +6,12 @@ import { CalendarCheck, FileWarning, Truck, Users } from "lucide-react";
 
 import { PageHeader } from "@/app/components/ui/PageHeader";
 import { StatusBadge } from "@/app/components/ui/StatusBadge";
+import { bffRequest } from "@/app/lib/bff";
 
 import type { ComplianceDocumentWarning, ControlTowerLoadResult } from "../lib/control-tower-api";
 
 interface ApiConfig {
-  apiBaseUrl: string;
   tenantId: string | null;
-  token: string;
 }
 
 interface FleetComplianceBoardProps {
@@ -138,13 +137,11 @@ function ComplianceItem({
         entityType === "vehicle"
           ? `/api/v1/vehicles/${item.entityId}/documents/${item.documentType}/renew`
           : `/api/v1/drivers/${item.entityId}/documents/${item.documentType}/renew`;
-      const response = await fetch(`${apiConfig.apiBaseUrl}${path}`, {
+      const response = await bffRequest(path, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apiConfig.token}`,
           "Content-Type": "application/json",
           "Idempotency-Key": `manager:fleet:${entityType}:renew:${item.entityId}:${item.documentType}:${validUntil}`,
-          "X-Tenant-Id": apiConfig.tenantId,
         },
         body: JSON.stringify({
           valid_until: validUntil,

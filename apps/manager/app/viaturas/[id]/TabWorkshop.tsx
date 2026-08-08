@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Wrench, Settings } from "lucide-react";
-
-function getApiBase() {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("rotas_api_base_url") ?? (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "");
-}
+import { bffRequest } from "@/app/lib/bff";
 
 export default function TabWorkshop({ vehicleId }: { vehicleId: string }) {
   const [workOrders, setWorkOrders] = useState<any[]>([]);
@@ -17,8 +13,8 @@ export default function TabWorkshop({ vehicleId }: { vehicleId: string }) {
     async function loadData() {
       try {
         const [resWorkOrders, resParts] = await Promise.all([
-          fetch(`${getApiBase()}/api/v1/workshop/work-orders?vehicle_id=${vehicleId}&limit=5`),
-          fetch(`${getApiBase()}/api/v1/workshop/vehicles/${vehicleId}/installed-parts`)
+          bffRequest(`/api/v1/workshop/work-orders?vehicle_id=${vehicleId}&limit=5`),
+          bffRequest(`/api/v1/workshop/vehicles/${vehicleId}/installed-parts`)
         ]);
         
         if (resWorkOrders.ok) {

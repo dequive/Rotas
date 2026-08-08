@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Clock, Package, TrendingUp, Truck, User } from "lucide-react";
-import { type ScorecardData, loadDriverScorecard } from "../lib/drivers-api";
+import { loadDriverScorecard } from "../lib/drivers-client-api";
+import type { ScorecardData } from "../lib/drivers-api";
 
 interface DriverSlim {
   id: string;

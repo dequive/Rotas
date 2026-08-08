@@ -1,6 +1,6 @@
 "use client";
 
-import { Item, Warehouse } from "@/app/lib/inventory-api";
+import type { Item, Warehouse } from "@/app/lib/inventory-api";
 import {
   DataTable,
   RotasTableHeader,

@@ -1,6 +1,6 @@
 import { requireSession, refreshAccessToken } from "./auth";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = process.env.ROTAS_API_BASE_URL ?? "http://localhost:8000";
 
 type ApiErrorBody = {
   detail?: string;

@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, MapPin, CheckSquare, AlertTriangle } from "lucide-react";
-
-function getApiBase() {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("rotas_api_base_url") ?? (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "");
-}
+import { bffRequest } from "@/app/lib/bff";
 
 export default function TabOverview({ vehicleId }: { vehicleId: string }) {
   const [trips, setTrips] = useState<any[]>([]);
@@ -17,8 +13,8 @@ export default function TabOverview({ vehicleId }: { vehicleId: string }) {
     async function loadData() {
       try {
         const [resTrips, resChecklists] = await Promise.all([
-          fetch(`${getApiBase()}/api/v1/trips?vehicle_id=${vehicleId}&limit=5`),
-          fetch(`${getApiBase()}/api/v1/checklists/checklists?vehicle_id=${vehicleId}&limit=5`)
+          bffRequest(`/api/v1/trips?vehicle_id=${vehicleId}&limit=5`),
+          bffRequest(`/api/v1/checklists/checklists?vehicle_id=${vehicleId}&limit=5`)
         ]);
         
         if (resTrips.ok) {

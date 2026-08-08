@@ -6,6 +6,7 @@ import { SidebarLayout } from "../../../components/SidebarLayout";
 import { PhotoEvidenceUploader } from "../../components/PhotoEvidenceUploader";
 import SignatureCanvas from "../../components/SignatureCanvas";
 import VehicleHistoryPanel from "../../components/VehicleHistoryPanel";
+import { bffRequest } from "@/app/lib/bff";
 
 export default function NovaRecepcaoPage() {
   const router = useRouter();
@@ -87,7 +88,7 @@ export default function NovaRecepcaoPage() {
     };
 
     try {
-      const res = await fetch("/api/v1/workshop/receptions", {
+      const res = await bffRequest("/api/v1/workshop/receptions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

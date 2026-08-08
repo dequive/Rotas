@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { SidebarLayout } from "@/app/components/SidebarLayout";
 import { TrendingUp, TrendingDown, DollarSign, Calendar, Landmark } from "lucide-react";
+import { bffRequest } from "@/app/lib/bff";
 
 // Helper function to format MZN
 function fmtMZN(value: number) {
@@ -11,24 +12,6 @@ function fmtMZN(value: number) {
     currency: "MZN",
     minimumFractionDigits: 2,
   }).format(value);
-}
-
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  const token = localStorage.getItem("rotas_access_token");
-  const tenantId = localStorage.getItem("rotas_tenant_id");
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),
-  };
-}
-
-function getApiBase(): string {
-  if (typeof window === "undefined") return "";
-  return (
-    localStorage.getItem("rotas_api_base_url") ??
-    (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "")
-  );
 }
 
 interface DreLine {
@@ -56,13 +39,11 @@ export default function FinanceiroDashboard() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const url = new URL(`${getApiBase()}/api/v1/accounting/profit-and-loss`);
-      if (month && month !== "all") url.searchParams.append("month", month);
-      if (year) url.searchParams.append("year", year);
-
-      const res = await fetch(url.toString(), {
-        headers: getAuthHeaders(),
-      });
+      const params = new URLSearchParams();
+      if (month && month !== "all") params.append("month", month);
+      if (year) params.append("year", year);
+      const query = params.size ? `?${params}` : "";
+      const res = await bffRequest(`/api/v1/accounting/profit-and-loss${query}`);
       if (res.ok) {
         setData(await res.json());
       }

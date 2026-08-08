@@ -4,11 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { bffRequest } from "@/app/lib/bff";
 
 interface ApiConfig {
-  apiBaseUrl: string;
   tenantId: string | null;
-  token: string;
 }
 
 type TransportCargoAction =
@@ -69,13 +68,11 @@ export function TransportCargoActions({ action, apiConfig, label }: TransportCar
 
     try {
       const { path, body, key } = actionRequest(action);
-      const response = await fetch(`${apiConfig.apiBaseUrl}${path}`, {
+      const response = await bffRequest(path, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apiConfig.token}`,
           "Content-Type": "application/json",
           "Idempotency-Key": key,
-          "X-Tenant-Id": apiConfig.tenantId ?? "",
         },
         body: JSON.stringify(body),
       });

@@ -78,6 +78,7 @@ jobs:
           .venv/bin/python -m ruff check app tests
           scripts/validate_release_governance.py
           scripts/pr06_rls_gate.py
+          scripts/export_openapi.py
       - name: Validate PR-00 release governance contract
         working-directory: backend
         run: >-
@@ -87,6 +88,9 @@ jobs:
       - name: Typecheck backend
         working-directory: backend
         run: .venv/bin/python -m pyright --project pyright-ci.json
+      - name: Verify versioned OpenAPI contract
+        working-directory: backend
+        run: .venv/bin/python scripts/export_openapi.py --check
       - name: Run migrations
         working-directory: backend
         run: .venv/bin/python -m alembic upgrade head
@@ -116,6 +120,8 @@ jobs:
         run: |
           npm --workspace apps/manager run test:bff-boundary
           npm --workspace apps/manager run verify:bff
+      - name: Verify generated Manager API types
+        run: npm --workspace apps/manager run check:api-types
       - name: Test manager
         run: npm --workspace apps/manager run test
       - name: Test driver

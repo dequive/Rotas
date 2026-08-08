@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -13,7 +14,7 @@ async function getAuthHeaders() {
 }
 
 export async function GET(_request: NextRequest) {
-  const res = await fetch(`${API_BASE}/api/v1/analytics/compliance-report`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/analytics/compliance-report`, {
     method: "GET",
     headers: await getAuthHeaders(),
     cache: "no-store",

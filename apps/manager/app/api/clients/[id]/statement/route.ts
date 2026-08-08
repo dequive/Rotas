@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -25,7 +26,7 @@ export async function GET(
   if (periodStart) backendUrl.searchParams.set("period_start", periodStart);
   if (periodEnd) backendUrl.searchParams.set("period_end", periodEnd);
 
-  const res = await fetch(backendUrl.toString(), {
+  const res = await upstreamFetch(backendUrl.toString(), {
     method: "GET",
     headers: await getAuthHeaders(),
     cache: "no-store",

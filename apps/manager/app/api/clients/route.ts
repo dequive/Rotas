@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
   const limit = searchParams.get("limit") ?? "200";
   const offset = searchParams.get("offset") ?? "0";
   const params = new URLSearchParams({ limit, offset });
-  const res = await fetch(`${API_BASE}/api/v1/clients?${params}`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/clients?${params}`, {
     method: "GET",
     headers: await getAuthHeaders(),
     cache: "no-store",
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const res = await fetch(`${API_BASE}/api/v1/clients`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/clients`, {
     method: "POST",
     headers: await getAuthHeaders(),
     body: JSON.stringify(body),

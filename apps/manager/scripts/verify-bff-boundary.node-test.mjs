@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { inspectSource, verifyBoundary } from "./verify-bff-boundary.mjs";
+import { inspectApiRouteSource, inspectSource, verifyBoundary } from "./verify-bff-boundary.mjs";
 
 test("allows same-origin calls through the Manager BFF", () => {
   assert.deepEqual(inspectSource(`"use client"; fetch("/api/proxy?path=/api/v1/trips");`), []);
@@ -37,6 +37,18 @@ test("rejects browser token storage, public backend URLs and auth headers", () =
 
 test("allows server-only source when it is not browser reachable", () => {
   assert.deepEqual(inspectSource(`fetch("http://backend.internal/api/v1/trips");`, "server.ts", false), []);
+});
+
+test("allows API route handlers through the common upstream boundary", () => {
+  assert.deepEqual(
+    inspectApiRouteSource(`import { upstreamFetch } from "@/app/lib/upstream-http"; upstreamFetch("http://api");`),
+    [],
+  );
+});
+
+test("rejects direct upstream fetch inside API route handlers", () => {
+  const violations = inspectApiRouteSource(`export const GET = () => fetch("http://api");`);
+  assert.ok(violations.some((item) => item.includes("[direct-upstream-fetch]")));
 });
 
 test("follows transitive local imports from a client root", () => {

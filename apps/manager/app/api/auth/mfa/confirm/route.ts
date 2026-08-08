@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   const headers = await authHeaders();
   if (!headers) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
   const payload = await req.json();
-  const upstream = await fetch(`${API_BASE}/api/v1/auth/mfa/confirm`, {
+  const upstream = await upstreamFetch(`${API_BASE}/api/v1/auth/mfa/confirm`, {
     method: "POST",
     headers,
     body: JSON.stringify(payload),

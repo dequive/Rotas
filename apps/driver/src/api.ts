@@ -1,3 +1,9 @@
+import {
+  ensureIdempotencyKey,
+  requestWithPolicy,
+  responseToHttpError,
+} from "@rotas/http-contract";
+
 const API_BASE = import.meta.env.VITE_ROTAS_API_BASE_URL ?? "";
 
 type ApiErrorBody = {
@@ -69,11 +75,11 @@ async function refreshAccessToken(): Promise<string | null> {
     return null;
   }
 
-  _refreshPromise = fetch(`${API_BASE}/api/v1/auth/refresh`, {
+  _refreshPromise = requestWithPolicy(`${API_BASE}/api/v1/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh_token: refreshToken }),
-  })
+  }, { maxRetries: 0 })
     .then(async (res) => {
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
@@ -104,31 +110,37 @@ async function refreshAccessToken(): Promise<string | null> {
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const auth = getAuth();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(auth ? { Authorization: `Bearer ${auth.accessToken}`, "X-Tenant-Id": auth.tenantId } : {}),
-    ...((options?.headers as Record<string, string>) ?? {}),
+  const buildHeaders = (currentAuth: AuthState | null, accessToken?: string) => {
+    const headers = new Headers(options?.headers);
+    if (options?.body != null && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+    if (currentAuth) {
+      headers.set("Authorization", `Bearer ${accessToken ?? currentAuth.accessToken}`);
+      headers.set("X-Tenant-Id", currentAuth.tenantId);
+    }
+    const method = (options?.method ?? "GET").toUpperCase();
+    return ["GET", "HEAD", "OPTIONS"].includes(method) ? headers : ensureIdempotencyKey(headers);
   };
 
-  let res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const headers = buildHeaders(auth);
+  let res = await requestWithPolicy(`${API_BASE}${path}`, { ...options, headers });
 
   // AUTH-02: silent refresh on 401 — retry once with a fresh token
   if (res.status === 401) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       const newAuth = getAuth();
-      const retryHeaders: Record<string, string> = {
-        "Content-Type": "application/json",
-        ...(newAuth ? { Authorization: `Bearer ${newToken}`, "X-Tenant-Id": newAuth.tenantId } : {}),
-        ...((options?.headers as Record<string, string>) ?? {}),
-      };
-      res = await fetch(`${API_BASE}${path}`, { ...options, headers: retryHeaders });
+      const retryHeaders = buildHeaders(newAuth, newToken);
+      if (headers.has("Idempotency-Key")) {
+        retryHeaders.set("Idempotency-Key", headers.get("Idempotency-Key")!);
+      }
+      res = await requestWithPolicy(`${API_BASE}${path}`, { ...options, headers: retryHeaders });
     }
   }
 
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
-    throw new Error(getApiErrorMessage(body) ?? `HTTP ${res.status}`);
+    throw await responseToHttpError(res);
   }
   return res.json() as Promise<T>;
 }

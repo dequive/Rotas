@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 /**
  * Stabilization/P0-F7: generic BFF proxy for client components.
  *
@@ -11,7 +12,7 @@
  * as an interim bridge while the per-domain migrations land in P1.
  *
  * Usage from a client component:
- *   const data = await fetch("/api/proxy?path=/api/v1/hr/employees", {
+ *   const data = await upstreamFetch("/api/proxy?path=/api/v1/hr/employees", {
  *     method: "POST",
  *     headers: { "Content-Type": "application/json",
  *                  "Idempotency-Key": "<uuid>" },
@@ -108,12 +109,12 @@ async function dispatch(req: NextRequest, targetPath: string): Promise<NextRespo
   }
   let res: Response;
   try {
-    res = await fetch(upstream, init);
+    res = await upstreamFetch(upstream, init);
     if (res.status === 401) {
       const refreshedToken = await refreshAccessToken();
       if (refreshedToken) {
         headers.set("Authorization", `Bearer ${refreshedToken}`);
-        res = await fetch(upstream, init);
+        res = await upstreamFetch(upstream, init);
       }
     }
   } catch {

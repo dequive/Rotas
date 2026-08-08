@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -18,7 +19,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const res = await fetch(`${API_BASE}/api/v1/vehicles/${id}/insurance`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/vehicles/${id}/insurance`, {
     method: "GET",
     headers: await getAuthHeaders(),
     cache: "no-store",
@@ -33,7 +34,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const res = await fetch(`${API_BASE}/api/v1/vehicles/${id}/insurance`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/vehicles/${id}/insurance`, {
     method: "POST",
     headers: await getAuthHeaders(),
     body: JSON.stringify(body),

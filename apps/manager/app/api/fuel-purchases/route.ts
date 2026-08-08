@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -14,7 +15,7 @@ async function getAuthHeaders() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const res = await fetch(`${API_BASE}/api/v1/fuel/purchases`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/fuel/purchases`, {
     method: "POST",
     headers: await getAuthHeaders(),
     body: JSON.stringify(body),
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
   const vehicleId = searchParams.get("vehicle_id");
   if (vehicleId) params.set("vehicle_id", vehicleId);
 
-  const res = await fetch(`${API_BASE}/api/v1/fuel/purchases?${params}`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/fuel/purchases?${params}`, {
     headers: await getAuthHeaders(),
     cache: "no-store",
   });

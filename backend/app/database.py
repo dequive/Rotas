@@ -126,7 +126,17 @@ MODEL_MODULES = (
     "outbox",
 )
 
+ADDITIONAL_MODEL_MODULES = (
+    "app.modules.workshop.catalog_models",
+    "app.modules.workshop.quote_models",
+    "app.modules.workshop.reception_models",
+    "app.modules.workshop.warranty_models",
+    "app.modules.workshop.workbay_models",
+)
+
 
 def import_all_models() -> None:
     for module in MODEL_MODULES:
         import_module(f"app.modules.{module}.models")
+    for module in ADDITIONAL_MODEL_MODULES:
+        import_module(module)

@@ -1,6 +1,6 @@
 """Platform management API tests (Phase 25 — Plan 02).
 
-8 tests covering the 8 platform management endpoints:
+Platform management endpoint tests, including commercial entitlement ownership.
   1. platform_admin can list tenants
   2. platform_billing can list tenants
   3. platform_admin can suspend and reactivate a tenant
@@ -200,6 +200,98 @@ async def test_platform_admin_can_change_plan() -> None:
 
     assert resp.status_code == 200, resp.text
     assert resp.json()["plan"] == "enterprise"
+
+
+@pytest.mark.asyncio
+async def test_platform_admin_can_change_modules_with_audit() -> None:
+    """Only platform_admin changes modules and the mutation is platform-audited."""
+    suffix = uuid4().hex[:8]
+    admin_user, admin_pw = await _create_platform_user("platform_admin", suffix)
+    tenant = await _create_tenant(suffix)
+    tid = str(tenant.id)
+
+    async with await _make_client() as client:
+        headers = await _login_platform(client, admin_user.email, admin_pw)
+        resp = await client.patch(
+            f"/api/v1/platform/tenants/{tid}/product-modules",
+            json={"product_modules": ["oficina", "tms", "oficina"]},
+            headers=headers,
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["product_modules"] == ["oficina", "tms"]
+
+        audit_resp = await client.get(
+            f"/api/v1/platform/tenants/{tid}/audit-log", headers=headers
+        )
+        assert audit_resp.status_code == 200, audit_resp.text
+
+    entries = [
+        entry
+        for entry in audit_resp.json()
+        if entry["action"] == "tenant.product_modules_changed"
+    ]
+    assert len(entries) == 1
+    assert entries[0]["actor_id"] == str(admin_user.id)
+    assert entries[0]["actor_role"] == "platform_admin"
+    assert entries[0]["payload"] == {
+        "old_modules": ["tms"],
+        "new_modules": ["oficina", "tms"],
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("role", ["platform_support", "platform_billing"])
+async def test_non_admin_platform_roles_cannot_change_modules(role: str) -> None:
+    suffix = uuid4().hex[:8]
+    user, password = await _create_platform_user(role, suffix)
+    tenant = await _create_tenant(suffix)
+
+    async with await _make_client() as client:
+        headers = await _login_platform(client, user.email, password)
+        resp = await client.patch(
+            f"/api/v1/platform/tenants/{tenant.id}/product-modules",
+            json={"product_modules": ["tms", "oficina"]},
+            headers=headers,
+        )
+
+    assert resp.status_code == 403, resp.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("modules", [[], ["tms", "unknown"]])
+async def test_platform_module_change_rejects_invalid_values_without_mutation(
+    modules: list[str],
+) -> None:
+    suffix = uuid4().hex[:8]
+    admin_user, admin_pw = await _create_platform_user("platform_admin", suffix)
+    tenant = await _create_tenant(suffix)
+    tid = str(tenant.id)
+
+    async with await _make_client() as client:
+        headers = await _login_platform(client, admin_user.email, admin_pw)
+        resp = await client.patch(
+            f"/api/v1/platform/tenants/{tid}/product-modules",
+            json={"product_modules": modules},
+            headers=headers,
+        )
+        assert resp.status_code == 422, resp.text
+        assert resp.json()["error"]["code"] == "invalid_product_modules"
+
+        detail_resp = await client.get(
+            f"/api/v1/platform/tenants/{tid}", headers=headers
+        )
+        assert detail_resp.status_code == 200, detail_resp.text
+        assert detail_resp.json()["product_modules"] == ["tms"]
+
+        audit_resp = await client.get(
+            f"/api/v1/platform/tenants/{tid}/audit-log", headers=headers
+        )
+        assert audit_resp.status_code == 200, audit_resp.text
+
+    assert all(
+        entry["action"] != "tenant.product_modules_changed"
+        for entry in audit_resp.json()
+    )
 
 
 @pytest.mark.asyncio

@@ -21,11 +21,12 @@ class TenantRead(BaseModel):
 
 
 class TenantPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     timezone: str | None = None
     currency: str | None = None
     whatsapp_number: str | None = None
     compliance_policy: dict | None = None
-    product_modules: list[str] | None = None
 
 
 class ProductModulesUpdate(BaseModel):

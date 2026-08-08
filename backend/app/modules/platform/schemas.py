@@ -30,6 +30,10 @@ class PlatformChangePlanRequest(BaseModel):
     plan: str
 
 
+class PlatformProductModulesUpdate(BaseModel):
+    product_modules: list[str]
+
+
 class PlatformCreateUserRequest(BaseModel):
     email: str
     role: str

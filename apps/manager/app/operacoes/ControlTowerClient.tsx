@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Truck, Package, CheckCircle, FileText, ArrowRight } from "lucide-react";
-import { Trip, loadTrips, startTrip, completeTrip, closeTrip, dispatchTrip } from "../lib/trips-api";
+import { loadTrips, startTrip, completeTrip, closeTrip, dispatchTrip } from "../lib/trips-client-api";
+import type { Trip } from "../lib/trips-api";
 
 export function ControlTowerClient() {
   const [trips, setTrips] = useState<Trip[]>([]);

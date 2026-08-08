@@ -102,7 +102,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      ROTAS_API_BASE_URL: http://localhost:8000
       VITE_ROTAS_API_BASE_URL: http://localhost:8000
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -112,6 +112,10 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Enforce Manager browser-to-BFF boundary
+        run: |
+          npm --workspace apps/manager run test:bff-boundary
+          npm --workspace apps/manager run verify:bff
       - name: Test manager
         run: npm --workspace apps/manager run test
       - name: Test driver

@@ -3,12 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ReceiptText, Loader2 } from "lucide-react";
-import { BillingTrip } from "@/app/lib/billing-api";
-
-function getApiBase() {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("rotas_api_base_url") ?? (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "");
-}
+import type { BillingTrip } from "@/app/lib/billing-api";
+import { bffRequest } from "@/app/lib/bff";
 
 export function GenerateDraftsButton({ trips }: { trips: BillingTrip[] }) {
   const router = useRouter();
@@ -30,13 +26,8 @@ export function GenerateDraftsButton({ trips }: { trips: BillingTrip[] }) {
     }, {} as Record<string, BillingTrip[]>);
 
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('rotas_auth_token='))?.split('=')[1] ?? "";
-      const tenantId = localStorage.getItem("rotas_tenant_id") || "default";
-
       const headers = {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "X-Tenant-Id": tenantId
+        "Content-Type": "application/json"
       };
 
       // Create a draft document for each client
@@ -50,7 +41,7 @@ export function GenerateDraftsButton({ trips }: { trips: BillingTrip[] }) {
           client_nuit: "000000000" // Default NUIT since we bypass validation for drafts usually
         };
 
-        const res = await fetch(`${getApiBase()}/api/v1/billing/documents`, {
+        const res = await bffRequest("/api/v1/billing/documents", {
           method: "POST",
           headers,
           body: JSON.stringify(payload)

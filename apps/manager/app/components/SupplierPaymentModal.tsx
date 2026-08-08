@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { X, CheckCircle, CreditCard } from "lucide-react";
-import { SupplierInvoice, paySupplierInvoice } from "../lib/payables-api";
+import { paySupplierInvoice } from "../lib/payables-client-api";
+import type { SupplierInvoice } from "../lib/payables-api";
 
 export function SupplierPaymentModal({
   invoice,

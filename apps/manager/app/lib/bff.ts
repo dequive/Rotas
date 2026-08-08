@@ -16,26 +16,33 @@ export class ClientApiError extends Error {
   }
 }
 
-export async function bffFetch<T>(
-  targetPath: string,
-  init: RequestInit & { path?: string } = {},
-): Promise<T> {
-  const { path: explicit, ...rest } = init;
-  let url: string;
-  if (explicit) {
-    url = explicit;
-  } else {
-    url = `/api/proxy?path=${encodeURIComponent(targetPath)}`;
+type BffRequestInit = RequestInit & { path?: string };
+
+function assertSameOriginBffPath(path: string): void {
+  if (!path.startsWith("/api/") || path.startsWith("/api/v1/")) {
+    throw new ClientApiError("Manager BFF path required.", 400);
   }
+}
+
+export async function bffRequest(
+  targetPath: string,
+  init: BffRequestInit = {},
+): Promise<Response> {
+  const { path: explicit, ...rest } = init;
+  const url = explicit ?? `/api/proxy?path=${encodeURIComponent(targetPath)}`;
+  assertSameOriginBffPath(url);
   const headers = new Headers(rest.headers ?? {});
-  if (!headers.has("Content-Type")) {
+  if (rest.body != null && !(rest.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  const res = await fetch(url, {
-    ...rest,
-    headers,
-    credentials: "include",
-  });
+  return fetch(url, { ...rest, headers, credentials: "include" });
+}
+
+export async function bffFetch<T>(
+  targetPath: string,
+  init: BffRequestInit = {},
+): Promise<T> {
+  const res = await bffRequest(targetPath, init);
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as {
       error?: { message?: string };

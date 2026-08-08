@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { X, AlertTriangle, AlertCircle, MapPin, DollarSign } from "lucide-react";
-import { loadDriverHub360, DriverHub360Response } from "../lib/drivers-api";
+import { loadDriverHub360 } from "../lib/drivers-client-api";
+import type { DriverHub360Response } from "../lib/drivers-api";
 
 export function DriverHubDrawer({
   driverId,

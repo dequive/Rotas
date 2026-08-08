@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { bffRequest } from "@/app/lib/bff";
 
 import type {
   DriverDespachoTable,
@@ -13,9 +14,7 @@ import type {
 } from "../lib/operations-admin-api";
 
 interface ApiConfig {
-  apiBaseUrl: string;
   tenantId: string | null;
-  token: string;
 }
 
 interface DriverDespachoTableAdminProps {
@@ -80,7 +79,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
 
   async function saveTable() {
     if (!apiConfig.tenantId) {
-      setError("Configure ROTAS_TENANT_ID para gravar a tabela.");
+      setError("Sessão BFF indisponível para gravar a tabela.");
       return;
     }
     if (table.tiers.length === 0) {
@@ -91,12 +90,10 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
     setError(null);
     setSaved(false);
     try {
-      const response = await fetch(`${apiConfig.apiBaseUrl}/api/v1/tenants/me/driver-despacho-table`, {
+      const response = await bffRequest("/api/v1/tenants/me/driver-despacho-table", {
         method: "PUT",
         headers: {
-          Authorization: `Bearer ${apiConfig.token}`,
           "Content-Type": "application/json",
-          "X-Tenant-Id": apiConfig.tenantId,
         },
         body: JSON.stringify({
           ...table,

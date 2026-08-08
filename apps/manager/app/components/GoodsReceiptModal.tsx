@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { X, CheckCircle, Truck } from "lucide-react";
-import { Item, Warehouse, registerStockIn } from "../lib/inventory-api";
+import { registerStockIn } from "../lib/inventory-client-api";
+import type { Item, Warehouse } from "../lib/inventory-api";
 
 export function GoodsReceiptModal({
   part,

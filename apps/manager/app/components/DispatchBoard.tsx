@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Truck, Users, Check, AlertCircle, ArrowRight } from "lucide-react";
-import { assignTripOrder, type TripOrder } from "../lib/trip-orders-api";
+import { assignTripOrder } from "../lib/trip-orders-client-api";
+import type { TripOrder } from "../lib/trip-orders-api";
 import type { Vehicle } from "../lib/vehicles-api";
 import type { Driver } from "../lib/drivers-api";
 

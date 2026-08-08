@@ -2,24 +2,7 @@
 
 import { useState } from "react";
 import { X, ShoppingCart, CheckCircle2 } from "lucide-react";
-
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  const token = localStorage.getItem("rotas_access_token");
-  const tenantId = localStorage.getItem("rotas_tenant_id");
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),
-  };
-}
-
-function getApiBase(): string {
-  if (typeof window === "undefined") return "";
-  return (
-    localStorage.getItem("rotas_api_base_url") ??
-    (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "")
-  );
-}
+import { bffRequest } from "@/app/lib/bff";
 
 export function PurchaseOrderModal({
   isOpen,
@@ -49,11 +32,10 @@ export function PurchaseOrderModal({
 
     setLoading(true);
     try {
-      const res = await fetch(`${getApiBase()}/api/v1/payables/purchase-orders`, {
+      const res = await bffRequest("/api/v1/payables/purchase-orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           third_party_id: thirdPartyId,

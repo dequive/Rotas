@@ -24,9 +24,11 @@ import {
 import {
   getAnalyticsDashboard,
   getDocumentExpiry,
-  type AnalyticsDashboard,
-  type DocumentExpiryItem,
-  type DocumentExpiryResponse,
+} from "../lib/analytics-client-api";
+import type {
+  AnalyticsDashboard,
+  DocumentExpiryItem,
+  DocumentExpiryResponse,
 } from "../lib/analytics-api";
 import ExportButtons from "./ExportButtons";
 

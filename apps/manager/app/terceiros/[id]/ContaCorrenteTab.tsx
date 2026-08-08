@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { bffRequest } from "@/app/lib/bff";
 
 interface LedgerEntry {
   id: string;
@@ -34,24 +35,6 @@ const SOURCE_LABELS: Record<string, string> = {
   adjustment: "Ajuste",
 };
 
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  const token = localStorage.getItem("rotas_access_token");
-  const tenantId = localStorage.getItem("rotas_tenant_id");
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),
-  };
-}
-
-function getApiBase(): string {
-  if (typeof window === "undefined") return "";
-  return (
-    localStorage.getItem("rotas_api_base_url") ??
-    (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "")
-  );
-}
-
 function fmt(v: string, currency = "MZN") {
   return parseFloat(v || "0").toLocaleString("pt-MZ", {
     style: "currency",
@@ -79,9 +62,8 @@ export default function ContaCorrenteTab({ thirdPartyId }: { thirdPartyId: strin
         if (from) qs.set("date_from", from);
         if (to) qs.set("date_to", to);
         const query = qs.toString() ? `?${qs}` : "";
-        const res = await fetch(
-          `${getApiBase()}/api/v1/third-party/${thirdPartyId}/account${query}`,
-          { headers: getAuthHeaders() },
+        const res = await bffRequest(
+          `/api/v1/third-party/${thirdPartyId}/account${query}`,
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data: AccountData = await res.json();
@@ -117,9 +99,8 @@ export default function ContaCorrenteTab({ thirdPartyId }: { thirdPartyId: strin
       if (dateFrom) qs.set("date_from", dateFrom);
       if (dateTo) qs.set("date_to", dateTo);
       const query = qs.toString() ? `?${qs}` : "";
-      const res = await fetch(
-        `${getApiBase()}/api/v1/third-party/${thirdPartyId}/account/statement.pdf${query}`,
-        { headers: getAuthHeaders() },
+      const res = await bffRequest(
+        `/api/v1/third-party/${thirdPartyId}/account/statement.pdf${query}`,
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();

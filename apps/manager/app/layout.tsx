@@ -14,7 +14,7 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = process.env.ROTAS_API_BASE_URL ?? "http://localhost:8000";
 
 /**
  * Safe limits fetch — reads session cookies without redirecting.

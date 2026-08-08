@@ -3,6 +3,7 @@
 import { CheckCircle, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { bffRequest } from "@/app/lib/bff";
 
 interface TaskActionsProps {
   taskId: string;
@@ -20,13 +21,13 @@ export function TaskActions({ taskId, source, currentStatus }: TaskActionsProps)
     setLoading(true);
     try {
       if (source === "workshop") {
-        await fetch(`/api/v1/workshop/maintenance-requests/${taskId}/status`, {
+        await bffRequest(`/api/v1/workshop/maintenance-requests/${taskId}/status`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: "closed" })
         });
       } else {
-        await fetch(`/api/v1/governance/cases/${taskId}/transition`, {
+        await bffRequest(`/api/v1/governance/cases/${taskId}/transition`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ to_status: "resolved", reason: "Marcado como concluído via Central de Tarefas" })

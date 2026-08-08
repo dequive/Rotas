@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Button } from "@/app/components/ui/Button";
 import { ModalDialog } from "@/app/components/ui/ModalDialog";
 import type { KnownRoute } from "../lib/known-routes-api";
-import { calcDespacho, calcFuel } from "../lib/known-routes-api";
+import { calcDespacho, calcFuel } from "../lib/known-route-calculations";
 import type { Vehicle } from "../lib/vehicles-api";
 import type { Driver } from "../lib/drivers-api";
 import type { Contract } from "../lib/contracts-api";

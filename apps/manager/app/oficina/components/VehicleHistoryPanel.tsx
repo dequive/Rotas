@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { bffRequest } from "@/app/lib/bff";
 
 interface VehicleHistoryPanelProps {
   vehicleId: string | null;
@@ -57,7 +58,9 @@ export default function VehicleHistoryPanel({ vehicleId }: VehicleHistoryPanelPr
     async function fetchHistory() {
       setIsLoading(true);
       try {
-        const res = await fetch(`/api/v1/workshop/receptions/vehicles/${vehicleId}/history`);
+        const res = await bffRequest(
+          `/api/v1/workshop/receptions/vehicles/${vehicleId}/history`,
+        );
         if (res.ok) {
           const data = await res.json();
           setHistory(data);

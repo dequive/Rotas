@@ -5,6 +5,7 @@ import { ArrowLeft, Save, Building, Truck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { bffRequest } from "@/app/lib/bff";
 
 export default function NovaTarefaPage() {
   const router = useRouter();
@@ -24,7 +25,7 @@ export default function NovaTarefaPage() {
       if (domain === "fleet") {
         // Send to Workshop API via server action or fetch
         // For the sake of this implementation, we simulate the POST to ROTAS_API_BASE_URL
-        await fetch("/api/v1/workshop/maintenance-requests", {
+        await bffRequest("/api/v1/workshop/maintenance-requests", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -36,7 +37,7 @@ export default function NovaTarefaPage() {
         });
       } else {
         // Send to Governance API via server action or fetch
-        await fetch("/api/v1/governance/cases", {
+        await bffRequest("/api/v1/governance/cases", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

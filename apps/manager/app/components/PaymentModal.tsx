@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { registerPayment, type ClientPaymentPayload } from "@/app/lib/billing-api";
+import { registerPayment } from "@/app/lib/billing-client-api";
+import type { ClientPaymentPayload } from "@/app/lib/billing-api";
 import { Input } from "@/app/components/ui/Input";
 import { Button } from "@/app/components/ui/Button";
 

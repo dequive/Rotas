@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { PurchaseOrderModal } from "./PurchaseOrderModal";
 import { SupplierPaymentModal } from "./SupplierPaymentModal";
 import { FileDown } from "lucide-react";
+import { bffRequest } from "@/app/lib/bff";
 
 interface SupplierInvoice {
   id: string;
@@ -23,24 +24,6 @@ interface PurchaseOrder {
   estimated_cost: string;
   status: "draft" | "sent" | "fulfilled" | "cancelled";
   created_at: string;
-}
-
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  const token = localStorage.getItem("rotas_access_token");
-  const tenantId = localStorage.getItem("rotas_tenant_id");
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),
-  };
-}
-
-function getApiBase(): string {
-  if (typeof window === "undefined") return "";
-  return (
-    localStorage.getItem("rotas_api_base_url") ??
-    (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "")
-  );
 }
 
 function fmt(v: string, currency = "MZN") {
@@ -72,12 +55,8 @@ export default function PayablesTab({ thirdPartyId }: { thirdPartyId: string }) 
       // Fetch both POs and Invoices for this supplier
       // Note: Backend endpoints need to exist for these
       const [invRes, ordRes] = await Promise.all([
-        fetch(`${getApiBase()}/api/v1/payables/invoices?third_party_id=${thirdPartyId}`, {
-          headers: getAuthHeaders(),
-        }),
-        fetch(`${getApiBase()}/api/v1/payables/orders?third_party_id=${thirdPartyId}`, {
-          headers: getAuthHeaders(),
-        })
+        bffRequest(`/api/v1/payables/invoices?third_party_id=${thirdPartyId}`),
+        bffRequest(`/api/v1/payables/orders?third_party_id=${thirdPartyId}`)
       ]);
 
       if (invRes.ok) {
@@ -97,9 +76,7 @@ export default function PayablesTab({ thirdPartyId }: { thirdPartyId: string }) 
 
   const handleDownloadPDF = async (poId: string) => {
     try {
-      const res = await fetch(`${getApiBase()}/api/v1/payables/purchase-orders/${poId}/pdf`, {
-        headers: getAuthHeaders()
-      });
+      const res = await bffRequest(`/api/v1/payables/purchase-orders/${poId}/pdf`);
       if (!res.ok) throw new Error("Erro ao gerar PDF");
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);

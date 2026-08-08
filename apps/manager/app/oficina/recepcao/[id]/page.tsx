@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { SidebarLayout } from "../../../components/SidebarLayout";
 import VehicleHistoryPanel from "../../components/VehicleHistoryPanel";
+import { bffRequest } from "@/app/lib/bff";
 
 interface ReceptionDetail {
   id: string;
@@ -33,7 +34,7 @@ export default function ReceptionDetailPage() {
   useEffect(() => {
     async function fetchDetail() {
       try {
-        const res = await fetch(`/api/v1/workshop/receptions/${receptionId}`);
+        const res = await bffRequest(`/api/v1/workshop/receptions/${receptionId}`);
         if (res.ok) {
           const data = await res.json();
           setDetail(data);

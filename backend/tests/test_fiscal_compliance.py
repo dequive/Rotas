@@ -257,7 +257,7 @@ def test_iva_calculation_standard():
         (Decimal("500.00"), Decimal("0.1700")),
     ]
     iva_amounts = [(a * r).quantize(Decimal("0.01")) for a, r in items]
-    tax_total = sum(iva_amounts).quantize(Decimal("0.01"))
+    tax_total = sum(iva_amounts, Decimal("0")).quantize(Decimal("0.01"))
     assert tax_total == Decimal("255.00")
 
 
@@ -272,7 +272,7 @@ def test_iva_mixed_rates():
     assert iva_amounts[0] == Decimal("170.00")
     assert iva_amounts[1] == Decimal("25.00")
     assert iva_amounts[2] == Decimal("0.00")
-    tax_total = sum(iva_amounts).quantize(Decimal("0.01"))
+    tax_total = sum(iva_amounts, Decimal("0")).quantize(Decimal("0.01"))
     assert tax_total == Decimal("195.00")
 
 

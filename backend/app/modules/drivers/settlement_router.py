@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission

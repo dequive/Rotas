@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission

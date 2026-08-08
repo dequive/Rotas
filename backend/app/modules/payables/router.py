@@ -7,7 +7,7 @@ from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.rbac import (
     PAYABLES_PAY,
@@ -15,6 +15,7 @@ from app.core.rbac import (
     PAYABLES_WRITE,
     require_permission,
 )
+from app.modules.accounting.models import Account
 from app.modules.accounting.schemas import JournalEntryCreate, JournalItemCreate
 from app.modules.accounting.services import create_journal_entry
 from app.modules.payables.models import PurchaseOrder, SupplierInvoice, SupplierPayment
@@ -187,22 +188,38 @@ async def pay_supplier_invoice(
     else:
         invoice.status = "partially_paid"
 
+    accounts = {
+        account.code: account
+        for account in (
+            await session.scalars(
+                select(Account).where(
+                    Account.tenant_id == principal.tenant_id,
+                    Account.code.in_(("42", "12")),
+                )
+            )
+        ).all()
+    }
+    if set(accounts) != {"42", "12"}:
+        raise HTTPException(
+            status_code=409,
+            detail="Plano de contas incompleto: contas 42 e 12 são obrigatórias",
+        )
+
     entry_payload = JournalEntryCreate(
+        journal_type="TES",
         date=payload.value_date,
         description=f"Liquidação de Fatura {invoice.invoice_number or invoice.id}",
         reference=payload.reference,
         items=[
             JournalItemCreate(
-                account_number="42",
+                account_id=accounts["42"].id,
                 debit=payload.amount,
                 credit=Decimal("0.00"),
-                type="debit",
             ),
             JournalItemCreate(
-                account_number="12",
+                account_id=accounts["12"].id,
                 debit=Decimal("0.00"),
                 credit=payload.amount,
-                type="credit",
             ),
         ],
     )

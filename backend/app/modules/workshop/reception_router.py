@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.modules import MODULE_OFICINA, require_module
 from app.core.rbac import WORKSHOP_READ, WORKSHOP_WRITE, require_permission

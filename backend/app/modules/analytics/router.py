@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.rbac import FLEET_READ, require_permission
 from app.modules.analytics import service

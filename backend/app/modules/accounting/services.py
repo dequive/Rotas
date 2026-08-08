@@ -35,9 +35,7 @@ async def create_journal_entry(
     total_credit = sum(_decimal_or_zero(getattr(item, "credit", 0)) for item in raw_lines)
 
     if total_debit != total_credit:
-        raise ValueError(
-            f"Lançamento Desequilibrado: Débitos ({total_debit}) != Créditos ({total_credit})"
-        )
+        raise ValueError(f"Lançamento Desequilibrado: Débitos ({total_debit}) != Créditos ({total_credit})")
 
     if total_debit <= Decimal("0.00"):
         raise ValueError("Lançamentos de valor zero não são permitidos.")
@@ -61,7 +59,7 @@ async def create_journal_entry(
         j_item = JournalItem(
             tenant_id=tenant_id,
             journal_entry_id=entry.id,
-            account_id=_resolve_account_uuid(item_data, tenant_id, session),
+            account_id=await _resolve_account_uuid(item_data, tenant_id, session),
             debit=_decimal_or_zero(getattr(item_data, "debit", 0)),
             credit=_decimal_or_zero(getattr(item_data, "credit", 0)),
             third_party_id=getattr(item_data, "third_party_id", None),
@@ -82,7 +80,11 @@ def _decimal_or_zero(value: Any) -> Decimal:
     return Decimal(str(value)).quantize(Decimal("0.01"))
 
 
-def _resolve_account_uuid(item_data: Any, tenant_id: uuid.UUID, session: AsyncSession) -> uuid.UUID:
+async def _resolve_account_uuid(
+    item_data: Any,
+    tenant_id: uuid.UUID,
+    session: AsyncSession,
+) -> uuid.UUID:
     """Resolve account_id either directly from the payload or by PGC-NIRF code.
 
     Workshop currently passes ``account_number`` instead of ``account_id``.
@@ -99,8 +101,11 @@ def _resolve_account_uuid(item_data: Any, tenant_id: uuid.UUID, session: AsyncSe
 
     from sqlalchemy import select  # local to avoid leaking at import time
 
-    result = session.execute(
-        select(Account).where(Account.tenant_id == tenant_id, Account.code == code)
+    result = await session.execute(
+        select(Account).where(
+            Account.tenant_id == tenant_id,
+            Account.code == code,
+        )
     )
     account = result.scalars().first()
     if not account:
@@ -138,8 +143,7 @@ async def post_supplier_invoice(session: AsyncSession, invoice_id: uuid.UUID) ->
 
     if not expense_account or not payable_account:
         raise HTTPException(
-            status_code=500,
-            detail="Chart of Accounts is missing required PGC-NIRF accounts (62 or 42).",
+            status_code=500, detail="Chart of Accounts is missing required PGC-NIRF accounts (62 or 42)."
         )
 
     # 3. Criar o Lançamento através da Porta de Segurança (create_journal_entry)

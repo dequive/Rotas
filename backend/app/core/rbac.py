@@ -110,6 +110,10 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             WORKSHOP_READ,
             WORKSHOP_WRITE,
             WORKSHOP_RELEASE,
+            WORKSHOP_RECEPTION,
+            WORKSHOP_QUOTE,
+            WORKSHOP_QUOTE_APPROVE,
+            WORKSHOP_INVENTORY_ADJUST,
             ADMIN_USERS,
             ADMIN_TENANT,
             AUDIT_READ,
@@ -154,6 +158,10 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             WORKSHOP_READ,
             WORKSHOP_WRITE,
             WORKSHOP_RELEASE,
+            WORKSHOP_RECEPTION,
+            WORKSHOP_QUOTE,
+            WORKSHOP_QUOTE_APPROVE,
+            WORKSHOP_INVENTORY_ADJUST,
             ADMIN_USERS,
             AUDIT_READ,
             # Stabilization/P0-F6: ERP modules (admin can post but not reverse accounting)
@@ -272,13 +280,19 @@ def require_permission(*permissions: str) -> Callable:
     # Principal must be a concrete type (not a string forward-ref) so FastAPI's
     # get_type_hints() can resolve it and recognise the Depends() annotation rather
     # than treating `principal` as a query parameter.
-    from app.core.auth import Principal, get_current_principal  # noqa: PLC0415
+    from app.core.auth import Principal, TenantPrincipal, get_current_principal  # noqa: PLC0415
 
     required: frozenset[str] = frozenset(permissions)
 
     async def dependency(
         principal: Annotated[Principal, Depends(get_current_principal)],
-    ) -> Principal:
+    ) -> TenantPrincipal:
+        if principal.tenant_id is None:
+            raise ApiError(
+                "tenant_context_required",
+                "A tenant context is required for this permission.",
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
         if not principal.has_any_permission(required):
             raise ApiError(
                 "forbidden",
@@ -286,7 +300,16 @@ def require_permission(*permissions: str) -> Callable:
                 status_code=status.HTTP_403_FORBIDDEN,
                 details={"required_permissions": sorted(required)},
             )
-        return principal
+        return TenantPrincipal(
+            subject=principal.subject,
+            tenant_id=principal.tenant_id,
+            scope=principal.scope,
+            role=principal.role,
+            user_id=principal.user_id,
+            driver_id=principal.driver_id,
+            device_id=principal.device_id,
+            permissions=principal.permissions,
+        )
 
     return dependency
 

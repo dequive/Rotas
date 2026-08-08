@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from datetime import UTC
+from typing import Any, cast
 
 import arq
 import sentry_sdk
@@ -10,6 +11,7 @@ from fastapi.responses import JSONResponse
 from prometheus_client import Gauge
 from prometheus_fastapi_instrumentator import Instrumentator
 from redis.asyncio import Redis
+from sentry_sdk.types import Event, Hint
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
@@ -87,13 +89,13 @@ _PII_FIELDS = frozenset(
 )
 
 
-def _scrub_dict(d: object) -> object:
+def _scrub_dict(d: object) -> Any:
     if not isinstance(d, dict):
         return d
     return {k: "[Filtered]" if k in _PII_FIELDS else _scrub_dict(v) for k, v in d.items()}
 
 
-def _scrub_pii(event: dict, hint: dict) -> dict | None:
+def _scrub_pii(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any]:
     """Strip PII from Sentry event before sending (INFRA-01 / D-03)."""
     # Scrub request.data (POST body)
     if "request" in event and "data" in event["request"]:
@@ -108,6 +110,14 @@ def _scrub_pii(event: dict, hint: dict) -> dict | None:
     return event
 
 
+def _sentry_before_send(event: Event, hint: Hint) -> Event | None:
+    scrubbed = _scrub_pii(
+        cast(dict[str, Any], event),
+        cast(dict[str, Any], hint),
+    )
+    return cast(Event, scrubbed)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # INFRA2-02: Configure structured logging first — before any other init
@@ -119,7 +129,7 @@ async def lifespan(app: FastAPI):
             dsn=settings.sentry_dsn_backend,
             environment=settings.environment,
             traces_sample_rate=0.05,
-            before_send=_scrub_pii,
+            before_send=_sentry_before_send,
         )
 
     # Initialize plain Redis client for CT cache-aside (redis.asyncio.Redis)
@@ -158,7 +168,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.app_name, version=settings.version, lifespan=lifespan)
 # SEC-03: Rate limiting — limiter state and 429 exception handler
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+def _handle_rate_limit(request: Request, exc: Exception):
+    if not isinstance(exc, RateLimitExceeded):
+        raise exc
+    return _rate_limit_exceeded_handler(request, exc)
+
+
+app.add_exception_handler(RateLimitExceeded, _handle_rate_limit)
 install_error_handlers(app)
 app.add_middleware(RequestContextMiddleware)
 # INFRA2-02: HTTP request logging — placed after RequestContextMiddleware so request_id is in scope
@@ -193,9 +209,9 @@ async def health_simple(request: Request) -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/health/deep", tags=["operation"])
+@app.get("/health/deep", tags=["operation"], response_model=None)
 @limiter.limit("60/minute")
-async def health_deep(request: Request) -> dict:
+async def health_deep(request: Request) -> dict | JSONResponse:
     import asyncio
     from datetime import datetime
 

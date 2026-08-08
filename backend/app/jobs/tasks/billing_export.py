@@ -52,6 +52,11 @@ async def task_export_compliance_report(
         if not job:
             logger.error("ExportJob %s not found", job_id)
             return {"status": "failed", "error": "job_not_found"}
+        if job.status == "done":
+            return {
+                "status": "done",
+                "file_id": str(job.file_id) if job.file_id else None,
+            }
 
         job.status = "processing"
         await db.commit()
@@ -75,6 +80,8 @@ async def task_export_compliance_report(
 
             wb = Workbook()
             ws = wb.active
+            if ws is None:
+                ws = wb.create_sheet()
             ws.title = f"Compliance {month}"
 
             for col_idx, col_name in enumerate(COMPLIANCE_REPORT_COLUMNS, start=1):

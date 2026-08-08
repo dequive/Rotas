@@ -160,4 +160,6 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # Required fields are populated by pydantic-settings from the environment.
+    # Static analyzers cannot observe that runtime constructor contract.
+    return Settings()  # pyright: ignore[reportCallIssue]

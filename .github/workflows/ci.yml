@@ -67,25 +67,29 @@ jobs:
       - name: Install backend
         working-directory: backend
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e ".[dev]"
       - name: Lint backend
         working-directory: backend
         run: >-
-          python -m ruff check app tests
+          .venv/bin/python -m ruff check app tests
           scripts/validate_release_governance.py
       - name: Validate PR-00 release governance contract
         working-directory: backend
         run: >-
-          python -m scripts.validate_release_governance
+          .venv/bin/python -m scripts.validate_release_governance
           --policy ../infra/release/PR00_RELEASE_GOVERNANCE.json
           --repo-root ..
+      - name: Typecheck backend
+        working-directory: backend
+        run: .venv/bin/python -m pyright --project pyright-ci.json
       - name: Run migrations
         working-directory: backend
-        run: python -m alembic upgrade head
+        run: .venv/bin/python -m alembic upgrade head
       - name: Test backend
         working-directory: backend
-        run: python -m pytest -q --tb=short
+        run: .venv/bin/python -m pytest -q --tb=short
 
   frontend:
     name: Frontend

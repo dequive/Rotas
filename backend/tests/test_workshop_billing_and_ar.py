@@ -158,7 +158,7 @@ async def test_workshop_invoice_multi_quote_idempotency_and_confirmation(db, ten
         db,
         tenant_id,
         wo_id,
-        WorkOrderCloseRequest(actual_cost=Decimal("6800.00"), notes="Concluído com sucesso"),
+        WorkOrderCloseRequest(actual_cost=6800.00, notes="Concluído com sucesso"),
         actor_id=None,
     )
     assert "workshop_invoice_draft" in close_res

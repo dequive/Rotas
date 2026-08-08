@@ -348,8 +348,8 @@ async def convert_schedule_to_action(
                 WorkshopQuoteItemCreate(
                     item_type="labor",
                     description=f"Revisão Preventiva Recomendada: {plan.name}",
-                    quantity=1.0,
-                    unit_price=float(est_cost) if est_cost > 0 else 1000.0,
+                    quantity=Decimal("1.0"),
+                    unit_price=est_cost if est_cost > 0 else Decimal("1000.0"),
                 )
             ],
             notes=f"Orçamento rascunho de preventiva gerado automaticamente para o plano {plan.name}.",

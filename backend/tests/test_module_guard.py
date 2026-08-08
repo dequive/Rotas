@@ -85,4 +85,6 @@ async def test_patch_tenant_product_modules(async_client):
     async with AsyncSessionLocal() as db:
         tenant_id = patch_res.json()["id"]
         tenant = await db.scalar(select(Tenant).where(Tenant.id == tenant_id))
+        assert tenant is not None
+        assert tenant.product_modules is not None
         assert sorted(tenant.product_modules) == ["oficina", "tms"]

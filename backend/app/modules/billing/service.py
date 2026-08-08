@@ -88,15 +88,18 @@ async def _assign_invoice_number(
         )
         .with_for_update()
     )
+    if counter is None:
+        raise RuntimeError("Fiscal counter was not created")
     counter.last_number += 1
     seq_str = str(counter.last_number).zfill(padding)
 
     if prefix:
-        document.invoice_number = f"{prefix} {fiscal_year}/{seq_str}"
+        invoice_number = f"{prefix} {fiscal_year}/{seq_str}"
     else:
-        document.invoice_number = f"{fiscal_year}/{seq_str}"
+        invoice_number = f"{fiscal_year}/{seq_str}"
 
-    return document.invoice_number
+    document.invoice_number = invoice_number
+    return invoice_number
 
 
 def _format_address(profile: "TenantDocumentProfile") -> str:
@@ -136,7 +139,7 @@ async def _snapshot_profile(
 async def create_billing_waiver(
     db: AsyncSession,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     trip_id: UUID,
     reason: str,
 ) -> dict:
@@ -186,7 +189,7 @@ async def approve_billing_waiver(
     db: AsyncSession,
     tenant_id: UUID,
     waiver_id: UUID,
-    approver_id: UUID,
+    approver_id: UUID | None,
 ) -> dict:
     """Set waiver status=active. Trip can now enter billing cycle."""
     waiver = await db.scalar(
@@ -215,7 +218,7 @@ async def reject_billing_waiver(
     db: AsyncSession,
     tenant_id: UUID,
     waiver_id: UUID,
-    rejector_id: UUID,
+    rejector_id: UUID | None,
 ) -> dict:
     """Set waiver status=rejected. Trip remains blocked from billing."""
     waiver = await db.scalar(
@@ -550,7 +553,7 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
     await db.flush()
     await _snapshot_profile(db, document, tenant_id)
 
-    total = 0
+    total = Decimal("0")
     items: list[BillingItem] = []
     for trip_id in payload.trip_ids:
         trip = await db.get(Trip, trip_id)
@@ -782,10 +785,14 @@ async def issue_document(
     await _assign_invoice_number(db, document, tenant_id)
 
     # FISC-02: Recompute IVA totals from per-item iva_amount values
-    document.subtotal = sum(item.amount for item in items).quantize(Decimal("0.01"))
-    document.tax_amount = sum((item.iva_amount or Decimal("0")) for item in items).quantize(
-        Decimal("0.01")
-    )
+    document.subtotal = sum(
+        (item.amount for item in items),
+        Decimal("0"),
+    ).quantize(Decimal("0.01"))
+    document.tax_amount = sum(
+        (item.iva_amount or Decimal("0") for item in items),
+        Decimal("0"),
+    ).quantize(Decimal("0.01"))
     document.total_amount = (document.subtotal + document.tax_amount).quantize(Decimal("0.01"))
     rates = {item.iva_rate for item in items if item.iva_rate is not None}
     document.iva_rate = rates.pop() if len(rates) == 1 else None
@@ -850,14 +857,14 @@ async def issue_document(
                         AccJournalItemCreate(
                             account_id=acct_clients.id,
                             description="Valor A Receber",
-                            debit=float(document.total_amount),
+                            debit=document.total_amount,
                             credit=Decimal("0.00"),
                         ),
                         AccJournalItemCreate(
                             account_id=acct_sales.id,
                             description="Prestacao de Servicos de Transporte",
                             debit=Decimal("0.00"),
-                            credit=float(document.total_amount),
+                            credit=document.total_amount,
                         ),
                     ],
                 ),
@@ -892,14 +899,15 @@ async def issue_document(
                 "status": item.status,
             },
         )
-        if item.trip_id in trip_old_values:
+        trip_id = item.trip_id
+        if trip_id is not None and trip_id in trip_old_values:
             await record_audit_log(
                 db,
                 tenant_id=tenant_id,
                 action="trip.billing_finalized",
                 entity_type="trip",
-                entity_id=item.trip_id,
-                old_values=trip_old_values[item.trip_id],
+                entity_id=trip_id,
+                old_values=trip_old_values[trip_id],
                 new_values={
                     "billing_status": "billed",
                     "billed_at": issued_at,
@@ -1141,7 +1149,7 @@ async def transition_billing_document(
     *,
     document: BillingDocument,
     new_status: str,
-    user_id: UUID,
+    user_id: UUID | None,
     tenant_id: UUID,
     paid_at: datetime | None = None,
     cancellation_reason: str | None = None,
@@ -1197,7 +1205,7 @@ async def mark_billing_document_paid(
     *,
     document_id: UUID,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     paid_at: datetime | None = None,
 ) -> BillingDocument:
     """SM-01: Transition BillingDocument to 'paid'. Allowed from 'issued' or 'overdue'."""
@@ -1219,7 +1227,7 @@ async def cancel_billing_document(
     *,
     document_id: UUID,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     reason: str,
 ) -> BillingDocument:
     """SM-01: Transition BillingDocument to 'cancelled'. Requires reason.
@@ -1600,14 +1608,8 @@ def _compute_aging(document: BillingDocument, today: "datetime") -> dict:
     if not due or document.status not in ("issued", "overdue"):
         return {"days_overdue": 0, "aging_bucket": "current"}
 
-    due_dt = due if hasattr(due, "date") else due
-    today_dt = today.date() if hasattr(today, "date") else today
-    try:
-        due_date_only = due_dt.date() if hasattr(due_dt, "date") else due_dt
-    except Exception:
-        return {"days_overdue": 0, "aging_bucket": "current"}
-
-    delta = (today_dt - due_date_only).days
+    due_date_only = due.date()
+    delta = (today.date() - due_date_only).days
     days_overdue = max(0, delta)
 
     if days_overdue == 0:
@@ -1720,7 +1722,7 @@ async def get_ar_summary(
             Decimal("0.01")
         )
 
-    total_ar = sum(buckets.values()).quantize(Decimal("0.01"))
+    total_ar = sum(buckets.values(), Decimal("0")).quantize(Decimal("0.01"))
     return {
         "current": buckets["current"],
         "1_30": buckets["1_30"],
@@ -2098,7 +2100,8 @@ async def generate_client_statement_pdf(
         total = Decimal(str(doc.get("total_amount") or 0))
         paid = Decimal(str(doc.get("amount_paid") or 0))
         outstanding = Decimal(str(doc.get("outstanding") or 0))
-        status_label = _status_pt.get(doc.get("status", ""), doc.get("status", ""))
+        raw_status = str(doc.get("status") or "")
+        status_label = _status_pt.get(raw_status, raw_status)
 
         def _fmt_date(d) -> str:
             if not d:
@@ -2294,7 +2297,7 @@ def serialize_payment(payment: ClientPayment, allocations: list) -> dict:
 async def register_payment(
     db: AsyncSession,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     payload,  # ClientPaymentCreate — imported inline to avoid circular import at module level
 ) -> dict:
     """PAY-01 / PAY-02: Register a client payment, optionally allocating it to an invoice.
@@ -2419,7 +2422,7 @@ async def void_payment(
     *,
     payment_id: UUID,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     void_reason: str,
 ) -> dict:
     """PAY-01 / PAY-03: Void a confirmed payment and reverse any billing document transitions.
@@ -2514,7 +2517,7 @@ async def apply_advance_to_invoice(
     *,
     payment_id: UUID,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     billing_document_id: UUID,
     amount_applied: Decimal,
 ) -> dict:

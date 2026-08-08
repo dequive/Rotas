@@ -1,6 +1,7 @@
 import re
 from datetime import datetime
 from decimal import Decimal
+from typing import Annotated
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -15,6 +16,7 @@ def _normalize_nuit(v: str | None) -> str | None:
     if len(cleaned) != 9:
         raise ValueError("NUIT must be exactly 9 digits.")
     return cleaned
+
 
 
 class BillingDocumentCreate(BaseModel):
@@ -94,14 +96,14 @@ class ClientPaymentCreate(BaseModel):
     client_id: UUID
     billing_document_id: UUID | None = None  # None = advance payment
     amount: Decimal = Field(..., gt=0, description="Payment amount (must be > 0)")
-    currency: str = Field("MZN", max_length=3)
+    currency: Annotated[str, Field(max_length=3)] = "MZN"
     value_date: datetime
     payment_method: str = Field(
         ...,
         pattern="^(bank_transfer|cheque|cash)$",
         description="bank_transfer | cheque | cash",
     )
-    reference: str | None = Field(None, max_length=120)
+    reference: Annotated[str, Field(max_length=120)] | None = None
     notes: str | None = None
 
 

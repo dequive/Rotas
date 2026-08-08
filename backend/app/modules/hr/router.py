@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal, get_current_principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.rbac import (
     HR_PAYROLL_APPROVE,
@@ -20,7 +20,7 @@ from app.modules.hr import schemas, service
 
 router = APIRouter(prefix="/hr", tags=["hr"])
 
-PrincipalDep = Annotated[Principal, Depends(get_current_principal)]
+PrincipalDep = Annotated[Principal, Depends(require_permission(HR_READ))]
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 

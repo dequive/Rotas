@@ -32,6 +32,7 @@ class MaintenanceRequestStatusUpdate(BaseModel):
     status: str = Field(min_length=1, max_length=30)
 
 
+
 class WorkOrderCreate(BaseModel):
     maintenance_request_id: UUID | None = None
     governance_case_id: UUID | None = None
@@ -111,6 +112,9 @@ class MaintenancePlanCreate(BaseModel):
     interval_km: int | None = Field(default=None, gt=0)
     interval_days: int | None = Field(default=None, gt=0)
     ownership_scope: str = Field(default="fleet", pattern="^(fleet|customer|all)$")
+    request_reference: str | None = None
+    next_due_km: int | None = Field(default=None, ge=0)
+    next_due_at: datetime | None = None
 
 
 class PreventiveScheduleCreate(BaseModel):
@@ -128,7 +132,7 @@ class WorkOrderCloseRequest(BaseModel):
 
 class WorkshopStaffRateCreate(BaseModel):
     user_id: UUID
-    hourly_rate: Decimal = Field(gt=0)
+    hourly_rate: Decimal = Field(gt=Decimal(0))
     effective_from: date
 
 
@@ -229,27 +233,27 @@ class VehicleHistoryResponse(BaseModel):
 
 class PartIssueRequest(BaseModel):
     inventory_id: UUID
-    quantity: Decimal = Field(gt=0)
+    quantity: Decimal = Field(gt=Decimal(0))
     notes: str | None = None
 
 
 class PartReturnRequest(BaseModel):
     inventory_id: UUID
-    quantity: Decimal = Field(gt=0)
+    quantity: Decimal = Field(gt=Decimal(0))
     reason: str = Field(min_length=1)
 
 
 class InventoryAdjustmentRequest(BaseModel):
     inventory_id: UUID
-    quantity: Decimal = Field(gt=0)
+    quantity: Decimal = Field(gt=Decimal(0))
     direction: str = Field(pattern="^(in|out)$")
     reason: str = Field(min_length=1)
 
 
 class PurchaseOrderItemCreate(BaseModel):
     inventory_id: UUID
-    quantity_ordered: Decimal = Field(gt=0)
-    unit_price: Decimal = Field(ge=0)
+    quantity_ordered: Decimal = Field(gt=Decimal(0))
+    unit_price: Decimal = Field(ge=Decimal(0))
 
 
 class PurchaseOrderCreate(BaseModel):
@@ -271,7 +275,7 @@ class CoreReturnCreate(BaseModel):
 
 class StaffRateCreate(BaseModel):
     user_id: UUID
-    hourly_rate: Decimal = Field(gt=0)
+    hourly_rate: Decimal = Field(gt=Decimal(0))
     effective_from: date
 
 
@@ -285,5 +289,5 @@ class TaskLaborCreate(BaseModel):
 class TaskLaborVoid(BaseModel):
     void_reason: str = Field(min_length=1)
     evidence_photo_file_id: UUID | None = None
-    credit_amount: Decimal | None = Field(default=None, ge=0)
+    credit_amount: Decimal | None = Field(default=None, ge=Decimal(0))
     supplier_third_party_id: UUID | None = None

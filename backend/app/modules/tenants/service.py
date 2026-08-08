@@ -188,7 +188,7 @@ async def put_driver_despacho_table(
     await db.refresh(tenant)
     return {
         "configured": True,
-        "table": tenant.compliance_policy[DRIVER_DESPACHO_TABLE_KEY],
+        "table": policy[DRIVER_DESPACHO_TABLE_KEY],
     }
 
 

@@ -203,6 +203,45 @@ EXPECTED_RLS_TABLES = sorted(
         "gps_positions",
         "tracking_tokens",
         "vehicle_last_position",
+        # Production reconciliation: ERP, outbox, reception and workshop tables
+        "absences",
+        "accounting_accounts",
+        "accounting_journal_entries",
+        "accounting_journal_items",
+        "core_return_items",
+        "employee_documents",
+        "employees",
+        "files",
+        "fiscal_counters",
+        "item_categories",
+        "items",
+        "outbox_events",
+        "part_reservations",
+        "payroll_codes",
+        "payroll_slip_lines",
+        "payroll_slips",
+        "purchase_orders",
+        "reception_photos",
+        "salary_advances",
+        "service_catalog_items",
+        "service_warranties",
+        "spare_part_requisitions",
+        "spare_part_serial_items",
+        "stock_movements",
+        "supplier_invoices",
+        "supplier_payments",
+        "task_labor_logs",
+        "tenant_sequences",
+        "tool_calibrations",
+        "vehicle_receptions",
+        "vehicle_releases",
+        "warehouses",
+        "work_bays",
+        "workshop_purchase_order_items",
+        "workshop_purchase_orders",
+        "workshop_quote_items",
+        "workshop_quotes",
+        "workshop_staff_rates",
     ]
 )
 # 63 tables: base RLS set + export_jobs + self-service token/outbox tables
@@ -210,22 +249,9 @@ EXPECTED_RLS_TABLES = sorted(
 #            + Phase 23 third party registry (6 tables)
 #            + Phase 23 Plan 09: supplier_evaluations, supplier_ledger_entries, third_party_contacts
 
-INTENTIONALLY_EXCLUDED = {
-    "files",
-    # Phase 13.5 workshop expansion tables created without RLS
-    # in a8f3b2c1d4e5_add_workshop_expansion.py.
-    # These are pre-existing gaps tracked in deferred-items; Phase 13.5 plan must add RLS.
-    "tool_calibrations",
-    "spare_part_serial_items",
-    "workshop_staff_rates",
-    # fisc01_fiscal_counter_gap_free.py created fiscal_counters with RLS enabled
-    # and FORCE RLS but used policy name 'rls_fiscal_counters' instead of 'tenant_isolation'.
-    # The table IS protected by RLS — the gap test only scans for policyname='tenant_isolation'.
-    # Tracked: rename policy to 'tenant_isolation' in a follow-up migration.
-    "fiscal_counters",
-}
-# files: cross-tenant file service access pattern (design decision in migration 4b0a7802dc3c)
-# tenants: root table with no tenant_id column — never appears in gap query by design
+INTENTIONALLY_EXCLUDED: set[str] = set()
+# tenants is the root table and has no tenant_id column. Files are tenant-owned
+# records and must be protected like every other tenant-scoped table.
 
 
 async def test_rls_all_tenant_tables_have_policy():

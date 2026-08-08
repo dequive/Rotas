@@ -244,8 +244,10 @@ async def get_trip_eta(db: AsyncSession, tenant_id: UUID, trip_id: UUID) -> dict
         )
     )
 
-    if route and route.destination_lat and route.destination_lon:
-        dest_lat, dest_lon = float(route.destination_lat), float(route.destination_lon)
+    destination_lat = getattr(route, "destination_lat", None)
+    destination_lon = getattr(route, "destination_lon", None)
+    if destination_lat is not None and destination_lon is not None:
+        dest_lat, dest_lon = float(destination_lat), float(destination_lon)
     else:
         return {
             "eta_minutes": None,

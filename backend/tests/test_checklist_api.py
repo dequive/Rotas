@@ -214,7 +214,9 @@ async def test_checklist_template_create_and_completion_rules() -> None:
             )
         )
         assert failed_exception is not None
-        assert failed_exception.context["vehicle_id"] == str(vehicle.id)
+        failed_context = failed_exception.context
+        assert failed_context is not None
+        assert failed_context["vehicle_id"] == str(vehicle.id)
 
     async with await create_api_client() as client:
         resolve_response = await client.post(

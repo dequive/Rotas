@@ -45,6 +45,18 @@ class Principal:
         return bool(effective & required)
 
 
+@dataclass(frozen=True)
+class TenantPrincipal(Principal):
+    """Authenticated principal whose tenant boundary was validated."""
+
+    tenant_id: UUID
+
+
+@dataclass(frozen=True)
+class DriverPrincipal(TenantPrincipal):
+    """Driver-app principal whose tenant boundary was validated."""
+
+
 async def get_current_principal(
     authorization: Annotated[str | None, Header(alias="Authorization")] = None,
     x_tenant_id: Annotated[UUID | None, Header(alias="X-Tenant-Id")] = None,
@@ -231,12 +243,27 @@ async def get_current_platform_principal(
 
 async def get_driver_principal(
     principal: Annotated[Principal, Depends(get_current_principal)],
-) -> Principal:
+) -> DriverPrincipal:
     # Allow the development test-token bypass (subject="development:user") so existing
     # integration tests that exercise sync internals continue to work.
     # Real manager tokens (scope="dashboard", subject != "development:user") are rejected.
     if principal.scope == "driver_app" or principal.subject == "development:user":
-        return principal
+        if principal.tenant_id is None:
+            raise ApiError(
+                "tenant_required",
+                "Tenant context is required for the driver app.",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
+        return DriverPrincipal(
+            subject=principal.subject,
+            tenant_id=principal.tenant_id,
+            scope=principal.scope,
+            role=principal.role,
+            user_id=principal.user_id,
+            driver_id=principal.driver_id,
+            device_id=principal.device_id,
+            permissions=principal.permissions,
+        )
     raise ApiError(
         "driver_scope_required",
         "Driver app token is required.",

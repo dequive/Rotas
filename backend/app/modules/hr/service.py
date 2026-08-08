@@ -43,7 +43,9 @@ async def get_employee(tenant_id: UUID, employee_id: UUID, db: AsyncSession) -> 
     emp = await db.get(Employee, employee_id)
     if not emp or emp.tenant_id != tenant_id:
         raise ApiError(
-            "EMPLOYEE_NOT_FOUND", status.HTTP_404_NOT_FOUND, "Colaborador não encontrado."
+            "EMPLOYEE_NOT_FOUND",
+            "Colaborador não encontrado.",
+            status_code=status.HTTP_404_NOT_FOUND,
         )
     return emp
 
@@ -56,8 +58,8 @@ async def create_employee(tenant_id: UUID, payload: EmployeeCreate, db: AsyncSes
         if await db.scalar(stmt):
             raise ApiError(
                 "NUIT_EXISTS",
-                status.HTTP_400_BAD_REQUEST,
                 "Já existe um colaborador com este NUIT.",
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
     emp = Employee(
@@ -125,7 +127,10 @@ async def add_employee_document(
 # Payroll Engine
 # ------------------------------------------------------------------
 async def generate_payroll(
-    tenant_id: UUID, payload: PayrollGenerationRequest, actor_id: UUID, db: AsyncSession
+    tenant_id: UUID,
+    payload: PayrollGenerationRequest,
+    actor_id: UUID | None,
+    db: AsyncSession,
 ) -> list[PayrollSlip]:
 
     # 1. Obter a lista de empregados a processar
@@ -163,7 +168,7 @@ async def generate_payroll(
         absences_stmt = select(Absence).where(
             Absence.tenant_id == tenant_id,
             Absence.employee_id == emp.id,
-            not Absence.is_paid,
+            Absence.is_paid.is_(False),
             Absence.start_date >= start_dt,
             Absence.start_date <= end_dt,
         )
@@ -363,16 +368,17 @@ async def generate_payroll(
 
     if slips:
         # PGC-NIRF: Aggregate for the Journal Entry
-        total_gross = sum(s.gross_salary for s in slips)
-        total_inss_employee = sum(s.total_inss for s in slips)
+        total_gross = sum((s.gross_salary for s in slips), Decimal("0"))
+        total_inss_employee = sum((s.total_inss for s in slips), Decimal("0"))
         total_inss_employer = total_gross * Decimal("0.04")  # 4% Patronal
-        total_irps = sum(s.total_irps for s in slips)
+        total_irps = sum((s.total_irps for s in slips), Decimal("0"))
 
         # We need to find total advances from lines to know how much to credit 42.2
         total_advances = sum(
-            abs(line.amount) for slip in slips for line in slip.lines if line.code == "D03"
+            (abs(line.amount) for slip in slips for line in slip.lines if line.code == "D03"),
+            Decimal("0"),
         )
-        total_net = sum(s.net_salary for s in slips)
+        total_net = sum((s.net_salary for s in slips), Decimal("0"))
 
         if total_gross > 0:
             # Look up accounts
@@ -473,6 +479,6 @@ async def list_payroll_slips(
         lines_res = await db.execute(
             select(PayrollSlipLine).where(PayrollSlipLine.payroll_slip_id == slip.id)
         )
-        slip.lines = lines_res.scalars().all()
+        slip.lines = list(lines_res.scalars().all())
 
     return slips

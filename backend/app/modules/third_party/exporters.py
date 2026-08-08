@@ -264,10 +264,10 @@ def render_supplier_statement(
             debit_str = f"{amount:,.2f}"
             credit_str = ""
 
-        src = entry.get("source_type", "")
+        src = str(entry.get("source_type") or "")
         origem = _SOURCE_LABELS.get(src, src)[:30]
         cells = [
-            ("data", entry.get("entry_date", "")[:10], "L"),
+            ("data", str(entry.get("entry_date") or "")[:10], "L"),
             ("tipo", "Crédito" if etype == "credit" else "Débito", "L"),
             ("origem", origem, "L"),
             ("desc", entry.get("description") or "—", "L"),

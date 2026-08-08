@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.auth import Principal
+from app.core.auth import Principal, TenantPrincipal
 from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.core.rbac import ADMIN_USERS, require_own_tenant_or_platform, require_permission
@@ -139,7 +139,7 @@ async def put_my_driver_despacho_table(
 
 @router.get("/me/document-profile")
 async def get_my_document_profile(
-    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
+    principal: Annotated[TenantPrincipal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
     result = await service.get_document_profile(db, principal.tenant_id)
@@ -149,7 +149,7 @@ async def get_my_document_profile(
 @router.put("/me/document-profile")
 async def put_my_document_profile(
     payload: TenantDocumentProfileUpdate,
-    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
+    principal: Annotated[TenantPrincipal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
     data = payload.model_dump(exclude_unset=True)
@@ -161,7 +161,7 @@ async def put_my_document_profile(
 @router.get("/me/limits")
 async def get_tenant_limits(
     request: Request,
-    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
+    principal: Annotated[TenantPrincipal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
     """GET /api/v1/tenants/me/limits — returns usage vs plan limits for the authenticated tenant.
@@ -212,7 +212,7 @@ async def get_tenant_limits(
 @router.patch("/me/modules")
 async def update_my_product_modules(
     payload: schemas.ProductModulesUpdate,
-    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
+    principal: Annotated[TenantPrincipal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
     """PATCH /api/v1/tenants/me/modules — update active product modules (tms, oficina) for tenant."""

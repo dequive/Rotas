@@ -412,15 +412,15 @@ class SparePartMovementService:
                                 JournalItemCreate(
                                     account_id=acct_exp.id,
                                     description=f"Custo de Manutencao ({inventory.name})",
-                                    debit=float(item.total_cost),
-                                    credit=0,
+                                    debit=item.total_cost,
+                                    credit=Decimal("0"),
                                     vehicle_id=vehicle_id_for_cost,
                                 ),
                                 JournalItemCreate(
                                     account_id=acct_inv.id,
                                     description="Saida de Armazem",
-                                    debit=0,
-                                    credit=float(item.total_cost),
+                                    debit=Decimal("0"),
+                                    credit=item.total_cost,
                                 ),
                             ],
                         ),
@@ -713,11 +713,12 @@ async def close_work_order(
 
     old_status = item.status
     item.status = "closed"
-    item.actual_cost = payload.actual_cost
+    item.actual_cost = _decimal(payload.actual_cost) if payload.actual_cost is not None else None
     item.close_notes = payload.notes
     item.closed_by = actor_id
     item.closed_at = now_utc()
-    if item.maintenance_request_id and item.actual_cost is not None:
+    actual_cost = item.actual_cost
+    if item.maintenance_request_id and actual_cost is not None:
         request = await _require_maintenance_request(db, tenant_id, item.maintenance_request_id)
         if request.trip_id:
             await record_trip_cost(
@@ -725,9 +726,9 @@ async def close_work_order(
                 tenant_id,
                 trip_id=request.trip_id,
                 cost_type="workshop_maintenance",
-                amount=item.actual_cost,
+                amount=actual_cost,
                 request_reference=f"work-order:{item.id}",
-                incurred_at=item.closed_at,
+                incurred_at=item.closed_at or now_utc(),
                 actor_id=actor_id,
                 description=item.close_notes,
                 source_type="work_order",
@@ -1571,11 +1572,11 @@ async def _trigger_maintenance_work_order(
 
 
 async def record_spare_part_receipt(
-    tenant_id: UUID, payload: SparePartReceiptCreate, actor_id: UUID, db: AsyncSession
+    tenant_id: UUID, payload: SparePartReceiptCreate, actor_id: UUID | None, db: AsyncSession
 ) -> SparePartMovement:
     part = await db.get(SparePartInventory, payload.inventory_id)
     if not part or part.tenant_id != tenant_id:
-        raise ApiError("PART_NOT_FOUND", status.HTTP_404_NOT_FOUND, "Peça não encontrada.")
+        raise ApiError("PART_NOT_FOUND", "Peça não encontrada.", status_code=status.HTTP_404_NOT_FOUND)
 
     old_qty = part.current_quantity
     new_qty = old_qty + _decimal(payload.quantity)
@@ -1618,7 +1619,7 @@ async def evaluate_maintenance_schedule_all_tenants(
     """
     from app.modules.tenants.models import Tenant
 
-    result = await db.execute(select(Tenant).where(Tenant.status == "active"))
+    result = await db.execute(select(Tenant).where(Tenant.is_active.is_(True)))
     tenants = result.scalars().all()
     total_created = 0
     for tenant in tenants:
@@ -1718,7 +1719,7 @@ async def assign_task_to_mechanic(
     )
     task = result.scalar_one_or_none()
     if task is None:
-        raise ApiError("task_not_found", "Task not found", status.HTTP_404_NOT_FOUND)
+        raise ApiError("task_not_found", "Task not found", status_code=status.HTTP_404_NOT_FOUND)
     task.assigned_to = data.assigned_to
     task.estimated_minutes = data.estimated_minutes
     await db.commit()
@@ -1858,7 +1859,7 @@ async def record_tool_calibration(
     )
     tool = tool_result.scalar_one_or_none()
     if tool is None:
-        raise ApiError("tool_not_found", "Tool not found", status.HTTP_404_NOT_FOUND)
+        raise ApiError("tool_not_found", "Tool not found", status_code=status.HTTP_404_NOT_FOUND)
 
     cal = ToolCalibration(
         tenant_id=tenant_id,
@@ -1929,7 +1930,7 @@ async def update_tool(
     )
     tool = result.scalar_one_or_none()
     if tool is None:
-        raise ApiError("tool_not_found", "Tool not found", status.HTTP_404_NOT_FOUND)
+        raise ApiError("tool_not_found", "Tool not found", status_code=status.HTTP_404_NOT_FOUND)
     if data.status is not None:
         tool.status = data.status
     if data.location is not None:
@@ -1975,7 +1976,7 @@ async def register_serial_item(
         )
     )
     if part_result.scalar_one_or_none() is None:
-        raise ApiError("part_not_found", "Spare part not found", status.HTTP_404_NOT_FOUND)
+        raise ApiError("part_not_found", "Spare part not found", status_code=status.HTTP_404_NOT_FOUND)
 
     item = SparePartSerialItem(
         tenant_id=tenant_id,
@@ -2012,12 +2013,16 @@ async def install_serial_item(
     )
     item = result.scalar_one_or_none()
     if item is None:
-        raise ApiError("serial_item_not_found", "Serial item not found", status.HTTP_404_NOT_FOUND)
+        raise ApiError(
+            "serial_item_not_found",
+            "Serial item not found",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
     if item.status != "in_stock":
         raise ApiError(
             "serial_item_not_in_stock",
             "Serial item is not available for installation",
-            status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_409_CONFLICT,
         )
 
     item.status = "installed"
@@ -2162,7 +2167,9 @@ def _validate_tool_checkout_replay(
         )
 
 
-async def _require_vehicle(db: AsyncSession, tenant_id: UUID, vehicle_id: UUID) -> Vehicle:
+async def _require_vehicle(db: AsyncSession, tenant_id: UUID, vehicle_id: UUID | None) -> Vehicle:
+    if not vehicle_id:
+        raise ApiError("vehicle_not_found", "Vehicle not found.", status_code=404)
     vehicle = await db.get(Vehicle, vehicle_id)
     if not vehicle or vehicle.tenant_id != tenant_id:
         raise ApiError("vehicle_not_found", "Vehicle not found.", status_code=404)
@@ -2232,7 +2239,7 @@ async def add_maintenance_request_note(
     tenant_id: UUID,
     request_id: UUID,
     payload: MaintenanceRequestNoteCreate,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     req = await _require_maintenance_request(db, tenant_id, request_id)
     note = MaintenanceRequestNote(
@@ -2245,12 +2252,12 @@ async def add_maintenance_request_note(
 
     await record_audit_log(
         db,
-        tenant_id,
-        actor_id,
-        "workshop.maintenance_request.note_added",
-        "maintenance_request",
-        req.id,
-        {"body": payload.body},
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="workshop.maintenance_request.note_added",
+        entity_type="maintenance_request",
+        entity_id=req.id,
+        new_values={"body": payload.body},
     )
 
     await db.commit()
@@ -2281,7 +2288,7 @@ async def update_maintenance_request_status(
     tenant_id: UUID,
     request_id: UUID,
     payload: MaintenanceRequestStatusUpdate,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     req = await _require_maintenance_request(db, tenant_id, request_id)
     old_status = req.status
@@ -2289,12 +2296,12 @@ async def update_maintenance_request_status(
 
     await record_audit_log(
         db,
-        tenant_id,
-        actor_id,
-        "workshop.maintenance_request.status_updated",
-        "maintenance_request",
-        req.id,
-        {"old_status": old_status, "new_status": payload.status},
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="workshop.maintenance_request.status_updated",
+        entity_type="maintenance_request",
+        entity_id=req.id,
+        new_values={"old_status": old_status, "new_status": payload.status},
     )
 
     await db.commit()

@@ -141,9 +141,7 @@ async def test_post_billing_labor_immutability_guard_409(db, tenant_id, test_use
     db.add(vehicle)
     await db.flush()
 
-    wo_payload = WorkOrderCreate(
-        vehicle_id=vehicle.id, client_id=client.id, origin_type="reception", planned_work="Troca"
-    )
+    wo_payload = WorkOrderCreate(vehicle_id=vehicle.id, planned_work="Troca")
     wo = await create_work_order(db, tenant_id, wo_payload, actor_id=test_user.id)
     await set_staff_hourly_rate(db, tenant_id, test_user.id, 500.00, date(2026, 1, 1))
     task = WorkOrderTask(
@@ -221,7 +219,10 @@ async def test_work_order_profitability_with_multi_quote_consolidated_invoice_fk
         vehicle_id=vehicle.id,
         items=[
             WorkshopQuoteItemCreate(
-                item_type="labor", description="Serviço Base", quantity=1.0, unit_price=10000.0
+                item_type="labor",
+                description="Serviço Base",
+                quantity=Decimal("1.0"),
+                unit_price=Decimal("10000.0"),
             )
         ],
     )
@@ -247,8 +248,8 @@ async def test_work_order_profitability_with_multi_quote_consolidated_invoice_fk
             WorkshopQuoteItemCreate(
                 item_type="part",
                 description="Filtro de Óleo HD",
-                quantity=2.0,
-                unit_price=2000.0,
+                quantity=Decimal("2.0"),
+                unit_price=Decimal("2000.0"),
                 part_id=part.id,
             )
         ],

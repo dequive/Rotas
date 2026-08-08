@@ -21,7 +21,7 @@ async def startup(ctx: dict) -> None:
 
     from app.config import get_settings as _get_settings
     from app.core.logging import configure_structlog  # INFRA2-02
-    from app.main import _scrub_pii
+    from app.main import _sentry_before_send
 
     _settings = _get_settings()
 
@@ -34,7 +34,7 @@ async def startup(ctx: dict) -> None:
             dsn=_settings.sentry_dsn_backend,
             environment=_settings.environment,
             traces_sample_rate=0.05,
-            before_send=_scrub_pii,
+            before_send=_sentry_before_send,
         )
     # D-18 / RLS-02: ARQ worker uses rotas_admin role (BYPASSRLS) for cross-tenant queries.
     admin_engine = create_async_engine(
@@ -82,7 +82,6 @@ async def generate_billing_export(
     from app.modules.billing.exporters import render_billing_export
     from app.modules.billing.models import BillingDocument, BillingItem, ExportJob
     from app.modules.files.service import save_generated_file as _save_generated_file
-    from app.modules.tenants.models import Tenant
 
     async with ctx["db_factory"]() as db:
         # Update job status to processing
@@ -118,16 +117,10 @@ async def generate_billing_export(
                 .all()
             )
 
-            tenant = await db.get(Tenant, UUID(tenant_id))
-            issuer_name = tenant.name if tenant else "ROTAS"
-            issuer_contact = tenant.whatsapp_number if tenant else None
-
             artifact = render_billing_export(
                 doc,
                 list(items),
                 export_format,
-                issuer_name=issuer_name,
-                issuer_contact=issuer_contact,
             )
 
             # INFRA-02: route through files module — no direct disk writes
@@ -136,7 +129,7 @@ async def generate_billing_export(
                 UUID(tenant_id),
                 content=artifact.content,
                 filename=artifact.filename,
-                mime_type=artifact.mime_type,
+                mime_type=artifact.content_type,
                 file_type=export_format,
                 entity_type="billing_document",
                 entity_id=UUID(document_id),

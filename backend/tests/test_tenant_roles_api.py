@@ -213,6 +213,7 @@ async def test_assign_custom_role_jwt_perms_reflect_custom_role():
 async def _get_tenant_slug(tenant_id) -> str:
     async with AsyncSessionLocal() as db:
         t = await db.get(Tenant, tenant_id)
+        assert t is not None
         return t.slug
 
 

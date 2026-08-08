@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.core.errors import ApiError
-from app.database import AsyncSessionLocal
+from app.database import AdminSessionLocal
 from app.modules.drivers.models import Driver, DriverDevice
 from app.modules.tenants.models import Tenant
 from app.modules.users.models import User
@@ -114,7 +114,7 @@ async def get_current_principal(
     raw_perms = claims.get("perms")  # list[str] | None
     permissions: frozenset[str] | None = frozenset(raw_perms) if raw_perms else None
     scope = claims.get("scope")
-    async with AsyncSessionLocal() as db:
+    async with AdminSessionLocal() as db:
         tenant = await db.get(Tenant, tenant_id)
         if not tenant or not tenant.is_active:
             raise ApiError("tenant_inactive", "Tenant is inactive.", status_code=401)
@@ -221,7 +221,7 @@ async def get_current_platform_principal(
         )
     platform_user_id = UUID(platform_user_id_str)
 
-    async with AsyncSessionLocal() as db:
+    async with AdminSessionLocal() as db:
         from app.modules.platform.models import PlatformUser  # noqa: PLC0415
 
         user = await db.get(PlatformUser, platform_user_id)

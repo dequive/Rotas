@@ -155,6 +155,19 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "SMTP_HOST must be configured when EMAIL_PROVIDER=smtp in production."
                 )
+            if not self.admin_database_url or not self.alembic_database_url:
+                raise ValueError(
+                    "ADMIN_DATABASE_URL and ALEMBIC_DATABASE_URL must use the administrative "
+                    "database role in production; DATABASE_URL is reserved for rotas_app."
+                )
+            if self.database_url in {
+                self.admin_database_url,
+                self.alembic_database_url,
+            }:
+                raise ValueError(
+                    "DATABASE_URL must be distinct from ADMIN_DATABASE_URL and "
+                    "ALEMBIC_DATABASE_URL in production."
+                )
         return self
 
 

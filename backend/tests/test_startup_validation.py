@@ -108,3 +108,28 @@ async def test_production_requires_transactional_email(monkeypatch):
     monkeypatch.setenv("MANAGER_PUBLIC_URL", "https://app.rotas.co.mz")
     with pytest.raises((ValidationError, ValueError)):
         _settings_without_env_file()
+
+
+async def test_production_requires_separate_database_roles(monkeypatch):
+    get_settings.cache_clear()
+    monkeypatch.setenv("JWT_SECRET_KEY", "test-secret-at-least-32-chars-long-abc")
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://rotas_app:app-secret@db.internal:5432/rotas",
+    )
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("CORS_ORIGINS", '["https://app.rotas.co.mz"]')
+    monkeypatch.setenv("REDIS_URL", "redis://redis.internal:6379")
+    monkeypatch.setenv("STORAGE_PROVIDER", "r2")
+    monkeypatch.setenv("R2_BUCKET", "rotas-prod")
+    monkeypatch.setenv("R2_ENDPOINT_URL", "https://account.r2.cloudflarestorage.com")
+    monkeypatch.setenv("R2_ACCESS_KEY_ID", "access-key")
+    monkeypatch.setenv("R2_SECRET_ACCESS_KEY", "secret-key")
+    monkeypatch.setenv("EMAIL_PROVIDER", "outbox")
+    monkeypatch.setenv("EMAIL_FROM_ADDRESS", "suporte@rotas.co.mz")
+    monkeypatch.setenv("MANAGER_PUBLIC_URL", "https://app.rotas.co.mz")
+    monkeypatch.delenv("ADMIN_DATABASE_URL", raising=False)
+    monkeypatch.delenv("ALEMBIC_DATABASE_URL", raising=False)
+
+    with pytest.raises(ValueError, match="ADMIN_DATABASE_URL"):
+        _settings_without_env_file()

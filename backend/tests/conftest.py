@@ -7,7 +7,12 @@ import pytest
 
 os.environ.setdefault("DEV_TEST_TOKEN", "test-token")
 
-from app.database import AsyncSessionLocal, engine, import_all_models  # noqa: E402
+from app.database import (  # noqa: E402
+    AsyncSessionLocal,
+    admin_engine,
+    engine,
+    import_all_models,
+)
 from app.main import app  # noqa: E402
 from app.modules.drivers.models import Driver  # noqa: E402
 from app.modules.tenants.models import Tenant  # noqa: E402
@@ -47,6 +52,8 @@ async def reset_rate_limiter_storage():
 async def dispose_engine_between_tests():
     yield
     await engine.dispose()
+    if admin_engine is not engine:
+        await admin_engine.dispose()
 
 
 @pytest.fixture

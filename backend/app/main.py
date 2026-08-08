@@ -23,7 +23,7 @@ from app.core.logging import configure_structlog
 from app.core.middleware import StructlogRequestMiddleware
 from app.core.request_context import RequestContextMiddleware
 from app.database import engine as _engine
-from app.database import import_all_models
+from app.database import import_all_models, validate_application_database_role
 from app.modules.accounting.router import router as accounting_router
 from app.modules.alerts.router import router as alerts_router
 from app.modules.analytics.router import router as analytics_router
@@ -122,6 +122,7 @@ def _sentry_before_send(event: Event, hint: Hint) -> Event | None:
 async def lifespan(app: FastAPI):
     # INFRA2-02: Configure structured logging first — before any other init
     configure_structlog(json_logs=settings.environment == "production")
+    app.state.database_role = await validate_application_database_role()
 
     # INFRA-01: Sentry init — silent when DSN absent (D-02)
     if settings.sentry_dsn_backend:

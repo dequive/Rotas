@@ -49,6 +49,8 @@ jobs:
       DATABASE_URL: postgresql+asyncpg://rotas:rotas@localhost:5432/rotas
       ADMIN_DATABASE_URL: postgresql+asyncpg://rotas_admin:rotas_admin_dev@localhost:5432/rotas
       ALEMBIC_DATABASE_URL: postgresql+psycopg://rotas:rotas@localhost:5432/rotas
+      PR06_RESTRICTED_DATABASE_URL: postgresql://rotas_app:rotas_app_dev@localhost:5432/rotas
+      PR06_ADMIN_DATABASE_URL: postgresql://rotas_admin:rotas_admin_dev@localhost:5432/rotas
       REDIS_URL: redis://localhost:6379
       CORS_ORIGINS: '["http://localhost:3030"]'
     steps:
@@ -75,6 +77,7 @@ jobs:
         run: >-
           .venv/bin/python -m ruff check app tests
           scripts/validate_release_governance.py
+          scripts/pr06_rls_gate.py
       - name: Validate PR-00 release governance contract
         working-directory: backend
         run: >-
@@ -87,6 +90,9 @@ jobs:
       - name: Run migrations
         working-directory: backend
         run: .venv/bin/python -m alembic upgrade head
+      - name: Audit PR-06 database roles and tenant RLS
+        working-directory: backend
+        run: .venv/bin/python scripts/pr06_rls_gate.py
       - name: Test backend
         working-directory: backend
         run: .venv/bin/python -m pytest -q --tb=short

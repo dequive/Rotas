@@ -1,10 +1,12 @@
 from collections.abc import AsyncIterator
 from contextvars import ContextVar
+from dataclasses import dataclass
 from importlib import import_module
 
 from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 from app.config import get_settings
 
@@ -24,6 +26,63 @@ if settings.environment == "production":
 
 engine = create_async_engine(settings.database_url, pool_pre_ping=True, **_pool_kwargs)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+if settings.resolved_admin_database_url == settings.database_url:
+    admin_engine = engine
+else:
+    admin_pool_kwargs = (
+        {"poolclass": NullPool} if settings.environment == "test" else _pool_kwargs
+    )
+    admin_engine = create_async_engine(
+        settings.resolved_admin_database_url,
+        pool_pre_ping=True,
+        **admin_pool_kwargs,
+    )
+AdminSessionLocal = async_sessionmaker(admin_engine, expire_on_commit=False)
+
+
+@dataclass(frozen=True)
+class DatabaseRoleSecurity:
+    role_name: str
+    is_superuser: bool
+    bypasses_rls: bool
+
+    @property
+    def is_restricted(self) -> bool:
+        return not self.is_superuser and not self.bypasses_rls
+
+
+async def inspect_application_database_role() -> DatabaseRoleSecurity:
+    """Return security attributes for the role behind DATABASE_URL."""
+    async with engine.connect() as connection:
+        row = (
+            await connection.execute(
+                text(
+                    "SELECT current_user AS role_name, rolsuper, rolbypassrls "
+                    "FROM pg_roles WHERE rolname = current_user"
+                )
+            )
+        ).one()
+    return DatabaseRoleSecurity(
+        role_name=row.role_name,
+        is_superuser=row.rolsuper,
+        bypasses_rls=row.rolbypassrls,
+    )
+
+
+async def validate_application_database_role(
+    *, require_restricted: bool | None = None
+) -> DatabaseRoleSecurity:
+    """Fail startup when the application connection can bypass tenant RLS."""
+    role = await inspect_application_database_role()
+    must_be_restricted = (
+        settings.environment == "production" if require_restricted is None else require_restricted
+    )
+    if must_be_restricted and (role.role_name != "rotas_app" or not role.is_restricted):
+        raise RuntimeError(
+            "DATABASE_URL must use the rotas_app non-superuser role without BYPASSRLS. "
+            "Reserve rotas_admin for migrations, identity bootstrap and workers."
+        )
+    return role
 
 # ---------------------------------------------------------------------------
 # RLS context variable — holds the current request's tenant_id.
@@ -60,15 +119,15 @@ def _inject_rls_tenant(session, transaction, connection):  # type: ignore[no-unt
 
 
 async def get_session_raw() -> AsyncIterator[AsyncSession]:
-    """Raw session without RLS tenant injection.
+    """Administrative session used before a tenant RLS context exists.
 
-    Used by the auth module (login/refresh/logout/pair) which has no principal yet,
-    and by get_current_principal in app.core.auth which uses AsyncSessionLocal directly.
-    All other tenant-aware routes should use get_session from app.core.deps instead.
+    Authentication bootstrap, onboarding and platform control-plane routes need
+    to resolve an identity or tenant before app.tenant_id can be set. Production
+    backs this factory with ADMIN_DATABASE_URL, never DATABASE_URL.
     """
     set_rls_tenant(None)
     try:
-        async with AsyncSessionLocal() as session:
+        async with AdminSessionLocal() as session:
             yield session
     finally:
         set_rls_tenant(None)

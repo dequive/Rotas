@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "source_database": "",
+  "snapshot_class": "staging_anonymized",
+  "contains_live_pii": true,
+  "anonymization_approved": false,
+  "reviewed_by": "",
+  "reviewed_at_utc": "",
+  "approval_reference": ""
+}

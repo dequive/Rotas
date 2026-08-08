@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.errors import ApiError
+from app.core.modules import MODULE_TMS
 from app.core.passwords import hash_password
 from app.core.tokens import create_opaque_token, hash_token
 from app.modules.accounting.seed import seed_pgc_nirf
@@ -147,7 +148,9 @@ async def register_tenant(
         name=payload.company_name.strip(),
         slug=slug,
         plan="trial",
-        product_modules=payload.product_modules,
+        # Public onboarding receives only the baseline entitlement. Commercial
+        # modules are granted later by an authenticated platform administrator.
+        product_modules=[MODULE_TMS],
         is_trial=True,
         trial_ends_at=trial_ends_at,
         whatsapp_number=payload.phone,

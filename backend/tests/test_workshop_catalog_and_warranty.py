@@ -12,7 +12,7 @@ limiter.enabled = False
 
 
 @pytest.fixture
-async def workshop_tenant_headers(async_client):
+async def workshop_tenant_headers(async_client, grant_product_modules):
     suffix = uuid4().hex[:8]
     reg = await async_client.post(
         "/api/v1/onboarding/register",
@@ -22,11 +22,12 @@ async def workshop_tenant_headers(async_client):
             "owner_full_name": "Gestor Cat",
             "owner_email": f"gestor-c-{suffix}@example.test",
             "owner_password": "password123",
-            "product_modules": ["tms", "oficina"],
         },
     )
+    assert reg.status_code == 201, reg.text
     token = reg.json()["access_token"]
     tenant_id = reg.json()["tenant"]["id"]
+    await grant_product_modules(tenant_id, ["tms", "oficina"])
     return {"Authorization": f"Bearer {token}"}, tenant_id
 
 

@@ -215,7 +215,9 @@ async def update_my_product_modules(
     principal: Annotated[TenantPrincipal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
-    """PATCH /api/v1/tenants/me/modules — update active product modules (tms, oficina) for tenant."""
-    return await service.update_product_modules(
-        db, principal.tenant_id, payload.product_modules, actor_id=principal.user_id
+    """Reject tenant-side commercial entitlement changes."""
+    raise ApiError(
+        "entitlement_managed_by_platform",
+        "Product modules can only be changed by a platform administrator.",
+        status_code=403,
     )

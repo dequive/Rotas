@@ -1,9 +1,11 @@
 from uuid import UUID
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class OnboardingRegisterRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     company_name: str
     owner_full_name: str
     owner_email: str
@@ -13,21 +15,6 @@ class OnboardingRegisterRequest(BaseModel):
     phone: str | None = None
     timezone: str = "Africa/Maputo"
     currency: str = "MZN"
-    product_modules: list[str] = ["tms"]
-
-    @field_validator("product_modules")
-    @classmethod
-    def validate_product_modules(cls, value: list[str]) -> list[str]:
-        if not value:
-            raise ValueError("At least one product module must be selected.")
-        allowed = {"tms", "oficina"}
-        invalid = set(value) - allowed
-        if invalid:
-            raise ValueError(
-                f"Invalid product module(s): {sorted(invalid)}. Allowed: {sorted(allowed)}."
-            )
-        return sorted(list(set(value)))
-
     @field_validator("company_name", "owner_full_name")
     @classmethod
     def non_empty_text(cls, value: str) -> str:

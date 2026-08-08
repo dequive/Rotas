@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import Principal
 from app.core.errors import ApiError
+from app.core.modules import ALLOWED_PRODUCT_MODULES, MODULE_TMS
 from app.core.passwords import hash_password
 from app.core.rbac import PLATFORM_SUPPORT
 from app.modules.platform.audit_service import record_platform_audit
@@ -54,6 +55,7 @@ def _serialize_tenant(tenant: Tenant) -> dict:
         "name": tenant.name,
         "slug": tenant.slug,
         "plan": tenant.plan,
+        "product_modules": tenant.product_modules or [MODULE_TMS],
         "is_active": tenant.is_active,
         "is_trial": tenant.is_trial,
         "max_vehicles": tenant.max_vehicles,
@@ -222,6 +224,49 @@ async def change_tenant_plan(
         resource_type="tenant",
         resource_id=tenant_id,
         payload={"old_plan": old_plan, "new_plan": new_plan},
+    )
+    await db.commit()
+    await db.refresh(tenant)
+    return _serialize_tenant(tenant)
+
+
+async def change_tenant_product_modules(
+    db: AsyncSession,
+    tenant_id: UUID,
+    product_modules: list[str],
+    *,
+    actor: Principal,
+) -> dict:
+    """Replace a tenant's commercial entitlements and audit atomically."""
+    actor_id, actor_role = require_platform_actor(actor)
+    if not product_modules:
+        raise ApiError(
+            "invalid_product_modules",
+            "At least one product module must be selected.",
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        )
+    invalid = set(product_modules) - ALLOWED_PRODUCT_MODULES
+    if invalid:
+        raise ApiError(
+            "invalid_product_modules",
+            "Invalid product module(s): "
+            f"{sorted(invalid)}. Allowed: {sorted(ALLOWED_PRODUCT_MODULES)}.",
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        )
+
+    tenant = await _require_tenant(db, tenant_id)
+    old_modules = sorted(set(tenant.product_modules or [MODULE_TMS]))
+    new_modules = sorted(set(product_modules))
+    tenant.product_modules = new_modules
+    await record_platform_audit(
+        db,
+        actor_id=actor_id,
+        actor_role=actor_role,
+        action="tenant.product_modules_changed",
+        target_tenant_id=tenant_id,
+        resource_type="tenant",
+        resource_id=tenant_id,
+        payload={"old_modules": old_modules, "new_modules": new_modules},
     )
     await db.commit()
     await db.refresh(tenant)

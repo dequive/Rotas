@@ -21,7 +21,11 @@ from app.core.rbac import (
 )
 from app.database import get_session_raw as get_session
 from app.modules.platform import service
-from app.modules.platform.schemas import PlatformChangePlanRequest, PlatformCreateUserRequest
+from app.modules.platform.schemas import (
+    PlatformChangePlanRequest,
+    PlatformCreateUserRequest,
+    PlatformProductModulesUpdate,
+)
 
 router = APIRouter(prefix="/platform", tags=["platform"])
 
@@ -61,6 +65,23 @@ async def change_plan(
 ) -> dict:
     """Change tenant subscription plan. platform_admin only."""
     res = await service.change_tenant_plan(db, tenant_id, payload.plan, actor=principal)
+    redis = getattr(request.app.state, "redis", None)
+    await invalidate_tenant_caches(redis, tenant_id)
+    return res
+
+
+@router.patch("/tenants/{tenant_id}/product-modules")
+async def change_product_modules(
+    request: Request,
+    tenant_id: UUID,
+    payload: PlatformProductModulesUpdate,
+    principal: Annotated[Principal, Depends(require_platform_role(PLATFORM_ADMIN))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> dict:
+    """Change commercial entitlements. Platform administrators only."""
+    res = await service.change_tenant_product_modules(
+        db, tenant_id, payload.product_modules, actor=principal
+    )
     redis = getattr(request.app.state, "redis", None)
     await invalidate_tenant_caches(redis, tenant_id)
     return res

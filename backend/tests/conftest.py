@@ -1,6 +1,6 @@
 # ruff: noqa: E402
 import os
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -8,6 +8,7 @@ import pytest
 os.environ.setdefault("DEV_TEST_TOKEN", "test-token")
 
 from app.database import (  # noqa: E402
+    AdminSessionLocal,
     AsyncSessionLocal,
     admin_engine,
     engine,
@@ -108,6 +109,20 @@ async def async_client():
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         yield client
+
+
+@pytest.fixture
+def grant_product_modules():
+    """Provision test entitlements outside the tenant-facing API."""
+
+    async def grant(tenant_id: str | UUID, modules: list[str]) -> None:
+        async with AdminSessionLocal() as session:
+            tenant = await session.get(Tenant, UUID(str(tenant_id)))
+            assert tenant is not None
+            tenant.product_modules = sorted(set(modules))
+            await session.commit()
+
+    return grant
 
 
 # ── Phase 3 additions ─────────────────────────────────────────────────────────

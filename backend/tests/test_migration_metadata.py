@@ -4,10 +4,10 @@ from alembic.script import ScriptDirectory
 from app.database import Base, import_all_models
 
 
-def test_migration_graph_has_single_rec13_head() -> None:
+def test_migration_graph_has_single_rec14_head() -> None:
     script = ScriptDirectory.from_config(Config("alembic.ini"))
 
-    assert script.get_heads() == ["rec13"]
+    assert script.get_heads() == ["rec14"]
     for revision in (
         "1e006dfe187d",
         "rec03",
@@ -23,6 +23,7 @@ def test_migration_graph_has_single_rec13_head() -> None:
         "rec11",
         "rec12",
         "rec13",
+        "rec14",
     ):
         assert script.get_revision(revision) is not None
 

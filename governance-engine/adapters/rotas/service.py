@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.rotas.schemas import (
@@ -21,10 +21,14 @@ from adapters.rotas.schemas import (
     RotasEventPush,
     RotasEventPushResponse,
 )
+from core.exceptions import NotFound
 from core.models import (
+    Case,
+    CaseOccurrence,
     CaseTransitionRule,
     EntityCatalog,
     EntityInstance,
+    Occurrence,
     TaxonomyCaseType,
     TaxonomyDomain,
     TaxonomyType,
@@ -352,4 +356,40 @@ class RotasAdapterService:
             numero=result.numero,
             case_id=result.case_id,
             case_reference=result.case_reference,
+        )
+
+    async def get_event_receipt(self, idempotency_key: str) -> RotasEventPushResponse:
+        """Return the canonical receipt for an idempotently delivered event."""
+        result = await self._db.execute(
+            select(Occurrence, Case)
+            .outerjoin(
+                CaseOccurrence,
+                and_(
+                    CaseOccurrence.tenant_id == self._tenant_id,
+                    CaseOccurrence.occurrence_id == Occurrence.id,
+                ),
+            )
+            .outerjoin(
+                Case,
+                and_(
+                    Case.tenant_id == self._tenant_id,
+                    Case.id == CaseOccurrence.case_id,
+                ),
+            )
+            .where(
+                Occurrence.tenant_id == self._tenant_id,
+                Occurrence.idempotency_key == idempotency_key,
+            )
+            .order_by(Case.created_at.asc().nulls_last())
+            .limit(1)
+        )
+        row = result.one_or_none()
+        if row is None:
+            raise NotFound("ROTAS event receipt", idempotency_key)
+        occurrence, case = row
+        return RotasEventPushResponse(
+            occurrence_id=occurrence.id,
+            numero=occurrence.numero,
+            case_id=case.id if case else None,
+            case_reference=case.reference if case else None,
         )

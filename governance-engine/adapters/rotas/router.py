@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.rotas.schemas import (
@@ -46,3 +46,13 @@ async def push_event(
 ):
     svc = RotasAdapterService(db, UUID(principal.tenant_id), UUID(principal.actor_id))
     return await svc.push_event(body)
+
+
+@router.get("/events/receipt", response_model=RotasEventPushResponse)
+async def get_event_receipt(
+    idempotency_key: str = Query(min_length=1, max_length=255),
+    principal: Principal = Depends(require_scope("adapter:rotas")),
+    db: AsyncSession = Depends(get_session),
+):
+    svc = RotasAdapterService(db, UUID(principal.tenant_id), UUID(principal.actor_id))
+    return await svc.get_event_receipt(idempotency_key)

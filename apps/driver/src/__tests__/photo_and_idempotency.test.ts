@@ -206,7 +206,9 @@ describe("Idempotência — chave única por operação", () => {
     await processSyncQueue("token-abc");
 
     const body = JSON.parse((fetchMock as any).mock.calls[0][1].body);
+    const headers = new Headers((fetchMock as any).mock.calls[0][1].headers);
     expect(body.operations[0].idempotency_key).toBe(expectedKey);
+    expect(headers.get("Idempotency-Key")).toBe(expectedKey);
   });
 });
 
@@ -233,7 +235,7 @@ describe("Retry — limite de 5 tentativas", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("item em retryCount=4 ainda é processado e incrementa para 5 em caso de falha de rede", async () => {
+  it("item na quinta falha entra explicitamente em dead-letter", async () => {
     await db.syncQueue.add({
       localId: "trip_last_chance",
       idempotencyKey: crypto.randomUUID(),
@@ -253,7 +255,9 @@ describe("Retry — limite de 5 tentativas", () => {
 
     const item = await db.syncQueue.where("localId").equals("trip_last_chance").first();
     expect(item?.retryCount).toBe(5);
-    expect(item?.status).toBe("retrying");
+    expect(item?.status).toBe("dead_letter");
+    expect(item?.deadLetteredAt).toBeTruthy();
+    expect(item?.nextAttemptAt).toBeUndefined();
     expect(item?.lastError).toBe("network_error");
   });
 });

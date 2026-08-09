@@ -44,7 +44,7 @@ export function useSyncStatus(isOnline: boolean, isSyncing: boolean): SyncStatus
           .count();
         const errors = await db.syncQueue
           .where("status")
-          .equals("conflict")
+          .anyOf(["conflict", "failed", "dead_letter"])
           .count();
         setPendingCount(pending);
         setErrorCount(errors);

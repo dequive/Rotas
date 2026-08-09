@@ -1,7 +1,14 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
-import { db, queueOperation, queueFuelLog } from "../db";
-import { processSyncQueue } from "../sync";
+import {
+  db,
+  getBootstrapCache,
+  queueOperation,
+  queueFuelLog,
+  requeueSyncItem,
+  saveBootstrapCache,
+} from "../db";
+import { computeSyncBackoffMs, processSyncQueue } from "../sync";
 
 describe("Driver Offline-First & Sync Queue", () => {
   beforeEach(async () => {
@@ -9,6 +16,7 @@ describe("Driver Offline-First & Sync Queue", () => {
     await db.syncQueue.clear();
     await db.photoQueue.clear();
     await db.pendingFuelLogs.clear();
+    await db.bootstrapCache.clear();
     
     // Reset global fetch and localStorage mocks
     vi.restoreAllMocks();
@@ -148,5 +156,235 @@ describe("Driver Offline-First & Sync Queue", () => {
     const item = await db.syncQueue.where("localId").equals("trip_123").first();
     expect(item?.status).toBe("conflict");
     expect(item?.lastError).toBe("Conflict detected");
+  });
+
+  it("persiste backoff e não tenta novamente antes de nextAttemptAt", async () => {
+    const now = new Date("2026-07-26T10:00:00.000Z");
+    await queueOperation({
+      localId: "trip_backoff",
+      operation: "create",
+      entityType: "trip",
+      payload: { id: "trip_backoff" },
+    });
+    global.fetch = vi.fn().mockRejectedValue(
+      new Error("offline"),
+    ) as unknown as typeof fetch;
+
+    await processSyncQueue("token-xyz", {
+      now: () => now,
+      random: () => 0,
+    });
+
+    const item = await db.syncQueue
+      .where("localId")
+      .equals("trip_backoff")
+      .first();
+    expect(item?.status).toBe("retrying");
+    expect(item?.retryCount).toBe(1);
+    expect(item?.nextAttemptAt).toBe("2026-07-26T10:00:00.500Z");
+
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    await processSyncQueue("token-xyz", {
+      now: () => new Date("2026-07-26T10:00:00.499Z"),
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("recupera item preso em syncing depois de encerramento abrupto", async () => {
+    await db.syncQueue.add({
+      localId: "trip_interrupted",
+      idempotencyKey: crypto.randomUUID(),
+      operation: "create",
+      entityType: "trip",
+      payload: { id: "trip_interrupted" },
+      retryCount: 0,
+      status: "syncing",
+      createdAt: "2026-07-26T09:00:00.000Z",
+    });
+    global.fetch = vi.fn().mockRejectedValue(
+      new Error("still_offline"),
+    ) as unknown as typeof fetch;
+
+    await processSyncQueue("token-xyz", {
+      now: () => new Date("2026-07-26T10:00:00.000Z"),
+      random: () => 0,
+    });
+
+    const item = await db.syncQueue
+      .where("localId")
+      .equals("trip_interrupted")
+      .first();
+    expect(item?.status).toBe("retrying");
+    expect(item?.retryCount).toBe(1);
+    expect(item?.lastAttemptAt).toBe("2026-07-26T10:00:00.000Z");
+  });
+
+  it("requeue explícito gera nova chave após resolução de conflito", async () => {
+    await queueOperation({
+      localId: "trip_conflict_requeue",
+      operation: "create",
+      entityType: "trip",
+      payload: { destination: "Old" },
+    });
+    const original = await db.syncQueue
+      .where("localId")
+      .equals("trip_conflict_requeue")
+      .first();
+    await db.syncQueue.update(original!.id!, {
+      status: "conflict",
+      lastError: "resource_conflict",
+    });
+
+    await requeueSyncItem(original!.id!, { destination: "Corrected" });
+
+    const requeued = await db.syncQueue.get(original!.id!);
+    expect(requeued?.status).toBe("retrying");
+    expect(requeued?.retryCount).toBe(0);
+    expect(requeued?.payload).toEqual({ destination: "Corrected" });
+    expect(requeued?.idempotencyKey).not.toBe(original?.idempotencyKey);
+    expect(requeued?.nextAttemptAt).toBeTruthy();
+  });
+
+  it("calcula backoff exponencial limitado com jitter determinístico", () => {
+    expect(computeSyncBackoffMs(1, () => 0)).toBe(500);
+    expect(computeSyncBackoffMs(2, () => 0)).toBe(1_000);
+    expect(computeSyncBackoffMs(20, () => 1)).toBe(300_000);
+  });
+
+  it("renova uma sessão expirada e reutiliza o token no mesmo lote", async () => {
+    localStorage.setItem("rotas_access_token", "access-old");
+    localStorage.setItem("rotas_refresh_token", "refresh-old");
+    await queueOperation({
+      localId: "trip_refresh",
+      operation: "create",
+      entityType: "trip",
+      payload: { id: "trip_refresh" },
+    });
+    const fetchMock = vi.fn().mockImplementation((
+      input: RequestInfo | URL,
+      init?: RequestInit,
+    ) => {
+      const url = String(input);
+      if (url.includes("/auth/refresh")) {
+        return Promise.resolve(Response.json({
+          access_token: "access-new",
+          refresh_token: "refresh-new",
+        }));
+      }
+      const authorization = new Headers(init?.headers).get("Authorization");
+      return Promise.resolve(
+        authorization === "Bearer access-old"
+          ? new Response(null, { status: 401 })
+          : Response.json({
+              results: [{
+                local_id: "trip_refresh",
+                status: "processed",
+                entity_type: "trip",
+              }],
+            }),
+      );
+    });
+    global.fetch = fetchMock as typeof fetch;
+
+    await processSyncQueue("access-old");
+
+    expect(await db.syncQueue.count()).toBe(0);
+    expect(localStorage.getItem("rotas_access_token")).toBe("access-new");
+    expect(localStorage.getItem("rotas_refresh_token")).toBe("refresh-new");
+    const batchRequests = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes("/sync/batch"),
+    );
+    expect(batchRequests).toHaveLength(2);
+    expect(
+      new Headers(batchRequests[1]?.[1]?.headers).get("Authorization"),
+    ).toBe("Bearer access-new");
+
+    await queueOperation({
+      localId: "trip_after_refresh",
+      operation: "create",
+      entityType: "trip",
+      payload: { id: "trip_after_refresh" },
+    });
+    fetchMock.mockClear();
+    await processSyncQueue("access-old");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(
+      new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("Authorization"),
+    ).toBe("Bearer access-new");
+  });
+
+  it("não consome tentativas quando a sessão expirou sem refresh token", async () => {
+    await queueOperation({
+      localId: "trip_session_expired",
+      operation: "create",
+      entityType: "trip",
+      payload: { id: "trip_session_expired" },
+    });
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(null, { status: 401 }),
+    ) as unknown as typeof fetch;
+
+    await processSyncQueue("access-expired", {
+      now: () => new Date("2026-07-26T10:00:00.000Z"),
+    });
+
+    const item = await db.syncQueue
+      .where("localId")
+      .equals("trip_session_expired")
+      .first();
+    expect(item?.status).toBe("retrying");
+    expect(item?.retryCount).toBe(0);
+    expect(item?.lastError).toBe("session_expired");
+    expect(item?.nextAttemptAt).toBe("2026-07-26T10:05:00.000Z");
+  });
+
+  it("acesso revogado preserva o item como falha terminal visível", async () => {
+    await queueOperation({
+      localId: "trip_revoked",
+      operation: "create",
+      entityType: "trip",
+      payload: { id: "trip_revoked" },
+    });
+    const revokedEvent = vi.fn();
+    window.addEventListener("driver-access-revoked", revokedEvent, { once: true });
+    global.fetch = vi.fn().mockResolvedValue(
+      Response.json(
+        {
+          error: {
+            code: "driver_access_revoked",
+            message: "Acesso do motorista revogado.",
+          },
+        },
+        { status: 401 },
+      ),
+    ) as unknown as typeof fetch;
+
+    await processSyncQueue("access-revoked");
+
+    const item = await db.syncQueue
+      .where("localId")
+      .equals("trip_revoked")
+      .first();
+    expect(item?.status).toBe("failed");
+    expect(item?.retryCount).toBe(0);
+    expect(item?.lastError).toBe("driver_access_revoked");
+    expect(item?.nextAttemptAt).toBeUndefined();
+    expect(revokedEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("cache bootstrap só é recuperado para o mesmo tenant e motorista", async () => {
+    const snapshot = { activeTrip: { id: "trip-cached" } };
+    await saveBootstrapCache("tenant-a", "driver-a", snapshot);
+
+    expect(
+      (await getBootstrapCache<typeof snapshot>("tenant-a", "driver-a"))?.data,
+    ).toEqual(snapshot);
+    expect(
+      await getBootstrapCache("tenant-a", "driver-b"),
+    ).toBeUndefined();
+    expect(
+      await getBootstrapCache("tenant-b", "driver-a"),
+    ).toBeUndefined();
   });
 });

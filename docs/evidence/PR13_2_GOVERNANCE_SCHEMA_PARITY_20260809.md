@@ -89,6 +89,11 @@ próprio workflow.
 - Nenhuma migração ou operação destrutiva foi aplicada à base ROTAS original.
 - Backend ROTAS e billing não foram alterados.
 - A base criada para validação é descartável e separada da base original.
+- O PR draft `#21` acionou o workflow Governance remoto, mas o run
+  `31331162087` terminou em `startup_failure` antes de criar qualquer job. No
+  mesmo evento, o CI global registou explicitamente que os jobs não arrancaram
+  porque a conta GitHub está bloqueada por um problema de faturação. Isto é um
+  bloqueio externo de execução, não evidência de aprovação do CI.
 - Retry/backoff, `SKIP LOCKED`, DLQ e reconciliação operacional continuam no
   PR14.
 - Não houve deploy, migração de produção ou promoção de imagem.
@@ -98,5 +103,5 @@ próprio workflow.
 - Critério PR13.2 — paridade ORM/SQL e migração vazia: **verde local**.
 - A dívida histórica de `alembic check` do Governance está encerrada.
 - Próximo passo sequencial: **PR14 — resiliência operacional do outbox**.
-- Release global continua **NO-GO** até PR14, CI remota, revisão independente e
-  reprodução no SHA candidato.
+- Release global continua **NO-GO** até PR14, desbloqueio e execução efetiva da
+  CI remota, revisão independente e reprodução no SHA candidato.

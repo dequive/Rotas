@@ -78,7 +78,9 @@ async def get_case(
 ):
     case = await db.scalar(select(Case).where(Case.id == case_id))
     if case is None:
-        raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Case not found."})
+        raise HTTPException(
+            status_code=404, detail={"code": "not_found", "message": "Case not found."}
+        )
     code = await _case_type_code(db, case.case_type_id)
     return _serialize_case(case, code)
 
@@ -96,7 +98,9 @@ async def list_cases(
     if status:
         base = base.where(Case.status == status)
     if case_type_code:
-        ct = await db.scalar(select(TaxonomyCaseType).where(TaxonomyCaseType.code == case_type_code))
+        ct = await db.scalar(
+            select(TaxonomyCaseType).where(TaxonomyCaseType.code == case_type_code)
+        )
         if ct:
             base = base.where(Case.case_type_id == ct.id)
 

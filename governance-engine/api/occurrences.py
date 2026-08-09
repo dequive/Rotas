@@ -23,18 +23,25 @@ async def _load_links(db: AsyncSession, occurrence_id: UUID) -> list[dict]:
     )
     result = []
     for lnk, inst, cat in rows:
-        result.append({
-            "instance_id": lnk.instance_id,
-            "entity_type": cat.entity_type if cat else "",
-            "external_id": inst.external_id if inst else "",
-            "role": lnk.role,
-            "display_name": inst.display_name if inst else "",
-            "snapshot": lnk.snapshot,
-        })
+        result.append(
+            {
+                "instance_id": lnk.instance_id,
+                "entity_type": cat.entity_type if cat else "",
+                "external_id": inst.external_id if inst else "",
+                "role": lnk.role,
+                "display_name": inst.display_name if inst else "",
+                "snapshot": lnk.snapshot,
+            }
+        )
     return result
 
 
-def _serialize(occ: Occurrence, links: list[dict], case_id: UUID | None = None, case_reference: str | None = None) -> dict:
+def _serialize(
+    occ: Occurrence,
+    links: list[dict],
+    case_id: UUID | None = None,
+    case_reference: str | None = None,
+) -> dict:
     return {
         "id": occ.id,
         "numero": occ.numero,
@@ -99,7 +106,9 @@ async def get_occurrence(
 ):
     occ = await db.scalar(select(Occurrence).where(Occurrence.id == occurrence_id))
     if occ is None:
-        raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Occurrence not found."})
+        raise HTTPException(
+            status_code=404, detail={"code": "not_found", "message": "Occurrence not found."}
+        )
     links = await _load_links(db, occurrence_id)
     return _serialize(occ, links)
 
@@ -124,8 +133,14 @@ async def list_occurrences(
         base.order_by(Occurrence.recorded_at.desc()).limit(limit).offset(offset)
     )
     items = [
-        {"id": o.id, "numero": o.numero, "severity": o.severity,
-         "title": o.title, "occurred_at": o.occurred_at, "recorded_at": o.recorded_at}
+        {
+            "id": o.id,
+            "numero": o.numero,
+            "severity": o.severity,
+            "title": o.title,
+            "occurred_at": o.occurred_at,
+            "recorded_at": o.recorded_at,
+        }
         for o in rows.scalars()
     ]
     return {"items": items, "total": total, "limit": limit, "offset": offset}

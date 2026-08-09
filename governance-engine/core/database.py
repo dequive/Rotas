@@ -39,9 +39,7 @@ class GovernanceSession(Session):
 
 
 @event.listens_for(GovernanceSession, "after_begin")
-def _apply_rls_tenant_on_transaction(
-    _session: Session, _transaction, connection
-) -> None:
+def _apply_rls_tenant_on_transaction(_session: Session, _transaction, connection) -> None:
     """Apply tenant context transaction-locally on every checked-out connection."""
     tenant_id = _rls_tenant.get()
     if tenant_id:

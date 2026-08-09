@@ -1,6 +1,5 @@
 from fastapi import Request
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 
 def _api_key_or_ip(request: Request) -> str:

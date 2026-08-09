@@ -7,6 +7,7 @@ which would conflict with append-only triggers.
 
 The session-scoped engine creates tables + SQL functions once per test run.
 """
+
 import os
 import uuid
 from collections.abc import AsyncIterator
@@ -166,9 +167,7 @@ async def db(engine, tenant_id, tenant_row) -> AsyncIterator[AsyncSession]:
 @pytest_asyncio.fixture
 async def taxonomy(db: AsyncSession, tenant_id: uuid.UUID) -> dict:
     """Bootstrap minimal taxonomy for a test tenant."""
-    domain = TaxonomyDomain(
-        tenant_id=tenant_id, code="test", name="Test Domain"
-    )
+    domain = TaxonomyDomain(tenant_id=tenant_id, code="test", name="Test Domain")
     db.add(domain)
     await db.flush()
 
@@ -193,29 +192,33 @@ async def taxonomy(db: AsyncSession, tenant_id: uuid.UUID) -> dict:
     await db.flush()
 
     # Promotion: test.breakdown + alta → test.incident
-    db.add(TaxonomyTypePromotion(
-        tenant_id=tenant_id,
-        type_id=occ_type.id,
-        case_type_id=incident_case_type.id,
-        min_severity="alta",
-    ))
+    db.add(
+        TaxonomyTypePromotion(
+            tenant_id=tenant_id,
+            type_id=occ_type.id,
+            case_type_id=incident_case_type.id,
+            min_severity="alta",
+        )
+    )
 
     # Transition rules
     for from_s, to_s, req_fields, req_attach in [
-        (None,           "open",        [],                    False),
-        ("open",         "in_analysis", [],                    False),
-        ("in_analysis",  "resolved",    ["resolution_note"],   False),
-        ("open",         "resolved",    ["resolution_note"],   False),
-        ("resolved",     "closed",      [],                    False),
+        (None, "open", [], False),
+        ("open", "in_analysis", [], False),
+        ("in_analysis", "resolved", ["resolution_note"], False),
+        ("open", "resolved", ["resolution_note"], False),
+        ("resolved", "closed", [], False),
     ]:
-        db.add(CaseTransitionRule(
-            tenant_id=tenant_id,
-            case_type_id=incident_case_type.id,
-            from_status=from_s,
-            to_status=to_s,
-            required_fields=req_fields,
-            required_attachments=req_attach,
-        ))
+        db.add(
+            CaseTransitionRule(
+                tenant_id=tenant_id,
+                case_type_id=incident_case_type.id,
+                from_status=from_s,
+                to_status=to_s,
+                required_fields=req_fields,
+                required_attachments=req_attach,
+            )
+        )
 
     await db.commit()
     return {
@@ -244,9 +247,12 @@ async def api_key_raw(tenant_id: uuid.UUID, engine, tenant_row) -> str:
             key_prefix=prefix,
             key_hash=key_hash,
             scopes=[
-                "occurrences:read", "occurrences:write",
-                "cases:read", "cases:write",
-                "admin:read", "admin:write",
+                "occurrences:read",
+                "occurrences:write",
+                "cases:read",
+                "cases:write",
+                "admin:read",
+                "admin:write",
                 "adapter:rotas",
             ],
         )

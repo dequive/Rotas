@@ -4,6 +4,7 @@ Request ID + structured access logging middleware.
 Sets X-Request-Id on every response. Logs method, path, status, and
 duration_ms as a single JSON line per request via the structured logger.
 """
+
 import logging
 import time
 import uuid

@@ -10,7 +10,7 @@ Public surface:
   drain_outbox(session, max_rows)                        -- called by the ARQ
                                                               outbox_drain job
 
-The drainer POSTs each row to ``settings.governance_engine_url/ingest`` and
+The drainer POSTs each row to the Governance ROTAS adapter and
 records the returned ``case_id`` so reconciliation can later cross-check
 that ROTAS events correspond to Governance cases.
 """
@@ -94,37 +94,45 @@ async def _post_to_governance(row: OutboxEvent) -> tuple[bool, dict[str, Any] | 
     settings = get_settings()
     if not settings.governance_engine_url:
         return False, None, "governance_engine_url not configured"
-    url = f"{settings.governance_engine_url.rstrip('/')}/ingest"
-    headers = {"Content-Type": "application/json"}
-    if settings.governance_api_key:
-        headers["Authorization"] = f"Bearer {settings.governance_api_key}"
-    body = {
-        "event_id": str(row.id),
-        "tenant_id": str(row.tenant_id),
-        "event_type": row.event_type,
-        "aggregate_type": row.aggregate_type,
-        "aggregate_id": str(row.aggregate_id) if row.aggregate_id else None,
-        "occurred_at": row.created_at.isoformat() if row.created_at else None,
-        "correlation_id": str(row.correlation_id) if row.correlation_id else None,
-        "payload": row.payload,
+    if not settings.governance_api_key:
+        return False, None, "governance_api_key not configured"
+    url = f"{settings.governance_engine_url.rstrip('/')}/api/v1/adapters/rotas/events"
+    headers = {
+        "Content-Type": "application/json",
+        "X-API-Key": settings.governance_api_key,
     }
+    body = dict(row.payload)
+    body.setdefault("event_type", row.event_type)
+    body.setdefault("idempotency_key", f"rotas:outbox:{row.id}")
+    body.setdefault("occurred_at", row.created_at.isoformat() if row.created_at else None)
+    body.setdefault(
+        "payload",
+        {
+            "outbox_event_id": str(row.id),
+            "aggregate_type": row.aggregate_type,
+            "aggregate_id": str(row.aggregate_id) if row.aggregate_id else None,
+            "correlation_id": str(row.correlation_id) if row.correlation_id else None,
+        },
+    )
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(url, headers=headers, json=body)
     except httpx.HTTPError as exc:
         return False, None, f"http_error: {exc.__class__.__name__}"
 
-    if response.status_code >= 500:
+    if response.status_code == 409:
+        # Governance uses the payload idempotency key as delivery identity.
+        return True, {}, None
+    if response.status_code in {408, 425, 429} or response.status_code >= 500:
         return False, None, f"upstream_{response.status_code}"
     if response.status_code >= 400:
-        # 4xx: log but treat as terminal — retrying will not help.
+        # Other 4xx responses are terminal contract/authentication failures.
         return False, None, f"client_error_{response.status_code}"
 
     try:
         body_json = response.json()
     except ValueError:
         body_json = {}
-    body_json.get("case_id")
     return True, body_json, None
 
 

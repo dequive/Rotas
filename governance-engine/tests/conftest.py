@@ -7,6 +7,7 @@ which would conflict with append-only triggers.
 
 The session-scoped engine creates tables + SQL functions once per test run.
 """
+import os
 import uuid
 from collections.abc import AsyncIterator
 
@@ -15,20 +16,25 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from core.auth import generate_api_key
-from core.database import Base, set_rls_tenant
+from core.database import Base, GovernanceSession, set_rls_tenant
 from core.models import (
+    CaseTransitionRule,
     TaxonomyCaseType,
     TaxonomyDomain,
     TaxonomyType,
     TaxonomyTypePromotion,
-    CaseTransitionRule,
 )
-from core.models_auth import ApiKey, Tenant
+from core.models_auth import ApiKey
 from main import app
 
-TEST_DB_URL = "postgresql+asyncpg://governance_app:governance@localhost:55433/governance"
+TEST_DB_URL = os.getenv("GOVERNANCE_TEST_DATABASE_URL")
+if not TEST_DB_URL:
+    raise RuntimeError(
+        "GOVERNANCE_TEST_DATABASE_URL is required and must target a disposable test database."
+    )
 
 _NEXT_HUMAN_ID_SQL = """
 CREATE OR REPLACE FUNCTION next_human_id(
@@ -86,7 +92,7 @@ END $$;
 
 @pytest.fixture(scope="session")
 def engine():
-    eng = create_async_engine(TEST_DB_URL, echo=False)
+    eng = create_async_engine(TEST_DB_URL, echo=False, poolclass=NullPool)
     return eng
 
 
@@ -114,12 +120,43 @@ def tenant_id() -> uuid.UUID:
 
 
 @pytest_asyncio.fixture
-async def db(engine, tenant_id) -> AsyncIterator[AsyncSession]:
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+async def tenant_row(engine, tenant_id: uuid.UUID) -> None:
+    """Provision the tenant required by the migrated production schema."""
+    session_factory = async_sessionmaker(
+        engine,
+        expire_on_commit=False,
+        sync_session_class=GovernanceSession,
+    )
+    set_rls_tenant(None)
+    async with session_factory() as session:
+        await session.execute(
+            text(
+                """
+                INSERT INTO tenants (id, name, slug)
+                VALUES (:tenant_id, :name, :slug)
+                ON CONFLICT (id) DO NOTHING
+                """
+            ),
+            {
+                "tenant_id": tenant_id,
+                "name": "Test Tenant",
+                "slug": f"test-{tenant_id.hex[:8]}",
+            },
+        )
+        await session.commit()
+
+
+@pytest_asyncio.fixture
+async def db(engine, tenant_id, tenant_row) -> AsyncIterator[AsyncSession]:
+    session_factory = async_sessionmaker(
+        engine,
+        expire_on_commit=False,
+        sync_session_class=GovernanceSession,
+    )
     set_rls_tenant(str(tenant_id))
     async with session_factory() as session:
         await session.execute(
-            text("SELECT set_config('app.tenant_id', :tid, false)"),
+            text("SELECT set_config('app.tenant_id', :tid, true)"),
             {"tid": str(tenant_id)},
         )
         yield session
@@ -189,16 +226,13 @@ async def taxonomy(db: AsyncSession, tenant_id: uuid.UUID) -> dict:
 
 
 @pytest_asyncio.fixture
-async def api_key_raw(tenant_id: uuid.UUID, engine) -> str:
+async def api_key_raw(tenant_id: uuid.UUID, engine, tenant_row) -> str:
     """Create an API key with broad scopes for the test tenant."""
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
-
-    # Create tenant row (no RLS on tenants table)
-    set_rls_tenant(None)
-    async with session_factory() as session:
-        tenant = Tenant(id=tenant_id, name="Test Tenant", slug=f"test-{tenant_id.hex[:8]}")
-        session.add(tenant)
-        await session.commit()
+    session_factory = async_sessionmaker(
+        engine,
+        expire_on_commit=False,
+        sync_session_class=GovernanceSession,
+    )
 
     full_key, prefix, key_hash = generate_api_key()
 

@@ -2,11 +2,11 @@ from collections.abc import AsyncIterator
 
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth import Principal, validate_api_key
 from core.database import AsyncSessionLocal, get_raw_session, set_rls_tenant
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
 _bearer = HTTPBearer(auto_error=False)
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
@@ -31,7 +31,7 @@ async def get_session(
     try:
         async with AsyncSessionLocal() as session:
             await session.execute(
-                text("SELECT set_config('app.tenant_id', :tid, false)"),
+                text("SELECT set_config('app.tenant_id', :tid, true)"),
                 {"tid": str(principal.tenant_id)},
             )
             yield session

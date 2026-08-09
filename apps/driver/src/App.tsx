@@ -16,7 +16,6 @@ import {
   type ActiveTrip,
   type BootstrapData,
   type ChecklistTemplate,
-  clearAuth,
 } from "./api";
 import type { AuthState } from "./api";
 import {
@@ -26,6 +25,8 @@ import {
   queueFuelLog,
   queueOperation,
   saveBootstrapCache,
+  belongsToIdentity,
+  getCurrentIdentityScope,
   type SyncStatus,
 } from "./db";
 import { processSyncQueue } from "./sync";
@@ -39,6 +40,7 @@ import { useNetworkStatus } from "./hooks/useNetworkStatus";
 import { useSyncStatus } from "./hooks/useSyncStatus";
 import { SyncStatusBanner } from "./components/SyncStatusBanner";
 import { SyncIssuesPanel } from "./components/SyncIssuesPanel";
+import { purgeDriverIdentity } from "./identity";
 
 type View =
   | "dashboard"
@@ -84,6 +86,7 @@ export function App() {
   const [pendingCount, setPendingCount] = useState(0);
   const [lastMessage, setLastMessage] = useState("A carregar...");
   const [syncing, setSyncing] = useState(false);
+  const [logoutState, setLogoutState] = useState<"idle" | "purging" | "failed">("idle");
   const syncLock = useRef(false);
 
   const { isOnline } = useNetworkStatus();
@@ -120,12 +123,13 @@ export function App() {
     try {
       const data = await bootstrap();
       applyBootstrap(data);
-      await saveBootstrapCache(auth.tenantId, auth.driverId, data);
+      await saveBootstrapCache(auth.tenantId, auth.driverId, auth.sessionId, data);
       setLastMessage(data.activeTrip ? "Viagem activa carregada." : "Sem viagem activa.");
     } catch {
       const cached = await getBootstrapCache<BootstrapData>(
         auth.tenantId,
         auth.driverId,
+        auth.sessionId,
       );
       if (cached) {
         applyBootstrap(cached.data);
@@ -141,7 +145,10 @@ export function App() {
   }
 
   async function refreshPendingCount() {
-    const count = await db.syncQueue.count();
+    const scope = getCurrentIdentityScope();
+    const count = scope
+      ? await db.syncQueue.filter((item) => belongsToIdentity(item, scope)).count()
+      : 0;
     setPendingCount(count);
   }
 
@@ -153,8 +160,11 @@ export function App() {
     fieldKey?: string
   ) {
     if (!file) return undefined;
+    const scope = getCurrentIdentityScope();
+    if (!scope) throw new Error("driver_identity_scope_missing");
     const localId = makeLocalId(fileType);
     await db.photoQueue.add({
+      ...scope,
       localId,
       entityType,
       entityLocalId,
@@ -275,10 +285,41 @@ export function App() {
     }
   }
 
-  function handleLogout() {
-    clearAuth();
+  async function handleLogout() {
+    setLogoutState("purging");
     setAuth(null);
     setActiveTrip(null);
+    setChecklistTemplate(null);
+    setChecklistResponses({});
+    setFuelForm(initialFuelForm);
+    setPendingCount(0);
+    setView("dashboard");
+    try {
+      await purgeDriverIdentity();
+      setLogoutState("idle");
+    } catch {
+      setLogoutState("failed");
+    }
+  }
+
+  if (logoutState !== "idle") {
+    return (
+      <main className="phone-shell">
+        <section className="panel identity-purge">
+          <h1>Protecção da sessão</h1>
+          {logoutState === "purging" ? (
+            <p>A remover os dados locais do motorista anterior…</p>
+          ) : (
+            <>
+              <p>Não foi possível confirmar a limpeza completa. O novo emparelhamento permanece bloqueado.</p>
+              <button className="primary-action" type="button" onClick={() => void handleLogout()}>
+                Tentar novamente
+              </button>
+            </>
+          )}
+        </section>
+      </main>
+    );
   }
 
   if (!auth) {
@@ -298,7 +339,7 @@ export function App() {
           <button className="icon-btn" aria-label="Sincronizar" onClick={syncNow} disabled={syncing}>
             <RefreshCw size={20} className={syncing ? "spin" : ""} />
           </button>
-          <button className="icon-btn" aria-label="Sair" onClick={handleLogout} title="Sair">
+          <button className="icon-btn" aria-label="Sair" onClick={() => void handleLogout()} title="Sair">
             <LogOut size={18} />
           </button>
         </div>

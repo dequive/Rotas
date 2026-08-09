@@ -10,6 +10,12 @@ import {
 } from "../db";
 import { computeSyncBackoffMs, processSyncQueue } from "../sync";
 
+const identityScope = {
+  tenantId: "00000000-0000-0000-0000-000000000001",
+  driverId: "driver-test",
+  sessionId: "session-test",
+};
+
 describe("Driver Offline-First & Sync Queue", () => {
   beforeEach(async () => {
     // Clear all IndexedDB tables before each test
@@ -21,7 +27,9 @@ describe("Driver Offline-First & Sync Queue", () => {
     // Reset global fetch and localStorage mocks
     vi.restoreAllMocks();
     localStorage.clear();
-    localStorage.setItem("rotas_tenant_id", "00000000-0000-0000-0000-000000000001");
+    localStorage.setItem("rotas_tenant_id", identityScope.tenantId);
+    localStorage.setItem("rotas_driver_id", identityScope.driverId);
+    localStorage.setItem("rotas_session_id", identityScope.sessionId);
     localStorage.setItem("rotas_device_id", "device-123");
   });
 
@@ -193,6 +201,7 @@ describe("Driver Offline-First & Sync Queue", () => {
 
   it("recupera item preso em syncing depois de encerramento abrupto", async () => {
     await db.syncQueue.add({
+      ...identityScope,
       localId: "trip_interrupted",
       idempotencyKey: crypto.randomUUID(),
       operation: "create",
@@ -375,16 +384,16 @@ describe("Driver Offline-First & Sync Queue", () => {
 
   it("cache bootstrap só é recuperado para o mesmo tenant e motorista", async () => {
     const snapshot = { activeTrip: { id: "trip-cached" } };
-    await saveBootstrapCache("tenant-a", "driver-a", snapshot);
+    await saveBootstrapCache("tenant-a", "driver-a", "session-a", snapshot);
 
     expect(
-      (await getBootstrapCache<typeof snapshot>("tenant-a", "driver-a"))?.data,
+      (await getBootstrapCache<typeof snapshot>("tenant-a", "driver-a", "session-a"))?.data,
     ).toEqual(snapshot);
     expect(
-      await getBootstrapCache("tenant-a", "driver-b"),
+      await getBootstrapCache("tenant-a", "driver-b", "session-a"),
     ).toBeUndefined();
     expect(
-      await getBootstrapCache("tenant-b", "driver-a"),
+      await getBootstrapCache("tenant-b", "driver-a", "session-a"),
     ).toBeUndefined();
   });
 });

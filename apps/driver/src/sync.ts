@@ -4,7 +4,13 @@ import {
   responseToHttpError,
 } from "@rotas/http-contract";
 import { refreshDriverAccessToken } from "./api";
-import { db, type SyncQueueItem } from "./db";
+import {
+  belongsToIdentity,
+  db,
+  getCurrentIdentityScope,
+  type DriverIdentityScope,
+  type SyncQueueItem,
+} from "./db";
 
 interface SyncResult {
   local_id: string;
@@ -37,18 +43,26 @@ export function computeSyncBackoffMs(
   return Math.round(ceiling * (0.5 + random() * 0.5));
 }
 
-async function recoverInterruptedSync(now: Date): Promise<void> {
+async function recoverInterruptedSync(
+  now: Date,
+  scope: DriverIdentityScope,
+): Promise<void> {
   const nextAttemptAt = now.toISOString();
   await db.transaction("rw", db.syncQueue, db.photoQueue, async () => {
-    await db.syncQueue.where("status").equals("syncing").modify({
-      status: "retrying",
-      lastError: "sync_interrupted",
-      nextAttemptAt,
-    });
-    await db.photoQueue.where("status").equals("syncing").modify({
-      status: "retrying",
-      nextAttemptAt,
-    });
+    await db.syncQueue
+      .where("status")
+      .equals("syncing")
+      .filter((item) => belongsToIdentity(item, scope))
+      .modify({
+        status: "retrying",
+        lastError: "sync_interrupted",
+        nextAttemptAt,
+      });
+    await db.photoQueue
+      .where("status")
+      .equals("syncing")
+      .filter((item) => belongsToIdentity(item, scope))
+      .modify({ status: "retrying", nextAttemptAt });
   });
 }
 
@@ -61,12 +75,15 @@ export async function processSyncQueue(
   const tokenContext: TokenContext = {
     value: localStorage.getItem("rotas_access_token") ?? token,
   };
-  await recoverInterruptedSync(now);
+  const scope = getCurrentIdentityScope();
+  if (!scope) throw new Error("driver_identity_scope_missing");
+  await recoverInterruptedSync(now, scope);
   const items = await db.syncQueue
     .where("status")
     .anyOf(["local_only", "retrying"])
     .filter(
       (item) =>
+        belongsToIdentity(item, scope) &&
         item.retryCount < MAX_ATTEMPTS &&
         (!item.nextAttemptAt || item.nextAttemptAt <= now.toISOString()),
     )
@@ -81,8 +98,11 @@ function apiBaseUrl() {
   return localStorage.getItem("rotas_api_base_url") ?? import.meta.env.VITE_ROTAS_API_BASE_URL ?? "";
 }
 
-function tenantId() {
-  return localStorage.getItem("rotas_tenant_id") ?? import.meta.env.VITE_ROTAS_TENANT_ID;
+function assertCurrentIdentity(item: SyncQueueItem): void {
+  const scope = getCurrentIdentityScope();
+  if (!scope || !belongsToIdentity(item, scope)) {
+    throw new Error("driver_identity_changed");
+  }
 }
 
 async function authorizedRequest(
@@ -112,12 +132,11 @@ async function uploadQueuedPhotos(item: SyncQueueItem, token: TokenContext) {
     return item.payload;
   }
 
-  const tenant = tenantId();
-  if (!tenant) {
-    throw new Error("tenant_not_configured");
-  }
-
-  const photos = await db.photoQueue.where("entityLocalId").equals(item.localId).toArray();
+  const photos = await db.photoQueue
+    .where("entityLocalId")
+    .equals(item.localId)
+    .filter((photo) => belongsToIdentity(photo, item))
+    .toArray();
   let payload = { ...item.payload };
 
   for (const photo of photos) {
@@ -144,12 +163,13 @@ async function uploadQueuedPhotos(item: SyncQueueItem, token: TokenContext) {
     form.append("file_type", photo.fileType);
     form.append("entity_type", item.entityType);
 
+    assertCurrentIdentity(item);
     const response = await authorizedRequest(
       token,
       `${apiBaseUrl()}/api/v1/files/upload`,
       {
         method: "POST",
-        headers: { "X-Tenant-Id": tenant },
+        headers: { "X-Tenant-Id": item.tenantId },
         body: form,
       },
       { timeoutMs: 30_000, maxRetries: 0 },
@@ -221,11 +241,9 @@ async function syncItem(
   });
 
   try {
-    const tenant = tenantId();
-    if (!tenant) {
-      throw new Error("tenant_not_configured");
-    }
+    assertCurrentIdentity(item);
     const payload = await uploadQueuedPhotos(item, token);
+    assertCurrentIdentity(item);
 
     const response = await authorizedRequest(
       token,
@@ -233,7 +251,7 @@ async function syncItem(
       {
         method: "POST",
         headers: {
-          "X-Tenant-Id": tenant,
+          "X-Tenant-Id": item.tenantId,
           "Idempotency-Key": item.idempotencyKey,
           "Content-Type": "application/json",
         },
@@ -265,6 +283,7 @@ async function syncItem(
         const localFuelLog = await db.pendingFuelLogs
           .where("localId")
           .equals(item.localId)
+          .filter((fuelLog) => belongsToIdentity(fuelLog, item))
           .first();
         if (localFuelLog?.id) {
           await db.pendingFuelLogs.update(localFuelLog.id, { status: "synced" });
@@ -275,7 +294,11 @@ async function syncItem(
     }
 
     if (item.entityType === "fuel_log") {
-      const localFuelLog = await db.pendingFuelLogs.where("localId").equals(item.localId).first();
+      const localFuelLog = await db.pendingFuelLogs
+        .where("localId")
+        .equals(item.localId)
+        .filter((fuelLog) => belongsToIdentity(fuelLog, item))
+        .first();
       if (localFuelLog?.id) {
         await db.pendingFuelLogs.update(localFuelLog.id, {
           status: result.status === "conflict" ? "conflict" : "failed",
@@ -330,7 +353,11 @@ async function syncItem(
           now.getTime() + computeSyncBackoffMs(retryCount, random),
         ).toISOString();
     if (item.entityType === "fuel_log") {
-      const localFuelLog = await db.pendingFuelLogs.where("localId").equals(item.localId).first();
+      const localFuelLog = await db.pendingFuelLogs
+        .where("localId")
+        .equals(item.localId)
+        .filter((fuelLog) => belongsToIdentity(fuelLog, item))
+        .first();
       if (localFuelLog?.id) {
         await db.pendingFuelLogs.update(localFuelLog.id, {
           status: deadLetter ? "dead_letter" : "retrying",

@@ -11,6 +11,9 @@ export type SyncStatus =
 
 export interface SyncQueueItem {
   id?: number;
+  tenantId: string;
+  driverId: string;
+  sessionId: string;
   localId: string;
   idempotencyKey: string;
   operation: "create" | "update";
@@ -36,6 +39,9 @@ export interface SyncQueueItem {
 
 export interface PhotoQueueItem {
   id?: number;
+  tenantId: string;
+  driverId: string;
+  sessionId: string;
   localId: string;
   entityType: SyncQueueItem["entityType"];
   entityLocalId: string;
@@ -53,6 +59,8 @@ export interface PhotoQueueItem {
 
 export interface PendingFuelLogItem {
   id?: number;
+  tenantId: string;
+  sessionId: string;
   localId: string;
   vehicleId: string;
   driverId: string;
@@ -96,6 +104,7 @@ export interface BootstrapCacheItem<T = unknown> {
   id: string;
   tenantId: string;
   driverId: string;
+  sessionId: string;
   data: T;
   cachedAt: string;
 }
@@ -138,7 +147,47 @@ class RotasDriverDb extends Dexie {
     this.version(3).stores({
       bootstrapCache: "id, tenantId, driverId, cachedAt"
     });
+    this.version(4).stores({
+      syncQueue:
+        "++id, [tenantId+driverId+sessionId], localId, idempotencyKey, entityType, status, nextAttemptAt, createdAt",
+      photoQueue:
+        "++id, [tenantId+driverId+sessionId], localId, entityType, entityLocalId, status, serverFileId, nextAttemptAt, createdAt",
+      pendingFuelLogs:
+        "++id, [tenantId+driverId+sessionId], localId, vehicleId, timestamp, status",
+      bootstrapCache: "id, [tenantId+driverId+sessionId], cachedAt"
+    });
   }
+}
+
+export interface DriverIdentityScope {
+  tenantId: string;
+  driverId: string;
+  sessionId: string;
+}
+
+export function getCurrentIdentityScope(): DriverIdentityScope | null {
+  const tenantId = localStorage.getItem("rotas_tenant_id");
+  const driverId = localStorage.getItem("rotas_driver_id");
+  const sessionId = localStorage.getItem("rotas_session_id");
+  if (!tenantId || !driverId || !sessionId) return null;
+  return { tenantId, driverId, sessionId };
+}
+
+function requireCurrentIdentityScope(): DriverIdentityScope {
+  const scope = getCurrentIdentityScope();
+  if (!scope) throw new Error("driver_identity_scope_missing");
+  return scope;
+}
+
+export function belongsToIdentity(
+  item: Partial<DriverIdentityScope>,
+  scope: DriverIdentityScope,
+): boolean {
+  return (
+    item.tenantId === scope.tenantId &&
+    item.driverId === scope.driverId &&
+    item.sessionId === scope.sessionId
+  );
 }
 
 export const db = new RotasDriverDb();
@@ -152,8 +201,11 @@ export async function requeueSyncItem(
   payload?: Record<string, unknown>,
 ): Promise<void> {
   const item = await db.syncQueue.get(id);
+  const scope = getCurrentIdentityScope();
   if (
     !item ||
+    !scope ||
+    !belongsToIdentity(item, scope) ||
     !["conflict", "failed", "dead_letter"].includes(item.status)
   ) {
     throw new Error("sync_item_not_requeueable");
@@ -172,8 +224,11 @@ export async function requeueSyncItem(
 
 export async function discardSyncItem(id: number): Promise<void> {
   const item = await db.syncQueue.get(id);
+  const scope = getCurrentIdentityScope();
   if (
     !item ||
+    !scope ||
+    !belongsToIdentity(item, scope) ||
     !["conflict", "failed", "dead_letter"].includes(item.status)
   ) {
     throw new Error("sync_item_not_discardable");
@@ -187,11 +242,13 @@ export async function discardSyncItem(id: number): Promise<void> {
       await db.photoQueue
         .where("entityLocalId")
         .equals(item.localId)
+        .filter((photo) => belongsToIdentity(photo, scope))
         .delete();
       if (item.entityType === "fuel_log") {
         await db.pendingFuelLogs
           .where("localId")
           .equals(item.localId)
+          .filter((fuelLog) => belongsToIdentity(fuelLog, scope))
           .delete();
       }
       await db.syncQueue.delete(id);
@@ -199,19 +256,21 @@ export async function discardSyncItem(id: number): Promise<void> {
   );
 }
 
-function bootstrapCacheId(tenantId: string, driverId: string): string {
-  return `${tenantId}:${driverId}`;
+function bootstrapCacheId(tenantId: string, driverId: string, sessionId: string): string {
+  return `${tenantId}:${driverId}:${sessionId}`;
 }
 
 export async function saveBootstrapCache<T>(
   tenantId: string,
   driverId: string,
+  sessionId: string,
   data: T,
 ): Promise<void> {
   await db.bootstrapCache.put({
-    id: bootstrapCacheId(tenantId, driverId),
+    id: bootstrapCacheId(tenantId, driverId, sessionId),
     tenantId,
     driverId,
+    sessionId,
     data,
     cachedAt: new Date().toISOString(),
   });
@@ -220,17 +279,29 @@ export async function saveBootstrapCache<T>(
 export async function getBootstrapCache<T>(
   tenantId: string,
   driverId: string,
+  sessionId: string,
 ): Promise<BootstrapCacheItem<T> | undefined> {
   return db.bootstrapCache.get(
-    bootstrapCacheId(tenantId, driverId),
+    bootstrapCacheId(tenantId, driverId, sessionId),
   ) as Promise<BootstrapCacheItem<T> | undefined>;
 }
 
 export async function queueOperation(
-  item: Omit<SyncQueueItem, "idempotencyKey" | "retryCount" | "status" | "createdAt">
+  item: Omit<
+    SyncQueueItem,
+    | "tenantId"
+    | "driverId"
+    | "sessionId"
+    | "idempotencyKey"
+    | "retryCount"
+    | "status"
+    | "createdAt"
+  >
 ) {
+  const scope = requireCurrentIdentityScope();
   await db.syncQueue.add({
     ...item,
+    ...scope,
     idempotencyKey: crypto.randomUUID(),
     retryCount: 0,
     status: "local_only",
@@ -239,12 +310,18 @@ export async function queueOperation(
 }
 
 export async function queueFuelLog(
-  item: Omit<PendingFuelLogItem, "id" | "status" | "createdAt">
+  item: Omit<
+    PendingFuelLogItem,
+    "id" | "tenantId" | "sessionId" | "status" | "createdAt"
+  >
 ) {
+  const scope = requireCurrentIdentityScope();
   const createdAt = new Date().toISOString();
   await db.transaction("rw", db.pendingFuelLogs, db.syncQueue, async () => {
     await db.pendingFuelLogs.add({
       ...item,
+      tenantId: scope.tenantId,
+      sessionId: scope.sessionId,
       status: "local_only",
       createdAt
     });
@@ -267,5 +344,11 @@ export async function queueFuelLog(
         clientCapturedAt: createdAt
       }
     });
+  });
+}
+
+export async function clearAllDriverData(): Promise<void> {
+  await db.transaction("rw", db.tables, async () => {
+    await Promise.all(db.tables.map((table) => table.clear()));
   });
 }

@@ -1,6 +1,6 @@
 import { Camera, Save } from "lucide-react";
 import { useState } from "react";
-import { db, makeLocalId, queueOperation } from "../db";
+import { db, getCurrentIdentityScope, makeLocalId, queueOperation } from "../db";
 import type { PhotoQueueItem } from "../db";
 
 export function DeliveryProofView({
@@ -23,8 +23,11 @@ export function DeliveryProofView({
     let deliveryFileLocalId: string | undefined;
 
     if (photo) {
+      const scope = getCurrentIdentityScope();
+      if (!scope) throw new Error("driver_identity_scope_missing");
       const photoLocalId = makeLocalId("photo");
       const photoItem: Omit<PhotoQueueItem, "id"> = {
+        ...scope,
         localId: photoLocalId,
         entityType: "delivery_proof",
         entityLocalId: localId,

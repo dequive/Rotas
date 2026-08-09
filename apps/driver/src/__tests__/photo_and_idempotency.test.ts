@@ -3,6 +3,12 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { db, queueOperation, queueFuelLog } from "../db";
 import { processSyncQueue } from "../sync";
 
+const identityScope = {
+  tenantId: "00000000-0000-0000-0000-000000000001",
+  driverId: "driver-test",
+  sessionId: "session-test",
+};
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function makeBlob(content = "fake-photo-data") {
@@ -32,7 +38,9 @@ beforeEach(async () => {
   await db.pendingFuelLogs.clear();
   vi.unstubAllGlobals(); // clean up any fetch stubs from previous tests
   localStorage.clear();
-  localStorage.setItem("rotas_tenant_id", "00000000-0000-0000-0000-000000000001");
+  localStorage.setItem("rotas_tenant_id", identityScope.tenantId);
+  localStorage.setItem("rotas_driver_id", identityScope.driverId);
+  localStorage.setItem("rotas_session_id", identityScope.sessionId);
   localStorage.setItem("rotas_device_id", "device-test-001");
   // apiBaseUrl() reads this key — must be set so fetch is called with a full URL
   localStorage.setItem("rotas_api_base_url", "http://localhost:8000");
@@ -53,6 +61,7 @@ describe("Photo Queue — upload offline e resolução de fileId", () => {
 
     // Foto já tem serverFileId (upload anterior bem sucedido)
     await db.photoQueue.add({
+      ...identityScope,
       localId: "photo_receipt_001",
       entityType: "fuel_log",
       entityLocalId: localId,
@@ -109,6 +118,7 @@ describe("Photo Queue — upload offline e resolução de fileId", () => {
     });
 
     await db.photoQueue.add({
+      ...identityScope,
       localId: "photo_no_fetch_001",
       entityType: "fuel_log",
       entityLocalId: localId,
@@ -132,6 +142,7 @@ describe("Photo Queue — upload offline e resolução de fileId", () => {
   it("foto sem serverFileId não é marcada como synced antes de receber um fileId do servidor", async () => {
     // Garantir que uma foto só muda de local_only quando o servidor confirmar
     await db.photoQueue.add({
+      ...identityScope,
       localId: "photo_guard_001",
       entityType: "fuel_log",
       entityLocalId: "any_trip",
@@ -217,6 +228,7 @@ describe("Idempotência — chave única por operação", () => {
 describe("Retry — limite de 5 tentativas", () => {
   it("itens com retryCount >= 5 são ignorados pelo processSyncQueue", async () => {
     await db.syncQueue.add({
+      ...identityScope,
       localId: "trip_exhausted",
       idempotencyKey: crypto.randomUUID(),
       operation: "create",
@@ -237,6 +249,7 @@ describe("Retry — limite de 5 tentativas", () => {
 
   it("item na quinta falha entra explicitamente em dead-letter", async () => {
     await db.syncQueue.add({
+      ...identityScope,
       localId: "trip_last_chance",
       idempotencyKey: crypto.randomUUID(),
       operation: "create",

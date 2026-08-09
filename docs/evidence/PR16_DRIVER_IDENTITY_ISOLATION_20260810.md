@@ -65,6 +65,10 @@ de parear um novo motorista com novo `sessionId`.
 - O backend foi simulado no E2E; não houve staging nem Governance/backend real.
 - Não houve dispositivo Android/iOS físico, rede móvel degradada, soak ou carga.
 - Não houve revisão externa independente nem CI remota verde no SHA candidato.
+- O PR draft `#36` foi aberto sobre `codex/pr15-driver-offline`. A execução
+  inicial do GitHub Actions (`31339653504`) terminou antes de qualquer step:
+  Backend e Frontend não arrancaram porque a conta está bloqueada por billing;
+  E2E ficou skipped. Billing não foi alterado.
 - A base ROTAS original online não foi consultada, migrada ou modificada.
 - Billing ROTAS não foi alterado.
 

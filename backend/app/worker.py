@@ -865,18 +865,20 @@ async def task_outbox_drain(ctx: dict) -> str:
     """
     import structlog
 
-    from app.modules.outbox import drain_outbox
+    from app.modules.outbox import drain_outbox, reconcile_outbox
 
     logger = structlog.get_logger("worker.outbox")
     async with ctx["db_factory"]() as db:
         counts = await drain_outbox(db, max_rows=100)
+        reconciliation = await reconcile_outbox(db, max_rows=100)
 
-    if counts["scanned"] == 0:
+    if counts["scanned"] == 0 and reconciliation["scanned"] == 0:
         return "outbox_drain: nothing to do"
-    logger.info("outbox_drain", **counts)
+    logger.info("outbox_drain", **counts, reconciliation=reconciliation)
     return (
         f"outbox_drain: scanned={counts['scanned']} sent={counts['sent']} "
-        f"retried={counts['retried']} dead_letter={counts['dead_letter']}"
+        f"retried={counts['retried']} dead_letter={counts['dead_letter']} "
+        f"reconciled={reconciliation['confirmed']}"
     )
 
 

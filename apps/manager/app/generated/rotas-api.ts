@@ -2483,6 +2483,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/platform/outbox/{event_id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replay Dead Letter */
+        post: operations["replay_dead_letter_api_v1_platform_outbox__event_id__replay_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/outbox/dead-letters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Dead Letters */
+        get: operations["get_dead_letters_api_v1_platform_outbox_dead_letters_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/outbox/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Outbox Health */
+        get: operations["get_outbox_health_api_v1_platform_outbox_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/platform/platform-users": {
         parameters: {
             query?: never;
@@ -7424,6 +7475,89 @@ export interface components {
         OperationalWaiverRevokeRequest: {
             /** Reason */
             reason?: string | null;
+        };
+        /** OutboxHealthResponse */
+        OutboxHealthResponse: {
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+            /** Due Pending */
+            due_pending: number;
+            /** Oldest Pending At */
+            oldest_pending_at: string | null;
+            /** Stale Claims */
+            stale_claims: number;
+            /** Statuses */
+            statuses: {
+                [key: string]: number;
+            };
+            /** Unreconciled Sent */
+            unreconciled_sent: number;
+        };
+        /** OutboxOperationalEvent */
+        OutboxOperationalEvent: {
+            /** Aggregate Id */
+            aggregate_id: string | null;
+            /** Aggregate Type */
+            aggregate_type: string | null;
+            /** Attempt Count */
+            attempt_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Dead Lettered At */
+            dead_lettered_at: string | null;
+            /** Event Type */
+            event_type: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Error */
+            last_error: string | null;
+            /** Last Replayed At */
+            last_replayed_at: string | null;
+            /** Replay Count */
+            replay_count: number;
+            /** Replay Reason */
+            replay_reason: string | null;
+            /** Replayed By */
+            replayed_by: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Total Attempt Count */
+            total_attempt_count: number;
+        };
+        /** OutboxReplayRequest */
+        OutboxReplayRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** OutboxReplayResponse */
+        OutboxReplayResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Replayed At */
+            last_replayed_at: string | null;
+            /** Next Attempt At */
+            next_attempt_at: string | null;
+            /** Replay Count */
+            replay_count: number;
+            /** Status */
+            status: string;
         };
         /** PartIssueRequest */
         PartIssueRequest: {
@@ -15195,6 +15329,108 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replay_dead_letter_api_v1_platform_outbox__event_id__replay_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutboxReplayRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutboxReplayResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dead_letters_api_v1_platform_outbox_dead_letters_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                tenant_id?: string | null;
+            };
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutboxOperationalEvent"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_outbox_health_api_v1_platform_outbox_health_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutboxHealthResponse"];
                 };
             };
             /** @description Validation Error */

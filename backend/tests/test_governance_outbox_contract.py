@@ -169,9 +169,7 @@ async def test_terminal_governance_contract_response_is_not_success(monkeypatch,
         ("https://governance.internal", "", "governance_api_key not configured"),
     ],
 )
-async def test_governance_configuration_fails_closed(
-    monkeypatch, url, api_key, expected_error
-) -> None:
+async def test_governance_configuration_fails_closed(monkeypatch, url, api_key, expected_error) -> None:
     monkeypatch.setattr(
         service,
         "get_settings",

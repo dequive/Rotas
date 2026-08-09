@@ -88,6 +88,7 @@ async def test_rotas_outbox_reaches_real_governance_adapter(
 
     first_ok, first_body, first_error = await outbox_service._post_to_governance(row)
     replay_ok, replay_body, replay_error = await outbox_service._post_to_governance(row)
+    receipt_ok, receipt_body, receipt_error = await outbox_service._get_governance_receipt(row)
 
     assert first_ok is True
     assert first_error is None
@@ -98,3 +99,8 @@ async def test_rotas_outbox_reaches_real_governance_adapter(
     assert replay_error is None
     assert replay_body is not None
     assert replay_body["occurrence_id"] == first_body["occurrence_id"]
+    assert receipt_ok is True
+    assert receipt_error is None
+    assert receipt_body is not None
+    assert receipt_body["occurrence_id"] == first_body["occurrence_id"]
+    assert receipt_body["case_id"] == first_body["case_id"]

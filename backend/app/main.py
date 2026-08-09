@@ -52,6 +52,7 @@ from app.modules.notifications.router import router as notifications_router
 from app.modules.onboarding.router import router as onboarding_router
 from app.modules.operational_exceptions.router import router as operational_exceptions_router
 from app.modules.operations.router import router as operations_router
+from app.modules.outbox.router import router as outbox_router
 from app.modules.payables.router import router as payables_router
 from app.modules.platform.auth_router import router as platform_auth_router
 from app.modules.platform.router import router as platform_router
@@ -330,3 +331,4 @@ app.include_router(gps_router, prefix=api)
 app.include_router(tracking_router, prefix=api)
 app.include_router(platform_auth_router, prefix=api)
 app.include_router(platform_router, prefix=api)
+app.include_router(outbox_router, prefix=api)

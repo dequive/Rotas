@@ -150,6 +150,56 @@ async def test_push_event_idempotent(db: AsyncSession, tenant_id: uuid.UUID):
     assert r1.numero == r2.numero
 
 
+async def test_event_receipt_restores_case_for_idempotent_replay(
+    db: AsyncSession, tenant_id: uuid.UUID
+):
+    await _svc(db, tenant_id).bootstrap()
+    svc = _svc(db, tenant_id)
+    idem_key = f"test:{uuid.uuid4()}"
+    created = await svc.push_event(
+        RotasEventPush(
+            event_type="vehicle.breakdown",
+            severity="alta",
+            title="Avaria reconciliável",
+            occurred_at=datetime.now(UTC),
+            entities=[],
+            idempotency_key=idem_key,
+        )
+    )
+
+    receipt = await svc.get_event_receipt(idem_key)
+
+    assert receipt.occurrence_id == created.occurrence_id
+    assert receipt.numero == created.numero
+    assert receipt.case_id == created.case_id
+    assert receipt.case_reference == created.case_reference
+
+
+async def test_event_receipt_endpoint_is_tenant_scoped(
+    client, db: AsyncSession, tenant_id: uuid.UUID
+):
+    await _svc(db, tenant_id).bootstrap()
+    idem_key = f"test:{uuid.uuid4()}"
+    created = await _svc(db, tenant_id).push_event(
+        RotasEventPush(
+            event_type="trip.incident",
+            severity="alta",
+            title="Incidente com recibo HTTP",
+            occurred_at=datetime.now(UTC),
+            entities=[],
+            idempotency_key=idem_key,
+        )
+    )
+
+    response = await client.get(
+        "/api/v1/adapters/rotas/events/receipt",
+        params={"idempotency_key": idem_key},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["occurrence_id"] == str(created.occurrence_id)
+
+
 async def test_push_event_with_entities_creates_links(db: AsyncSession, tenant_id: uuid.UUID):
     await _svc(db, tenant_id).bootstrap()
     svc = _svc(db, tenant_id)

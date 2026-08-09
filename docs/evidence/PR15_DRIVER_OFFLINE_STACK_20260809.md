@@ -47,7 +47,7 @@ O Driver passou a manter um lifecycle offline explícito e observável:
 
 | Gate | Resultado |
 | --- | --- |
-| Driver Vitest | 4 ficheiros, 23 passed |
+| Driver Vitest | 4 ficheiros, 24 passed |
 | Driver TypeScript | 0 erros |
 | Build cliente com Vite bloqueado `5.4.21` | 1.807 módulos |
 | Build PWA/service worker | 93 módulos; 6 entradas precache |

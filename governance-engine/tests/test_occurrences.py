@@ -2,10 +2,10 @@
 import uuid
 from datetime import UTC, datetime
 
-import pytest
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from core.database import GovernanceSession, set_rls_tenant
 from core.models import Case, Occurrence
 from core.services.occurrences import OccurrenceService
 
@@ -47,16 +47,34 @@ async def test_numero_sequential(db: AsyncSession, tenant_id, taxonomy):
 
 async def test_sequences_isolated_by_tenant(db: AsyncSession, tenant_id, taxonomy, engine):
     """Two tenants sharing the same type code get independent sequences."""
-    from core.database import set_rls_tenant
-    from sqlalchemy.ext.asyncio import async_sessionmaker
-
     other_tenant = uuid.uuid4()
 
     r1 = await _create(db, tenant_id, taxonomy)
 
     # Bootstrap taxonomy for other_tenant inline
-    from core.models import TaxonomyDomain, TaxonomyType, TaxonomyCaseType, CaseTransitionRule
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    from core.models import CaseTransitionRule, TaxonomyCaseType, TaxonomyDomain, TaxonomyType
+    session_factory = async_sessionmaker(
+        engine,
+        expire_on_commit=False,
+        sync_session_class=GovernanceSession,
+    )
+    set_rls_tenant(None)
+    async with session_factory() as admin_db:
+        await admin_db.execute(
+            text(
+                """
+                INSERT INTO tenants (id, name, slug)
+                VALUES (:tenant_id, :name, :slug)
+                ON CONFLICT (id) DO NOTHING
+                """
+            ),
+            {
+                "tenant_id": other_tenant,
+                "name": "Other Tenant",
+                "slug": f"other-{other_tenant.hex[:8]}",
+            },
+        )
+        await admin_db.commit()
     set_rls_tenant(str(other_tenant))
     async with session_factory() as other_db:
         dom = TaxonomyDomain(tenant_id=other_tenant, code="test", name="Other Domain")

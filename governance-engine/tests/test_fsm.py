@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from core.database import GovernanceSession
 from core.domain.fsm import CaseFSM
 from core.exceptions import IllegalTransition, MissingRequiredField
 from core.models import Case
@@ -180,7 +181,11 @@ async def test_tenant_isolation_cross_tenant(engine, tenant_id, taxonomy):
     """Case created in tenant A is not visible to tenant B."""
     from core.database import set_rls_tenant
     other_tenant = uuid.uuid4()
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        engine,
+        expire_on_commit=False,
+        sync_session_class=GovernanceSession,
+    )
 
     # Create case in tenant A
     set_rls_tenant(str(tenant_id))
@@ -210,7 +215,11 @@ async def test_concurrent_transitions_serialize_correctly(engine, tenant_id, tax
     (in_analysis → in_analysis has no rule) — never corrupt state.
     """
     from core.database import set_rls_tenant
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        engine,
+        expire_on_commit=False,
+        sync_session_class=GovernanceSession,
+    )
 
     # Open a case first
     set_rls_tenant(str(tenant_id))

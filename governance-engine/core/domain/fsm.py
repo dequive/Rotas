@@ -12,7 +12,12 @@ from uuid import UUID
 from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.exceptions import IdempotencyConflict, IllegalTransition, MissingRequiredAttachment, MissingRequiredField, NotFound
+from core.exceptions import (
+    IllegalTransition,
+    MissingRequiredAttachment,
+    MissingRequiredField,
+    NotFound,
+)
 from core.models import (
     Activity,
     Case,
@@ -75,10 +80,14 @@ class CaseFSM:
         # Generate CASE-YYYY-NNNNNN
         reference = await self._next_reference()
 
-        # Compute SLA
+        # Compute SLA. A transition rule may override the case-type default.
         sla_due_at = None
-        if rule.sla_hours:
-            sla_due_at = datetime.now(UTC) + timedelta(hours=rule.sla_hours)
+        case_type = await self._db.get(TaxonomyCaseType, case_type_id)
+        sla_hours = rule.sla_hours
+        if sla_hours is None and case_type is not None:
+            sla_hours = case_type.sla_hours
+        if sla_hours:
+            sla_due_at = datetime.now(UTC) + timedelta(hours=sla_hours)
 
         case = Case(
             tenant_id=self._tenant_id,

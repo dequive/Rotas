@@ -26,23 +26,26 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
 
         token = request_id_var.set(req_id)
         t0 = time.monotonic()
+        response: Response | None = None
         try:
-            response: Response = await call_next(request)
+            response = await call_next(request)
         finally:
             duration_ms = round((time.monotonic() - t0) * 1000)
+            status_code = response.status_code if response is not None else 500
             logger.info(
                 "%s %s %d",
                 request.method,
                 request.url.path,
-                getattr(response, "status_code", 0),
+                status_code,
                 extra={
                     "http_method": request.method,
                     "http_path": request.url.path,
-                    "http_status": getattr(response, "status_code", 0),
+                    "http_status": status_code,
                     "duration_ms": duration_ms,
                 },
             )
             request_id_var.reset(token)
 
+        assert response is not None
         response.headers["X-Request-Id"] = req_id
         return response

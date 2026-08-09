@@ -14,7 +14,8 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
@@ -116,6 +117,7 @@ class EntityInstance(Base):
 class Occurrence(Base):
     __tablename__ = "occurrences"
     __table_args__ = (
+        UniqueConstraint("tenant_id", "numero", name="uq_occurrences_tenant_numero"),
         # Scoped to tenant so different tenants can reuse the same key string.
         # Partial index (WHERE idempotency_key IS NOT NULL) mirrors the SQL migration.
         UniqueConstraint("tenant_id", "idempotency_key", name="ux_occurrences_idem_key"),
@@ -123,7 +125,7 @@ class Occurrence(Base):
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
     tenant_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
-    numero: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    numero: Mapped[str] = mapped_column(Text, nullable=False)
     type_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("taxonomy_types.id"), nullable=False)
     severity: Mapped[str] = mapped_column(String(20), nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False)
@@ -169,10 +171,13 @@ class Attachment(Base):
 
 class Case(Base):
     __tablename__ = "cases"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "reference", name="uq_cases_tenant_reference"),
+    )
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
     tenant_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
-    reference: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    reference: Mapped[str] = mapped_column(Text, nullable=False)
     case_type_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("taxonomy_case_types.id"), nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, server_default="open")
     assignee_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)

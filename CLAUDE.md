@@ -305,3 +305,42 @@ prevents this class of gap permanently.
 **Enforcement:** Plan-checkers for Phases 10-12 must verify any new `tenant_id` table in
 `files_modified` has a corresponding RLS block in the same migration file. Fail as blocker
 if absent.
+
+## Mandatory Engineering Delivery Standard
+
+This standard applies to every correction, improvement, new function, refactor,
+dependency change, infrastructure change and documentation change. Read
+`docs/ENGINEERING_STANDARDS.md` and, for any UI work, `DESIGN.md` before planning or
+editing.
+
+- **Issue -> PR -> Deploy is mandatory.** Start from a GitHub Issue classified as
+  `correction`, `improvement` or `feature`. Use a branch for that Issue, and include
+  `Closes #<number>` in the PR body. Never deploy an unmerged working tree or an
+  unreviewed branch; deploy the immutable merge/release SHA only.
+- The Issue must contain scope, acceptance criteria, UX states, observability, tests,
+  rollout and rollback. The PR must contain implementation evidence, risk, migrations,
+  monitoring, deploy and rollback evidence. An emergency may shorten the flow, but it
+  does not bypass the Issue, PR, audit trail or post-deploy verification.
+- **UI quality is a contract, not decoration.** Follow the installed Design Motion
+  Principles source `kylezantos/design-motion-principles`, weighted for ROTAS as Emil
+  Kowalski primary and Jakub Krehel secondary. Every asynchronous journey needs an
+  explicit initial-loading skeleton, pending/progress feedback, empty, partial/degraded,
+  error, forbidden and success states where applicable. Lazy-load routes, heavy modules
+  and media without layout shift.
+- Motion must pass the frequency gate: frequent or keyboard-initiated actions are instant;
+  occasional transitions are subtle, interruptible and generally below 300 ms. Animate
+  only `transform`, `opacity` and, sparingly, `filter`; exits are quieter than entrances.
+  `prefers-reduced-motion` and a functionally equivalent no-motion path are mandatory.
+- **Observability is vendor-neutral at the core.** OpenTelemetry is the canonical
+  traces/metrics/log correlation contract; Sentry is the error/performance product.
+  Datadog and New Relic are supported through OTLP/export adapters and are activated only
+  by an approved Issue and environment configuration. Never ship duplicate always-on
+  agents or sensitive/high-cardinality telemetry.
+- Required quality gates are architecture contracts, Biome, Commitlint, Knip, Stryker
+  mutation testing, Ruff/Pyright, unit/integration tests, Playwright E2E and Codecov
+  coverage. A named tool is not considered implemented until its configuration, CI gate,
+  tests and evidence exist. Do not call a local-green gate release-certified.
+
+The canonical templates are `.github/ISSUE_TEMPLATE/task.yml` and
+`.github/pull_request_template.md`. The PR linkage gate is
+`.github/workflows/engineering-governance.yml`.

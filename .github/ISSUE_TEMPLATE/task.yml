@@ -1,0 +1,76 @@
+name: Tarefa ROTAS
+description: Correccao, melhoria ou nova funcao com aceite, evidencia e deploy.
+title: "[TIPO] "
+labels: []
+body:
+  - type: dropdown
+    id: task_type
+    attributes:
+      label: Tipo
+      options:
+        - Correccao
+        - Melhoria
+        - Nova funcao
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema e resultado esperado
+      description: Descreva a necessidade, impacto e resultado observavel.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Escopo e fora de escopo
+      description: Inclua componentes, contratos, migracoes e dependencias afectadas.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Criterios de aceite
+      description: Use criterios verificaveis, incluindo tenant, seguranca e compatibilidade.
+      placeholder: |
+        - [ ] Criterio 1
+        - [ ] Criterio 2
+    validations:
+      required: true
+  - type: textarea
+    id: ux_states
+    attributes:
+      label: UX, acessibilidade e motion
+      description: Skeleton/loading, progresso, empty, partial, error, forbidden, success, lazy loading e reduced-motion aplicaveis.
+    validations:
+      required: true
+  - type: textarea
+    id: observability
+    attributes:
+      label: Observabilidade
+      description: Traces, metricas, logs, Sentry, SLO/alerta, atributos permitidos e prova sem PII.
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Arquitectura, qualidade e testes
+      description: Arch-contract, lint/typecheck, unitario, integracao, E2E, coverage e mutation testing aplicaveis.
+    validations:
+      required: true
+  - type: textarea
+    id: rollout
+    attributes:
+      label: Deploy, verificacao e rollback
+      description: Ambientes, migracao/backfill, feature flag, smoke tests, monitorizacao, GO/NO-GO e rollback.
+    validations:
+      required: true
+  - type: checkboxes
+    id: readiness
+    attributes:
+      label: Prontidao
+      options:
+        - label: Confirmei que esta tarefa ainda nao esta coberta por outra Issue.
+          required: true
+        - label: Separei prova local de certificacao runtime/release.
+          required: true

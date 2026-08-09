@@ -11,6 +11,7 @@ test("reabre o PWA offline com bootstrap da mesma identidade", async ({
     localStorage.setItem("rotas_driver_id", "driver-e2e");
     localStorage.setItem("rotas_device_id", "device-e2e");
     localStorage.setItem("rotas_driver_name", "Motorista E2E");
+    localStorage.setItem("rotas_session_id", "session-e2e");
   });
 
   await page.route("**/api/v1/driver/bootstrap", async (route) => {
@@ -60,7 +61,7 @@ test("reabre o PWA offline com bootstrap da mesma identidade", async ({
               const transaction = database.transaction("bootstrapCache", "readonly");
               const getRequest = transaction
                 .objectStore("bootstrapCache")
-                .get("tenant-e2e:driver-e2e");
+                .get("tenant-e2e:driver-e2e:session-e2e");
               getRequest.onerror = () => reject(getRequest.error);
               getRequest.onsuccess = () => {
                 resolve(Boolean(getRequest.result));
@@ -154,6 +155,9 @@ test("reabre o PWA offline com bootstrap da mesma identidade", async ({
             resolve();
           };
           transaction.objectStore("syncQueue").add({
+            tenantId: "tenant-e2e",
+            driverId: "driver-e2e",
+            sessionId: "session-e2e",
             localId: "stop-offline-e2e",
             idempotencyKey: "idem-offline-e2e",
             operation: "create",

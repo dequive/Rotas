@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import {
   db,
   discardSyncItem,
+  belongsToIdentity,
+  getCurrentIdentityScope,
   requeueSyncItem,
   type SyncQueueItem,
 } from "../db";
@@ -18,12 +20,18 @@ export function SyncIssuesPanel({ onChanged }: SyncIssuesPanelProps) {
   const [message, setMessage] = useState<string | null>(null);
 
   const loadIssues = useCallback(async () => {
+    const scope = getCurrentIdentityScope();
+    if (!scope) {
+      setIssues([]);
+      return;
+    }
     const items = await db.syncQueue
       .where("status")
       .anyOf(["conflict", "failed", "dead_letter"])
       .toArray();
     setIssues(
       items
+        .filter((item) => belongsToIdentity(item, scope))
         .filter((item): item is SyncIssue => item.id !== undefined)
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     );

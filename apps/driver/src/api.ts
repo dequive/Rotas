@@ -28,6 +28,7 @@ export interface AuthState {
   driverId: string;
   deviceId: string;
   driverName: string;
+  sessionId: string;
 }
 
 export function getAuth(): AuthState | null {
@@ -37,7 +38,12 @@ export function getAuth(): AuthState | null {
   const deviceId = localStorage.getItem("rotas_device_id");
   const driverName = localStorage.getItem("rotas_driver_name") ?? "";
   if (!token || !tenantId || !driverId || !deviceId) return null;
-  return { accessToken: token, tenantId, driverId, deviceId, driverName };
+  let sessionId = localStorage.getItem("rotas_session_id");
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    localStorage.setItem("rotas_session_id", sessionId);
+  }
+  return { accessToken: token, tenantId, driverId, deviceId, driverName, sessionId };
 }
 
 function setAuth(auth: AuthState) {
@@ -46,15 +52,21 @@ function setAuth(auth: AuthState) {
   localStorage.setItem("rotas_driver_id", auth.driverId);
   localStorage.setItem("rotas_device_id", auth.deviceId);
   localStorage.setItem("rotas_driver_name", auth.driverName);
+  localStorage.setItem("rotas_session_id", auth.sessionId);
 }
 
+let _authGeneration = 0;
+
 export function clearAuth() {
+  _authGeneration += 1;
+  _refreshPromise = null;
   [
     "rotas_access_token",
     "rotas_tenant_id",
     "rotas_driver_id",
     "rotas_device_id",
     "rotas_driver_name",
+    "rotas_session_id",
     "rotas_refresh_token", // AUTH-02: clean up on logout/re-pair
   ].forEach((k) => localStorage.removeItem(k));
 }
@@ -67,6 +79,7 @@ let _refreshPromise: Promise<string | null> | null = null;
 
 export async function refreshDriverAccessToken(): Promise<string | null> {
   if (_refreshPromise) return _refreshPromise;
+  const refreshGeneration = _authGeneration;
 
   const refreshToken = localStorage.getItem("rotas_refresh_token");
   if (!refreshToken) {
@@ -75,7 +88,8 @@ export async function refreshDriverAccessToken(): Promise<string | null> {
     return null;
   }
 
-  _refreshPromise = requestWithPolicy(`${API_BASE}/api/v1/auth/refresh`, {
+  let refreshRequest: Promise<string | null>;
+  refreshRequest = requestWithPolicy(`${API_BASE}/api/v1/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh_token: refreshToken }),
@@ -94,6 +108,9 @@ export async function refreshDriverAccessToken(): Promise<string | null> {
         return null;
       }
       const data = (await res.json()) as { access_token: string; refresh_token?: string };
+      if (refreshGeneration !== _authGeneration || !getAuth()) {
+        return null;
+      }
       localStorage.setItem("rotas_access_token", data.access_token);
       if (data.refresh_token) {
         // Rotate: always store the new refresh_token, old one is now invalid
@@ -102,10 +119,13 @@ export async function refreshDriverAccessToken(): Promise<string | null> {
       return data.access_token;
     })
     .finally(() => {
-      _refreshPromise = null;
+      if (_refreshPromise === refreshRequest) {
+        _refreshPromise = null;
+      }
     });
+  _refreshPromise = refreshRequest;
 
-  return _refreshPromise;
+  return refreshRequest;
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -160,6 +180,7 @@ export async function pairDevice(pairingCode: string, deviceId: string): Promise
     driverId: String(data.driver.id),
     deviceId,
     driverName: data.driver.full_name,
+    sessionId: crypto.randomUUID(),
   };
   setAuth(auth);
   // AUTH-02: store refresh_token for silent token refresh on reconnect

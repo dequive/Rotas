@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { db } from "../db";
+import { belongsToIdentity, db, getCurrentIdentityScope } from "../db";
 
 export type BannerState =
   | "idle"
@@ -38,13 +38,21 @@ export function useSyncStatus(isOnline: boolean, isSyncing: boolean): SyncStatus
 
     async function refresh() {
       try {
+        const scope = getCurrentIdentityScope();
+        if (!scope) {
+          setPendingCount(0);
+          setErrorCount(0);
+          return;
+        }
         const pending = await db.syncQueue
           .where("status")
           .anyOf(["local_only", "retrying"])
+          .filter((item) => belongsToIdentity(item, scope))
           .count();
         const errors = await db.syncQueue
           .where("status")
           .anyOf(["conflict", "failed", "dead_letter"])
+          .filter((item) => belongsToIdentity(item, scope))
           .count();
         setPendingCount(pending);
         setErrorCount(errors);

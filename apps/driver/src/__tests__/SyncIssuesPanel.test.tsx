@@ -10,11 +10,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SyncIssuesPanel } from "../components/SyncIssuesPanel";
 import { db } from "../db";
 
+const identityScope = {
+  tenantId: "tenant-test",
+  driverId: "driver-test",
+  sessionId: "session-test",
+};
+
 describe("SyncIssuesPanel", () => {
   beforeEach(async () => {
     await db.syncQueue.clear();
     await db.photoQueue.clear();
     await db.pendingFuelLogs.clear();
+    localStorage.clear();
+    localStorage.setItem("rotas_tenant_id", identityScope.tenantId);
+    localStorage.setItem("rotas_driver_id", identityScope.driverId);
+    localStorage.setItem("rotas_session_id", identityScope.sessionId);
   });
 
   afterEach(() => {
@@ -25,6 +35,7 @@ describe("SyncIssuesPanel", () => {
   it("mostra dead-letter e permite reenfileirar com nova chave", async () => {
     const originalKey = crypto.randomUUID();
     const id = await db.syncQueue.add({
+      ...identityScope,
       localId: "trip_dead",
       idempotencyKey: originalKey,
       operation: "create",
@@ -55,6 +66,7 @@ describe("SyncIssuesPanel", () => {
 
   it("descarta operação e evidências locais apenas após confirmação", async () => {
     const id = await db.syncQueue.add({
+      ...identityScope,
       localId: "fuel_dead",
       idempotencyKey: crypto.randomUUID(),
       operation: "create",
@@ -65,6 +77,7 @@ describe("SyncIssuesPanel", () => {
       createdAt: new Date().toISOString(),
     });
     await db.photoQueue.add({
+      ...identityScope,
       localId: "photo_dead",
       entityType: "fuel_log",
       entityLocalId: "fuel_dead",
@@ -75,9 +88,11 @@ describe("SyncIssuesPanel", () => {
       createdAt: new Date().toISOString(),
     });
     await db.pendingFuelLogs.add({
+      tenantId: identityScope.tenantId,
+      sessionId: identityScope.sessionId,
       localId: "fuel_dead",
       vehicleId: "vehicle-1",
-      driverId: "driver-1",
+      driverId: identityScope.driverId,
       fuelType: "diesel",
       liters: 10,
       totalCost: 500,

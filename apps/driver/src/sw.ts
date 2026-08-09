@@ -10,7 +10,7 @@
 import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 import { registerRoute } from "workbox-routing";
 import { NetworkFirst, NetworkOnly, CacheFirst } from "workbox-strategies";
-import { BackgroundSyncPlugin } from "workbox-background-sync";
+import { Queue } from "workbox-background-sync";
 import { clientsClaim } from "workbox-core";
 
 declare let self: ServiceWorkerGlobalScope;
@@ -21,6 +21,19 @@ declare let self: ServiceWorkerGlobalScope;
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
+  }
+  if (event.data?.type === "PURGE_IDENTITY_DATA") {
+    const responsePort = event.ports[0];
+    event.waitUntil(
+      purgeIdentityData()
+        .then(() => responsePort?.postMessage({ ok: true }))
+        .catch((error: unknown) =>
+          responsePort?.postMessage({
+            ok: false,
+            error: error instanceof Error ? error.message : "identity_purge_failed",
+          }),
+        ),
+    );
   }
 });
 
@@ -38,9 +51,22 @@ precacheAndRoute(self.__WB_MANIFEST);
 // IMPORTANT: BackgroundSyncPlugin only retries on network exceptions (fetch throws).
 // It does NOT retry 4xx/5xx HTTP responses. The Dexie syncQueue is the primary retry
 // layer for those cases. This plugin handles the "device is fully offline" scenario.
-const bgSyncPlugin = new BackgroundSyncPlugin("rotas-sync-queue", {
+const bgSyncQueue = new Queue("rotas-sync-queue", {
   maxRetentionTime: 24 * 60, // 24 hours in minutes — covers extended offline scenarios
 });
+
+const bgSyncPlugin = {
+  fetchDidFail: async ({ request }: { request: Request }) => {
+    await bgSyncQueue.pushRequest({ request });
+  },
+};
+
+async function purgeIdentityData(): Promise<void> {
+  await Promise.all([caches.delete("api-cache"), caches.delete("sync-api")]);
+  while (await bgSyncQueue.shiftRequest()) {
+    // Drain authenticated mutations before another identity can pair.
+  }
+}
 
 // Mutations are network-only; the plugin persists only network failures.
 registerRoute(

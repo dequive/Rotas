@@ -1,0 +1,76 @@
+name: Governance quality
+
+on:
+  pull_request:
+    paths:
+      - "governance-engine/**"
+      - "backend/app/modules/outbox/**"
+      - ".github/workflows/governance-quality.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "governance-engine/**"
+      - "backend/app/modules/outbox/**"
+      - ".github/workflows/governance-quality.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  governance-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: governance_app
+          POSTGRES_PASSWORD: governance
+          POSTGRES_DB: governance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U governance_app -d governance"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      ENVIRONMENT: test
+      GOVERNANCE_DATABASE_URL: postgresql+asyncpg://governance_app:governance@localhost:5432/governance
+      GOVERNANCE_TEST_DATABASE_URL: postgresql+asyncpg://governance_app:governance@localhost:5432/governance
+      DATABASE_URL: postgresql+asyncpg://governance_app:governance@localhost:5432/governance
+      ADMIN_DATABASE_URL: postgresql+asyncpg://governance_app:governance@localhost:5432/governance
+      JWT_SECRET_KEY: governance-ci-secret-with-at-least-32-characters
+      REDIS_URL: redis://localhost:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: governance-engine/pyproject.toml
+
+      - name: Install Governance dependencies
+        run: python -m pip install -e "./governance-engine[dev]"
+
+      - name: Ruff
+        working-directory: governance-engine
+        run: |
+          python -m ruff check --no-cache .
+          python -m ruff format --check .
+
+      - name: Migrate empty database
+        working-directory: governance-engine
+        run: python -m alembic upgrade head
+
+      - name: Assert ORM and SQL parity
+        working-directory: governance-engine
+        run: python -m alembic check
+
+      - name: Governance tests
+        working-directory: governance-engine
+        run: python -m pytest -q --tb=short

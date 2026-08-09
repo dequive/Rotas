@@ -23,6 +23,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -78,7 +79,7 @@ async def enqueue(
         aggregate_type=aggregate_type,
         aggregate_id=aggregate_id,
         event_type=event_type,
-        payload=payload,
+        payload=jsonable_encoder(payload),
         status="pending",
         attempt_count=0,
         next_attempt_at=datetime.now(UTC),

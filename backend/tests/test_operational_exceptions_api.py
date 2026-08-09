@@ -2,11 +2,13 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
 from app.database import AsyncSessionLocal, engine, import_all_models
 from app.main import app
 from app.modules.operational_exceptions.service import ensure_exception
+from app.modules.outbox.models import OutboxEvent
 from app.modules.tenants.models import Tenant
 
 import_all_models()
@@ -58,6 +60,23 @@ async def test_operational_exception_lifecycle_is_auditable_and_idempotent() -> 
                 source_type="fuel_movement",
             )
             assert replay.id == first.id
+            events = (
+                (
+                    await db.execute(
+                        select(OutboxEvent).where(
+                            OutboxEvent.tenant_id == tenant.id,
+                            OutboxEvent.aggregate_id == first.id,
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(events) == 1
+            assert events[0].id == first.id
+            assert events[0].event_type == "trip.operational_exception"
+            assert events[0].payload["idempotency_key"].startswith("rotas:exception:")
+            assert isinstance(events[0].payload["occurred_at"], str)
             await db.commit()
             tenant_id = tenant.id
             exception_id = first.id

@@ -65,7 +65,7 @@ export function clearAuth() {
 // This is required because token rotation invalidates the refresh_token on first use.
 let _refreshPromise: Promise<string | null> | null = null;
 
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshDriverAccessToken(): Promise<string | null> {
   if (_refreshPromise) return _refreshPromise;
 
   const refreshToken = localStorage.getItem("rotas_refresh_token");
@@ -128,7 +128,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
   // AUTH-02: silent refresh on 401 — retry once with a fresh token
   if (res.status === 401) {
-    const newToken = await refreshAccessToken();
+    const newToken = await refreshDriverAccessToken();
     if (newToken) {
       const newAuth = getAuth();
       const retryHeaders = buildHeaders(newAuth, newToken);

@@ -9,7 +9,7 @@
 
 import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 import { registerRoute } from "workbox-routing";
-import { NetworkFirst, CacheFirst } from "workbox-strategies";
+import { NetworkFirst, NetworkOnly, CacheFirst } from "workbox-strategies";
 import { BackgroundSyncPlugin } from "workbox-background-sync";
 import { clientsClaim } from "workbox-core";
 
@@ -42,14 +42,21 @@ const bgSyncPlugin = new BackgroundSyncPlugin("rotas-sync-queue", {
   maxRetentionTime: 24 * 60, // 24 hours in minutes — covers extended offline scenarios
 });
 
-// Network-first for POST /api/v1/sync/batch with background sync fallback
+// Mutations are network-only; the plugin persists only network failures.
 registerRoute(
   ({ url }) => url.pathname === "/api/v1/sync/batch",
-  new NetworkFirst({
-    cacheName: "sync-api",
+  new NetworkOnly({
     plugins: [bgSyncPlugin],
   }),
   "POST"
+);
+
+// Authenticated bootstrap must never come from the shared HTTP cache. The app
+// persists a tenant/driver-scoped Dexie snapshot for cold starts.
+registerRoute(
+  ({ url }) => url.pathname === "/api/v1/driver/bootstrap",
+  new NetworkOnly(),
+  "GET",
 );
 
 // Network-first for all GET /api/v1/* calls

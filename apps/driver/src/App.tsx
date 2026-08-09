@@ -9,10 +9,25 @@ import {
   Save,
   Truck,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { getAuth, bootstrap, type ActiveTrip, type ChecklistTemplate, clearAuth } from "./api";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  getAuth,
+  bootstrap,
+  type ActiveTrip,
+  type BootstrapData,
+  type ChecklistTemplate,
+  clearAuth,
+} from "./api";
 import type { AuthState } from "./api";
-import { db, makeLocalId, queueFuelLog, queueOperation, type SyncStatus } from "./db";
+import {
+  db,
+  getBootstrapCache,
+  makeLocalId,
+  queueFuelLog,
+  queueOperation,
+  saveBootstrapCache,
+  type SyncStatus,
+} from "./db";
 import { processSyncQueue } from "./sync";
 import { PairingView } from "./views/PairingView";
 import { TripStartView } from "./views/TripStartView";
@@ -23,6 +38,7 @@ import { DeliveryProofView } from "./views/DeliveryProofView";
 import { useNetworkStatus } from "./hooks/useNetworkStatus";
 import { useSyncStatus } from "./hooks/useSyncStatus";
 import { SyncStatusBanner } from "./components/SyncStatusBanner";
+import { SyncIssuesPanel } from "./components/SyncIssuesPanel";
 
 type View =
   | "dashboard"
@@ -68,6 +84,7 @@ export function App() {
   const [pendingCount, setPendingCount] = useState(0);
   const [lastMessage, setLastMessage] = useState("A carregar...");
   const [syncing, setSyncing] = useState(false);
+  const syncLock = useRef(false);
 
   const { isOnline } = useNetworkStatus();
   const syncStatus = useSyncStatus(isOnline, syncing);
@@ -78,17 +95,48 @@ export function App() {
     void refreshPendingCount();
   }, [auth]);
 
+  useEffect(() => {
+    if (!auth || !isOnline) return;
+    void syncNow();
+    const interval = window.setInterval(() => {
+      void syncNow();
+    }, 30_000);
+    return () => window.clearInterval(interval);
+  }, [auth, isOnline]);
+
+  function applyBootstrap(data: BootstrapData) {
+    setActiveTrip(data.activeTrip);
+    if (data.checklistTemplates[0]) {
+      setChecklistTemplate(data.checklistTemplates[0]);
+      setChecklistResponses(initialChecklistResponses(data.checklistTemplates[0]));
+    } else {
+      setChecklistTemplate(null);
+      setChecklistResponses({});
+    }
+  }
+
   async function loadBootstrap() {
+    if (!auth) return;
     try {
       const data = await bootstrap();
-      setActiveTrip(data.activeTrip);
-      if (data.checklistTemplates[0]) {
-        setChecklistTemplate(data.checklistTemplates[0]);
-        setChecklistResponses(initialChecklistResponses(data.checklistTemplates[0]));
-      }
+      applyBootstrap(data);
+      await saveBootstrapCache(auth.tenantId, auth.driverId, data);
       setLastMessage(data.activeTrip ? "Viagem activa carregada." : "Sem viagem activa.");
     } catch {
-      setLastMessage("Sem rede — a trabalhar offline.");
+      const cached = await getBootstrapCache<BootstrapData>(
+        auth.tenantId,
+        auth.driverId,
+      );
+      if (cached) {
+        applyBootstrap(cached.data);
+        setLastMessage(
+          `Modo offline — dados guardados em ${new Date(cached.cachedAt).toLocaleString("pt-MZ")}.`,
+        );
+      } else {
+        setActiveTrip(null);
+        setChecklistTemplate(null);
+        setLastMessage("Sem rede e sem dados locais para este motorista.");
+      }
     }
   }
 
@@ -211,13 +259,20 @@ export function App() {
   }
 
   async function syncNow() {
-    if (!auth) return;
+    if (!auth || syncLock.current || !isOnline) return;
+    syncLock.current = true;
     setSyncing(true);
     setLastMessage("A sincronizar...");
-    await processSyncQueue(auth.accessToken);
-    await refreshPendingCount();
-    setSyncing(false);
-    setLastMessage("Sincronização concluída.");
+    try {
+      await processSyncQueue(auth.accessToken);
+      await refreshPendingCount();
+      setLastMessage("Sincronização concluída.");
+    } catch {
+      setLastMessage("Sincronização interrompida; os registos locais foram preservados.");
+    } finally {
+      syncLock.current = false;
+      setSyncing(false);
+    }
   }
 
   function handleLogout() {
@@ -270,27 +325,27 @@ export function App() {
 
       {view === "dashboard" && (
         <section className="actions" aria-label="Acções da viagem">
-          <button type="button" onClick={() => setView("checklist")} disabled={!checklistTemplate}>
+          <button type="button" onClick={() => setView("checklist")} disabled={!activeTrip || !checklistTemplate}>
             <CheckCircle2 />
             Checklist
           </button>
-          <button type="button" onClick={() => setView("fuel")}>
+          <button type="button" onClick={() => setView("fuel")} disabled={!activeTrip}>
             <ReceiptText />
             Combustível
           </button>
-          <button type="button" onClick={() => setView("load_permit")}>
+          <button type="button" onClick={() => setView("load_permit")} disabled={!activeTrip}>
             <FileText />
             Load Permit
           </button>
-          <button type="button" onClick={() => setView("cargo_manifest")}>
+          <button type="button" onClick={() => setView("cargo_manifest")} disabled={!activeTrip}>
             <Truck />
             Manifesto
           </button>
-          <button type="button" onClick={() => setView("delivery_proof")}>
+          <button type="button" onClick={() => setView("delivery_proof")} disabled={!activeTrip}>
             <Camera />
             Descarga
           </button>
-          <button type="button" onClick={() => setView("trip_stop")}>
+          <button type="button" onClick={() => setView("trip_stop")} disabled={!activeTrip}>
             <MapPin />
             Paragem
           </button>
@@ -356,6 +411,10 @@ export function App() {
       )}
 
       {view === "dashboard" && <BillingPanel trip={activeTrip} />}
+
+      {view === "dashboard" && syncStatus.errorCount > 0 && (
+        <SyncIssuesPanel onChanged={() => void refreshPendingCount()} />
+      )}
 
       <SyncStatusBanner status={syncStatus} />
     </main>

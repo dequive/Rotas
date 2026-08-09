@@ -1,4 +1,5 @@
 """Occurrence service tests — numbering, idempotency, auto-promotion, estorno."""
+
 import uuid
 from datetime import UTC, datetime
 
@@ -53,6 +54,7 @@ async def test_sequences_isolated_by_tenant(db: AsyncSession, tenant_id, taxonom
 
     # Bootstrap taxonomy for other_tenant inline
     from core.models import CaseTransitionRule, TaxonomyCaseType, TaxonomyDomain, TaxonomyType
+
     session_factory = async_sessionmaker(
         engine,
         expire_on_commit=False,
@@ -80,20 +82,38 @@ async def test_sequences_isolated_by_tenant(db: AsyncSession, tenant_id, taxonom
         dom = TaxonomyDomain(tenant_id=other_tenant, code="test", name="Other Domain")
         other_db.add(dom)
         await other_db.flush()
-        ct = TaxonomyCaseType(tenant_id=other_tenant, domain_id=dom.id, code="test.incident", name="X", initial_status="open")
+        ct = TaxonomyCaseType(
+            tenant_id=other_tenant,
+            domain_id=dom.id,
+            code="test.incident",
+            name="X",
+            initial_status="open",
+        )
         other_db.add(ct)
         await other_db.flush()
         ot = TaxonomyType(tenant_id=other_tenant, domain_id=dom.id, code="test.breakdown", name="X")
         other_db.add(ot)
         await other_db.flush()
-        other_db.add(CaseTransitionRule(tenant_id=other_tenant, case_type_id=ct.id, from_status=None, to_status="open", required_fields=[], required_attachments=False))
+        other_db.add(
+            CaseTransitionRule(
+                tenant_id=other_tenant,
+                case_type_id=ct.id,
+                from_status=None,
+                to_status="open",
+                required_fields=[],
+                required_attachments=False,
+            )
+        )
         await other_db.commit()
 
         other_svc = OccurrenceService(other_db, other_tenant, uuid.uuid4())
         r2 = await other_svc.create(
-            type_code="test.breakdown", severity="alta",
-            title="Other", description=None,
-            occurred_at=datetime.now(UTC), links=[],
+            type_code="test.breakdown",
+            severity="alta",
+            title="Other",
+            description=None,
+            occurred_at=datetime.now(UTC),
+            links=[],
             idempotency_key=str(uuid.uuid4()),
         )
         await other_db.commit()

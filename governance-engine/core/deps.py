@@ -21,7 +21,9 @@ async def get_principal(
         principal = await validate_api_key(auth_db, api_key_raw)
         if principal:
             return principal
-    raise HTTPException(status_code=401, detail={"code": "unauthorized", "message": "Invalid credentials."})
+    raise HTTPException(
+        status_code=401, detail={"code": "unauthorized", "message": "Invalid credentials."}
+    )
 
 
 async def get_session(
@@ -53,4 +55,5 @@ def require_scope(scope: str):
                 detail={"code": "forbidden", "message": f"Scope '{scope}' required."},
             )
         return principal
+
     return _check

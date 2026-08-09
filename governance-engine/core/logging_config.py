@@ -4,6 +4,7 @@ JSON structured logging.
 Call configure_logging() once at startup. After that, all Python loggers
 emit JSON lines with ts, level, logger, message, and any extra fields.
 """
+
 import json
 import logging
 import sys
@@ -28,10 +29,27 @@ class _JsonFormatter(logging.Formatter):
         # Merge any extra fields passed via `extra={"key": value}`
         for key, value in record.__dict__.items():
             if key not in {
-                "name", "msg", "args", "levelname", "levelno", "pathname",
-                "filename", "module", "exc_info", "exc_text", "stack_info",
-                "lineno", "funcName", "created", "msecs", "relativeCreated",
-                "thread", "threadName", "processName", "process", "message",
+                "name",
+                "msg",
+                "args",
+                "levelname",
+                "levelno",
+                "pathname",
+                "filename",
+                "module",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "lineno",
+                "funcName",
+                "created",
+                "msecs",
+                "relativeCreated",
+                "thread",
+                "threadName",
+                "processName",
+                "process",
+                "message",
                 "taskName",
             }:
                 log[key] = value

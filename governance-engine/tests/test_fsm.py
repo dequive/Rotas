@@ -1,4 +1,5 @@
 """FSM tests — transition rules, locking, idempotency."""
+
 import asyncio
 import uuid
 
@@ -67,7 +68,7 @@ async def test_illegal_transition_raises(db: AsyncSession, tenant_id, taxonomy):
     with pytest.raises(IllegalTransition):
         await fsm.apply_transition(
             case_id=case_id,
-            to_status="closed",   # no rule open → closed
+            to_status="closed",  # no rule open → closed
             payload={},
             attachments_present=False,
             actor_id=uuid.uuid4(),
@@ -84,7 +85,7 @@ async def test_missing_required_field_raises(db: AsyncSession, tenant_id, taxono
         await fsm.apply_transition(
             case_id=case_id,
             to_status="resolved",
-            payload={},         # missing resolution_note
+            payload={},  # missing resolution_note
             attachments_present=False,
             actor_id=uuid.uuid4(),
             reason=None,
@@ -98,17 +99,23 @@ async def test_resolved_to_closed(db: AsyncSession, tenant_id, taxonomy):
     actor = uuid.uuid4()
     fsm = CaseFSM(db, tenant_id)
     await fsm.apply_transition(
-        case_id=case_id, to_status="resolved",
+        case_id=case_id,
+        to_status="resolved",
         payload={"resolution_note": "Fixed"},
-        attachments_present=False, actor_id=actor,
-        reason=None, idempotency_key=str(uuid.uuid4()),
+        attachments_present=False,
+        actor_id=actor,
+        reason=None,
+        idempotency_key=str(uuid.uuid4()),
     )
     await db.commit()
     await fsm.apply_transition(
-        case_id=case_id, to_status="closed",
+        case_id=case_id,
+        to_status="closed",
         payload={},
-        attachments_present=False, actor_id=actor,
-        reason=None, idempotency_key=str(uuid.uuid4()),
+        attachments_present=False,
+        actor_id=actor,
+        reason=None,
+        idempotency_key=str(uuid.uuid4()),
     )
     await db.commit()
     case = await db.get(Case, case_id)
@@ -121,15 +128,19 @@ async def test_idempotent_open_returns_same_case(db: AsyncSession, tenant_id, ta
     id1 = await fsm.open_case(
         case_type_id=taxonomy["case_type"].id,
         initial_status="open",
-        occurrence_ids=[], payload={},
-        actor_id=uuid.uuid4(), idempotency_key=idem_key,
+        occurrence_ids=[],
+        payload={},
+        actor_id=uuid.uuid4(),
+        idempotency_key=idem_key,
     )
     await db.commit()
     id2 = await fsm.open_case(
         case_type_id=taxonomy["case_type"].id,
         initial_status="open",
-        occurrence_ids=[], payload={},
-        actor_id=uuid.uuid4(), idempotency_key=idem_key,
+        occurrence_ids=[],
+        payload={},
+        actor_id=uuid.uuid4(),
+        idempotency_key=idem_key,
     )
     await db.commit()
     assert id1 == id2
@@ -140,15 +151,23 @@ async def test_idempotent_transition_returns_same_record(db: AsyncSession, tenan
     idem_key = str(uuid.uuid4())
     fsm = CaseFSM(db, tenant_id)
     t1 = await fsm.apply_transition(
-        case_id=case_id, to_status="in_analysis",
-        payload={}, attachments_present=False,
-        actor_id=uuid.uuid4(), reason=None, idempotency_key=idem_key,
+        case_id=case_id,
+        to_status="in_analysis",
+        payload={},
+        attachments_present=False,
+        actor_id=uuid.uuid4(),
+        reason=None,
+        idempotency_key=idem_key,
     )
     await db.commit()
     t2 = await fsm.apply_transition(
-        case_id=case_id, to_status="in_analysis",
-        payload={}, attachments_present=False,
-        actor_id=uuid.uuid4(), reason=None, idempotency_key=idem_key,
+        case_id=case_id,
+        to_status="in_analysis",
+        payload={},
+        attachments_present=False,
+        actor_id=uuid.uuid4(),
+        reason=None,
+        idempotency_key=idem_key,
     )
     assert t1.id == t2.id
 
@@ -166,9 +185,13 @@ async def test_timeline_ordered_asc(db: AsyncSession, tenant_id, taxonomy):
     case_id = await _open(db, tenant_id, taxonomy)
     fsm = CaseFSM(db, tenant_id)
     await fsm.apply_transition(
-        case_id=case_id, to_status="in_analysis",
-        payload={}, attachments_present=False,
-        actor_id=uuid.uuid4(), reason=None, idempotency_key=str(uuid.uuid4()),
+        case_id=case_id,
+        to_status="in_analysis",
+        payload={},
+        attachments_present=False,
+        actor_id=uuid.uuid4(),
+        reason=None,
+        idempotency_key=str(uuid.uuid4()),
     )
     await db.commit()
     timeline = await fsm.get_timeline(case_id)
@@ -180,6 +203,7 @@ async def test_timeline_ordered_asc(db: AsyncSession, tenant_id, taxonomy):
 async def test_tenant_isolation_cross_tenant(engine, tenant_id, taxonomy):
     """Case created in tenant A is not visible to tenant B."""
     from core.database import set_rls_tenant
+
     other_tenant = uuid.uuid4()
     session_factory = async_sessionmaker(
         engine,
@@ -194,8 +218,10 @@ async def test_tenant_isolation_cross_tenant(engine, tenant_id, taxonomy):
         case_id = await fsm.open_case(
             case_type_id=taxonomy["case_type"].id,
             initial_status="open",
-            occurrence_ids=[], payload={},
-            actor_id=uuid.uuid4(), idempotency_key=str(uuid.uuid4()),
+            occurrence_ids=[],
+            payload={},
+            actor_id=uuid.uuid4(),
+            idempotency_key=str(uuid.uuid4()),
         )
         await db_a.commit()
 
@@ -215,6 +241,7 @@ async def test_concurrent_transitions_serialize_correctly(engine, tenant_id, tax
     (in_analysis → in_analysis has no rule) — never corrupt state.
     """
     from core.database import set_rls_tenant
+
     session_factory = async_sessionmaker(
         engine,
         expire_on_commit=False,
@@ -228,8 +255,10 @@ async def test_concurrent_transitions_serialize_correctly(engine, tenant_id, tax
         case_id = await fsm.open_case(
             case_type_id=taxonomy["case_type"].id,
             initial_status="open",
-            occurrence_ids=[], payload={},
-            actor_id=uuid.uuid4(), idempotency_key=str(uuid.uuid4()),
+            occurrence_ids=[],
+            payload={},
+            actor_id=uuid.uuid4(),
+            idempotency_key=str(uuid.uuid4()),
         )
         await setup_db.commit()
 
@@ -242,9 +271,12 @@ async def test_concurrent_transitions_serialize_correctly(engine, tenant_id, tax
             fsm = CaseFSM(sess, tenant_id)
             try:
                 await fsm.apply_transition(
-                    case_id=case_id, to_status="in_analysis",
-                    payload={}, attachments_present=False,
-                    actor_id=uuid.uuid4(), reason=None,
+                    case_id=case_id,
+                    to_status="in_analysis",
+                    payload={},
+                    attachments_present=False,
+                    actor_id=uuid.uuid4(),
+                    reason=None,
                     idempotency_key=idem_key,
                 )
                 await sess.commit()

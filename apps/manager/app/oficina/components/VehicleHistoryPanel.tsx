@@ -47,80 +47,31 @@ interface InterventionHistory {
 export default function VehicleHistoryPanel({ vehicleId }: VehicleHistoryPanelProps) {
   const [history, setHistory] = useState<InterventionHistory | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"receptions" | "work_orders" | "parts" | "warranties">("receptions");
 
   useEffect(() => {
     if (!vehicleId) {
       setHistory(null);
+      setError(null);
       return;
     }
 
     async function fetchHistory() {
       setIsLoading(true);
+      setError(null);
+      setHistory(null);
       try {
         const res = await bffRequest(
           `/api/v1/workshop/receptions/vehicles/${vehicleId}/history`,
         );
-        if (res.ok) {
-          const data = await res.json();
-          setHistory(data);
-        } else {
-          // Demo fallback state
-          setHistory({
-            vehicle_id: vehicleId || "",
-            plate: "AFM-8821-TR",
-            current_odometer_km: 48500,
-            receptions: [
-              {
-                id: "rec-prev-1",
-                reception_number: "REC-2026-0004",
-                received_at: new Date(Date.now() - 86400000 * 45).toISOString(),
-                odometer_at_reception: 45000,
-                reported_issues: "Mudança de óleo e pastilhas dianteiras",
-                status: "delivered",
-              },
-            ],
-            work_orders: [
-              {
-                id: "wo-prev-1",
-                work_order_number: "OS-2026-0012",
-                status: "closed",
-                created_at: new Date(Date.now() - 86400000 * 45).toISOString(),
-                total_labor_minutes: 90,
-                actual_cost: 8500,
-              },
-            ],
-            parts_used: [
-              {
-                id: "part-1",
-                part_name: "Filtro de Óleo 1.6 DCI",
-                quantity: 1,
-                unit_cost: 1200,
-                created_at: new Date(Date.now() - 86400000 * 45).toISOString(),
-              },
-            ],
-            warranties: [
-              {
-                id: "war-1",
-                warranty_type: "parts",
-                title: "Garantia (parts)",
-                expires_at: new Date(Date.now() + 86400000 * 180).toISOString(),
-                status: "active",
-                notes: "Garantia de 6 meses no filtro e pastilhas",
-              },
-            ],
-          });
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { detail?: string; error?: { message?: string } };
+          throw new Error(body.error?.message ?? body.detail ?? `Não foi possível carregar o histórico (HTTP ${res.status}).`);
         }
+        setHistory(await res.json());
       } catch (err) {
-        setHistory({
-          vehicle_id: vehicleId || "",
-          plate: "AFM-8821-TR",
-          current_odometer_km: 0,
-          receptions: [],
-          work_orders: [],
-          parts_used: [],
-          warranties: [],
-        });
+        setError(err instanceof Error ? err.message : "Erro de ligação ao carregar o histórico.");
       } finally {
         setIsLoading(false);
       }
@@ -144,6 +95,10 @@ export default function VehicleHistoryPanel({ vehicleId }: VehicleHistoryPanelPr
         <p className="text-center animate-pulse">A carregar histórico da viatura...</p>
       </div>
     );
+  }
+
+  if (error) {
+    return <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"><h4 className="font-semibold">Histórico indisponível</h4><p className="mt-1 text-xs">{error}</p></div>;
   }
 
   const isEmpty =

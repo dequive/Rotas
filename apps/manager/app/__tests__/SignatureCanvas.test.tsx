@@ -28,6 +28,10 @@ describe("SignatureCanvas Component", () => {
 
   it("triggers onSignatureCaptured callback when digital signature is confirmed", async () => {
     const onCaptured = vi.fn();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
+      id: "signature-file-1",
+      sha256_hash: "a8f9c0e123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    })));
     render(<SignatureCanvas onSignatureCaptured={onCaptured} />);
 
     // Mock HTMLCanvasElement.toBlob
@@ -43,7 +47,25 @@ describe("SignatureCanvas Component", () => {
     fireEvent.click(confirmBtn);
 
     await waitFor(() => {
-      expect(onCaptured).toHaveBeenCalled();
+      expect(onCaptured).toHaveBeenCalledWith(
+        "signature-file-1",
+        "a8f9c0e123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      );
     });
+    vi.unstubAllGlobals();
+  });
+
+  it("shows an error and never fabricates a signature when upload fails", async () => {
+    const onCaptured = vi.fn();
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    render(<SignatureCanvas onSignatureCaptured={onCaptured} />);
+    const canvas = document.querySelector("canvas");
+    if (canvas) canvas.toBlob = (callback: BlobCallback) => callback(new Blob(["x"], { type: "image/png" }));
+
+    fireEvent.click(screen.getByText(/Confirmar Assinatura Digital/i));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("offline");
+    expect(onCaptured).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 });

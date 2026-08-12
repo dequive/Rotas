@@ -1,6 +1,4 @@
 import { apiFetch } from "./api";
-import { throwWhenDemoFallbackDisabled } from "./runtime-guards";
-import { getApiConfig } from "./billing-api";
 
 export interface FuelTank {
   id: string;
@@ -16,16 +14,9 @@ export interface FuelTank {
 }
 
 export interface FuelControlBoard {
-  summary: {
-    tanks: number;
-    purchasesPending: number;
-    lowStockTanks: number;
-    totalStockLiters: number;
-  };
+  summary: { tanks: number; purchasesPending: number; lowStockTanks: number; totalStockLiters: number };
   tanks: FuelTank[];
-  queues: {
-    lowStockTanks: FuelTank[];
-  };
+  queues: { lowStockTanks: FuelTank[] };
 }
 
 interface ApiFuelTank {
@@ -40,76 +31,21 @@ interface ApiFuelTank {
   location: string | null;
   status: string;
 }
-
 interface ApiFuelControlBoard {
-  summary: {
-    tanks: number;
-    purchases_pending: number;
-    low_stock_tanks: number;
-    total_stock_liters: number | string;
-  };
+  summary: { tanks: number; purchases_pending: number; low_stock_tanks: number; total_stock_liters: number | string };
   tanks: ApiFuelTank[];
-  queues: {
-    low_stock_tanks: ApiFuelTank[];
-  };
+  queues: { low_stock_tanks: ApiFuelTank[] };
 }
 
 export interface FuelControlBoardLoadResult {
   board: FuelControlBoard;
-  source: "api" | "fallback";
+  source: "api";
   message: string | null;
 }
 
-const fallbackTanks: FuelTank[] = [
-  {
-    id: "TANK-MATOLA-01",
-    code: "TANK-MATOLA-01",
-    name: "Tanque principal Matola",
-    fuelType: "Gasóleo",
-    capacityLiters: 10000,
-    minimumStockLiters: 1800,
-    currentStockLiters: 1450,
-    averageUnitCost: 92.5,
-    location: "Base Matola",
-    status: "active",
-  },
-  {
-    id: "TANK-BEIRA-01",
-    code: "TANK-BEIRA-01",
-    name: "Tanque operacional Beira",
-    fuelType: "Gasóleo",
-    capacityLiters: 8000,
-    minimumStockLiters: 1200,
-    currentStockLiters: 5360,
-    averageUnitCost: 94.2,
-    location: "Base Beira",
-    status: "active",
-  },
-];
-
-const fallbackBoard: FuelControlBoard = {
-  summary: {
-    tanks: 2,
-    purchasesPending: 1,
-    lowStockTanks: 1,
-    totalStockLiters: 6810,
-  },
-  tanks: fallbackTanks,
-  queues: { lowStockTanks: [fallbackTanks[0]] },
-};
-
 export async function loadFuelControlBoard(): Promise<FuelControlBoardLoadResult> {
-  try {
-    const payload = await apiFetch<ApiFuelControlBoard>("/api/v1/fuel-operations/board", { revalidate: 15 });
-    return { board: mapFuelControlBoard(payload), source: "api", message: null };
-  } catch (error) {
-    throwWhenDemoFallbackDisabled("Fuel Control Board", error);
-    return {
-      board: fallbackBoard,
-      source: "fallback",
-      message: error instanceof Error ? `Fuel Control Board: ${error.message}` : "Indisponível.",
-    };
-  }
+  const payload = await apiFetch<ApiFuelControlBoard>("/api/v1/fuel-operations/board", { revalidate: 15 });
+  return { board: mapFuelControlBoard(payload), source: "api", message: null };
 }
 
 function mapFuelControlBoard(payload: ApiFuelControlBoard): FuelControlBoard {

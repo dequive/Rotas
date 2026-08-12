@@ -15,7 +15,10 @@
     "check:api-types": "openapi-typescript ../../backend/openapi/rotas-v1.json --alphabetize --check -o app/generated/rotas-api.ts",
     "test": "vitest run",
     "test:bff-boundary": "node --test scripts/verify-bff-boundary.node-test.mjs",
-    "verify:bff": "node scripts/verify-bff-boundary.mjs"
+    "verify:bff": "node scripts/verify-bff-boundary.mjs",
+    "test:no-demo": "node --test scripts/verify-no-demo-fallback.node-test.mjs",
+    "verify:no-demo": "node scripts/verify-no-demo-fallback.mjs",
+    "verify:no-demo:non-billing": "node scripts/verify-no-demo-fallback.mjs --scope=non-billing"
   },
   "dependencies": {
     "@rotas/http-contract": "0.1.0",

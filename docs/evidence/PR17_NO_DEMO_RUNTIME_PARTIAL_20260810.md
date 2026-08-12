@@ -15,8 +15,8 @@ O billing foi deliberadamente mantido inalterado, conforme instrução do produt
 
 - Gate estrutural não-billing: **verde** (`test:no-demo`: 4/4; `verify:no-demo:non-billing`: passed).
 - Testes focados PR17: **10/10 passed** em 3 ficheiros.
-- Suite Manager: **85 testes executados passed**; a recolha falha no teste histórico `WorkOrderDetail.test.tsx` por componentes/exports ausentes na base.
-- TypeScript: **bloqueado por 6 diagnósticos herdados** (WorkOrderDetail, `analytics/page.tsx` e `components/ui/sheet.tsx`).
+- Suite Manager após correção dos bloqueios herdados: **15 ficheiros / 86 testes passed**.
+- TypeScript após correção dos contratos Next16, Analytics, Sheet e detalhe da OS: **verde (`tsc --noEmit`)**.
 - Build Webpack: compilação concluída, mas a verificação Next falha no contrato Next16 de `searchParams` em `rh/processamento/page.ts`; Turbopack também encontra o junction de `node_modules` do ambiente OneDrive.
 
 ## Gating e limites
@@ -28,4 +28,4 @@ O billing foi deliberadamente mantido inalterado, conforme instrução do produt
 
 ## Próxima etapa obrigatória
 
-Resolver separadamente o billing (quando descongelado), corrigir os bloqueios herdados de TypeScript/build e executar os gates completos em CI antes de promover PR17 para release.
+Resolver separadamente o billing (quando descongelado), corrigir o bloqueio de build Next16/ambiente OneDrive e executar os gates completos em CI antes de promover PR17 para release.

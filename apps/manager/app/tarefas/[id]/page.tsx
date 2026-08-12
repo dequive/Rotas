@@ -60,8 +60,9 @@ async function getTaskDetails(id: string, source: string) {
   }
 }
 
-export default async function TarefaDetailsPage({ params, searchParams }: { params: { id: string }, searchParams: { source: string } }) {
-  const task = await getTaskDetails(params.id, searchParams.source);
+export default async function TarefaDetailsPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<{ source: string }> }) {
+  const [{ id }, { source }] = await Promise.all([params, searchParams]);
+  const task = await getTaskDetails(id, source);
 
   if (!task) {
     return (

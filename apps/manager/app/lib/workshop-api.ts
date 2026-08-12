@@ -14,6 +14,31 @@ export interface WorkOrder {
   updated_at: string;
 }
 
+export interface WorkOrderDetail {
+  work_order: Omit<WorkOrder, "vehicle_id"> & { vehicle_id?: string; origin_type: string; billing_status: string; billing_error: string | null; document_id: string | null; invoice_number: string | null; invoice_status: string | null; quality_notes: string | null };
+  vehicle: { id: string; plate: string; brand: string; model: string; current_km: number | null; odometer_at_reception: number | null };
+  client: { id: string; trading_name: string | null; legal_name: string | null; client_type: string; nuit: string | null; is_fleet_owned: boolean };
+  reception: unknown;
+  quote: unknown;
+  tasks: Array<{ id: string; description: string; status: string; assigned_to: string | null; assigned_mechanic_name: string | null; estimated_minutes: number | null; actual_minutes: number; labor_sessions: unknown[] }>;
+  parts_issued: Array<{ inventory_id: string; sku: string; name: string; unit: string; issued_quantity: number; returned_quantity: number; net_quantity: number; net_cost: number }>;
+  unreturned_tools: unknown[];
+  blockers: { incomplete_tasks: number; unreturned_tools: number };
+}
+
+export interface WorkOrderProfitability {
+  work_order_id: string;
+  work_order_number: string;
+  total_revenue: number;
+  total_labor_minutes: number;
+  total_labor_cost: number;
+  total_parts_cost: number;
+  total_cost: number;
+  gross_profit_mzn: number;
+  gross_profit_margin_percent: number;
+  is_profitable: boolean;
+}
+
 export interface MaintenanceRequest {
   id: string;
   vehicle_id: string;

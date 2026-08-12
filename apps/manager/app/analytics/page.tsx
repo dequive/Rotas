@@ -108,7 +108,7 @@ export default function AnalyticsPage() {
       {/* Filter bar + Export buttons */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
-          <Select value={period} onValueChange={(v) => setPeriod(v as PeriodPreset)}>
+          <Select value={period} onValueChange={(v: string) => setPeriod(v as PeriodPreset)}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Período" />
             </SelectTrigger>

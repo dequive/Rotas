@@ -59,6 +59,7 @@ def test_ci_enforces_contract_on_stabilization_branches():
     assert "redis:7@sha256:" in workflow
     assert "npm --workspace apps/manager run test" in workflow
     assert "npm --workspace apps/driver run test" in workflow
+    assert "scripts/validate_issue25_external_gates.py" in workflow
     action_refs = re.findall(r"uses:\s+actions/[^@\s]+@([^\s]+)", workflow)
     assert action_refs
     assert all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in action_refs)

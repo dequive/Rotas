@@ -48,9 +48,12 @@
     --info-bg:     #ecfeff;
 
     /* ── Transitions ─────────────────────────────────── */
-    --transition-fast:   80ms ease-out;
-    --transition-base:  100ms ease-out;
-    --transition-modal: 150ms ease-out;
+    --motion-fast: 80ms cubic-bezier(0.2, 0, 0, 1);
+    --motion-exit: 120ms cubic-bezier(0.4, 0, 1, 1);
+    --motion-enter: 180ms cubic-bezier(0.2, 0, 0, 1);
+    --transition-fast: var(--motion-fast);
+    --transition-base: 100ms cubic-bezier(0.2, 0, 0, 1);
+    --transition-modal: var(--motion-enter);
 
     /* ── Spacing scale ───────────────────────────────── */
     --s1: 4px;
@@ -150,6 +153,30 @@
 
   button {
     cursor: pointer;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}
+
+@layer utilities {
+  .rotas-motion-surface {
+    animation-duration: 180ms;
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .rotas-motion-surface[data-state="closed"] {
+    animation-duration: 120ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 1, 1);
   }
 }
 
@@ -1549,6 +1576,10 @@
   border: 1px solid var(--error-border);
   border-radius: 6px;
   padding: 8px 12px;
+}
+
+.login-error-slot {
+  min-height: 57px;
 }
 
 /* ── Page headers ───────────────────────── */

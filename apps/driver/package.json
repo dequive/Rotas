@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@rotas/http-contract": "0.1.0",
+    "@rotas/ux-telemetry": "0.1.0",
     "@sentry/browser": "^8.55.2",
     "dexie": "^4.0.0",
     "lucide-react": "^0.468.0",

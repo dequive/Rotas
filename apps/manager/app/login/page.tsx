@@ -40,6 +40,8 @@ export default function LoginPage() {
       }
       router.push("/");
       router.refresh();
+    } catch {
+      setError("Não foi possível contactar o servidor. Verifique a ligação e tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -63,6 +65,8 @@ export default function LoginPage() {
       }
       router.push("/");
       router.refresh();
+    } catch {
+      setError("Não foi possível contactar o servidor. Verifique a ligação e tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -119,8 +123,10 @@ export default function LoginPage() {
           </p>
             </>
           )}
-          {error && <p className="login-error">{error}</p>}
-          <Button type="submit" variant="primary" disabled={loading} className="w-full h-11 text-[15px] mt-1">
+          <div className="login-error-slot">
+            {error && <p className="login-error" role="alert">{error}</p>}
+          </div>
+          <Button type="submit" variant="primary" disabled={loading} aria-busy={loading} className="w-full h-11 text-[15px] mt-1">
             {loading ? "A entrar..." : mfaChallenge ? "Confirmar" : "Entrar"}
           </Button>
         </form>

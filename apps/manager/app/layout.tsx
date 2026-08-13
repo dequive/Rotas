@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { LimitWarningBanner, type TenantLimits } from "@/app/components/LimitWarningBanner";
 import { DocumentExpiryBanner, type ExpiryAlert } from "@/app/components/DocumentExpiryBanner";
+import { WebVitalsReporter } from "@/app/components/WebVitalsReporter";
 
 export const metadata: Metadata = {
   title: "ROTAS — Gestão de Frotas",
@@ -101,6 +102,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
+        <WebVitalsReporter />
         <LimitWarningBanner limits={limits} />
         <DocumentExpiryBanner alerts={expiryAlerts} />
         {children}

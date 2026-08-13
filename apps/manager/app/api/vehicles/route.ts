@@ -1,5 +1,6 @@
 import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE = process.env.ROTAS_API_BASE_URL ?? "http://localhost:8000";
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify(body),
   });
   const data = await res.json();
+  if (res.ok) revalidatePath("/viaturas");
   return NextResponse.json(data, { status: res.status });
 }
 
@@ -51,5 +53,9 @@ export async function PATCH(req: NextRequest) {
     body: JSON.stringify(body),
   });
   const data = await res.json();
+  if (res.ok) {
+    revalidatePath("/viaturas");
+    revalidatePath(`/viaturas/${id}`);
+  }
   return NextResponse.json(data, { status: res.status });
 }

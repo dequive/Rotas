@@ -8,7 +8,7 @@ interface SyncStatusBannerProps {
  * SyncStatusBanner — ambient status indicator for the driver PWA.
  *
  * Covers 7 states per UI-SPEC.md (Phase 2):
- * - idle: hidden (display: none via CSS [data-state="idle"])
+ * - idle: visually hidden while preserving the 48 px status region
  * - offline: orange — "Sem ligação — a gravar localmente · X registos pendentes"
  * - syncing: green — "A sincronizar... · X registos pendentes"
  * - error: red — "X registos com erro — contacta o gestor"

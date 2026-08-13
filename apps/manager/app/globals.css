@@ -1578,6 +1578,10 @@
   padding: 8px 12px;
 }
 
+.login-error-slot {
+  min-height: 57px;
+}
+
 /* ── Page headers ───────────────────────── */
 .page-header {
   display: flex;

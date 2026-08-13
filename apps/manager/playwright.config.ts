@@ -16,6 +16,14 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'public-chromium',
+      testMatch: '**/motion-accessibility.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: { cookies: [], origins: [] },
+      },
+    },
+    {
       name: 'setup',
       testMatch: '**/auth.setup.ts',
     },
@@ -26,6 +34,7 @@ export default defineConfig({
         storageState: 'playwright/.auth/user.json',
       },
       dependencies: ['setup'],
+      testIgnore: '**/motion-accessibility.spec.ts',
     },
   ],
   webServer: process.env.CI

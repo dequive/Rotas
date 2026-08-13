@@ -631,11 +631,12 @@ button {
   font-size: 12px;
   font-weight: 800;
   line-height: 1.0;
-  /* D-01/D-02/D-05: hidden by default when idle — display:none prevents layout shift */
+  /* Reserve the banner row so connectivity changes do not shift controls. */
 }
 
 .sync-banner[data-state="idle"] {
-  display: none;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* D-01: Offline state — orange background (--orange: #b45309) */

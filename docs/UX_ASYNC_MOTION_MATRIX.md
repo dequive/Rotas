@@ -1,6 +1,6 @@
 # ROTAS Async UX and Motion Matrix
 
-Status: Wave 1 implemented locally; release certification remains pending.
+Status: Waves 1 and 2 implemented locally; release certification remains pending.
 
 ## Contract
 
@@ -16,14 +16,15 @@ Status: Wave 1 implemented locally; release certification remains pending.
 | Surface | State/interaction | Policy | Owner | Risk | Wave |
 |---|---|---|---|---|---|
 | Manager global shell | Reduced motion | Collapse non-essential animation to 0.01 ms | Frontend Platform | Critical | 1 done |
-| Driver PWA | Reduced motion / spinner | Stop continuous loops after one iteration | Driver/PWA | Critical | 1 done |
+| Driver PWA | Reduced motion / spinner | Stop continuous loops after one iteration | Driver/PWA | Critical | 2 browser-proven |
 | Dialog / Sheet | Open and close | Transform + opacity, enter 180 ms, exit 120 ms | Design System | High | 1 done |
 | Popover / Dropdown / Select | Open and close | Transform + opacity, enter 180 ms, exit 120 ms | Design System | High | 1 done |
 | Skeleton / KPI loading | Pending | Pulse only when motion is allowed | Design System | High | 1 done |
-| Vehicle and operational tabs | Keyboard/frequent switch | Instant; preserve focus and selection | Feature teams | Medium | 2 pending browser proof |
-| Manager async panels | Loading/error/empty/stale | Stable reserved space; subtle optional enter only | Feature teams | High | 2 pending |
-| Driver sync banner | Offline/syncing/blocked | No layout animation; persistent text/icon status | Driver/PWA | High | 2 pending |
-| Critical journeys | Slow network/retry/focus | Playwright journeys with reduced motion | QA | Critical | 2 pending |
+| Vehicle and operational tabs | Keyboard/frequent switch | Instant; preserve focus and selection | Feature teams | Medium | 2 pending authenticated proof |
+| Manager public auth | Slow network/error/focus | Stable error region, announced failure, keyboard order | Manager/Auth | High | 2 browser-proven |
+| Manager async panels | Loading/error/empty/stale | Stable reserved space; subtle optional enter only | Feature teams | High | 2 pending authenticated proof |
+| Driver sync banner | Offline/syncing/blocked | Fixed 48 px region; persistent text/icon status | Driver/PWA | High | 2 browser-proven |
+| Critical journeys | Slow network/retry/focus | Playwright journeys with reduced motion | QA | Critical | 2 partial: public auth and Driver |
 | Runtime telemetry | Latency, errors, Web Vitals | Tenant-safe release metrics, no PII | Platform/SRE | Critical | 3 pending |
 
 ## Release gates

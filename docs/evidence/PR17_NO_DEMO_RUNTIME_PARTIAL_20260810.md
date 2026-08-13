@@ -17,7 +17,22 @@ O billing foi deliberadamente mantido inalterado, conforme instrução do produt
 - Testes focados PR17: **10/10 passed** em 3 ficheiros.
 - Suite Manager após correção dos bloqueios herdados: **15 ficheiros / 86 testes passed**.
 - TypeScript após correção dos contratos Next16, Analytics, Sheet e detalhe da OS: **verde (`tsc --noEmit`)**.
-- Build Webpack: compilação concluída, mas a verificação Next falha no contrato Next16 de `searchParams` em `rh/processamento/page.ts`; Turbopack também encontra o junction de `node_modules` do ambiente OneDrive.
+- Build Manager no worktree com o junction local: **verde em Next 16.2.12 com Webpack**; o build por Turbopack nesse worktree continua condicionado pelo junction de `node_modules` do ambiente OneDrive.
+
+### Revalidação limpa de 2026-08-13
+
+Foi criado um clone temporário isolado e executado `npm ci`, confirmando a versão contratada pelo lockfile (`Next 14.2.35`) em vez da instalação Next16 exposta pelo junction do checkout principal. Nesse ambiente, os gates frontend equivalentes à CI ficaram verdes:
+
+- BFF boundary: **9/9 testes**, 99 client roots, 121 módulos browser-reachable, 34 API routes e 0 violações.
+- No-demo não-billing: **4/4 testes** e gate estrutural verde; continuam 12 violações congeladas no billing.
+- Tipos OpenAPI Manager: **verde**.
+- Manager: **15 ficheiros / 86 testes passed**.
+- Driver: **5 ficheiros / 30 testes passed**.
+- Typecheck de todos os workspaces: **verde**.
+- Build Manager com Next 14.2.35: **verde**, 73 páginas geradas.
+- Build Driver/PWA: **verde**, 1.805 módulos, service worker com 93 módulos e 6 entradas de precache.
+
+Limite ambiental desta revalidação: a máquina local executou Node 24.16.0, enquanto o repositório e a CI declaram Node 20.x; a certificação final continua dependente da execução remota da CI.
 
 ## Gating e limites
 
@@ -28,4 +43,4 @@ O billing foi deliberadamente mantido inalterado, conforme instrução do produt
 
 ## Próxima etapa obrigatória
 
-Resolver separadamente o billing (quando descongelado), corrigir o bloqueio de build Next16/ambiente OneDrive e executar os gates completos em CI antes de promover PR17 para release.
+Resolver separadamente o billing (quando descongelado) e obter execução remota dos gates em Node 20 antes de promover PR17 para release.

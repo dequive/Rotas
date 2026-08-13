@@ -62,3 +62,20 @@ def test_ci_enforces_contract_on_stabilization_branches():
     action_refs = re.findall(r"uses:\s+actions/[^@\s]+@([^\s]+)", workflow)
     assert action_refs
     assert all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in action_refs)
+
+
+def test_all_workflows_pin_github_actions_and_allow_manual_verification():
+    workflows = sorted((ROOT / ".github" / "workflows").glob("*.y*ml"))
+
+    assert workflows
+    for path in workflows:
+        workflow = path.read_text(encoding="utf-8")
+        action_refs = re.findall(r"uses:\s+actions/[^@\s]+@([^\s]+)", workflow)
+
+        assert action_refs, f"{path.name} must declare at least one approved GitHub Action"
+        assert all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in action_refs), (
+            f"{path.name} contains a GitHub Action that is not pinned by full SHA"
+        )
+        assert "workflow_dispatch:" in workflow, (
+            f"{path.name} must support an auditable manual verification run"
+        )

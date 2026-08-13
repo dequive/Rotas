@@ -25,7 +25,9 @@ describe("Manager Standard Components", () => {
       const { container } = render(
         <KpiCard label="Total Trips" value="142" loading={true} />
       );
-      expect(container.querySelector(".animate-pulse")).toBeInTheDocument();
+      expect(
+        container.querySelector('[class~="motion-safe:animate-pulse"]')
+      ).toBeInTheDocument();
     });
   });
 

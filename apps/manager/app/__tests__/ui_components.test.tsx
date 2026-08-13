@@ -31,7 +31,9 @@ describe("KpiCard", () => {
 
   it("renders loading skeleton when loading=true", () => {
     const { container } = render(<KpiCard label="KPI" value="0" loading />);
-    expect(container.querySelector(".animate-pulse")).toBeInTheDocument();
+    expect(
+      container.querySelector('[class~="motion-safe:animate-pulse"]')
+    ).toBeInTheDocument();
     // Value should NOT be visible in skeleton state
     expect(screen.queryByText("0")).not.toBeInTheDocument();
   });

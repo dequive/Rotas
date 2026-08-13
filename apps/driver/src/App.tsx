@@ -39,6 +39,7 @@ import { DeliveryProofView } from "./views/DeliveryProofView";
 import { useNetworkStatus } from "./hooks/useNetworkStatus";
 import { useSyncStatus } from "./hooks/useSyncStatus";
 import { SyncStatusBanner } from "./components/SyncStatusBanner";
+import { recordDriverUxMetric } from "./uxTelemetry";
 import { SyncIssuesPanel } from "./components/SyncIssuesPanel";
 import { purgeDriverIdentity } from "./identity";
 
@@ -120,11 +121,13 @@ export function App() {
 
   async function loadBootstrap() {
     if (!auth) return;
+    const startedAt = performance.now();
     try {
       const data = await bootstrap();
       applyBootstrap(data);
       await saveBootstrapCache(auth.tenantId, auth.driverId, auth.sessionId, data);
       setLastMessage(data.activeTrip ? "Viagem activa carregada." : "Sem viagem activa.");
+      recordDriverUxMetric("driver.bootstrap.duration", "bootstrap", "success", startedAt);
     } catch {
       const cached = await getBootstrapCache<BootstrapData>(
         auth.tenantId,
@@ -136,10 +139,12 @@ export function App() {
         setLastMessage(
           `Modo offline — dados guardados em ${new Date(cached.cachedAt).toLocaleString("pt-MZ")}.`,
         );
+        recordDriverUxMetric("driver.bootstrap.duration", "bootstrap", "cache", startedAt);
       } else {
         setActiveTrip(null);
         setChecklistTemplate(null);
         setLastMessage("Sem rede e sem dados locais para este motorista.");
+        recordDriverUxMetric("driver.bootstrap.duration", "bootstrap", "unavailable", startedAt);
       }
     }
   }
@@ -273,12 +278,15 @@ export function App() {
     syncLock.current = true;
     setSyncing(true);
     setLastMessage("A sincronizar...");
+    const startedAt = performance.now();
     try {
       await processSyncQueue(auth.accessToken);
       await refreshPendingCount();
       setLastMessage("Sincronização concluída.");
+      recordDriverUxMetric("driver.sync.duration", "sync", "success", startedAt);
     } catch {
       setLastMessage("Sincronização interrompida; os registos locais foram preservados.");
+      recordDriverUxMetric("driver.sync.duration", "sync", "error", startedAt);
     } finally {
       syncLock.current = false;
       setSyncing(false);

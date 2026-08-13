@@ -1,6 +1,6 @@
 # ROTAS Async UX and Motion Matrix
 
-Status: Waves 1 and 2 implemented locally; release certification remains pending.
+Status: Waves 1 through 3 implemented locally; authenticated/runtime certification remains pending.
 
 ## Contract
 
@@ -25,7 +25,7 @@ Status: Waves 1 and 2 implemented locally; release certification remains pending
 | Manager async panels | Loading/error/empty/stale | Stable reserved space; subtle optional enter only | Feature teams | High | 2 pending authenticated proof |
 | Driver sync banner | Offline/syncing/blocked | Fixed 48 px region; persistent text/icon status | Driver/PWA | High | 2 browser-proven |
 | Critical journeys | Slow network/retry/focus | Playwright journeys with reduced motion | QA | Critical | 2 partial: public auth and Driver |
-| Runtime telemetry | Latency, errors, Web Vitals | Tenant-safe release metrics, no PII | Platform/SRE | Critical | 3 pending |
+| Runtime telemetry | Latency, errors, Web Vitals | Tenant-safe spans, no PII, explicit SLOs | Platform/SRE | Critical | 3 implemented locally; runtime pending |
 
 ## Release gates
 

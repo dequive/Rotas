@@ -295,7 +295,7 @@ canonicas vivem em `.github/ISSUE_TEMPLATE/task.yml` e
 
 | Capacidade | Estado comprovado no checkout | Proximo gate |
 |---|---|---|
-| Governanca Issue -> PR -> Deploy | Template e workflow implementados nesta branch; branch protection remota ainda pendente | [Issue #31](https://github.com/dequive/Rotas/issues/31) |
+| Governanca Issue -> PR -> Deploy | Template, workflow e CODEOWNERS implementados nesta cadeia; proteccao remota parcial e certificacao bloqueada | [Issue #31](https://github.com/dequive/Rotas/issues/31), [Issue #33](https://github.com/dequive/Rotas/issues/33) |
 | UX assincrona e Motion Principles | Contrato definido; implementacao desigual entre rotas/componentes | [Issue #25](https://github.com/dequive/Rotas/issues/25) |
 | Sentry | Parcial: Backend, Manager e Driver possuem SDK/configuracao e testes locais | validar evento e scrub por release SHA em staging |
 | Prometheus, Alertmanager e Grafana | Implementado localmente; certificacao runtime PR-20 pendente | executar bundle PR-20 e janela SLO |

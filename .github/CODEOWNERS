@@ -1,0 +1,10 @@
+# Default ownership. Independent approval remains enforced by branch protection.
+* @dequive
+
+# Critical control-plane and release surfaces.
+/.github/ @dequive
+/infra/ @dequive
+/backend/ @dequive
+/apps/ @dequive
+/governance-engine/ @dequive
+/docs/ @dequive

@@ -77,6 +77,7 @@ jobs:
         run: >-
           .venv/bin/python -m ruff check app tests
           scripts/validate_release_governance.py
+          scripts/validate_issue25_external_gates.py
           scripts/pr06_rls_gate.py
           scripts/export_openapi.py
       - name: Validate PR-00 release governance contract

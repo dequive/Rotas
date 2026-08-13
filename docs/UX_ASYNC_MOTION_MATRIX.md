@@ -2,6 +2,8 @@
 
 Status: Waves 1 through 3 implemented locally; authenticated Manager journeys are browser-proven against an ephemeral tenant database. Physical-device, telemetry-runtime and remote-CI certification remain pending.
 
+External certification is fail-closed through `backend/scripts/validate_issue25_external_gates.py`; execution instructions and the secret-free evidence contract are versioned in `docs/evidence/ISSUE25_EXTERNAL_CERTIFICATION_RUNBOOK.md`.
+
 ## Contract
 
 - Frequent, keyboard-driven interactions remain instant.

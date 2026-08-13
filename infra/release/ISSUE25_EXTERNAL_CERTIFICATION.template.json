@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "gate": "ISSUE-25-EXTERNAL-CERTIFICATION",
+  "commit_sha": "0000000000000000000000000000000000000000",
+  "ci": {
+    "run_id": 0,
+    "head_sha": "0000000000000000000000000000000000000000",
+    "conclusion": "pending",
+    "jobs": [
+      { "name": "Backend", "conclusion": "pending", "runner_id": 0, "steps_executed": 0 },
+      { "name": "Frontend", "conclusion": "pending", "runner_id": 0, "steps_executed": 0 },
+      { "name": "E2E", "conclusion": "pending", "runner_id": 0, "steps_executed": 0 }
+    ]
+  },
+  "sentry": {
+    "environment": "staging",
+    "send_default_pii": false,
+    "manager_spans_observed": false,
+    "driver_spans_observed": false,
+    "dashboard_url": "",
+    "alerts": [
+      { "name": "manager-cls", "test_fired": false, "delivered": false, "runbook_url": "" },
+      { "name": "manager-lcp", "test_fired": false, "delivered": false, "runbook_url": "" },
+      { "name": "manager-inp", "test_fired": false, "delivered": false, "runbook_url": "" },
+      { "name": "driver-bootstrap", "test_fired": false, "delivered": false, "runbook_url": "" },
+      { "name": "driver-sync", "test_fired": false, "delivered": false, "runbook_url": "" },
+      { "name": "driver-bootstrap-unavailable", "test_fired": false, "delivered": false, "runbook_url": "" },
+      { "name": "driver-sync-error", "test_fired": false, "delivered": false, "runbook_url": "" }
+    ]
+  },
+  "android": {
+    "physical_device": false,
+    "emulator": false,
+    "performance_class": "unverified",
+    "ram_mb": 0,
+    "network_profile": "unverified",
+    "reduced_motion_passed": false,
+    "offline_sync_passed": false,
+    "driver_tests_passed": false,
+    "artifact_url": ""
+  }
+}

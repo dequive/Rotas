@@ -1,6 +1,6 @@
 # ROTAS Async UX and Motion Matrix
 
-Status: Waves 1 through 3 implemented locally; authenticated/runtime certification remains pending.
+Status: Waves 1 through 3 implemented locally; authenticated Manager journeys are browser-proven against an ephemeral tenant database. Physical-device, telemetry-runtime and remote-CI certification remain pending.
 
 ## Contract
 
@@ -22,9 +22,10 @@ Status: Waves 1 through 3 implemented locally; authenticated/runtime certificati
 | Skeleton / KPI loading | Pending | Pulse only when motion is allowed | Design System | High | 1 done |
 | Vehicle and operational tabs | Keyboard/frequent switch | Instant; preserve focus and selection | Feature teams | Medium | 2 pending authenticated proof |
 | Manager public auth | Slow network/error/focus | Stable error region, announced failure, keyboard order | Manager/Auth | High | 2 browser-proven |
-| Manager async panels | Loading/error/empty/stale | Stable reserved space; subtle optional enter only | Feature teams | High | 2 pending authenticated proof |
+| Manager vehicle mutation | Pending/success/error | Disabled pending action, real persisted success, announced error with preserved form context | Fleet | High | 2 authenticated browser-proven |
+| Manager async panels | Loading/error/empty/stale | Stable reserved space; subtle optional enter only | Feature teams | High | 2 partial; vehicle mutation proven |
 | Driver sync banner | Offline/syncing/blocked | Fixed 48 px region; persistent text/icon status | Driver/PWA | High | 2 browser-proven |
-| Critical journeys | Slow network/retry/focus | Playwright journeys with reduced motion | QA | Critical | 2 partial: public auth and Driver |
+| Critical journeys | Slow network/retry/focus | Playwright journeys with reduced motion | QA | Critical | 2 partial: public auth, authenticated Manager mutation and Driver browser-proven |
 | Runtime telemetry | Latency, errors, Web Vitals | Tenant-safe spans, no PII, explicit SLOs | Platform/SRE | Critical | 3 implemented locally; runtime pending |
 
 ## Release gates
@@ -34,3 +35,11 @@ Status: Waves 1 through 3 implemented locally; authenticated/runtime certificati
 3. Low-end Android validation confirms usable Driver sync flows without layout shift.
 4. Runtime telemetry and alert thresholds are approved without tenant or personal-data leakage.
 5. Remote CI executes real jobs; startup failures or empty jobs are NO-GO.
+
+## Authenticated Manager evidence
+
+- The test runtime uses a disposable PostgreSQL 16 container on a dedicated local port; it does not use the online database.
+- Alembic upgrades the disposable database to `head`, then `backend/tests/seed_e2e.py` creates a dedicated tenant and owner identity.
+- `authenticated-async.spec.ts` delays the real vehicle POST to prove visible, disabled pending feedback and persists the result through Manager BFF, backend and PostgreSQL.
+- The failure path injects an upstream 503 at the browser boundary and proves an announced error, preserved form values and an enabled retry action.
+- Successful vehicle mutations revalidate the affected Manager routes so a completed operation cannot leave a stale list behind.

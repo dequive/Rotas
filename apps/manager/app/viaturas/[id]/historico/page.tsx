@@ -7,7 +7,7 @@ import { apiFetch } from "@/app/lib/api";
 import type { VehicleHistoryResponse } from "@/app/lib/workshop-api";
 
 interface PageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 const EVENT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -40,11 +40,12 @@ function formatEventDate(isoString: string): string {
 
 export default async function VehicleHistoricoPage({ params }: PageProps) {
   await requireSession();
+  const { id } = await params;
 
   let history: VehicleHistoryResponse = { events: [], next_cursor: null, total_count: 0 };
   try {
     history = await apiFetch<VehicleHistoryResponse>(
-      `/api/v1/vehicles/${params.id}/history?limit=50`,
+      `/api/v1/vehicles/${id}/history?limit=50`,
       { revalidate: 30 }
     );
   } catch {

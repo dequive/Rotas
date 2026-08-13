@@ -26,54 +26,23 @@ interface ReceptionDetail {
 export default function ReceptionDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const receptionId = (params?.id as string) || "REC-2026-0005";
+  const receptionId = params?.id as string;
 
   const [detail, setDetail] = useState<ReceptionDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchDetail() {
       try {
         const res = await bffRequest(`/api/v1/workshop/receptions/${receptionId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setDetail(data);
-        } else {
-          // Demo fallback detail
-          setDetail({
-            id: receptionId,
-            reception_number: receptionId.startsWith("REC-") ? receptionId : "REC-2026-0005",
-            vehicle_id: "veh-demo-01",
-            received_at: new Date().toISOString(),
-            odometer_at_reception: 48500,
-            reported_issues: "Mudança de óleo sintético 5W30 e calibração de discos de travão",
-            visual_condition: "Sem mossas visíveis. Pequeno arranhão na porta traseira esquerda.",
-            fuel_level: "half",
-            delivered_by_name: "João Muchanga",
-            delivered_by_phone: "+258 84 123 4567",
-            pickup_authorized_by_name: "João Muchanga",
-            pickup_authorized_by_phone: "+258 84 123 4567",
-            status: "received",
-            photos: [],
-          });
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { detail?: string };
+          throw new Error(body.detail ?? `Não foi possível carregar a receção (HTTP ${res.status}).`);
         }
+        setDetail(await res.json());
       } catch (err) {
-        setDetail({
-          id: receptionId,
-          reception_number: "REC-2026-0005",
-          vehicle_id: "veh-demo-01",
-          received_at: new Date().toISOString(),
-          odometer_at_reception: 48500,
-          reported_issues: "Mudança de óleo sintético 5W30",
-          visual_condition: "Bom estado geral",
-          fuel_level: "half",
-          delivered_by_name: "João Muchanga",
-          delivered_by_phone: "+258 84 123 4567",
-          pickup_authorized_by_name: "João Muchanga",
-          pickup_authorized_by_phone: "+258 84 123 4567",
-          status: "received",
-          photos: [],
-        });
+        setError(err instanceof Error ? err.message : "Erro de ligação ao carregar a receção.");
       } finally {
         setIsLoading(false);
       }
@@ -89,6 +58,10 @@ export default function ReceptionDetailPage() {
         </div>
       </SidebarLayout>
     );
+  }
+
+  if (error || !detail) {
+    return <SidebarLayout active="recepcao"><div role="alert" className="mx-auto max-w-5xl rounded border border-red-200 bg-red-50 p-4 text-sm text-red-800"><h1 className="font-semibold">Receção indisponível</h1><p className="mt-1">{error ?? "A API não devolveu a receção solicitada."}</p></div></SidebarLayout>;
   }
 
   return (

@@ -100,4 +100,14 @@ describe("VehicleHistoryPanel Component", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("shows unavailable state and never fabricates history when API fails", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("history-offline")));
+
+    render(<VehicleHistoryPanel vehicleId="veh-real" />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Serviço indisponível");
+    expect(screen.queryByText("AFM-8821-TR")).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
 });

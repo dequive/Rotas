@@ -26,10 +26,26 @@ export function FleetHistoryBoard({ result }: FleetHistoryBoardProps) {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" aria-label="Historicos de frota">
-        <VehicleTimeline history={result.vehicleHistory} />
-        <DriverTimeline history={result.driverHistory} />
+        {result.vehicleHistory ? (
+          <VehicleTimeline history={result.vehicleHistory} />
+        ) : (
+          <EmptyHistoryCard label="Registe uma viatura para consultar o histórico." />
+        )}
+        {result.driverHistory ? (
+          <DriverTimeline history={result.driverHistory} />
+        ) : (
+          <EmptyHistoryCard label="Registe um motorista para consultar o histórico." />
+        )}
       </div>
     </section>
+  );
+}
+
+function EmptyHistoryCard({ label }: { label: string }) {
+  return (
+    <article className="bg-surface border border-border rounded-lg overflow-hidden">
+      <EmptyStateInline label={label} />
+    </article>
   );
 }
 

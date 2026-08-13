@@ -13,6 +13,7 @@ export default function SignatureCanvas({ onSignatureCaptured }: SignatureCanvas
   const [isUploading, setIsUploading] = useState(false);
   const [capturedFileId, setCapturedFileId] = useState<string | null>(null);
   const [capturedHash, setCapturedHash] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -69,6 +70,7 @@ export default function SignatureCanvas({ onSignatureCaptured }: SignatureCanvas
     canvas.toBlob(async (blob) => {
       if (!blob) return;
       setIsUploading(true);
+      setError(null);
 
       const formData = new FormData();
       const file = new File([blob], `signature_${Date.now()}.png`, { type: "image/png" });
@@ -80,27 +82,20 @@ export default function SignatureCanvas({ onSignatureCaptured }: SignatureCanvas
           body: formData,
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          const fileId = data.id || data.file_id || "sig-" + Date.now();
-          const hash = data.sha256_hash || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-          setCapturedFileId(fileId);
-          setCapturedHash(hash);
-          onSignatureCaptured(fileId, hash);
-        } else {
-          // Fallback demo mock response
-          const fileId = "sig-demo-" + Date.now();
-          const hash = "a8f9c0e123456789abcdef0123456789abcdef0123456789abcdef0123456789";
-          setCapturedFileId(fileId);
-          setCapturedHash(hash);
-          onSignatureCaptured(fileId, hash);
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { detail?: string };
+          throw new Error(body.detail ?? `Não foi possível guardar a assinatura (HTTP ${res.status}).`);
         }
-      } catch (err) {
-        const fileId = "sig-demo-" + Date.now();
-        const hash = "a8f9c0e123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+        const data = (await res.json()) as { id?: string; file_id?: string; sha256_hash?: string };
+        const fileId = data.id ?? data.file_id;
+        if (!fileId || !data.sha256_hash) {
+          throw new Error("O servidor não devolveu a identidade e o hash da assinatura.");
+        }
         setCapturedFileId(fileId);
-        setCapturedHash(hash);
-        onSignatureCaptured(fileId, hash);
+        setCapturedHash(data.sha256_hash);
+        onSignatureCaptured(fileId, data.sha256_hash);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro ao guardar a assinatura.");
       } finally {
         setIsUploading(false);
       }
@@ -164,6 +159,8 @@ export default function SignatureCanvas({ onSignatureCaptured }: SignatureCanvas
               </code>
             </div>
           )}
+
+          {error && <p role="alert" className="rounded border border-red-200 bg-red-50 p-2 text-xs text-red-800">{error}</p>}
 
           <div className="flex justify-end space-x-2">
             <button

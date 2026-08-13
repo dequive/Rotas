@@ -18,21 +18,21 @@ export default function NovaRecepcaoPage() {
 
   // 2. Tipo de Cliente: Indivíduo vs Organização (Default: individual)
   const [clientType, setClientType] = useState<"individual" | "organization">("individual");
-  const [clientName, setClientName] = useState("João Muchanga");
-  const [clientPhone, setClientPhone] = useState("+258 84 123 4567");
+  const [clientName, setClientName] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
 
   // 3. Viatura selecionada e Odómetro Baseline
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("veh-demo-01");
-  const [vehiclePlate, setVehiclePlate] = useState("AFM-8821-TR");
-  const [odometerKm, setOdometerKm] = useState<number>(48500);
-  const lastKnownOdometer = 48500; // Leitura de referência histórica
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+  const [vehiclePlate, setVehiclePlate] = useState("");
+  const [odometerKm, setOdometerKm] = useState<number>(0);
+  const lastKnownOdometer = 0;
 
   // 4. Contactos Rastreáveis de Entrega & Levantamento
-  const [deliveredByName, setDeliveredByName] = useState("João Muchanga");
-  const [deliveredByPhone, setDeliveredByPhone] = useState("+258 84 123 4567");
-  const [pickupAuthorizedByName, setPickupAuthorizedByName] = useState("João Muchanga");
-  const [pickupAuthorizedByPhone, setPickupAuthorizedByPhone] = useState("+258 84 123 4567");
-  const [isAutoFilled, setIsAutoFilled] = useState(true);
+  const [deliveredByName, setDeliveredByName] = useState("");
+  const [deliveredByPhone, setDeliveredByPhone] = useState("");
+  const [pickupAuthorizedByName, setPickupAuthorizedByName] = useState("");
+  const [pickupAuthorizedByPhone, setPickupAuthorizedByPhone] = useState("");
+  const [isAutoFilled, setIsAutoFilled] = useState(false);
 
   // 5. Sintomas e Condição Visual
   const [reportedIssues, setReportedIssues] = useState("");
@@ -72,9 +72,20 @@ export default function NovaRecepcaoPage() {
     setErrorMessage(null);
     setIsSubmitting(true);
 
+    if (!selectedVehicleId) {
+      setErrorMessage("Selecione uma viatura real antes de concluir a receção.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (ownershipType === "customer") {
+      setErrorMessage("A seleção de um cliente real é obrigatória; esta página ainda não possui esse contrato.");
+      setIsSubmitting(false);
+      return;
+    }
+
     const payload = {
       vehicle_id: selectedVehicleId,
-      client_id: ownershipType === "customer" ? "client-demo-01" : null,
+      client_id: null,
       odometer_at_reception: odometerKm,
       reported_issues: reportedIssues,
       visual_condition: visualCondition,
@@ -95,16 +106,17 @@ export default function NovaRecepcaoPage() {
       });
 
       if (res.ok) {
-        const data = await res.json();
-        router.push(`/oficina/recepcao/${data.id || "REC-2026-0005"}`);
+        const data = (await res.json()) as { id?: string };
+        if (!data.id) throw new Error("A API não devolveu a identidade da receção criada.");
+        router.push(`/oficina/recepcao/${data.id}`);
       } else {
         const err = await res.json();
         setErrorMessage(err.detail || "Erro ao gravar recepção de viatura.");
         setIsSubmitting(false);
       }
     } catch (err) {
-      // Demo fallback redirect
-      router.push("/oficina/recepcao/REC-2026-0005");
+      setErrorMessage(err instanceof Error ? err.message : "Erro de ligação ao registar a receção.");
+      setIsSubmitting(false);
     }
   };
 

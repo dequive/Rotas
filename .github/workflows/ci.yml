@@ -120,6 +120,10 @@ jobs:
         run: |
           npm --workspace apps/manager run test:bff-boundary
           npm --workspace apps/manager run verify:bff
+      - name: Enforce no-demo runtime outside frozen billing scope
+        run: |
+          npm --workspace apps/manager run test:no-demo
+          npm --workspace apps/manager run verify:no-demo:non-billing
       - name: Verify generated Manager API types
         run: npm --workspace apps/manager run check:api-types
       - name: Test manager

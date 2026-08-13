@@ -7,13 +7,14 @@ import { PayrollTableClient } from "./PayrollTableClient";
 export default async function PayrollPage({
   searchParams,
 }: {
-  searchParams: { month?: string; year?: string };
+  searchParams: Promise<{ month?: string; year?: string }>;
 }) {
   await requireSession();
+  const params = await searchParams;
   
   const now = new Date();
-  const month = searchParams.month ? parseInt(searchParams.month, 10) : now.getMonth() + 1;
-  const year = searchParams.year ? parseInt(searchParams.year, 10) : now.getFullYear();
+  const month = params.month ? parseInt(params.month, 10) : now.getMonth() + 1;
+  const year = params.year ? parseInt(params.year, 10) : now.getFullYear();
 
   const slips = await loadPayrollSlips(month, year);
 

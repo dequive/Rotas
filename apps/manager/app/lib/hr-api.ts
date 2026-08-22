@@ -1,3 +1,4 @@
+import { HttpContractError } from "@rotas/http-contract";
 import { apiFetch } from "./api";
 
 export interface Employee {
@@ -83,11 +84,34 @@ export async function generatePayroll(month: number, year: number, employeeId?: 
   });
 }
 
-export async function loadPayrollSlips(month: number, year: number): Promise<PayrollSlip[]> {
+/**
+ * Payroll is gated by `hr.salary.view`, which manager and viewer do not hold.
+ *
+ * A refusal must not come back as an empty list: the page would render
+ * "nenhum registo" and tell the user there is no payroll for the month, when
+ * in fact there is payroll they are not allowed to see. The caller gets the
+ * outcome instead and renders the matching state.
+ */
+export type PayrollSlipsResult =
+  | { status: "ok"; slips: PayrollSlip[] }
+  | { status: "forbidden" }
+  | { status: "error"; message: string };
+
+export async function loadPayrollSlips(month: number, year: number): Promise<PayrollSlipsResult> {
   try {
-    return await apiFetch<PayrollSlip[]>(`/api/v1/hr/payroll?month=${month}&year=${year}`, { revalidate: 0 });
+    const slips = await apiFetch<PayrollSlip[]>(
+      `/api/v1/hr/payroll?month=${month}&year=${year}`,
+      { revalidate: 0 },
+    );
+    return { status: "ok", slips };
   } catch (err) {
+    if (err instanceof HttpContractError && err.status === 403) {
+      return { status: "forbidden" };
+    }
     console.error("Erro ao carregar processamento salarial", err);
-    return [];
+    return {
+      status: "error",
+      message: err instanceof Error ? err.message : "Erro ao carregar o processamento salarial.",
+    };
   }
 }

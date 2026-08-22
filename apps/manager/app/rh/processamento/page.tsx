@@ -2,6 +2,7 @@ import { requireSession } from "@/app/lib/auth";
 import { SidebarLayout } from "@/app/components/SidebarLayout";
 import { PageHeader } from "@/app/components/ui/PageHeader";
 import { loadPayrollSlips } from "@/app/lib/hr-api";
+import { ForbiddenState } from "@/app/components/ui/ForbiddenState";
 import { PayrollTableClient } from "./PayrollTableClient";
 
 export default async function PayrollPage({
@@ -15,7 +16,7 @@ export default async function PayrollPage({
   const month = searchParams.month ? parseInt(searchParams.month, 10) : now.getMonth() + 1;
   const year = searchParams.year ? parseInt(searchParams.year, 10) : now.getFullYear();
 
-  const slips = await loadPayrollSlips(month, year);
+  const payroll = await loadPayrollSlips(month, year);
 
   return (
     <SidebarLayout active="recursos_humanos">
@@ -58,7 +59,24 @@ export default async function PayrollPage({
           </form>
         </div>
 
-        <PayrollTableClient initialSlips={slips} month={month} year={year} />
+        {payroll.status === "forbidden" ? (
+          <ForbiddenState
+            resource="o processamento salarial"
+            grantedTo="administradores e ao proprietário da conta"
+          />
+        ) : payroll.status === "error" ? (
+          <div
+            className="rounded-xl border border-red/30 bg-red/5 px-6 py-8 text-center"
+            role="alert"
+          >
+            <p className="text-sm font-semibold text-ink">
+              Não foi possível carregar o processamento salarial
+            </p>
+            <p className="mt-1 text-xs text-muted">{payroll.message}</p>
+          </div>
+        ) : (
+          <PayrollTableClient initialSlips={payroll.slips} month={month} year={year} />
+        )}
       </div>
     </SidebarLayout>
   );

@@ -26,6 +26,8 @@ def serialize_advance(advance: DriverAdvance) -> dict[str, Any]:
         "trip_id": str(advance.trip_id),
         "driver_id": str(advance.driver_id),
         "amount_mzn": str(advance.amount_mzn),
+        "allowance_mzn": str(advance.allowance_mzn),
+        "expenses_mzn": str(advance.expenses_mzn),
         "currency": advance.currency,
         "status": advance.status,
         "issued_by": str(advance.issued_by) if advance.issued_by else None,
@@ -53,9 +55,7 @@ async def _require_advance(db: AsyncSession, tenant_id: UUID, advance_id: UUID) 
         )
     )
     if not advance:
-        raise ApiError(
-            "advance_not_found", "Advance not found.", status_code=status.HTTP_404_NOT_FOUND
-        )
+        raise ApiError("advance_not_found", "Advance not found.", status_code=status.HTTP_404_NOT_FOUND)
     return advance
 
 
@@ -68,12 +68,12 @@ async def issue_advance(
     db: AsyncSession,
     *,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     trip_id: UUID,
     driver_id: UUID,
     amount_mzn: Decimal,
-    allowance_mzn: Decimal,
-    expenses_mzn: Decimal,
+    allowance_mzn: Decimal | None = None,
+    expenses_mzn: Decimal = Decimal("0.00"),
     notes: str | None = None,
     request_reference: str | None = None,
 ) -> dict[str, Any]:
@@ -84,12 +84,20 @@ async def issue_advance(
     - Trip must be in 'planned' or 'in_progress' status.
     - No existing non-voided advance may exist for this trip (one advance per trip).
     """
+    if allowance_mzn is None:
+        allowance_mzn = amount_mzn - expenses_mzn
+    if amount_mzn <= 0 or allowance_mzn < 0 or expenses_mzn < 0 or allowance_mzn + expenses_mzn != amount_mzn:
+        raise ApiError(
+            "invalid_advance_breakdown",
+            "Advance amount must be positive and equal allowance plus expenses.",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
     trip = await _require_trip(db, tenant_id, trip_id)
     if trip.status not in DISPATCHABLE_STATUSES:
         raise ApiError(
             "trip_not_dispatchable",
-            f"Cannot issue advance for trip in status '{trip.status}'. "
-            "Trip must be 'planned' or 'in_progress'.",
+            f"Cannot issue advance for trip in status '{trip.status}'. Trip must be 'planned' or 'in_progress'.",
             status_code=status.HTTP_409_CONFLICT,
         )
 
@@ -132,23 +140,27 @@ async def issue_advance(
         entity_type="driver_advance",
         entity_id=advance.id,
         new_values={
-            "amount_mzn": str(amount_mzn), 
+            "amount_mzn": str(amount_mzn),
             "allowance_mzn": str(allowance_mzn),
             "expenses_mzn": str(expenses_mzn),
-            "trip_id": str(trip_id)
+            "trip_id": str(trip_id),
         },
     )
     # --- HOOK CONTABILISTICO (Fase 9) ---
-    from app.modules.accounting.services import create_journal_entry
-    from app.modules.accounting.schemas import JournalEntryCreate
-    from app.modules.accounting.schemas import JournalItemCreate as AccJournalItemCreate
-    from app.modules.accounting.models import Account
-    from sqlalchemy import select
     from datetime import datetime
 
+    from app.modules.accounting.models import Account
+    from app.modules.accounting.schemas import JournalEntryCreate
+    from app.modules.accounting.schemas import JournalItemCreate as AccJournalItemCreate
+    from app.modules.accounting.services import create_journal_entry
+
     if amount_mzn > 0:
-        acct_advances = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("42%")).limit(1))
-        acct_bank = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("12%")).limit(1))
+        acct_advances = await db.scalar(
+            select(Account).where(Account.tenant_id == tenant_id, Account.code.like("42%")).limit(1)
+        )
+        acct_bank = await db.scalar(
+            select(Account).where(Account.tenant_id == tenant_id, Account.code.like("12%")).limit(1)
+        )
 
         if acct_advances and acct_bank:
             await create_journal_entry(
@@ -164,17 +176,17 @@ async def issue_advance(
                             account_id=acct_advances.id,
                             description=f"Subsidio e Despesas - Viagem {trip_id}",
                             debit=amount_mzn,
-                            credit=Decimal("0.00")
+                            credit=Decimal("0.00"),
                         ),
                         AccJournalItemCreate(
                             account_id=acct_bank.id,
                             description="Saida de Tesouraria",
                             debit=Decimal("0.00"),
-                            credit=amount_mzn
-                        )
-                    ]
+                            credit=amount_mzn,
+                        ),
+                    ],
                 ),
-                actor_id=user_id
+                actor_id=user_id,
             )
     # ------------------------------------
 
@@ -187,7 +199,7 @@ async def void_advance(
     db: AsyncSession,
     *,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     advance_id: UUID,
 ) -> dict[str, Any]:
     """Void an issued advance. Cannot void a settled advance."""

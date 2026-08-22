@@ -50,9 +50,7 @@ class Vehicle(Base):
     avg_consumption_target: Mapped[float | None] = mapped_column(Numeric(10, 2))
     fuel_limit_daily: Mapped[float | None] = mapped_column(Numeric(10, 2))
     max_payload_kg: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
-    ownership_type: Mapped[str] = mapped_column(
-        String(20), server_default="fleet", default="fleet", index=True
-    )
+    ownership_type: Mapped[str] = mapped_column(String(20), server_default="fleet", default="fleet", index=True)
     customer_client_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -87,9 +85,9 @@ class InsuranceClaim(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
     vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"), index=True)
-    insurance_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicle_insurances.id"), index=True)
+    insurance_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicle_insurances.id", ondelete="CASCADE"), index=True)
     incident_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("trip_incidents.id"), nullable=True, index=True
+        ForeignKey("trip_incidents.id", ondelete="SET NULL"), nullable=True, index=True
     )
     claim_number: Mapped[str | None] = mapped_column(String(80), nullable=True)
     claim_date: Mapped[date] = mapped_column(Date())

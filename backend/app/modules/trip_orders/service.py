@@ -373,7 +373,7 @@ async def reject_dispatch_clearance(
     *,
     order_id: UUID,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     rejection_reason: str,
 ) -> TripOrder:
     """SM-04: Reject dispatch clearance — sets status to 'rejected' with reason and timestamp."""

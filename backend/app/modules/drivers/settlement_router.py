@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
@@ -11,9 +13,10 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.errors import ApiError
+from app.core.openapi_responses import PDF_RESPONSE
 from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
 from app.modules.drivers import settlement_service
 from app.modules.drivers.models import TripSettlement
@@ -23,6 +26,24 @@ router = APIRouter(prefix="/trips", tags=["settlements"])
 
 class RejectSettlementRequest(BaseModel):
     reason: str
+
+
+class SettlementResponse(BaseModel):
+    """Mirrors `settlement_service.serialize_settlement`."""
+
+    id: UUID
+    tenant_id: UUID
+    trip_id: UUID
+    advance_id: UUID | None = None
+    total_costs_mzn: Decimal
+    advance_amount_mzn: Decimal
+    balance_mzn: Decimal
+    status: str
+    approved_by: UUID | None = None
+    approved_at: datetime | None = None
+    rejection_reason: str | None = None
+    pdf_file_id: UUID | None = None
+    settled_at: datetime | None = None
 
 
 async def _get_settlement(db: AsyncSession, tenant_id: UUID, trip_id: UUID) -> TripSettlement:
@@ -41,7 +62,11 @@ async def _get_settlement(db: AsyncSession, tenant_id: UUID, trip_id: UUID) -> T
     return s
 
 
-@router.post("/{trip_id}/settlement", status_code=status.HTTP_200_OK)
+@router.post(
+    "/{trip_id}/settlement",
+    status_code=status.HTTP_200_OK,
+    response_model=SettlementResponse,
+)
 async def compute_settlement(
     trip_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
@@ -59,7 +84,7 @@ async def compute_settlement(
     )
 
 
-@router.get("/{trip_id}/settlement")
+@router.get("/{trip_id}/settlement", response_model=SettlementResponse)
 async def get_settlement(
     trip_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -70,7 +95,7 @@ async def get_settlement(
     return settlement_service.serialize_settlement(s)
 
 
-@router.post("/{trip_id}/settlement/approve")
+@router.post("/{trip_id}/settlement/approve", response_model=SettlementResponse)
 async def approve_settlement(
     trip_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
@@ -86,7 +111,7 @@ async def approve_settlement(
     )
 
 
-@router.post("/{trip_id}/settlement/reject")
+@router.post("/{trip_id}/settlement/reject", response_model=SettlementResponse)
 async def reject_settlement(
     trip_id: UUID,
     payload: RejectSettlementRequest,
@@ -104,7 +129,7 @@ async def reject_settlement(
     )
 
 
-@router.get("/{trip_id}/settlement/pdf")
+@router.get("/{trip_id}/settlement/pdf", responses=PDF_RESPONSE)
 async def download_settlement_pdf(
     trip_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],

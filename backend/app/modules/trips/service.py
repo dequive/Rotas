@@ -1,4 +1,6 @@
+import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import status
@@ -446,7 +448,11 @@ async def evaluate_delivery_sla(
                     "evaluated_at": evaluated_at,
                 },
             )
-        delay_minutes = int((evaluated_at - trip.planned_arrival).total_seconds() // 60)
+        delay_minutes = (
+            int((evaluated_at - trip.planned_arrival).total_seconds() // 60)
+            if trip.planned_arrival is not None
+            else 0
+        )
         await ensure_exception(
             db,
             tenant_id,
@@ -459,7 +465,7 @@ async def evaluate_delivery_sla(
             actor_id=actor_id,
             context={
                 "trip_id": str(trip.id),
-                "planned_arrival": trip.planned_arrival.isoformat(),
+                "planned_arrival": trip.planned_arrival.isoformat() if trip.planned_arrival is not None else None,
                 "delay_minutes": delay_minutes,
             },
             source_type="trip",
@@ -537,6 +543,8 @@ async def create_trip(
             },
         )
 
+    waybill_num = f"GT-{datetime.now(UTC).year}/{str(uuid.uuid4()).split('-')[0].upper()}"
+
     trip = Trip(
         tenant_id=tenant_id,
         contract_id=payload.contract_id,
@@ -552,6 +560,7 @@ async def create_trip(
         load_state=payload.load_state,
         requires_load_permit=payload.requires_load_permit,
         requires_cargo_manifest=payload.requires_cargo_manifest,
+        waybill_number=waybill_num,
         planned_departure=payload.planned_departure,
         planned_arrival=payload.planned_arrival,
         contract_reference=contract_reference,
@@ -607,10 +616,10 @@ async def start_trip(
     actor_id: UUID | None = None,
 ) -> dict:
     trip = await _require_trip(db, tenant_id, trip_id)
-    if trip.status not in {"draft", "planned", "dispatched"}:
+    if trip.status != "dispatched":
         raise ApiError(
-            "invalid_trip_status",
-            "Only draft, planned or dispatched trips can be started.",
+            "dispatch_required",
+            "Trip must pass dispatch clearance and dispatch before it can be started.",
             status_code=409,
             details={"status": trip.status},
         )
@@ -1447,6 +1456,7 @@ async def operational_close_trip(
         source="system",
     )
     db.add(event)
+    closed_at = trip.closed_at
     await record_audit_log(
         db,
         tenant_id=tenant_id,
@@ -1457,7 +1467,7 @@ async def operational_close_trip(
         old_values={"status": old_status},
         new_values={
             "status": trip.status,
-            "closed_at": trip.closed_at.isoformat(),
+            "closed_at": closed_at.isoformat() if closed_at is not None else None,
             "validated_proof_id": str(validated_proof) if validated_proof else None,
             "total_transport_cost": str(trip.total_transport_cost),
             "actual_margin": str(trip.actual_margin),
@@ -1501,7 +1511,7 @@ async def _trip_allowance_distance(
                 "Trip allowance distance cannot be negative.",
                 status_code=422,
             )
-        return float(override_distance_km)
+        return override_distance_km
 
     if trip.trip_order_id:
         order = await db.get(TripOrder, trip.trip_order_id)
@@ -1675,3 +1685,63 @@ async def patch_stop(
         "arrived_at": getattr(stop, "arrived_at", None),
         "departed_at": getattr(stop, "departed_at", None),
     }
+
+
+async def optimize_trip_route(
+    db: AsyncSession,
+    tenant_id: UUID,
+    trip_id: UUID,
+    *,
+    actor_id: UUID | None = None,
+) -> dict:
+    from app.modules.trips import routing
+
+    trip = await _require_trip(db, tenant_id, trip_id)
+
+    # Fetch stops
+    stmt = select(TripStop).where(TripStop.trip_id == trip.id, TripStop.tenant_id == tenant_id)
+    res = await db.execute(stmt)
+    stops = list(res.scalars().all())
+
+    # Format stops for optimizer
+    stops_payload = [{"id": s.id, "location": s.location, "instance": s} for s in stops]
+
+    ordered_stops_payload = routing.optimize_waypoint_sequence(
+        trip.origin_location,
+        trip.destination_location,
+        stops_payload,
+    )
+
+    # Update sequence numbers on stops
+    for item in ordered_stops_payload:
+        stop_obj = item["instance"]
+        stop_obj.sequence_number = item["sequence_number"]
+
+    # Build full list of waypoints for OSRM
+    waypoints: list[dict[str, float]] = []
+    if trip.origin_location and "lat" in trip.origin_location and "lon" in trip.origin_location:
+        waypoints.append({"lat": float(trip.origin_location["lat"]), "lon": float(trip.origin_location["lon"])})
+
+    for item in ordered_stops_payload:
+        loc = item.get("location")
+        if loc and "lat" in loc and "lon" in loc:
+            waypoints.append({"lat": float(loc["lat"]), "lon": float(loc["lon"])})
+
+    if trip.destination_location and "lat" in trip.destination_location and "lon" in trip.destination_location:
+        waypoints.append(
+            {
+                "lat": float(trip.destination_location["lat"]),
+                "lon": float(trip.destination_location["lon"]),
+            }
+        )
+
+    route_data = await routing.fetch_osrm_route(waypoints)
+
+    trip.route_geometry = route_data["geometry"]
+    trip.route_polyline = route_data["polyline"]
+    trip.route_distance_km = Decimal(str(route_data["distance_km"]))
+    trip.route_duration_seconds = route_data["duration_seconds"]
+
+    await db.commit()
+    await db.refresh(trip)
+    return serialize_trip(trip)

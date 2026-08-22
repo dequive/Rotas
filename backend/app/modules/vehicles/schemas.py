@@ -62,10 +62,25 @@ class VehicleRead(BaseModel):
     id: UUID
     tenant_id: UUID
     plate: str
+    chassis: str | None = None
+    brand: str | None = None
+    model: str | None = None
+    year: int | None = None
+    color: str | None = None
+    category: str
     status: str
     current_km: int
+    fuel_type: str
+    documents: dict | None = None
+    qr_code_hash: str | None = None
+    photo_file_id: UUID | None = None
+    avg_consumption_target: Decimal | None = None
+    fuel_limit_daily: Decimal | None = None
+    max_payload_kg: Decimal | None = None
     ownership_type: str = "fleet"
     customer_client_id: UUID | None = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class VehicleDocumentRenewalRequest(BaseModel):
@@ -148,3 +163,57 @@ class InsuranceClaimRead(BaseModel):
 class InsuranceClaimStatusUpdate(BaseModel):
     status: str = Field(..., pattern="^(open|under_review|paid|rejected)$")
     notes: str | None = None
+
+
+# ── Response contracts (F7.2) ─────────────────────────────────────────────────
+
+
+class VehicleQrCodeRead(BaseModel):
+    vehicle_id: UUID
+    plate: str
+    qr_code_hash: str
+    deep_link: str
+
+
+class VehicleHistorySubject(BaseModel):
+    id: UUID
+    plate: str
+    status: str
+    current_km: int | None = None
+
+
+class VehicleHistoryItem(BaseModel):
+    occurred_at: datetime | None = None
+    source: str
+    event_type: str
+    summary: str | None = None
+    reference_type: str | None = None
+    reference_id: UUID | None = None
+    details: dict = Field(default_factory=dict)
+
+
+class VehicleHistoryPage(BaseModel):
+    """Legacy offset-paginated shape (no cursor/types/from/to query params)."""
+
+    vehicle: VehicleHistorySubject
+    items: list[VehicleHistoryItem]
+    limit: int
+    offset: int
+    returned: int
+
+
+class VehicleHistoryEvent(BaseModel):
+    event_type: str
+    event_date: datetime | None = None
+    title: str | None = None
+    description: str | None = None
+    reference_id: UUID | None = None
+    odometer_reading: int | None = None
+
+
+class VehicleHistoryCursorPage(BaseModel):
+    """Cursor-paginated shape, returned when cursor/types/from/to are supplied."""
+
+    events: list[VehicleHistoryEvent]
+    next_cursor: str | None = None
+    total_count: int

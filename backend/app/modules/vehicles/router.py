@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
@@ -16,7 +16,7 @@ from app.modules.vehicles import insurance_service, schemas, service
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 
 
-@router.get("")
+@router.get("", response_model=list[schemas.VehicleRead])
 async def list_vehicles(
     request: Request,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -29,7 +29,11 @@ async def list_vehicles(
     offset: int = Query(0, ge=0),
 ):
     redis = getattr(request.app.state, "redis", None)
-    cache_key = f"tenant:{principal.tenant_id}:vehicles:status={status}:own={ownership_type}:client={customer_client_id}:search={search}:limit={limit}:offset={offset}"
+    cache_key = (
+        f"tenant:{principal.tenant_id}:vehicles:status={status}:"
+        f"own={ownership_type}:client={customer_client_id}:search={search}:"
+        f"limit={limit}:offset={offset}"
+    )
     if redis is not None:
         cached = await redis.get(cache_key)
         if cached:
@@ -51,7 +55,7 @@ async def list_vehicles(
     return result
 
 
-@router.post("")
+@router.post("", response_model=schemas.VehicleRead)
 async def create_vehicle(
     request: Request,
     payload: schemas.VehicleCreate,
@@ -80,7 +84,7 @@ async def create_vehicle(
     return res
 
 
-@router.get("/{vehicle_id}")
+@router.get("/{vehicle_id}", response_model=schemas.VehicleRead)
 async def get_vehicle(
     vehicle_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -89,7 +93,10 @@ async def get_vehicle(
     return await service.get_vehicle(db, principal.tenant_id, vehicle_id)
 
 
-@router.get("/{vehicle_id}/history")
+@router.get(
+    "/{vehicle_id}/history",
+    response_model=schemas.VehicleHistoryCursorPage | schemas.VehicleHistoryPage,
+)
 async def list_vehicle_history(
     vehicle_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -150,7 +157,7 @@ async def get_vehicle_availability(
     )
 
 
-@router.patch("/{vehicle_id}")
+@router.patch("/{vehicle_id}", response_model=schemas.VehicleRead)
 async def patch_vehicle(
     request: Request,
     vehicle_id: UUID,
@@ -169,7 +176,7 @@ async def patch_vehicle(
     return res
 
 
-@router.get("/{vehicle_id}/qr-code")
+@router.get("/{vehicle_id}/qr-code", response_model=schemas.VehicleQrCodeRead)
 async def get_vehicle_qr_code(
     vehicle_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -212,7 +219,7 @@ async def renew_vehicle_document(
 # ── INS-01: Insurance policy routes ──────────────────────────────────────────
 
 
-@router.get("/{vehicle_id}/insurance")
+@router.get("/{vehicle_id}/insurance", response_model=list[schemas.VehicleInsuranceRead])
 async def list_vehicle_insurances(
     vehicle_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -220,12 +227,14 @@ async def list_vehicle_insurances(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    return await insurance_service.list_insurances(
-        db, principal.tenant_id, vehicle_id, limit=limit, offset=offset
-    )
+    return await insurance_service.list_insurances(db, principal.tenant_id, vehicle_id, limit=limit, offset=offset)
 
 
-@router.post("/{vehicle_id}/insurance", status_code=201)
+@router.post(
+    "/{vehicle_id}/insurance",
+    status_code=201,
+    response_model=schemas.VehicleInsuranceRead,
+)
 async def create_vehicle_insurance(
     request: Request,
     vehicle_id: UUID,
@@ -240,7 +249,10 @@ async def create_vehicle_insurance(
     return res
 
 
-@router.get("/{vehicle_id}/insurance/{insurance_id}")
+@router.get(
+    "/{vehicle_id}/insurance/{insurance_id}",
+    response_model=schemas.VehicleInsuranceRead,
+)
 async def get_vehicle_insurance(
     vehicle_id: UUID,
     insurance_id: UUID,
@@ -250,7 +262,10 @@ async def get_vehicle_insurance(
     return await insurance_service.get_insurance(db, principal.tenant_id, vehicle_id, insurance_id)
 
 
-@router.patch("/{vehicle_id}/insurance/{insurance_id}")
+@router.patch(
+    "/{vehicle_id}/insurance/{insurance_id}",
+    response_model=schemas.VehicleInsuranceRead,
+)
 async def update_vehicle_insurance(
     request: Request,
     vehicle_id: UUID,

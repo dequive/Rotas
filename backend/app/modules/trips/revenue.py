@@ -64,8 +64,10 @@ async def auto_calculate_revenue(db: AsyncSession, tenant_id: UUID, trip: Trip) 
 
             if km_diff > 0:
                 distance = Decimal(km_diff)
-            else:
+            elif known_route is not None:
                 distance = _decimal(known_route.distance_km)
+            else:
+                distance = Decimal("0.00")
             return _decimal(unit_price * distance)
         else:
             return unit_price

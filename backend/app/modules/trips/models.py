@@ -92,6 +92,10 @@ class Trip(Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     operational_close_notes: Mapped[str | None] = mapped_column(Text)
+    route_geometry: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    route_polyline: Mapped[str | None] = mapped_column(Text, nullable=True)
+    route_distance_km: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    route_duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -170,6 +174,7 @@ class TripStop(Base):
     expense_category: Mapped[str | None] = mapped_column(String(60))
     stopped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     resumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sequence_number: Mapped[int | None] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -288,6 +293,8 @@ class KnownRoute(Base):
     avg_fuel_liters: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     despacho_vazio: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     despacho_carregado: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    destination_lat: Mapped[Decimal | None] = mapped_column(Numeric(9, 6), nullable=True)
+    destination_lon: Mapped[Decimal | None] = mapped_column(Numeric(9, 6), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

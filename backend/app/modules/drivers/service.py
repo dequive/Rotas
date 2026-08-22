@@ -3,11 +3,11 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import status
-from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy import func, literal, or_, select, text, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.cache import AsyncRedisHashClient
 from app.core.errors import ApiError
 from app.core.tokens import hash_token
 from app.modules.audit.models import AuditLog
@@ -54,7 +54,7 @@ def serialize_driver(driver: Driver) -> dict:
 
 
 async def _get_cached_driver_count(
-    db: AsyncSession, tenant_id: UUID, redis: AsyncRedis | None
+    db: AsyncSession, tenant_id: UUID, redis: AsyncRedisHashClient | None
 ) -> int:
     """Return active driver count from Redis cache (TTL 30s) or DB (D-15)."""
     cache_key = f"tenant:limits:{tenant_id}"
@@ -72,12 +72,14 @@ async def _get_cached_driver_count(
     )
     count = result.scalar_one()
     if redis is not None:
-        await redis.hset(cache_key, "driver_count", count)
+        await redis.hset(cache_key, "driver_count", str(count))
         await redis.expire(cache_key, 30)
     return count
 
 
-async def _check_driver_limit(db: AsyncSession, tenant: Tenant, redis: AsyncRedis | None) -> None:
+async def _check_driver_limit(
+    db: AsyncSession, tenant: Tenant, redis: AsyncRedisHashClient | None
+) -> None:
     """Raise plan_limit_reached if tenant is at or over max_drivers (D-13, D-14).
 
     Skip entirely when max_drivers is None (unlimited enterprise plan).
@@ -153,7 +155,7 @@ async def create_driver(
     payload: DriverCreate,
     *,
     actor_id: UUID | None = None,
-    redis: AsyncRedis | None = None,
+    redis: AsyncRedisHashClient | None = None,
 ) -> dict:
     tenant = await db.get(Tenant, tenant_id)
     if not tenant or not tenant.is_active:
@@ -234,14 +236,10 @@ async def list_driver_history(
     )
 
     _trips = select(
-        func.coalesce(Trip.actual_departure, Trip.planned_departure, Trip.created_at).label(
-            "occurred_at"
-        ),
+        func.coalesce(Trip.actual_departure, Trip.planned_departure, Trip.created_at).label("occurred_at"),
         literal("trips").label("source"),
         func.concat("trip.", Trip.status).label("event_type"),
-        func.concat("Trip ", Trip.origin, " -> ", Trip.destination, " is ", Trip.status, ".").label(
-            "summary"
-        ),
+        func.concat("Trip ", Trip.origin, " -> ", Trip.destination, " is ", Trip.status, ".").label("summary"),
         literal("trip").label("reference_type"),
         Trip.id.label("reference_id"),
         func.jsonb_build_object(
@@ -265,9 +263,7 @@ async def list_driver_history(
     ).where(Trip.tenant_id == tid, Trip.driver_id == did)
 
     _checklists = select(
-        func.coalesce(
-            Checklist.completed_at, Checklist.client_captured_at, Checklist.created_at
-        ).label("occurred_at"),
+        func.coalesce(Checklist.completed_at, Checklist.client_captured_at, Checklist.created_at).label("occurred_at"),
         literal("checklists").label("source"),
         func.concat("checklist.", Checklist.status).label("event_type"),
         func.concat(Checklist.type, " checklist ", Checklist.status, ".").label("summary"),
@@ -335,9 +331,7 @@ async def list_driver_history(
         TripIncident.occurred_at.label("occurred_at"),
         literal("incidents").label("source"),
         func.concat("incident.", TripIncident.status).label("event_type"),
-        func.concat(TripIncident.severity, " ", TripIncident.incident_type, " incident.").label(
-            "summary"
-        ),
+        func.concat(TripIncident.severity, " ", TripIncident.incident_type, " incident.").label("summary"),
         literal("trip_incident").label("reference_type"),
         TripIncident.id.label("reference_id"),
         func.jsonb_build_object(
@@ -355,14 +349,10 @@ async def list_driver_history(
     ).where(TripIncident.tenant_id == tid, TripIncident.driver_id == did)
 
     _waivers = select(
-        func.coalesce(OperationalWaiver.approved_at, OperationalWaiver.created_at).label(
-            "occurred_at"
-        ),
+        func.coalesce(OperationalWaiver.approved_at, OperationalWaiver.created_at).label("occurred_at"),
         literal("operations").label("source"),
         func.concat("waiver.", OperationalWaiver.status).label("event_type"),
-        func.concat(
-            OperationalWaiver.risk_level, " ", OperationalWaiver.waiver_type, " waiver."
-        ).label("summary"),
+        func.concat(OperationalWaiver.risk_level, " ", OperationalWaiver.waiver_type, " waiver.").label("summary"),
         literal("operational_waiver").label("reference_type"),
         OperationalWaiver.id.label("reference_id"),
         func.jsonb_build_object(
@@ -587,9 +577,7 @@ async def get_driver_scorecard(
     # --- Metric 4: Stop efficiency (15%) ---
     stop_data = await db.execute(
         select(
-            func.avg(func.extract("epoch", TripStop.resumed_at - TripStop.stopped_at) / 60.0).label(
-                "avg_stop_minutes"
-            )
+            func.avg(func.extract("epoch", TripStop.resumed_at - TripStop.stopped_at) / 60.0).label("avg_stop_minutes")
         )
         .join(Trip, Trip.id == TripStop.trip_id)
         .where(
@@ -711,11 +699,12 @@ async def renew_driver_document(
 
 async def get_driver_hub360(db: AsyncSession, tenant_id: UUID, driver_id: UUID) -> dict:
     """Hub 360: Compila Motorista + Últimas Viagens + Documentos Caducados + Adiantamentos Pendentes."""
-    from app.modules.drivers.models import DriverAdvance
     from decimal import Decimal
 
+    from app.modules.drivers.models import DriverAdvance
+
     driver = await _require_driver(db, tenant_id, driver_id)
-    
+
     # 1. Viagens
     result_trips = await db.execute(
         select(Trip)
@@ -724,41 +713,48 @@ async def get_driver_hub360(db: AsyncSession, tenant_id: UUID, driver_id: UUID) 
         .limit(5)
     )
     trips = result_trips.scalars().all()
-    
+
     # 2. Adiantamentos Pendentes
     result_advances = await db.execute(
-        select(DriverAdvance)
-        .where(
-            DriverAdvance.driver_id == driver_id, 
-            DriverAdvance.tenant_id == tenant_id,
-            DriverAdvance.status == "issued"
+        select(DriverAdvance).where(
+            DriverAdvance.driver_id == driver_id, DriverAdvance.tenant_id == tenant_id, DriverAdvance.status == "issued"
         )
     )
     advances = result_advances.scalars().all()
     pending_amount = sum(a.amount_mzn for a in advances)
-    
+
     # 3. Documentos (Semaforo)
     today = datetime.now().date()
     alerts = []
-    
+
     if driver.license_valid_until:
         days = (driver.license_valid_until - today).days
         if days < 0:
             alerts.append({"type": "license", "status": "expired", "message": "Carta de Condução Caducada!"})
         elif days <= 30:
-            alerts.append({"type": "license", "status": "warning", "message": f"Carta de Condução expira em {days} dias"})
-            
+            alerts.append(
+                {"type": "license", "status": "warning", "message": f"Carta de Condução expira em {days} dias"}
+            )
+
     if driver.passport_valid_until:
         days = (driver.passport_valid_until - today).days
         if days < 0:
             alerts.append({"type": "passport", "status": "expired", "message": "Passaporte Caducado!"})
         elif days <= 30:
             alerts.append({"type": "passport", "status": "warning", "message": f"Passaporte expira em {days} dias"})
-            
+
     return {
         "driver": serialize_driver(driver),
-        "recent_trips": [{"id": t.id, "route_name": t.route_name, "status": t.status, "date": t.created_at} for t in trips],
+        "recent_trips": [
+            {
+                "id": t.id,
+                "route_name": f"{t.origin} → {t.destination}",
+                "status": t.status,
+                "date": t.created_at,
+            }
+            for t in trips
+        ],
         "pending_advances_count": len(advances),
         "pending_advances_total": pending_amount or Decimal("0.00"),
-        "document_alerts": alerts
+        "document_alerts": alerts,
     }

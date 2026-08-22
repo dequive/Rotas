@@ -347,7 +347,7 @@ async def accept_delivery_proof(
     *,
     proof_id: UUID,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
 ) -> DeliveryProof:
     """SM-03: Accept delivery proof — sets trip.billing_status = 'billable'."""
     proof = await db.get(DeliveryProof, proof_id)
@@ -392,7 +392,7 @@ async def reject_delivery_proof(
     *,
     proof_id: UUID,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     rejection_reason: str,
 ) -> DeliveryProof:
     """SM-03: Reject delivery proof — creates operational_exception automatically."""
@@ -783,7 +783,7 @@ async def create_guia_remessa(
     tenant_id: UUID,
     trip_id: UUID,
     payload: GuiaRemessaCreate,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     await _require_trip(db, tenant_id, trip_id)
 
@@ -853,7 +853,7 @@ async def create_carta_porte(
     tenant_id: UUID,
     trip_id: UUID,
     payload: CartaPorteCreate,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     await _require_trip(db, tenant_id, trip_id)
 
@@ -925,7 +925,7 @@ async def create_dav(
     tenant_id: UUID,
     trip_id: UUID,
     payload: DAVCreate,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     await _require_trip(db, tenant_id, trip_id)
 
@@ -970,7 +970,7 @@ async def create_declaracao_carga_perigosa(
     tenant_id: UUID,
     trip_id: UUID,
     payload: DeclaracaoCargaPerisgosaCreate,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     trip = await _require_trip(db, tenant_id, trip_id)
 
@@ -1043,7 +1043,7 @@ async def get_document_checklist(
     is_international = trip.is_international
     is_hazmat = trip.is_hazmat
 
-    required: set[str] = _INTERNATIONAL_DOC_TYPES if is_international else _DOMESTIC_DOC_TYPES
+    required = set(_INTERNATIONAL_DOC_TYPES if is_international else _DOMESTIC_DOC_TYPES)
     if is_hazmat:
         required = required | _HAZMAT_EXTRA
 

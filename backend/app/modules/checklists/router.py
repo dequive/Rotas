@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
@@ -58,7 +58,7 @@ async def create_template(
     )
 
 
-@router.get("/checklists")
+@router.get("/checklists", response_model=list[schemas.ChecklistRead])
 async def list_checklists(
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],

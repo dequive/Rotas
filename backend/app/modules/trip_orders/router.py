@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
@@ -15,7 +15,7 @@ from app.modules.trip_orders.schemas import DispatchClearanceRejectRequest
 router = APIRouter(prefix="/trip-orders", tags=["trip-orders"])
 
 
-@router.get("")
+@router.get("", response_model=list[schemas.TripOrderResponse])
 async def list_trip_orders(
     principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -36,7 +36,7 @@ async def list_trip_orders(
     )
 
 
-@router.post("")
+@router.post("", response_model=schemas.TripOrderResponse)
 async def create_trip_order(
     request: Request,
     payload: schemas.TripOrderCreate,
@@ -64,7 +64,7 @@ async def create_trip_order(
     return res
 
 
-@router.get("/{order_id}")
+@router.get("/{order_id}", response_model=schemas.TripOrderResponse)
 async def get_trip_order(
     order_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
@@ -73,7 +73,7 @@ async def get_trip_order(
     return await service.get_trip_order(db, principal.tenant_id, order_id)
 
 
-@router.post("/{order_id}/confirm")
+@router.post("/{order_id}/confirm", response_model=schemas.TripOrderResponse)
 async def confirm_trip_order(
     request: Request,
     order_id: UUID,
@@ -103,7 +103,7 @@ async def confirm_trip_order(
     return res
 
 
-@router.post("/{order_id}/assign")
+@router.post("/{order_id}/assign", response_model=schemas.TripOrderAssignmentResponse)
 async def assign_trip_order(
     request: Request,
     order_id: UUID,
@@ -133,7 +133,7 @@ async def assign_trip_order(
     return res
 
 
-@router.post("/{order_id}/cancel")
+@router.post("/{order_id}/cancel", response_model=schemas.TripOrderResponse)
 async def cancel_trip_order(
     request: Request,
     order_id: UUID,
@@ -169,7 +169,7 @@ async def reject_dispatch_endpoint(
     body: DispatchClearanceRejectRequest,
     db: Annotated[AsyncSession, Depends(get_session)],
     principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
-    request: Request = None,
+    request: Request,
 ):
     from app.modules.trip_orders.service import reject_dispatch_clearance
 

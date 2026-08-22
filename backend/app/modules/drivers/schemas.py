@@ -1,7 +1,7 @@
 import re
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List
+from typing import Literal, overload
 from uuid import UUID
 
 from pydantic import BaseModel, field_validator
@@ -34,6 +34,14 @@ def _normalize_email(v: str | None) -> str | None:
     if not re.match(r"^[^@]+@[^@]+\.[^@]+$", cleaned):
         raise ValueError("Invalid email address format.")
     return cleaned
+
+
+@overload
+def _validate_future_date(v: date) -> date: ...
+
+
+@overload
+def _validate_future_date(v: None) -> None: ...
 
 
 def _validate_future_date(v: date | None) -> date | None:
@@ -113,7 +121,66 @@ class DriverRead(BaseModel):
     id: UUID
     tenant_id: UUID
     full_name: str
+    phone: str | None = None
+    email: str | None = None
+    emergency_contact_name: str | None = None
+    emergency_contact_phone: str | None = None
+    license_number: str | None = None
+    license_category: str | None = None
+    license_valid_until: date | None = None
+    passport_number: str | None = None
+    passport_valid_until: date | None = None
+    bi_number: str | None = None
+    bi_valid_until: date | None = None
+    inss_number: str | None = None
+    employment_type: str | None = None
+    documents: dict[str, object] | None = None
     status: str
+    score: int
+    photo_file_id: UUID | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PairingCodeRead(BaseModel):
+    driver_id: UUID
+    pairing_code: str
+    expires_at: datetime
+
+
+class DriverScorecardRead(BaseModel):
+    driver_id: UUID
+    score: float | None
+    tier: Literal["verde", "amarelo", "vermelho", "insuficiente"]
+    period_days: int
+    completed_trips: int
+    message: str | None = None
+    metrics: dict[str, float]
+
+
+class DriverHistorySubjectRead(BaseModel):
+    id: UUID
+    full_name: str
+    status: str
+    score: int
+
+
+class DriverHistoryEventRead(BaseModel):
+    occurred_at: datetime | None
+    source: str
+    event_type: str
+    summary: str
+    reference_type: str
+    reference_id: UUID
+    details: dict[str, object]
+
+
+class DriverHistoryRead(BaseModel):
+    driver: DriverHistorySubjectRead
+    items: list[DriverHistoryEventRead]
+    limit: int
+    offset: int
+    returned: int
 
 
 class DriverDocumentRenewalRequest(BaseModel):
@@ -141,8 +208,7 @@ class RecentTripRead(BaseModel):
 
 class DriverHub360Response(BaseModel):
     driver: dict
-    recent_trips: List[RecentTripRead]
+    recent_trips: list[RecentTripRead]
     pending_advances_count: int
     pending_advances_total: Decimal
-    document_alerts: List[DocumentAlert]
-
+    document_alerts: list[DocumentAlert]

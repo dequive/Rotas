@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from app.core.tokens import create_access_token
 from app.modules.checklists.models import ChecklistTemplate
 from app.modules.drivers.models import Driver, DriverDevice
+from app.modules.fuel.models import FuelLog
 from app.modules.trips.models import Trip, TripStop
 from app.modules.vehicles.models import Vehicle
 
@@ -353,3 +354,132 @@ async def test_driver_sync_cannot_add_operations_to_a_closed_trip(
         )
         == 0
     )
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_cannot_submit_another_drivers_fuel_log(
+    async_client, db, driver_app_context
+):
+    reference = f"foreign-driver-{uuid4()}"
+    response = await async_client.post(
+        "/api/v1/sync/batch",
+        headers=driver_app_context["headers"],
+        json={
+            "device_id": driver_app_context["device_id"],
+            "operations": [
+                {
+                    "local_id": "foreign-fuel",
+                    "idempotency_key": str(uuid4()),
+                    "operation": "create",
+                    "entity_type": "fuel_log",
+                    "payload": {
+                        "driverId": str(driver_app_context["other_driver"].id),
+                        "vehicleId": str(driver_app_context["vehicle"].id),
+                        "fuelDate": "2026-08-22T12:00:00+00:00",
+                        "liters": 30,
+                        "totalCost": 3000,
+                        "kmAtRefuel": 1000,
+                        "paymentReference": reference,
+                    },
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    result = response.json()["results"][0]
+    assert result["status"] == "failed"
+    assert result["error_code"] == "driver_identity_mismatch"
+    assert await db.scalar(
+        select(func.count(FuelLog.id)).where(FuelLog.payment_reference == reference)
+    ) == 0
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_cannot_use_an_unassigned_vehicle(
+    async_client, db, driver_app_context
+):
+    reference = f"unassigned-vehicle-{uuid4()}"
+    response = await async_client.post(
+        "/api/v1/sync/batch",
+        headers=driver_app_context["headers"],
+        json={
+            "device_id": driver_app_context["device_id"],
+            "operations": [
+                {
+                    "local_id": "unassigned-fuel",
+                    "idempotency_key": str(uuid4()),
+                    "operation": "create",
+                    "entity_type": "fuel_log",
+                    "payload": {
+                        "driverId": str(driver_app_context["driver"].id),
+                        "vehicleId": str(driver_app_context["vehicle"].id),
+                        "fuelDate": "2026-08-22T12:00:00+00:00",
+                        "liters": 30,
+                        "totalCost": 3000,
+                        "kmAtRefuel": 1000,
+                        "paymentReference": reference,
+                    },
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    result = response.json()["results"][0]
+    assert result["status"] == "failed"
+    assert result["error_code"] == "driver_vehicle_forbidden"
+    assert await db.scalar(
+        select(func.count(FuelLog.id)).where(FuelLog.payment_reference == reference)
+    ) == 0
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_accepts_own_assigned_vehicle(
+    async_client, db, tenant_id, driver_app_context
+):
+    assigned_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="in_progress",
+        billing_status="pending_delivery_proof",
+    )
+    db.add(assigned_trip)
+    await db.commit()
+    reference = f"assigned-vehicle-{uuid4()}"
+
+    response = await async_client.post(
+        "/api/v1/sync/batch",
+        headers=driver_app_context["headers"],
+        json={
+            "device_id": driver_app_context["device_id"],
+            "operations": [
+                {
+                    "local_id": "assigned-fuel",
+                    "idempotency_key": str(uuid4()),
+                    "operation": "create",
+                    "entity_type": "fuel_log",
+                    "payload": {
+                        "driverId": str(driver_app_context["driver"].id),
+                        "vehicleId": str(driver_app_context["vehicle"].id),
+                        "fuelDate": "2026-08-22T12:00:00+00:00",
+                        "liters": 30,
+                        "totalCost": 3000,
+                        "kmAtRefuel": 1300,
+                        "paymentReference": reference,
+                    },
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    result = response.json()["results"][0]
+    assert result["status"] == "processed"
+    assert result["error_code"] is None
+    assert await db.scalar(
+        select(func.count(FuelLog.id)).where(FuelLog.payment_reference == reference)
+    ) == 1

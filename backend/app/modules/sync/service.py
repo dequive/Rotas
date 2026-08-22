@@ -45,6 +45,7 @@ ACTIVE_ASSIGNED_TRIP_STATUSES = frozenset(
     {"planned", "dispatch_pending", "dispatched", "in_progress", "delayed", "incident"}
 )
 DRIVER_TRIP_BOUND_CREATE_TYPES = frozenset({"trip_stop", "delivery_proof", "trip_cost"})
+DRIVER_ASSET_BOUND_CREATE_TYPES = frozenset({"checklist", "fuel_log"})
 
 
 def _snake_case(value: str) -> str:
@@ -109,6 +110,49 @@ async def _authorize_driver_trip_create(
             status="failed",
             error_code="driver_trip_not_active",
             message="Driver operations require an active assigned trip.",
+        )
+    return None
+
+
+async def _authorize_driver_asset_create(
+    db: AsyncSession,
+    principal: DriverPrincipal,
+    operation: SyncOperation,
+) -> dict | None:
+    if (
+        operation.operation != "create"
+        or operation.entity_type not in DRIVER_ASSET_BOUND_CREATE_TYPES
+    ):
+        return None
+
+    payload = _normalize_payload(operation.payload)
+    if str(payload.get("driver_id")) != str(principal.driver_id):
+        return _result(
+            operation,
+            status="failed",
+            error_code="driver_identity_mismatch",
+            message="Operation driver does not match the authenticated driver.",
+        )
+
+    vehicle_id = _payload_uuid(payload, "vehicle_id")
+    assigned_trip_id = (
+        await db.scalar(
+            select(Trip.id).where(
+                Trip.tenant_id == principal.tenant_id,
+                Trip.driver_id == principal.driver_id,
+                Trip.vehicle_id == vehicle_id,
+                Trip.status.in_(ACTIVE_ASSIGNED_TRIP_STATUSES),
+            )
+        )
+        if vehicle_id is not None
+        else None
+    )
+    if assigned_trip_id is None:
+        return _result(
+            operation,
+            status="failed",
+            error_code="driver_vehicle_forbidden",
+            message="Vehicle is not assigned to the authenticated driver.",
         )
     return None
 
@@ -416,6 +460,9 @@ async def _dispatch_failed_safe(
 
     if principal.scope == "driver_app":
         authorization_error = await _authorize_driver_trip_create(db, principal, operation)
+        if authorization_error is not None:
+            return authorization_error
+        authorization_error = await _authorize_driver_asset_create(db, principal, operation)
         if authorization_error is not None:
             return authorization_error
 

@@ -2,7 +2,6 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from arq.connections import ArqRedis
 from fastapi import status
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -50,18 +49,12 @@ async def _assign_invoice_number(
     if document.invoice_number:
         return document.invoice_number
 
-    profile = await db.scalar(
-        select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == tenant_id)
-    )
+    profile = await db.scalar(select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == tenant_id))
     prefix = (profile.invoice_prefix or "").strip() if profile else ""
     padding = profile.invoice_seq_padding if profile else 4
     per_type = profile.per_type_sequences if profile else False
 
-    fiscal_year = (
-        document.billing_period_start.year
-        if document.billing_period_start
-        else datetime.now(UTC).year
-    )
+    fiscal_year = document.billing_period_start.year if document.billing_period_start else datetime.now(UTC).year
     doc_type = (document.document_type or "") if per_type else ""
 
     # Ensure counter row exists (race-safe: concurrent inserts → ON CONFLICT DO NOTHING)
@@ -88,15 +81,18 @@ async def _assign_invoice_number(
         )
         .with_for_update()
     )
+    if counter is None:
+        raise RuntimeError("Fiscal counter was not created")
     counter.last_number += 1
     seq_str = str(counter.last_number).zfill(padding)
 
     if prefix:
-        document.invoice_number = f"{prefix} {fiscal_year}/{seq_str}"
+        invoice_number = f"{prefix} {fiscal_year}/{seq_str}"
     else:
-        document.invoice_number = f"{fiscal_year}/{seq_str}"
+        invoice_number = f"{fiscal_year}/{seq_str}"
 
-    return document.invoice_number
+    document.invoice_number = invoice_number
+    return invoice_number
 
 
 def _format_address(profile: "TenantDocumentProfile") -> str:
@@ -115,9 +111,7 @@ async def _snapshot_profile(
     tenant_id: UUID,
 ) -> None:
     """Copy TenantDocumentProfile fields into BillingDocument snapshot columns at creation."""
-    profile = await db.scalar(
-        select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == tenant_id)
-    )
+    profile = await db.scalar(select(TenantDocumentProfile).where(TenantDocumentProfile.tenant_id == tenant_id))
     if not profile:
         return
     document.issuer_address = _format_address(profile) or None
@@ -136,7 +130,7 @@ async def _snapshot_profile(
 async def create_billing_waiver(
     db: AsyncSession,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     trip_id: UUID,
     reason: str,
 ) -> dict:
@@ -186,7 +180,7 @@ async def approve_billing_waiver(
     db: AsyncSession,
     tenant_id: UUID,
     waiver_id: UUID,
-    approver_id: UUID,
+    approver_id: UUID | None,
 ) -> dict:
     """Set waiver status=active. Trip can now enter billing cycle."""
     waiver = await db.scalar(
@@ -215,7 +209,7 @@ async def reject_billing_waiver(
     db: AsyncSession,
     tenant_id: UUID,
     waiver_id: UUID,
-    rejector_id: UUID,
+    rejector_id: UUID | None,
 ) -> dict:
     """Set waiver status=rejected. Trip remains blocked from billing."""
     waiver = await db.scalar(
@@ -490,9 +484,7 @@ async def list_documents(
         query = query.where(BillingDocument.client_id == client_id)
 
     # COUNT query with same filters (without pagination)
-    count_query = select(func.count(BillingDocument.id)).where(
-        BillingDocument.tenant_id == tenant_id
-    )
+    count_query = select(func.count(BillingDocument.id)).where(BillingDocument.tenant_id == tenant_id)
     if status_filter:
         count_query = count_query.where(BillingDocument.status == status_filter)
     if period_start:
@@ -505,14 +497,9 @@ async def list_documents(
         count_query = count_query.where(BillingDocument.client_id == client_id)
 
     total = await db.scalar(count_query) or 0
-    rows = await db.execute(
-        query.order_by(BillingDocument.created_at.desc()).limit(limit).offset(offset)
-    )
+    rows = await db.execute(query.order_by(BillingDocument.created_at.desc()).limit(limit).offset(offset))
     return {
-        "items": [
-            serialize_billing_document_summary(document, int(count or 0))
-            for document, count in rows
-        ],
+        "items": [serialize_billing_document_summary(document, int(count or 0)) for document, count in rows],
         "total": int(total),
     }
 
@@ -550,7 +537,7 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
     await db.flush()
     await _snapshot_profile(db, document, tenant_id)
 
-    total = 0
+    total = Decimal("0")
     items: list[BillingItem] = []
     for trip_id in payload.trip_ids:
         trip = await db.get(Trip, trip_id)
@@ -611,12 +598,13 @@ async def create_document(db: AsyncSession, tenant_id: UUID, payload: BillingDoc
         )
 
         from app.modules.vehicles.models import Vehicle
+
         vehicle = await db.get(Vehicle, trip.vehicle_id) if trip.vehicle_id else None
         vehicle_plate = vehicle.plate if vehicle else ""
 
         lp_str = f" LP:{load_permit.permit_number}" if load_permit and load_permit.permit_number else ""
         veh_str = f" [{vehicle_plate}]" if vehicle_plate else ""
-        base_cargo = trip.cargo_type or 'Serviço'
+        base_cargo = trip.cargo_type or "Serviço"
         enhanced_cargo_desc = f"{base_cargo}{veh_str}{lp_str}"
 
         amount = Decimal(str(contract.default_unit_price or 0))
@@ -779,10 +767,14 @@ async def issue_document(
     await _assign_invoice_number(db, document, tenant_id)
 
     # FISC-02: Recompute IVA totals from per-item iva_amount values
-    document.subtotal = sum(item.amount for item in items).quantize(Decimal("0.01"))
-    document.tax_amount = sum((item.iva_amount or Decimal("0")) for item in items).quantize(
-        Decimal("0.01")
-    )
+    document.subtotal = sum(
+        (item.amount for item in items),
+        Decimal("0"),
+    ).quantize(Decimal("0.01"))
+    document.tax_amount = sum(
+        (item.iva_amount or Decimal("0") for item in items),
+        Decimal("0"),
+    ).quantize(Decimal("0.01"))
     document.total_amount = (document.subtotal + document.tax_amount).quantize(Decimal("0.01"))
     rates = {item.iva_rate for item in items if item.iva_rate is not None}
     document.iva_rate = rates.pop() if len(rates) == 1 else None
@@ -791,8 +783,7 @@ async def issue_document(
     if abs(document.subtotal + document.tax_amount - document.total_amount) > Decimal("0.01"):
         raise ApiError(
             "billing_total_inconsistency",
-            f"subtotal ({document.subtotal}) + tax ({document.tax_amount}) "
-            f"!= total ({document.total_amount})",
+            f"subtotal ({document.subtotal}) + tax ({document.tax_amount}) != total ({document.total_amount})",
             status_code=422,
         )
 
@@ -815,16 +806,18 @@ async def issue_document(
     await db.flush()
 
     # --- HOOK CONTABILISTICO (Fase 7) ---
-    from app.modules.accounting.services import create_journal_entry
+    from app.modules.accounting.models import Account
     from app.modules.accounting.schemas import JournalEntryCreate
     from app.modules.accounting.schemas import JournalItemCreate as AccJournalItemCreate
-    from app.modules.accounting.models import Account
-    from sqlalchemy import select
-    from datetime import datetime
+    from app.modules.accounting.services import create_journal_entry
 
     if document.total_amount and document.total_amount > 0:
-        acct_clients = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("411%")).limit(1))
-        acct_sales = await db.scalar(select(Account).where(Account.tenant_id == tenant_id, Account.code.like("711%")).limit(1))
+        acct_clients = await db.scalar(
+            select(Account).where(Account.tenant_id == tenant_id, Account.code.like("411%")).limit(1)
+        )
+        acct_sales = await db.scalar(
+            select(Account).where(Account.tenant_id == tenant_id, Account.code.like("711%")).limit(1)
+        )
 
         if acct_clients and acct_sales:
             await create_journal_entry(
@@ -833,23 +826,26 @@ async def issue_document(
                 payload=JournalEntryCreate(
                     date=datetime.now(),
                     journal_type="VEN",
-                    description=f"Fatura {document.invoice_number or str(document.id)[:8]} ao Cliente {document.client_name}",
+                    description=(
+                        f"Fatura {document.invoice_number or str(document.id)[:8]} "
+                        f"ao Cliente {document.client_name}"
+                    ),
                     items=[
                         AccJournalItemCreate(
                             account_id=acct_clients.id,
                             description="Valor A Receber",
-                            debit=float(document.total_amount),
-                            credit=Decimal("0.00")
+                            debit=document.total_amount,
+                            credit=Decimal("0.00"),
                         ),
                         AccJournalItemCreate(
                             account_id=acct_sales.id,
                             description="Prestacao de Servicos de Transporte",
                             debit=Decimal("0.00"),
-                            credit=float(document.total_amount)
-                        )
-                    ]
+                            credit=document.total_amount,
+                        ),
+                    ],
                 ),
-                actor_id=None
+                actor_id=None,
             )
     # ------------------------------------
 
@@ -880,14 +876,15 @@ async def issue_document(
                 "status": item.status,
             },
         )
-        if item.trip_id in trip_old_values:
+        trip_id = item.trip_id
+        if trip_id is not None and trip_id in trip_old_values:
             await record_audit_log(
                 db,
                 tenant_id=tenant_id,
                 action="trip.billing_finalized",
                 entity_type="trip",
-                entity_id=item.trip_id,
-                old_values=trip_old_values[item.trip_id],
+                entity_id=trip_id,
+                old_values=trip_old_values[trip_id],
                 new_values={
                     "billing_status": "billed",
                     "billed_at": issued_at,
@@ -992,14 +989,28 @@ async def enqueue_export_job(
     tenant_id: UUID,
     document_id: UUID,
     export_format: str,
-    arq_redis: ArqRedis,
 ) -> dict:
-    """Enqueue an ARQ export job and create ExportJob record.
+    """Create an export job and its durable dispatch event atomically.
 
     Idempotent: returns existing queued/processing job if one exists for the same document
     and format, rather than creating a duplicate.
     """
     from app.modules.billing.models import ExportJob
+
+    document = await db.scalar(
+        select(BillingDocument)
+        .where(
+            BillingDocument.id == document_id,
+            BillingDocument.tenant_id == tenant_id,
+        )
+        .with_for_update()
+    )
+    if document is None:
+        raise ApiError(
+            "billing_document_not_found",
+            "Billing document not found",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
 
     existing = await db.scalar(
         select(ExportJob).where(
@@ -1019,16 +1030,24 @@ async def enqueue_export_job(
         status="queued",
     )
     db.add(job_record)
-    await db.commit()
-    await db.refresh(job_record)
+    await db.flush()
 
-    await arq_redis.enqueue_job(
-        "generate_billing_export",
-        job_id=str(job_record.id),
-        document_id=str(document_id),
-        export_format=export_format,
-        tenant_id=str(tenant_id),
+    from app.modules.outbox import enqueue as enqueue_outbox
+
+    await enqueue_outbox(
+        db,
+        tenant_id=tenant_id,
+        event_type="billing.internal.export.dispatch",
+        aggregate_type="export_job",
+        aggregate_id=job_record.id,
+        payload={
+            "job_id": str(job_record.id),
+            "document_id": str(document_id),
+            "export_format": export_format,
+            "tenant_id": str(tenant_id),
+        },
     )
+    await db.commit()
     return {"job_id": str(job_record.id), "status": "queued"}
 
 
@@ -1036,9 +1055,8 @@ async def create_compliance_report_job(
     db: AsyncSession,
     tenant_id: UUID,
     month: str,
-    arq: "ArqRedis",
 ) -> dict:
-    """Create an ExportJob and enqueue the ARQ task for monthly compliance XLSX (FISC-03).
+    """Create a compliance job and durable dispatch event atomically (FISC-03).
 
     Args:
         month: YYYY-MM format string, e.g. "2026-01"
@@ -1046,6 +1064,7 @@ async def create_compliance_report_job(
         dict with job_id and status
     """
     from app.modules.billing.models import ExportJob
+    from app.modules.outbox.models import OutboxEvent
 
     try:
         datetime.strptime(month, "%Y-%m")
@@ -1056,11 +1075,21 @@ async def create_compliance_report_job(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         ) from exc
 
+    # Serialize creation per tenant so concurrent requests cannot create two active
+    # jobs for the same month before either transaction becomes visible.
+    await db.scalar(select(Tenant.id).where(Tenant.id == tenant_id).with_for_update())
     existing = await db.scalar(
-        select(ExportJob).where(
+        select(ExportJob)
+        .join(
+            OutboxEvent,
+            OutboxEvent.aggregate_id == ExportJob.id,
+        )
+        .where(
             ExportJob.tenant_id == tenant_id,
             ExportJob.job_type == "compliance_report",
             ExportJob.status.in_(["queued", "processing"]),
+            OutboxEvent.event_type == "billing.internal.compliance_report.dispatch",
+            OutboxEvent.payload["month"].astext == month,
         )
     )
     if existing:
@@ -1075,11 +1104,19 @@ async def create_compliance_report_job(
     db.add(job)
     await db.flush()
 
-    await arq.enqueue_job(
-        "task_export_compliance_report",
-        str(job.id),
-        month,
-        str(tenant_id),
+    from app.modules.outbox import enqueue as enqueue_outbox
+
+    await enqueue_outbox(
+        db,
+        tenant_id=tenant_id,
+        event_type="billing.internal.compliance_report.dispatch",
+        aggregate_type="export_job",
+        aggregate_id=job.id,
+        payload={
+            "job_id": str(job.id),
+            "month": month,
+            "tenant_id": str(tenant_id),
+        },
     )
 
     await db.commit()
@@ -1090,9 +1127,7 @@ async def get_export_job_status(db: AsyncSession, tenant_id: UUID, job_id: UUID)
     """Return current status of an export job. Tenant-isolated."""
     from app.modules.billing.models import ExportJob
 
-    job = await db.scalar(
-        select(ExportJob).where(ExportJob.id == job_id, ExportJob.tenant_id == tenant_id)
-    )
+    job = await db.scalar(select(ExportJob).where(ExportJob.id == job_id, ExportJob.tenant_id == tenant_id))
     if not job:
         raise ApiError("job_not_found", "Export job not found", status_code=404)
     return {"job_id": str(job.id), "status": job.status, "job_type": job.job_type}
@@ -1129,7 +1164,7 @@ async def transition_billing_document(
     *,
     document: BillingDocument,
     new_status: str,
-    user_id: UUID,
+    user_id: UUID | None,
     tenant_id: UUID,
     paid_at: datetime | None = None,
     cancellation_reason: str | None = None,
@@ -1185,7 +1220,7 @@ async def mark_billing_document_paid(
     *,
     document_id: UUID,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     paid_at: datetime | None = None,
 ) -> BillingDocument:
     """SM-01: Transition BillingDocument to 'paid'. Allowed from 'issued' or 'overdue'."""
@@ -1207,7 +1242,7 @@ async def cancel_billing_document(
     *,
     document_id: UUID,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     reason: str,
 ) -> BillingDocument:
     """SM-01: Transition BillingDocument to 'cancelled'. Requires reason.
@@ -1250,8 +1285,7 @@ async def create_debit_note(
     if parent.status not in ("issued", "paid"):
         raise ApiError(
             "parent_not_issued",
-            f"Debit notes can only be created against issued or paid documents"
-            f" (parent status: {parent.status})",
+            f"Debit notes can only be created against issued or paid documents (parent status: {parent.status})",
             status_code=409,
         )
 
@@ -1288,8 +1322,6 @@ async def create_debit_note(
     await db.flush()
     await _snapshot_profile(db, note, tenant_id)
     await _assign_invoice_number(db, note, tenant_id)
-    await db.commit()
-    await db.refresh(note)
 
     await record_audit_log(
         db=db,
@@ -1304,6 +1336,8 @@ async def create_debit_note(
             "reason": reason,
         },
     )
+    await db.commit()
+    await db.refresh(note)
 
     return {
         "id": note.id,
@@ -1343,8 +1377,7 @@ async def create_credit_note(
     if parent.status not in ("issued", "paid"):
         raise ApiError(
             "parent_not_issued",
-            f"Credit notes can only be created against issued or paid documents"
-            f" (parent status: {parent.status})",
+            f"Credit notes can only be created against issued or paid documents (parent status: {parent.status})",
             status_code=409,
         )
 
@@ -1381,8 +1414,6 @@ async def create_credit_note(
     await db.flush()
     await _snapshot_profile(db, note, tenant_id)
     await _assign_invoice_number(db, note, tenant_id)
-    await db.commit()
-    await db.refresh(note)
 
     await record_audit_log(
         db=db,
@@ -1397,6 +1428,8 @@ async def create_credit_note(
             "reason": reason,
         },
     )
+    await db.commit()
+    await db.refresh(note)
 
     return {
         "id": note.id,
@@ -1431,8 +1464,7 @@ async def create_invoice_receipt(
     if parent.status not in ("issued", "overdue"):
         raise ApiError(
             "parent_not_issued",
-            f"Invoice-receipt can only be created against issued documents"
-            f" (parent status: {parent.status})",
+            f"Invoice-receipt can only be created against issued documents (parent status: {parent.status})",
             status_code=409,
         )
 
@@ -1517,8 +1549,7 @@ async def create_receipt(
     if parent.status not in ("issued", "overdue", "paid"):
         raise ApiError(
             "parent_invalid_status",
-            f"Receipt can only be created against issued or paid documents"
-            f" (parent status: {parent.status})",
+            f"Receipt can only be created against issued or paid documents (parent status: {parent.status})",
             status_code=409,
         )
 
@@ -1588,14 +1619,8 @@ def _compute_aging(document: BillingDocument, today: "datetime") -> dict:
     if not due or document.status not in ("issued", "overdue"):
         return {"days_overdue": 0, "aging_bucket": "current"}
 
-    due_dt = due if hasattr(due, "date") else due
-    today_dt = today.date() if hasattr(today, "date") else today
-    try:
-        due_date_only = due_dt.date() if hasattr(due_dt, "date") else due_dt
-    except Exception:
-        return {"days_overdue": 0, "aging_bucket": "current"}
-
-    delta = (today_dt - due_date_only).days
+    due_date_only = due.date()
+    delta = (today.date() - due_date_only).days
     days_overdue = max(0, delta)
 
     if days_overdue == 0:
@@ -1704,11 +1729,9 @@ async def get_ar_summary(
     for doc in docs:
         aging = _compute_aging(doc, today)
         bucket = aging["aging_bucket"]
-        buckets[bucket] = (buckets[bucket] + (doc.total_amount or Decimal("0"))).quantize(
-            Decimal("0.01")
-        )
+        buckets[bucket] = (buckets[bucket] + (doc.total_amount or Decimal("0"))).quantize(Decimal("0.01"))
 
-    total_ar = sum(buckets.values()).quantize(Decimal("0.01"))
+    total_ar = sum(buckets.values(), Decimal("0")).quantize(Decimal("0.01"))
     return {
         "current": buckets["current"],
         "1_30": buckets["1_30"],
@@ -1739,11 +1762,7 @@ async def get_client_statement(
     if not client or client.tenant_id != tenant_id:
         raise ApiError("client_not_found", "Client not found", status_code=404)
 
-    _as_of_dt = (
-        datetime(as_of.year, as_of.month, as_of.day, 23, 59, 59, tzinfo=UTC)
-        if as_of
-        else datetime.now(UTC)
-    )
+    _as_of_dt = datetime(as_of.year, as_of.month, as_of.day, 23, 59, 59, tzinfo=UTC) if as_of else datetime.now(UTC)
 
     # Total invoiced = sum of issued/paid/overdue invoice totals for this client
     invoiced_result = await db.execute(
@@ -1802,8 +1821,7 @@ async def get_client_statement(
             .group_by(PaymentAllocation.billing_document_id)
         )
         paid_by_doc = {
-            row.billing_document_id: Decimal(str(row.paid)).quantize(Decimal("0.01"))
-            for row in alloc_result
+            row.billing_document_id: Decimal(str(row.paid)).quantize(Decimal("0.01")) for row in alloc_result
         }
 
     documents = []
@@ -1850,11 +1868,7 @@ async def get_top_debtors(
     """
     from app.modules.clients.models import Client  # avoid circular import
 
-    _as_of_dt = (
-        datetime(as_of.year, as_of.month, as_of.day, 23, 59, 59, tzinfo=UTC)
-        if as_of
-        else datetime.now(UTC)
-    )
+    _as_of_dt = datetime(as_of.year, as_of.month, as_of.day, 23, 59, 59, tzinfo=UTC) if as_of else datetime.now(UTC)
 
     # Fetch all relevant issued invoices for this tenant
     stmt = select(BillingDocument).where(
@@ -1909,9 +1923,7 @@ async def get_top_debtors(
 
     # Bulk-fetch client names
     client_ids = [cid for cid, _ in ranked]
-    clients_result = await db.execute(
-        select(Client).where(Client.id.in_(client_ids), Client.tenant_id == tenant_id)
-    )
+    clients_result = await db.execute(select(Client).where(Client.id.in_(client_ids), Client.tenant_id == tenant_id))
     clients_map = {c.id: c for c in clients_result.scalars()}
 
     return [
@@ -2080,13 +2092,14 @@ async def generate_client_statement_pdf(
         pdf.set_fill_color(*(_SOFT if fill else _WHITE))
         pdf.set_text_color(*_INK)
 
-        inv_num = doc.get("invoice_number") or "—"
+        inv_num = str(doc.get("invoice_number") or "—")
         issued = doc.get("issued_at")
         due = doc.get("due_date")
         total = Decimal(str(doc.get("total_amount") or 0))
         paid = Decimal(str(doc.get("amount_paid") or 0))
         outstanding = Decimal(str(doc.get("outstanding") or 0))
-        status_label = _status_pt.get(doc.get("status", ""), doc.get("status", ""))
+        raw_status = str(doc.get("status") or "")
+        status_label = _status_pt.get(raw_status, raw_status)
 
         def _fmt_date(d) -> str:
             if not d:
@@ -2186,11 +2199,7 @@ async def list_payments(
     offset: int = 0,
 ) -> dict:
     """GET /billing/payments — paginated list with optional filters."""
-    query = (
-        select(ClientPayment)
-        .where(ClientPayment.tenant_id == tenant_id)
-        .order_by(ClientPayment.created_at.desc())
-    )
+    query = select(ClientPayment).where(ClientPayment.tenant_id == tenant_id).order_by(ClientPayment.created_at.desc())
     if client_id:
         query = query.where(ClientPayment.client_id == client_id)
     if status:
@@ -2218,9 +2227,7 @@ async def list_payments(
     payment_ids = [p.id for p in payments]
     alloc_map: dict = {}
     if payment_ids:
-        alloc_rows = await db.execute(
-            select(PaymentAllocation).where(PaymentAllocation.payment_id.in_(payment_ids))
-        )
+        alloc_rows = await db.execute(select(PaymentAllocation).where(PaymentAllocation.payment_id.in_(payment_ids)))
         for a in alloc_rows.scalars():
             alloc_map.setdefault(a.payment_id, []).append(a)
 
@@ -2233,9 +2240,7 @@ async def list_payments(
 # ── Phase 6: Payment Registration Service Functions ───────────────────────────
 
 
-async def _sum_confirmed_allocations(
-    db: AsyncSession, tenant_id: UUID, billing_document_id: UUID
-) -> Decimal:
+async def _sum_confirmed_allocations(db: AsyncSession, tenant_id: UUID, billing_document_id: UUID) -> Decimal:
     """Sum amount_applied for confirmed payments allocated to this billing document."""
     result = await db.execute(
         select(func.coalesce(func.sum(PaymentAllocation.amount_applied), 0))
@@ -2282,7 +2287,7 @@ def serialize_payment(payment: ClientPayment, allocations: list) -> dict:
 async def register_payment(
     db: AsyncSession,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     payload,  # ClientPaymentCreate — imported inline to avoid circular import at module level
 ) -> dict:
     """PAY-01 / PAY-02: Register a client payment, optionally allocating it to an invoice.
@@ -2299,6 +2304,7 @@ async def register_payment(
         raise ApiError("client_not_found", "Client not found", status_code=404)
 
     billing_doc = None
+    existing_paid = Decimal("0")
     if payload.billing_document_id:
         # 2a. Verify billing document belongs to tenant (with FOR UPDATE lock to prevent allocation races)
         billing_doc = await db.scalar(
@@ -2388,9 +2394,7 @@ async def register_payment(
         entity_id=payment.id,
         new_values={
             "client_id": str(payload.client_id),
-            "billing_document_id": (
-                str(payload.billing_document_id) if payload.billing_document_id else None
-            ),
+            "billing_document_id": (str(payload.billing_document_id) if payload.billing_document_id else None),
             "amount": str(payload.amount),
             "payment_method": payload.payment_method,
         },
@@ -2407,7 +2411,7 @@ async def void_payment(
     *,
     payment_id: UUID,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     void_reason: str,
 ) -> dict:
     """PAY-01 / PAY-03: Void a confirmed payment and reverse any billing document transitions.
@@ -2430,9 +2434,7 @@ async def void_payment(
         )
 
     # 3. Collect affected billing document IDs before voiding
-    alloc_result = await db.execute(
-        select(PaymentAllocation).where(PaymentAllocation.payment_id == payment_id)
-    )
+    alloc_result = await db.execute(select(PaymentAllocation).where(PaymentAllocation.payment_id == payment_id))
     allocations = list(alloc_result.scalars())
     affected_doc_ids = [a.billing_document_id for a in allocations]
 
@@ -2502,7 +2504,7 @@ async def apply_advance_to_invoice(
     *,
     payment_id: UUID,
     tenant_id: UUID,
-    user_id: UUID,
+    user_id: UUID | None,
     billing_document_id: UUID,
     amount_applied: Decimal,
 ) -> dict:
@@ -2615,8 +2617,6 @@ async def apply_advance_to_invoice(
     await db.refresh(payment)
 
     # Return updated payment with all allocations
-    all_alloc_result = await db.execute(
-        select(PaymentAllocation).where(PaymentAllocation.payment_id == payment_id)
-    )
+    all_alloc_result = await db.execute(select(PaymentAllocation).where(PaymentAllocation.payment_id == payment_id))
     all_allocations = list(all_alloc_result.scalars())
     return serialize_payment(payment, all_allocations)

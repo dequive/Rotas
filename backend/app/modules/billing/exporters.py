@@ -334,8 +334,9 @@ def _render_pdf(
         origin = item.origin or ""
         dest = item.destination or ""
         desig = f"{origin} → {dest}" if (origin or dest) else "—"
-        if getattr(item, "cargo_description", None):
-            desig = f"{desig} — {item.cargo_description[:60]}"
+        cargo_description = item.cargo_description
+        if cargo_description:
+            desig = f"{desig} — {cargo_description[:60]}"
 
         row_vals = [
             ((getattr(item, "client_reference", None) or "—")[:14], "C"),
@@ -456,9 +457,13 @@ def _render_pdf(
 
     pdf.set_y(max(left_bottom, right_bottom))
 
-    total_pages_ref[0] = pdf.pages
+    total_pages_ref[0] = len(pdf.pages)
     filename = f"fatura_{document.invoice_number or str(document.id)[:8]}.pdf"
-    return ExportArtifact(filename=filename, content_type="application/pdf", content=pdf.output())
+    return ExportArtifact(
+        filename=filename,
+        content_type="application/pdf",
+        content=bytes(pdf.output()),
+    )
 
 
 # ── XLSX ──────────────────────────────────────────────────────────────────────
@@ -482,6 +487,8 @@ def _render_xlsx(
     currency = document.currency or "MZN"
     wb = Workbook()
     ws = wb.active
+    if ws is None:
+        raise RuntimeError("Workbook did not create an active worksheet")
     ws.title = "Cobrança"
 
     # ── Branding / document metadata block ───────────────────────────────────
@@ -635,7 +642,7 @@ def _render_xlsx(
     _totals_xlsx_row(total_row, "TOTAL COM IVA", total_val, bold=True, dark=True)
 
     # Freeze panes below header row so data scrolls but header stays
-    ws.freeze_panes = ws.cell(row=DATA_START, column=1)
+    ws.freeze_panes = f"A{DATA_START}"
 
     output = BytesIO()
     wb.save(output)

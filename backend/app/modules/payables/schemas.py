@@ -1,6 +1,5 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -8,12 +7,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class PurchaseOrderCreate(BaseModel):
     third_party_id: UUID
-    work_order_id: Optional[UUID] = None
-    vehicle_id: Optional[UUID] = None
-    trip_id: Optional[UUID] = None
+    work_order_id: UUID | None = None
+    vehicle_id: UUID | None = None
+    trip_id: UUID | None = None
     po_number: str
     description: str
-    estimated_amount: Optional[Decimal] = None
+    estimated_amount: Decimal | None = None
     currency: str = "MZN"
     issued_at: datetime
 
@@ -22,7 +21,7 @@ class PurchaseOrderResponse(PurchaseOrderCreate):
     id: UUID
     tenant_id: UUID
     status: str
-    approved_by: Optional[UUID] = None
+    approved_by: UUID | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -31,22 +30,22 @@ class PurchaseOrderResponse(PurchaseOrderCreate):
 
 class SupplierInvoiceCreate(BaseModel):
     third_party_id: UUID
-    work_order_id: Optional[UUID] = None
-    vehicle_id: Optional[UUID] = None
-    trip_id: Optional[UUID] = None
-    invoice_number: Optional[str] = None
-    description: Optional[str] = None
+    work_order_id: UUID | None = None
+    vehicle_id: UUID | None = None
+    trip_id: UUID | None = None
+    invoice_number: str | None = None
+    description: str | None = None
     amount: Decimal
     currency: str = "MZN"
     issued_at: datetime
-    due_date: Optional[datetime] = None
+    due_date: datetime | None = None
 
 
 class SupplierInvoiceResponse(SupplierInvoiceCreate):
     id: UUID
     tenant_id: UUID
     status: str
-    file_id: Optional[UUID] = None
+    file_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -59,15 +58,15 @@ class SupplierPaymentCreate(BaseModel):
     currency: str = "MZN"
     value_date: datetime
     payment_method: str
-    reference: Optional[str] = None
-    notes: Optional[str] = None
+    reference: str | None = None
+    notes: str | None = None
 
 
 class SupplierPaymentResponse(SupplierPaymentCreate):
     id: UUID
     tenant_id: UUID
     status: str
-    created_by: Optional[UUID] = None
+    created_by: UUID | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -75,8 +74,8 @@ class SupplierPaymentResponse(SupplierPaymentCreate):
 
 
 class InvoicePaymentRequest(BaseModel):
-    amount: Decimal
+    amount: Decimal = Field(gt=0)
     payment_method: str
     value_date: datetime
-    reference: Optional[str] = None
-    notes: Optional[str] = None
+    reference: str | None = None
+    notes: str | None = None

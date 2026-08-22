@@ -7,11 +7,12 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.core.idempotency import execute_http_idempotent
+from app.core.openapi_responses import PDF_RESPONSE
 from app.core.rbac import (
     BILLING_ISSUE,
     BILLING_READ,
@@ -24,7 +25,7 @@ from app.modules.billing import schemas, service
 router = APIRouter(prefix="/billing", tags=["billing"])
 
 
-@router.get("/billable-trips")
+@router.get("/billable-trips", response_model=list[schemas.BillableTripResponse])
 async def list_billable_trips(
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -49,7 +50,7 @@ async def list_billable_trips(
     )
 
 
-@router.post("/documents")
+@router.post("/documents", response_model=schemas.BillingDocumentResponse)
 async def create_document(
     request: Request,
     payload: schemas.BillingDocumentCreate,
@@ -71,7 +72,7 @@ async def create_document(
     return res
 
 
-@router.get("/documents")
+@router.get("/documents", response_model=schemas.BillingDocumentListResponse)
 async def list_documents(
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -97,7 +98,7 @@ async def list_documents(
     )
 
 
-@router.get("/documents/{document_id}")
+@router.get("/documents/{document_id}", response_model=schemas.BillingDocumentResponse)
 async def get_document(
     document_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
@@ -106,7 +107,10 @@ async def get_document(
     return await service.get_document(db, principal.tenant_id, document_id)
 
 
-@router.get("/documents/{document_id}/export")
+@router.get(
+    "/documents/{document_id}/export",
+    response_model=schemas.BillingDocumentExportResponse,
+)
 async def export_document(
     document_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
@@ -121,7 +125,10 @@ async def export_document(
     )
 
 
-@router.post("/documents/{document_id}/issue")
+@router.post(
+    "/documents/{document_id}/issue",
+    response_model=schemas.BillingDocumentResponse,
+)
 async def issue_document(
     request: Request,
     document_id: UUID,
@@ -144,7 +151,7 @@ async def issue_document(
     return res
 
 
-@router.post("/waivers", status_code=201)
+@router.post("/waivers", status_code=201, response_model=schemas.BillingWaiverResponse)
 async def create_waiver(
     request: Request,
     payload: schemas.CreateBillingWaiver,
@@ -165,7 +172,10 @@ async def create_waiver(
     return res
 
 
-@router.post("/waivers/{waiver_id}/approve")
+@router.post(
+    "/waivers/{waiver_id}/approve",
+    response_model=schemas.BillingWaiverDecisionResponse,
+)
 async def approve_waiver(
     request: Request,
     waiver_id: UUID,
@@ -183,7 +193,10 @@ async def approve_waiver(
     return res
 
 
-@router.post("/waivers/{waiver_id}/reject")
+@router.post(
+    "/waivers/{waiver_id}/reject",
+    response_model=schemas.BillingWaiverDecisionResponse,
+)
 async def reject_waiver(
     request: Request,
     waiver_id: UUID,
@@ -201,10 +214,13 @@ async def reject_waiver(
     return res
 
 
-@router.post("/documents/{document_id}/export-job", status_code=202)
+@router.post(
+    "/documents/{document_id}/export-job",
+    status_code=202,
+    response_model=schemas.ExportJobEnqueuedResponse,
+)
 async def create_export_job(
     document_id: UUID,
-    request: Request,
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
     export_format: str = Query("pdf", pattern="^(pdf|xlsx)$"),
@@ -213,20 +229,16 @@ async def create_export_job(
 
     export_format query param: ?export_format=pdf (default) or ?export_format=xlsx
     """
-    arq_redis = getattr(request.app.state, "arq_redis", None)
-    if arq_redis is None:
-        raise ApiError(
-            "redis_unavailable", "Export service temporarily unavailable.", status_code=503
-        )
-    return await service.enqueue_export_job(
-        db, principal.tenant_id, document_id, export_format, arq_redis
-    )
+    return await service.enqueue_export_job(db, principal.tenant_id, document_id, export_format)
 
 
-@router.get("/compliance-report", status_code=202)
+@router.get(
+    "/compliance-report",
+    status_code=202,
+    response_model=schemas.ExportJobEnqueuedResponse,
+)
 async def get_compliance_report(
     month: str,
-    request: Request,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
@@ -235,20 +247,14 @@ async def get_compliance_report(
     Returns ExportJob ID for polling via GET /billing/jobs/{job_id}/status
     Query param: ?month=YYYY-MM (e.g. ?month=2026-01)
     """
-    arq_redis = getattr(request.app.state, "arq_redis", None)
-    if arq_redis is None:
-        raise ApiError(
-            "redis_unavailable", "Export service temporarily unavailable.", status_code=503
-        )
     return await service.create_compliance_report_job(
         db=db,
         tenant_id=principal.tenant_id,
         month=month,
-        arq=arq_redis,
     )
 
 
-@router.get("/jobs/{job_id}/status")
+@router.get("/jobs/{job_id}/status", response_model=schemas.ExportJobStatusResponse)
 async def get_job_status(
     job_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
@@ -307,7 +313,11 @@ async def download_job_file(
 # ── SM-01: BillingDocument state machine endpoints ───────────────────────────
 
 
-@router.patch("/documents/{document_id}/mark-paid", summary="Mark billing document as paid (SM-01)")
+@router.patch(
+    "/documents/{document_id}/mark-paid",
+    summary="Mark billing document as paid (SM-01)",
+    response_model=schemas.BillingDocumentStatusResponse,
+)
 async def mark_billing_document_paid(
     request: Request,
     document_id: UUID,
@@ -331,7 +341,11 @@ async def mark_billing_document_paid(
     return {"id": doc.id, "status": doc.status, "paid_at": doc.paid_at}
 
 
-@router.patch("/documents/{document_id}/cancel", summary="Cancel billing document (SM-01)")
+@router.patch(
+    "/documents/{document_id}/cancel",
+    summary="Cancel billing document (SM-01)",
+    response_model=schemas.BillingDocumentCancelledResponse,
+)
 async def cancel_billing_document(
     request: Request,
     document_id: UUID,
@@ -358,22 +372,36 @@ async def cancel_billing_document(
 # ── FDOC-02: Nota de Débito ───────────────────────────────────────────────────
 
 
-@router.post("/documents/{document_id}/debit-note", status_code=201)
+@router.post(
+    "/documents/{document_id}/debit-note",
+    status_code=201,
+    response_model=schemas.AdjustmentNoteResponse,
+)
 async def create_debit_note(
     request: Request,
     document_id: UUID,
     payload: schemas.CreateDebitNoteRequest,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
     """FDOC-02: Create a Nota de Débito against an issued invoice. Returns the new document."""
-    res = await service.create_debit_note(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
-        parent_id=document_id,
-        amount=payload.amount,
-        reason=payload.reason,
-        iva_rate=payload.iva_rate,
+        user_id=principal.user_id,
+        idempotency_key=idempotency_key,
+        operation="billing.debit_note.create",
+        entity_type="billing_document",
+        payload={"parent_id": document_id, **payload.model_dump()},
+        handler=lambda: service.create_debit_note(
+            db,
+            tenant_id=principal.tenant_id,
+            parent_id=document_id,
+            amount=payload.amount,
+            reason=payload.reason,
+            iva_rate=payload.iva_rate,
+        ),
     )
     await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
     return res
@@ -382,22 +410,36 @@ async def create_debit_note(
 # ── FDOC-03: Nota de Crédito ──────────────────────────────────────────────────
 
 
-@router.post("/documents/{document_id}/credit-note", status_code=201)
+@router.post(
+    "/documents/{document_id}/credit-note",
+    status_code=201,
+    response_model=schemas.AdjustmentNoteResponse,
+)
 async def create_credit_note(
     request: Request,
     document_id: UUID,
     payload: schemas.CreateCreditNoteRequest,
     principal: Annotated[Principal, Depends(require_permission(BILLING_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ):
     """FDOC-03: Create a Nota de Crédito against an issued invoice. Returns the new document."""
-    res = await service.create_credit_note(
+    res = await execute_http_idempotent(
         db,
         tenant_id=principal.tenant_id,
-        parent_id=document_id,
-        amount=payload.amount,
-        reason=payload.reason,
-        iva_rate=payload.iva_rate,
+        user_id=principal.user_id,
+        idempotency_key=idempotency_key,
+        operation="billing.credit_note.create",
+        entity_type="billing_document",
+        payload={"parent_id": document_id, **payload.model_dump()},
+        handler=lambda: service.create_credit_note(
+            db,
+            tenant_id=principal.tenant_id,
+            parent_id=document_id,
+            amount=payload.amount,
+            reason=payload.reason,
+            iva_rate=payload.iva_rate,
+        ),
     )
     await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
     return res
@@ -406,7 +448,11 @@ async def create_credit_note(
 # ── FDOC-04: Fatura-Recibo + Recibo ──────────────────────────────────────────
 
 
-@router.post("/documents/{document_id}/invoice-receipt", status_code=201)
+@router.post(
+    "/documents/{document_id}/invoice-receipt",
+    status_code=201,
+    response_model=schemas.InvoiceReceiptResponse,
+)
 async def create_invoice_receipt(
     request: Request,
     document_id: UUID,
@@ -423,7 +469,11 @@ async def create_invoice_receipt(
     return res
 
 
-@router.post("/documents/{document_id}/receipt", status_code=201)
+@router.post(
+    "/documents/{document_id}/receipt",
+    status_code=201,
+    response_model=schemas.ReceiptResponse,
+)
 async def create_receipt(
     request: Request,
     document_id: UUID,
@@ -445,7 +495,7 @@ async def create_receipt(
 # ── FDOC-05: AR Básico ────────────────────────────────────────────────────────
 
 
-@router.get("/ar/summary")
+@router.get("/ar/summary", response_model=schemas.ArSummaryResponse)
 async def get_ar_summary(
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -459,7 +509,7 @@ async def get_ar_summary(
     return await service.get_ar_summary(db, principal.tenant_id, as_of=as_of)
 
 
-@router.get("/ar/top-debtors")
+@router.get("/ar/top-debtors", response_model=list[schemas.TopDebtorResponse])
 async def get_top_debtors(
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -473,7 +523,10 @@ async def get_top_debtors(
     return await service.get_top_debtors(db, principal.tenant_id, as_of=as_of, limit=limit)
 
 
-@router.get("/clients/{client_id}/statement")
+@router.get(
+    "/clients/{client_id}/statement",
+    response_model=schemas.ClientStatementResponse,
+)
 async def get_client_statement(
     client_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
@@ -488,7 +541,7 @@ async def get_client_statement(
     return await service.get_client_statement(db, principal.tenant_id, client_id, as_of=as_of)
 
 
-@router.get("/clients/{client_id}/statement/pdf")
+@router.get("/clients/{client_id}/statement/pdf", responses=PDF_RESPONSE)
 async def get_client_statement_pdf(
     client_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
@@ -516,7 +569,7 @@ async def get_client_statement_pdf(
 # ── PAY-01/02/03: Client Payments ────────────────────────────────────────────
 
 
-@router.get("/payments")
+@router.get("/payments", response_model=schemas.ClientPaymentListResponse)
 async def list_payments(
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -540,7 +593,7 @@ async def list_payments(
     )
 
 
-@router.post("/payments", status_code=201)
+@router.post("/payments", status_code=201, response_model=schemas.ClientPaymentResponse)
 async def register_payment(
     request: Request,
     payload: schemas.ClientPaymentCreate,
@@ -569,7 +622,10 @@ async def register_payment(
     return res
 
 
-@router.post("/payments/{payment_id}/void")
+@router.post(
+    "/payments/{payment_id}/void",
+    response_model=schemas.ClientPaymentResponse,
+)
 async def void_payment(
     request: Request,
     payment_id: UUID,
@@ -593,7 +649,11 @@ async def void_payment(
     return res
 
 
-@router.post("/payments/{payment_id}/apply", status_code=201)
+@router.post(
+    "/payments/{payment_id}/apply",
+    status_code=201,
+    response_model=schemas.ClientPaymentResponse,
+)
 async def apply_advance_to_invoice(
     request: Request,
     payment_id: UUID,

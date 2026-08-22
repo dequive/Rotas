@@ -11,14 +11,62 @@ Create Date: 2026-07-20 22:18:04.826285+02:00
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = '4dd4802e1c18'
 down_revision: str | None = '92c11f6fdf9d'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
+_LEGACY_TABLE_COLUMNS = {
+    "employees": {
+        "id", "tenant_id", "driver_id", "user_id", "first_name", "last_name",
+        "role", "department", "employee_number", "inss_beneficiary_number",
+        "professional_category", "irps_tax_percentage", "base_salary", "nif_nuit",
+        "bank_account_nib", "date_of_birth", "hire_date", "termination_date",
+        "status", "created_at", "updated_at",
+    },
+    "employee_documents": {
+        "id", "tenant_id", "employee_id", "document_type", "document_number",
+        "issued_at", "expiry_date", "file_id", "status", "notes", "created_at",
+    },
+    "absences": {
+        "id", "tenant_id", "employee_id", "absence_type", "start_date", "end_date",
+        "is_paid", "approved_by", "notes", "created_at",
+    },
+    "payroll_slips": {
+        "id", "tenant_id", "employee_id", "period_month", "period_year",
+        "gross_salary", "total_inss", "total_irps", "total_syndicate",
+        "total_deductions", "net_salary", "status", "payment_date", "notes",
+        "created_at", "updated_at",
+    },
+    "payroll_codes": {
+        "id", "tenant_id", "code", "name", "code_type", "is_taxable_inss",
+        "is_taxable_irps", "is_taxable_syndicate", "created_at",
+    },
+    "payroll_slip_lines": {
+        "id", "tenant_id", "payroll_slip_id", "code", "description", "quantity",
+        "unit_price", "amount", "irps_tax_percentage", "is_taxable_inss",
+        "is_taxable_syndicate", "created_at",
+    },
+    "salary_advances": {
+        "id", "tenant_id", "employee_id", "amount", "date_requested", "status",
+        "reason", "created_at", "updated_at",
+    },
+    "warehouses": {"id", "tenant_id", "name", "location", "is_active"},
+    "item_categories": {"id", "tenant_id", "name"},
+    "items": {
+        "id", "tenant_id", "category_id", "sku", "name", "description",
+        "unit_of_measure", "current_stock", "average_unit_cost",
+    },
+    "stock_movements": {
+        "id", "tenant_id", "item_id", "warehouse_id", "movement_type", "quantity",
+        "unit_cost", "total_value", "reference_doc", "notes", "created_by",
+    },
+}
 
 
 def _rls(tablename: str) -> None:
@@ -32,6 +80,32 @@ def _rls(tablename: str) -> None:
     op.execute(f"GRANT SELECT, INSERT, UPDATE, DELETE ON {tablename} TO rotas_app")
 
 
+def _create_outbox_events() -> None:
+    op.create_table(
+        "outbox_events",
+        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("aggregate_type", sa.String(128), nullable=True),
+        sa.Column("aggregate_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("event_type", sa.String(128), nullable=True),
+        sa.Column("payload", postgresql.JSONB(), nullable=False),
+        sa.Column("status", sa.String(20), nullable=False, server_default=sa.text("'pending'")),
+        sa.Column("governance_case_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("attempt_count", sa.Integer(), nullable=False, server_default=sa.text("0")),
+        sa.Column("next_attempt_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("last_error", sa.Text(), nullable=True),
+        sa.Column("correlation_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_outbox_events_tenant_id", "outbox_events", ["tenant_id"])
+    op.create_index("ix_outbox_events_status", "outbox_events", ["status"])
+    op.create_index("ix_outbox_events_next_attempt_at", "outbox_events", ["next_attempt_at"])
+    _rls("outbox_events")
+
+
 def _drop_rls(tablename: str) -> None:
     """Reverse the _rls() block."""
     op.execute(f"DROP POLICY IF EXISTS rls_{tablename} ON {tablename}")
@@ -40,6 +114,47 @@ def _drop_rls(tablename: str) -> None:
 
 
 def upgrade() -> None:
+    inspector = sa.inspect(op.get_bind())
+    existing_tables = set(inspector.get_table_names())
+    legacy_existing = set(_LEGACY_TABLE_COLUMNS) & existing_tables
+    if legacy_existing:
+        # Some pre-stabilization databases materialized the HR/inventory ORM
+        # schema while Alembic remained stamped at 95929ae669b9/92c11f6fdf9d.
+        # Reconcile only a complete, structurally identical snapshot. A partial
+        # or divergent snapshot must stop for forensic repair rather than being
+        # silently stamped.
+        if legacy_existing != set(_LEGACY_TABLE_COLUMNS):
+            missing = sorted(set(_LEGACY_TABLE_COLUMNS) - legacy_existing)
+            raise RuntimeError(
+                "Partial legacy HR/inventory snapshot; missing tables: "
+                + ", ".join(missing)
+            )
+        for table_name, expected_columns in _LEGACY_TABLE_COLUMNS.items():
+            actual_columns = {
+                column["name"] for column in inspector.get_columns(table_name)
+            }
+            if actual_columns != expected_columns:
+                missing = sorted(expected_columns - actual_columns)
+                extra = sorted(actual_columns - expected_columns)
+                raise RuntimeError(
+                    f"Legacy table {table_name} diverges; "
+                    f"missing={missing}, extra={extra}"
+                )
+        journal_columns = {
+            column["name"]
+            for column in inspector.get_columns("accounting_journal_items")
+        }
+        if "description" not in journal_columns:
+            raise RuntimeError(
+                "Legacy HR/inventory snapshot lacks "
+                "accounting_journal_items.description"
+            )
+        for table_name in _LEGACY_TABLE_COLUMNS:
+            _rls(table_name)
+        if "outbox_events" not in existing_tables:
+            _create_outbox_events()
+        return
+
     # ----------------------------------------------------------------
     # 1. accounting_journal_items.description (model drift from new ORM)
     # ----------------------------------------------------------------
@@ -292,29 +407,7 @@ def upgrade() -> None:
     # ----------------------------------------------------------------
     # 4. Outbox events (Governance Engine P0-F8)
     # ----------------------------------------------------------------
-    op.create_table(
-        "outbox_events",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("aggregate_type", sa.String(128), nullable=True),
-        sa.Column("aggregate_id", postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column("event_type", sa.String(128), nullable=True),
-        sa.Column("payload", postgresql.JSONB(), nullable=False),
-        sa.Column("status", sa.String(20), nullable=False, server_default=sa.text("'pending'")),
-        sa.Column("governance_case_id", postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("attempt_count", sa.Integer(), nullable=False, server_default=sa.text("0")),
-        sa.Column("next_attempt_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("last_error", sa.Text(), nullable=True),
-        sa.Column("correlation_id", postgresql.UUID(as_uuid=True), nullable=True),
-        sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"]),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index("ix_outbox_events_tenant_id", "outbox_events", ["tenant_id"])
-    op.create_index("ix_outbox_events_status", "outbox_events", ["status"])
-    op.create_index("ix_outbox_events_next_attempt_at", "outbox_events", ["next_attempt_at"])
-    _rls("outbox_events")
+    _create_outbox_events()
 
 
 def downgrade() -> None:

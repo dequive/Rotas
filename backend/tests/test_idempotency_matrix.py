@@ -58,18 +58,23 @@ class Case:
     def __init__(
         self,
         name: str,
-        path: str,
+        path: str | Callable[[dict], str],
         model: Any,
         payload: Callable[[dict], dict],
         mutated: Callable[[dict], dict],
         expected_status: tuple[int, ...] = (200, 201),
     ) -> None:
         self.name = name
-        self.path = path
+        self._path = path
         self.model = model
         self.payload = payload
         self.mutated = mutated
         self.expected_status = expected_status
+
+    def path(self, ctx: dict) -> str:
+        """Financial mutations hang off a parent document, so the path is
+        resolved from the context rather than being a constant."""
+        return self._path(ctx) if callable(self._path) else self._path
 
     def __repr__(self) -> str:  # pragma: no cover - pytest id only
         return self.name
@@ -279,10 +284,10 @@ async def test_replay_returns_stored_response_without_writing_again(
 
     before = await _count(db, case.model, tenant_id)
 
-    first = await async_client.post(case.path, json=body, headers=headers)
+    first = await async_client.post(case.path(matrix_context), json=body, headers=headers)
     assert first.status_code in case.expected_status, f"{case.name}: {first.text}"
 
-    replay = await async_client.post(case.path, json=body, headers=headers)
+    replay = await async_client.post(case.path(matrix_context), json=body, headers=headers)
     assert replay.status_code in case.expected_status, f"{case.name}: {replay.text}"
 
     first_id = first.json().get("id")
@@ -301,12 +306,12 @@ async def test_same_key_with_different_payload_is_rejected(
     key = f"{case.name}:{uuid4().hex}"
     headers = {**auth_headers, "Idempotency-Key": key}
 
-    first = await async_client.post(case.path, json=case.payload(matrix_context), headers=headers)
+    first = await async_client.post(case.path(matrix_context), json=case.payload(matrix_context), headers=headers)
     assert first.status_code in case.expected_status, f"{case.name}: {first.text}"
 
     after_first = await _count(db, case.model, tenant_id)
 
-    conflict = await async_client.post(case.path, json=case.mutated(matrix_context), headers=headers)
+    conflict = await async_client.post(case.path(matrix_context), json=case.mutated(matrix_context), headers=headers)
     assert conflict.status_code == 409, (
         f"{case.name}: payload divergente aceite com {conflict.status_code} — {conflict.text}"
     )
@@ -337,7 +342,9 @@ async def test_same_key_is_scoped_per_tenant(
     key = f"{case.name}:shared:{uuid4().hex}"
     body = case.payload(matrix_context)
 
-    first = await async_client.post(case.path, json=body, headers={**auth_headers, "Idempotency-Key": key})
+    first = await async_client.post(
+        case.path(matrix_context), json=body, headers={**auth_headers, "Idempotency-Key": key}
+    )
     assert first.status_code in case.expected_status, f"{case.name}: {first.text}"
 
     other_headers = {
@@ -350,7 +357,7 @@ async def test_same_key_is_scoped_per_tenant(
     # so the assertion is on the delta, not on an absolute count.
     before_other = await _count(db, case.model, other.id)
 
-    second = await async_client.post(case.path, json=case.payload(other_context), headers=other_headers)
+    second = await async_client.post(case.path(matrix_context), json=case.payload(other_context), headers=other_headers)
     assert second.status_code in case.expected_status, (
         f"{case.name}: chave do tenant A bloqueou o tenant B — {second.status_code} {second.text}"
     )

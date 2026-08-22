@@ -610,6 +610,7 @@ async def test_create_role_client_accepted(async_client, auth_headers):
 async def test_party_directory_single_role_migrated_client(async_client, auth_headers, db, tenant_id):
     """F7.3: Full client creation lifecycle -> Party Directory returns 1 deduplicated entry as third_party."""
     from sqlalchemy import select
+
     from app.modules.clients.models import Client
     from app.modules.third_party.models import ThirdParty, ThirdPartyRole
 

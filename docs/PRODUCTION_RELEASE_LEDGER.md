@@ -1,9 +1,9 @@
 # ROTAS Production Release Ledger
 
-Versao: 0.5
+Versao: 0.6
 Aberto em: 2026-07-22
 Release candidate: por definir
-SHA de baseline: `1111b2ba5bdea19d84ce03f014ac6e5e7f2708ce`
+SHA de baseline auditada: `c912cb1c9e098b8cd4899c138232af7a02432c54`
 Decisao actual: `NO-GO`
 
 Este ledger e a evidencia operacional da seccao 15 do
@@ -17,17 +17,20 @@ Este ledger e a evidencia operacional da seccao 15 do
 - Owners nominais: pendentes de atribuicao por Produto/Engenharia.
 - Excepcoes: exigem owner, justificacao, mitigacao e prazo; nunca convertem
   `yellow` em `green`.
+- Baseline vinculativa: `docs/CURRENT_STATE_AND_CONVERGENCE_PLAN_20260822.md`.
+- PR #44: `request changes`; Issue #42 aberta; Issue #43 e expansão funcional
+  aguardam C0-C4.
 
 ## Gates
 
 | Gate | Estado | SHA/versao | Evidencia actual | Owner | Data | Excepcao/prazo |
 | --- | --- | --- | --- | --- | --- | --- |
-| G0 Source and Build Integrity | yellow | `1012ecf` + `8c47623` + `26caedc` | PR-00/PR-01/PR-02 estão em PRs empilhados; Pyright 744->0, Ruff, compileall, OpenAPI e 528 testes passam em PR-02. PR 9 Backend/Frontend não iniciaram por billing e E2E foi skipped; faltam reviewers, merge da pilha e RC limpo | TL + QA | 2026-08-08 | nenhuma |
-| G1 Data Integrity | yellow | `58e4d27` + `51d3216` + `896a157` / `rec13` | PR 10 provou base vazia; PR 11 endureceu snapshot/upgrade; PR 12 separou roles e auditou 114 tabelas tenant-scoped com zero gaps RLS/policy/grants. CI remota não iniciou por billing e ainda falta snapshot real autorizado, carga, rollback, revisão e RC | BE + SRE + SEC | 2026-08-08 | nenhuma |
-| G2 Contract and Security Boundary | yellow | `7b6773d` + `acc41b1` + `0b2037e` + `40c3a58` + working tree | PR 13 removeu auto-activação por onboarding e tenant e criou concessão `platform_admin` auditada. Draft PR 14 formalizou Browser -> BFF -> API; PR 15 versionou OpenAPI 3.1 e cliente Manager tipado; draft PR 16 centralizou timeout, erro, retry e idempotência e bloqueou `fetch` directo nos handlers. Backend/Frontend remotos não iniciaram por billing e E2E foi skipped. Faltam integrar/publicar PR03, rever/mesclar a pilha, CI remota, E2E de segurança, pentest e reprodução no RC | TL + FE-M + SEC | 2026-08-09 | nenhuma |
-| G3 Reliability and Offline | yellow | working tree | Outbox tem retry/DLQ, métricas, alerta e replay concorrente auditado; Driver offline/identidade e Manager sem demo fallback localmente verdes; faltam reconciliação Governance real, observabilidade e ensaios staging/dispositivo/rede degradada | BE + FE-D + SRE | 2026-07-27 | nenhuma |
-| G4 Production Operations | red | working tree | Decisor fail-closed PR-18..25 implementado: exige controlos verdes, hashes físicos e 17 sign-offs. Estado real continua NO-GO: PR-18 high, sem registry/deploy, runner externo, PITR/cross-region, alertas/traces reais, staging/soak, auditoria assistiva ou pentest | SEC + SRE + QA | 2026-07-30 | nenhuma |
-| G5 Pilot Evidence | red | baseline | Piloto real e soak ainda nao executados | PO + QA + SRE | 2026-07-22 | nenhuma |
+| G0 Source and Build Integrity | red | `c912cb1` | Local: Ruff/compileall verdes, backend 936+1 e Manager 128/128; Pyright tem 4 erros, build Manager atual foi inconclusivo por EPERM, Actions usam refs mutáveis e CI teve `startup_failure` sem jobs efetivos | TL + QA | 2026-08-22 | nenhuma |
+| G1 Data Integrity | yellow | `c912cb1` / `rec13` | Head/current/check locais convergem em rec13 e a suite RLS passa; faltam snapshot real autorizado, upgrade histórico reconciliado, rollback independente, revisão e RC | BE + SRE + SEC | 2026-08-22 | nenhuma |
+| G2 Contract and Security Boundary | red | `c912cb1` | Manager/OpenAPI está localmente verde, mas Driver pode criar viagens/listar frota, Sync não prova ownership intra-tenant, seis contratos Driver/Sync têm schema vazio e o pairing não é serializado | TL + FE-D + BE + SEC | 2026-08-22 | nenhuma |
+| G3 Reliability and Offline | red | `c912cb1`; linha Android `50955e1` não integrada | Driver aprovado em Android, journeys atribuídas, documentos e proteções de idempotência existem noutra linha Git. A branch atual regressou à PWA antiga e não tem prova cross-driver/device | BE + FE-D + SRE | 2026-08-22 | nenhuma |
+| G4 Production Operations | red | sem RC | Sem registry/deploy imutável, runner externo, observabilidade real, PITR/DR, staging/soak, auditoria assistiva ou pentest no mesmo SHA | SEC + SRE + QA | 2026-08-22 | nenhuma |
+| G5 Pilot Evidence | red | sem RC | Piloto e soak não executados no SHA integrado; evidência Android de outra branch não promove este gate | PO + QA + SRE | 2026-08-22 | nenhuma |
 
 ## Entregas activas
 
@@ -66,15 +69,15 @@ Este ledger e a evidencia operacional da seccao 15 do
 
 | Data UTC | ID/Gate | SHA | Resultado | Artefacto/comando |
 | --- | --- | --- | --- | --- |
-| 2026-08-22 | G0/G2 | `c912cb1` | verde local | `verify:api-contracts` 208 refs / 158 ops / **0 violacoes** (era 72 schemas 2xx vazios); `test_openapi_contract` 9/9 |
-| 2026-08-22 | G0 | `c912cb1` | verde local | backend `pytest` 936 passed / 1 skipped; `ruff check app tests` limpo |
-| 2026-08-22 | G0 | `c912cb1` | verde local | Manager `tsc --noEmit` 0 erros; Vitest 128/128 em 33 ficheiros; build 96 rotas |
-| 2026-08-22 | G0 | `c912cb1` | verde local | Driver `tsc --noEmit` 0 erros; Vitest 30/30; build PWA precache 6 (351.58 KiB) |
+| 2026-08-22 | G0/G2 | `c912cb1` | parcial local | `verify:api-contracts` 208 refs / 158 ops / 0 violações cobre referências Manager; seis contratos Driver/Sync continuam vazios |
+| 2026-08-22 | G0 | `c912cb1` | parcial local | backend `pytest` 936 passed / 1 skipped e Ruff limpo; Pyright atual tem 4 erros, logo G0 não está verde |
+| 2026-08-22 | G0 | `c912cb1` | parcial local | Manager `tsc --noEmit` e Vitest 128/128 verdes; build atual inconclusivo por `EPERM` no OneDrive |
+| 2026-08-22 | G0/G3 | `c912cb1` | build local, fluxo vermelho | Driver `tsc --noEmit`, Vitest 30/30 e build PWA verdes; a persona ainda cria viagens/documentos e não contém a jornada Android aprovada |
 | 2026-08-22 | G2 | `c912cb1` | correccao | `HR_SALARY_VIEW` passa a proteger processamento salarial, adiantamentos e export PS2. Antes, `viewer` e `manager` liam salario bruto/liquido e NIB bancario com `HR_READ`, contra a intencao declarada em `rbac.py` |
 | 2026-08-22 | G2 | `c912cb1` | divida registada | 8 das 53 permissoes declaradas nao protegem rota nenhuma; teste-guarda impede novas. Issue #45 |
 | 2026-08-22 | G3 | `c912cb1` | correccao | Uma operacao invalida deixava de derrubar o lote de sincronizacao inteiro. Falha passa a ser por operacao, com codigo estavel e mensagem accionavel em portugues na PWA |
-| 2026-08-22 | G3 | `c912cb1` | verde local | Matriz de idempotencia: replay e conflito nos 9 tipos de create e no update do sync; 17 das 54 operacoes HTTP; RBAC 10 mutacoes e 5 transicoes x 6 papeis |
-| 2026-08-22 | PR-44 | `c912cb1` | **excepcao** | Fusao autorizada sem CI remota e sem revisao independente. Ver "Excepcao PR-44" abaixo |
+| 2026-08-22 | G3 | `c912cb1` | parcial local | Matriz cobre replay/conflito funcional, mas não owner mismatch cross-driver/cross-device; G3 permanece vermelho |
+| 2026-08-22 | PR-44 | `c912cb1` | **exceção revogada** | Auditoria vinculativa encontrou P0 de autorização/ownership. Merge não autorizado; ver revogação abaixo |
 | 2026-07-22 | baseline | `1111b2b` | NO-GO | Auditoria de arquitectura e prontidao |
 | 2026-07-22 | G0 | `1111b2b` | parcial | Backend importou 371 rotas; 520 testes colectados |
 | 2026-07-22 | G0 | `1111b2b` | parcial | Manager e Driver typecheck/build verdes |
@@ -190,34 +193,26 @@ do release candidate. Presenca de codigo, commit message, mock ou teste isolado
 nao e evidencia suficiente para gates de runtime, dados, seguranca ou operacao.
 
 
-## Excepcao PR-44 — fusao sem CI remota nem revisao independente
+**Revogação da Exceção PR-44 — exceção registada em 2026-08-22.**
 
-**Registada em:** 2026-08-22
+**Revogada em:** 2026-08-22 pela auditoria de convergência vinculativa
+
 **SHA:** `c912cb1`
 **Owner:** dequive (Produto + Engenharia, interinamente)
 
-**O que se dispensa.** A politica de merge deste ledger exige que nenhum merge
-ocorra com gate blocking vermelho, e a norma de engenharia exige revisao
-independente. A PR #44 e fundida sem nenhuma das duas.
+**Razão da revogação.** A exceção considerava indisponibilidade da conta GitHub
+e ausência de segundo revisor, mas assumia que os riscos restantes eram apenas
+de certificação. A auditoria posterior confirmou defeitos executáveis no próprio
+SHA: Driver cria viagens/documentos, Sync não prova ownership intra-tenant,
+idempotência pode atravessar motoristas/dispositivos, pairing não é serializado,
+contratos Driver estão vazios e a linha Android aprovada não foi integrada.
 
-**Porque.** A conta GitHub esta bloqueada por facturacao desde 2026-08-08
-(Issue #2). Nenhum job de CI arranca: `Issue PR Contract` termina em 1s com
-"the job was not started because your account is locked due to a billing
-issue". Nao ha segundo colaborador no repositorio, pelo que nao existe revisor
-possivel. Manter 39 commits e 734 ficheiros por fundir por tempo indefinido
-acumula risco de conflito e de perda, sem reduzir o risco que a CI reduziria.
+Estes são defeitos de produto e segurança, não controlos externos dispensáveis.
+Testes locais não os compensam. Além disso, Pyright está vermelho e as Actions
+fixadas por SHA não convergiram nesta branch.
 
-**Mitigacao.** Todos os gates verificaveis localmente foram executados no SHA
-exacto a fundir e estao registados acima: 1.094 testes nas tres aplicacoes,
-typecheck, lint, builds e auditor de contratos a zero. A logica do gate
-`Issue PR Contract` foi executada localmente contra o corpo da PR e passa. A
-base `stabilization/p0-2026-q3` mantem-se protegida e o SHA anterior permanece
-disponivel para reversao.
-
-**O que esta excepcao NAO converte.** Prova local nao e certificacao de
-runtime. G0 a G3 permanecem `yellow`, G4 e G5 permanecem `red`, e a decisao
-global permanece **NO-GO**. Esta fusao nao autoriza promocao a producao.
-
-**Prazo.** A excepcao caduca quando a facturacao for restaurada. Nessa altura
-a CI tem de correr sobre o SHA fundido e a evidencia remota substitui a local
-neste ledger. Ate la, nenhuma nova excepcao do mesmo tipo deve ser aberta.
+**Decisão vinculativa.** PR #44 recebe `request changes` e não pode ser fundido
+por exceção. A indisponibilidade de CI pode bloquear promoção, mas nunca autoriza
+contornar P0/P1 confirmados. Uma futura exceção exige novo parecer, owner,
+mitigação, prazo e não pode dispensar autorização, integridade de dados ou
+isolamento tenant/driver/device.

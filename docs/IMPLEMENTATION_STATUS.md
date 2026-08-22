@@ -1,5 +1,27 @@
 # ROTAS Implementation Status
 
+> [!WARNING]
+> Este ficheiro é um histórico cumulativo de implementação, não a autoridade de
+> release. A baseline vinculativa atual está em
+> `docs/CURRENT_STATE_AND_CONVERGENCE_PLAN_20260822.md`; a decisão é `NO-GO`.
+> Entradas antigas abaixo podem descrever outro SHA e não podem ser usadas por
+> agentes como prova do checkout atual.
+
+## Current Audited Baseline — 2026-08-22
+
+- Branch: `codex/issue42-convergencia-manager-driver-backend`.
+- SHA: `c912cb1c9e098b8cd4899c138232af7a02432c54`.
+- Local: backend `936 passed, 1 skipped`; Ruff/compileall verdes; Pyright com
+  quatro erros.
+- Manager: `128/128`, typecheck, contratos/BFF/no-demo/acessibilidade estática
+  verdes; build atual inconclusivo por `EPERM` no OneDrive.
+- Driver: `30/30`, typecheck e build verdes, mas a jornada funcional é a versão
+  antiga e viola o contrato de viagens atribuídas.
+- Alembic: `rec13` head/current; CI remota não executou jobs efetivos.
+- Bloqueios P0: criação de viagem pelo Driver, operações Sync sem ownership,
+  idempotência cross-driver/device e ausência da linha Android aprovada.
+- Próxima sequência: C0-C4 da baseline; não iniciar Issue #43 antes do fecho.
+
 ## Done
 
 - Product/engineering documentation consolidated for the MVP.

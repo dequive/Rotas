@@ -2766,3 +2766,42 @@ Motoristas e Rotas Conhecidas ficam **fechados localmente ao nível de contrato*
 O gate OpenAPI agregado continua vermelho em 72; CI, staging, multi-instância,
 soak, piloto e validação HOS permanecem abertos. Veredito global mantido:
 **NO-GO comercial e de produção**.
+
+### 16.11 Auditoria de convergência vinculativa — 2026-08-22
+
+Esta atualização substitui as contagens e conclusões locais das secções
+16.5-16.10 quando houver conflito. A baseline completa está em
+`docs/CURRENT_STATE_AND_CONVERGENCE_PLAN_20260822.md` e a precedência
+documental em `AGENTS.md`/`ADR-009`.
+
+Estado auditado da branch `codex/issue42-convergencia-manager-driver-backend`,
+SHA `c912cb1c9e098b8cd4899c138232af7a02432c54`:
+
+- backend 936 passed + 1 skipped, Ruff/compileall verdes e Pyright com 4 erros;
+- Manager 128/128, contratos Manager/BFF/no-demo/acessibilidade estática
+  verdes; build atual inconclusivo por `EPERM` no OneDrive;
+- Driver 30/30, typecheck/build verdes, mas a aplicação funcional regressou à
+  versão que cria viagens e documentos;
+- os commits Android `ebb583b` e `50955e1` não são ancestrais do SHA atual;
+- Sync não prova ownership intra-tenant nem owner de idempotência por
+  motorista/dispositivo;
+- seis endpoints Driver/Sync continuam com schema OpenAPI de sucesso vazio;
+- pairing concorrente não possui consumo serializado;
+- CI remota teve `startup_failure` e não executou os gates do SHA.
+
+Consequentemente, F-02/Driver e F7 não estão fechados. G0, G2, G3, G4 e G5
+ficam vermelhos; G1 permanece amarelo. PR #44 requer alterações e Issue #42
+continua aberta.
+
+Sequência vinculativa antes de retomar ERP-00..13/BI-01..08:
+
+1. C0: freeze, branch/PR canónico e matriz integrar/portar/substituir/descartar;
+2. C1: autorização/ownership/idempotência/pairing Driver e Sync fail-closed;
+3. C2: viagens atribuídas, histórico, documentos, pedidos e lifecycle fechado;
+4. C3: OpenAPI Driver, Pyright, CI Driver, Node/Actions fixados e bases de prova;
+5. C4: mesmo SHA em CI, staging multi-instância e Android físico.
+
+Issue #43 começa apenas após C0-C4. Depois seguem E0 SaaS Boundary, E1 P2P e
+inventário, E2 O2C/oficina/fecho, E3 pessoas/payroll/ativos, E4 Trusted BI e E5
+piloto. Nenhum agente pode promover etapa posterior contornando um gate
+anterior vermelho.

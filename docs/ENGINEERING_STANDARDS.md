@@ -2,6 +2,19 @@
 
 Estas normas sao obrigatorias para a materializacao do ROTAS. O objectivo e construir um produto robusto, auditavel, evolutivo e seguro para operacao real de frotas em Mocambique.
 
+## Precedência documental obrigatória
+
+Estas normas são aplicadas segundo a hierarquia definida em `AGENTS.md` e na
+`ADR-009`. Nenhum agente pode criar um padrão paralelo, promover um módulo com
+base em evidência histórica ou alterar a sequência do plano mestre sem atualizar
+as fontes canónicas na mesma mudança.
+
+A baseline operacional atual é
+`docs/CURRENT_STATE_AND_CONVERGENCE_PLAN_20260822.md`. Enquanto os seus P0/P1
+estiverem abertos, Issue #42 precede Issue #43 e novas capacidades. O estado de
+release continua a ser decidido exclusivamente por
+`docs/PRODUCTION_RELEASE_LEDGER.md`.
+
 ## Principios Base
 
 - O dominio manda na tecnologia: carga, viagens, documentos, descarga e cobranca contratual devem estar modelados explicitamente.

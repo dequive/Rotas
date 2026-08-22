@@ -68,8 +68,10 @@ as melhorias atuais e repetindo testes no SHA integrado.
 
 Os SHAs `51509d5` e `58b730a` passaram a exigir que o `device_id` do batch
 coincida com o JWT Driver e bloquearam no dispatcher criação de viagem,
-licença, manifesto e documento de transporte. Falta provar em cada operação
-permitida que viagem, viatura e documento pertencem ao motorista autenticado.
+licença, manifesto e documento de transporte. `d30f1b0` protegeu criações
+ligadas à viagem e o lifecycle; `aa28bc2` protegeu identidade/viatura em
+checklist e combustível; `e7de9e6` protegeu update de combustível. Faltam os
+updates de checklist, paragem e prova de entrega.
 
 Critério de fecho: allowlist por persona/operação, ownership por entidade e
 `device_id` derivado/verificado contra o principal autenticado.
@@ -151,9 +153,11 @@ equivale a merge, CI remoto ou fecho da Issue #42.
 Estado em 2026-08-22: **em progresso**. O slice `77385bb` fechou localmente
 criação/atribuição de viagem e listagem de frota pelo Driver. `51509d5` vinculou
 o batch ao dispositivo do JWT; `58b730a` introduziu allowlist e bloqueou
-operações de despacho via Sync. Há RED/GREEN, Ruff, 43 testes Sync/Driver e
-evidência backend combinada anterior de 938 passados/1 skip. Ownership por
-entidade, idempotência por owner/device e pairing continuam P0.
+operações de despacho via Sync. `d30f1b0`, `aa28bc2` e `e7de9e6` fecharam
+ownership de criação por viagem/viatura e update de combustível. Há RED/GREEN,
+Ruff e partições de até 55 testes Sync/Driver verdes, além da evidência backend
+combinada anterior de 938 passados/1 skip. Updates residuais, idempotência por
+owner/device e pairing continuam P0.
 
 ### C2 — Jornadas Driver
 

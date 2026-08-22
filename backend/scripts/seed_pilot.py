@@ -98,8 +98,6 @@ async def seed() -> dict[str, Any]:
                 license_number="C-PILOTO-001",
                 license_category="C",
                 license_valid_until=date(2027, 5, 31),
-                inatter_license="INATTER-PILOTO-001",
-                inatter_valid_until=date(2027, 1, 31),
                 employment_type="efectivo",
                 status="active",
                 score=100,

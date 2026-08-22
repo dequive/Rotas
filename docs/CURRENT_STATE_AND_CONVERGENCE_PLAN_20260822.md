@@ -66,10 +66,10 @@ as melhorias atuais e repetindo testes no SHA integrado.
 
 ### P0-SYNC-01 — Sync não prova ownership intra-tenant
 
-O dispatcher aceita criação/edição de viagens, custos e documentos usando o
-tenant autenticado, mas não prova em cada operação que viagem, viatura e
-documento pertencem ao motorista e dispositivo autenticados. O `device_id`
-auditado é recebido no payload.
+Os SHAs `51509d5` e `58b730a` passaram a exigir que o `device_id` do batch
+coincida com o JWT Driver e bloquearam no dispatcher criação de viagem,
+licença, manifesto e documento de transporte. Falta provar em cada operação
+permitida que viagem, viatura e documento pertencem ao motorista autenticado.
 
 Critério de fecho: allowlist por persona/operação, ownership por entidade e
 `device_id` derivado/verificado contra o principal autenticado.
@@ -149,9 +149,11 @@ equivale a merge, CI remoto ou fecho da Issue #42.
 - serializar consumo do pairing.
 
 Estado em 2026-08-22: **em progresso**. O slice `77385bb` fechou localmente
-criação/atribuição de viagem e listagem de frota pelo Driver, com RED/GREEN,
-Ruff, 29 testes RBAC/OpenAPI e evidência backend combinada de 938 passados/1
-skip. Ownership Sync, idempotência por owner/device e pairing continuam P0.
+criação/atribuição de viagem e listagem de frota pelo Driver. `51509d5` vinculou
+o batch ao dispositivo do JWT; `58b730a` introduziu allowlist e bloqueou
+operações de despacho via Sync. Há RED/GREEN, Ruff, 43 testes Sync/Driver e
+evidência backend combinada anterior de 938 passados/1 skip. Ownership por
+entidade, idempotência por owner/device e pairing continuam P0.
 
 ### C2 — Jornadas Driver
 

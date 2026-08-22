@@ -7905,8 +7905,8 @@
           "last_name",
           "role",
           "department",
-          "base_salary",
-          "hire_date"
+          "hire_date",
+          "base_salary"
         ],
         "title": "EmployeeCreate",
         "type": "object"
@@ -8152,6 +8152,7 @@
           "bank_account_nib": {
             "anyOf": [
               {
+                "maxLength": 80,
                 "type": "string"
               },
               {

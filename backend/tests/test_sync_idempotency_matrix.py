@@ -319,7 +319,8 @@ async def _post_batch(tenant_id, device_id: str, operations: list[dict]) -> http
 
 async def _count(model: Any, tenant_id) -> int:
     async with AsyncSessionLocal() as db:
-        return await db.scalar(select(func.count(model.id)).where(model.tenant_id == tenant_id))
+        value = await db.scalar(select(func.count(model.id)).where(model.tenant_id == tenant_id))
+        return int(value or 0)
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c.entity_type)
@@ -567,6 +568,7 @@ def _update_operation(server_id: str, key: str, liters: float) -> dict:
 async def _liters_of(tenant_id, fuel_log_id: str) -> float:
     async with AsyncSessionLocal() as db:
         value = await db.scalar(select(FuelLog.liters).where(FuelLog.id == UUID(fuel_log_id)))
+        assert value is not None
         return float(value)
 
 
@@ -758,11 +760,5 @@ async def test_an_explicit_request_reference_from_the_client_is_respected() -> N
     assert response.json()["results"][0]["status"] == "processed", response.text
 
     async with AsyncSessionLocal() as db:
-        stored = await db.scalar(
-            select(TripCost.request_reference).where(
-                TripCost.tenant_id == ids["tenant_id"]
-            )
-        )
-    assert stored == "multa-en1-2026-0042", (
-        f"a referencia enviada pelo dispositivo foi substituida por {stored!r}"
-    )
+        stored = await db.scalar(select(TripCost.request_reference).where(TripCost.tenant_id == ids["tenant_id"]))
+    assert stored == "multa-en1-2026-0042", f"a referencia enviada pelo dispositivo foi substituida por {stored!r}"

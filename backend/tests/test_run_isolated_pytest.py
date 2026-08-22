@@ -1,7 +1,7 @@
 import contextlib
 import io
-import os
 import subprocess
+import sys
 import unittest
 from unittest.mock import MagicMock, call, patch
 
@@ -78,13 +78,13 @@ class RunIsolatedPytestTests(unittest.TestCase):
             run.call_args_list,
             [
                 call(
-                    [os.sys.executable, "-m", "alembic", "upgrade", "head"],
+                    [sys.executable, "-m", "alembic", "upgrade", "head"],
                     env=expected_migration_environment,
                     check=False,
                 ),
                 call(
                     [
-                        os.sys.executable,
+                        sys.executable,
                         "-m",
                         "pytest",
                         "tests/test_driver_app_api.py",

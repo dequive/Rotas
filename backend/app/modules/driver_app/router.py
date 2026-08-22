@@ -1,20 +1,18 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import DriverPrincipal, get_driver_principal
 from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.modules.driver_app import service
-from app.modules.trips.schemas import TripCreate
 
 router = APIRouter(prefix="/driver", tags=["driver-app"])
 
 DriverPrincipalDependency = Annotated[DriverPrincipal, Depends(get_driver_principal)]
 RlsSession = Annotated[AsyncSession, Depends(get_session)]
-VehicleLimit = Annotated[int, Query(ge=1, le=50)]
 
 
 def _require_driver_id(principal: DriverPrincipal) -> UUID:
@@ -50,15 +48,20 @@ async def list_checklist_templates(
     return await service.list_driver_checklist_templates(db, principal.tenant_id)
 
 
-@router.get("/vehicles")
+@router.get(
+    "/vehicles",
+    deprecated=True,
+    responses={403: {"description": "Fleet selection is restricted to dispatch."}},
+)
 async def list_vehicles(
     principal: DriverPrincipalDependency,
-    db: RlsSession,
-    limit: VehicleLimit = 50,
 ):
     _require_driver_id(principal)
-    vehicles = await service.list_driver_vehicles(db, principal.tenant_id)
-    return vehicles[:limit]
+    raise ApiError(
+        "driver_operation_forbidden",
+        "Fleet vehicle selection is managed by dispatch.",
+        status_code=403,
+    )
 
 
 @router.get("/active-trip")
@@ -74,16 +77,17 @@ async def get_active_trip(
     )
 
 
-@router.post("/trips", status_code=201)
+@router.post(
+    "/trips",
+    deprecated=True,
+    responses={403: {"description": "Trip creation is restricted to dispatch."}},
+)
 async def create_trip(
-    payload: TripCreate,
     principal: DriverPrincipalDependency,
-    db: RlsSession,
 ):
-    driver_id = _require_driver_id(principal)
-    return await service.create_driver_trip(
-        db,
-        tenant_id=principal.tenant_id,
-        driver_id=driver_id,
-        payload=payload,
+    _require_driver_id(principal)
+    raise ApiError(
+        "driver_operation_forbidden",
+        "Trip creation and assignment are managed by dispatch.",
+        status_code=403,
     )

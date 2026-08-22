@@ -3,12 +3,9 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import ApiError
 from app.modules.checklists import service as checklists_service
 from app.modules.trips import service as trips_service
 from app.modules.trips.models import Trip
-from app.modules.trips.schemas import TripCreate
-from app.modules.vehicles import service as vehicles_service
 
 ACTIVE_DRIVER_TRIP_STATUSES = (
     "planned",
@@ -26,15 +23,6 @@ async def list_driver_checklist_templates(db: AsyncSession, tenant_id: UUID) -> 
         tenant_id,
         type_filter="pre_partida",
         is_active=True,
-    )
-
-
-async def list_driver_vehicles(db: AsyncSession, tenant_id: UUID) -> list[dict]:
-    return await vehicles_service.list_vehicles(
-        db,
-        tenant_id,
-        status_filter="active",
-        limit=50,
     )
 
 
@@ -73,28 +61,7 @@ async def get_bootstrap_payload(
         },
         "checklistTemplates": await list_driver_checklist_templates(db, tenant_id),
         "activeTrip": await get_active_driver_trip(db, tenant_id, driver_id),
-        "vehicles": await list_driver_vehicles(db, tenant_id),
+        # Transitional field for old clients. The assigned trip, not a fleet
+        # selector, is the Driver app's source of vehicle identity.
+        "vehicles": [],
     }
-
-
-async def create_driver_trip(
-    db: AsyncSession,
-    *,
-    tenant_id: UUID,
-    driver_id: UUID,
-    payload: TripCreate,
-) -> dict:
-    if payload.driver_id != driver_id:
-        raise ApiError(
-            "driver_mismatch",
-            "Driver cannot create trips for another driver.",
-            status_code=403,
-        )
-
-    secure_payload = payload.model_copy(update={"driver_id": driver_id})
-    return await trips_service.create_trip(
-        db,
-        tenant_id,
-        secure_payload,
-        actor_id=None,
-    )

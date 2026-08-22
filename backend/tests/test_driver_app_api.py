@@ -1,10 +1,12 @@
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import func, select
 
 from app.core.tokens import create_access_token
 from app.modules.checklists.models import ChecklistTemplate
 from app.modules.drivers.models import Driver, DriverDevice
+from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
 
 
@@ -92,9 +94,7 @@ async def test_driver_bootstrap_uses_driver_contract(async_client, driver_app_co
     assert [template["name"] for template in data["checklistTemplates"]] == [
         driver_app_context["template"].name
     ]
-    assert [vehicle["plate"] for vehicle in data["vehicles"]] == [
-        driver_app_context["vehicle"].plate
-    ]
+    assert data["vehicles"] == []
 
 
 @pytest.mark.asyncio
@@ -109,7 +109,20 @@ async def test_dashboard_token_cannot_use_driver_contract(async_client, viewer_h
 
 
 @pytest.mark.asyncio
-async def test_driver_can_create_own_trip(async_client, driver_app_context):
+async def test_driver_cannot_list_general_fleet(async_client, driver_app_context):
+    response = await async_client.get(
+        "/api/v1/driver/vehicles",
+        headers=driver_app_context["headers"],
+    )
+
+    assert response.status_code == 403, response.text
+    assert response.json()["error"]["code"] == "driver_operation_forbidden"
+
+
+@pytest.mark.asyncio
+async def test_driver_cannot_create_trip(
+    async_client, db, tenant_id, driver_app_context
+):
     response = await async_client.post(
         "/api/v1/driver/trips",
         headers=driver_app_context["headers"],
@@ -123,11 +136,9 @@ async def test_driver_can_create_own_trip(async_client, driver_app_context):
         },
     )
 
-    assert response.status_code == 201, response.text
-    data = response.json()
-    assert data["driver_id"] == str(driver_app_context["driver"].id)
-    assert data["vehicle_id"] == str(driver_app_context["vehicle"].id)
-    assert data["origin"] == "Maputo"
+    assert response.status_code == 403, response.text
+    assert response.json()["error"]["code"] == "driver_operation_forbidden"
+    assert await db.scalar(select(func.count(Trip.id)).where(Trip.tenant_id == tenant_id)) == 0
 
 
 @pytest.mark.asyncio
@@ -144,4 +155,23 @@ async def test_driver_cannot_create_trip_for_another_driver(async_client, driver
     )
 
     assert response.status_code == 403, response.text
-    assert response.json()["error"]["code"] == "driver_mismatch"
+    assert response.json()["error"]["code"] == "driver_operation_forbidden"
+
+
+@pytest.mark.asyncio
+async def test_driver_trip_creation_is_forbidden_before_payload_validation(
+    async_client, driver_app_context
+):
+    response = await async_client.post(
+        "/api/v1/driver/trips",
+        headers=driver_app_context["headers"],
+        json={
+            "vehicle_id": str(driver_app_context["vehicle"].id),
+            "driver_id": str(driver_app_context["driver"].id),
+            "origin": "   ",
+            "destination": "Matola",
+        },
+    )
+
+    assert response.status_code == 403, response.text
+    assert response.json()["error"]["code"] == "driver_operation_forbidden"

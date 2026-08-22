@@ -58,11 +58,20 @@ WORKSHOP_RECEPTION = "workshop.reception"
 WORKSHOP_QUOTE = "workshop.quote"
 WORKSHOP_QUOTE_APPROVE = "workshop.quote_approve"
 WORKSHOP_INVENTORY_ADJUST = "workshop.inventory_adjust"
+WORKSHOP_APPROVE = "workshop.approve"
+WORKSHOP_EXECUTE = "workshop.execute"
+WORKSHOP_PARTS_ISSUE = "workshop.parts_issue"
+WORKSHOP_QUALITY_CHECK = "workshop.quality_check"
+WORKSHOP_CLOSE = "workshop.close"
+WORKSHOP_FINANCE_READ = "workshop.finance_read"
 
 ADMIN_USERS = "admin.users"
 ADMIN_TENANT = "admin.tenant"
 
 AUDIT_READ = "audit.read"
+
+OUTBOX_READ = "outbox.read"
+OUTBOX_REPLAY = "outbox.replay"
 
 # Stabilization/P0-F6: ERP module permissions (HR, Accounting, Payables, Inventory)
 HR_READ = "hr.read"
@@ -110,9 +119,21 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             WORKSHOP_READ,
             WORKSHOP_WRITE,
             WORKSHOP_RELEASE,
+            WORKSHOP_RECEPTION,
+            WORKSHOP_QUOTE,
+            WORKSHOP_QUOTE_APPROVE,
+            WORKSHOP_INVENTORY_ADJUST,
+            WORKSHOP_APPROVE,
+            WORKSHOP_EXECUTE,
+            WORKSHOP_PARTS_ISSUE,
+            WORKSHOP_QUALITY_CHECK,
+            WORKSHOP_CLOSE,
+            WORKSHOP_FINANCE_READ,
             ADMIN_USERS,
             ADMIN_TENANT,
             AUDIT_READ,
+            OUTBOX_READ,
+            OUTBOX_REPLAY,
             # Stabilization/P0-F6: ERP modules
             HR_READ,
             HR_WRITE,
@@ -154,8 +175,20 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             WORKSHOP_READ,
             WORKSHOP_WRITE,
             WORKSHOP_RELEASE,
+            WORKSHOP_RECEPTION,
+            WORKSHOP_QUOTE,
+            WORKSHOP_QUOTE_APPROVE,
+            WORKSHOP_INVENTORY_ADJUST,
+            WORKSHOP_APPROVE,
+            WORKSHOP_EXECUTE,
+            WORKSHOP_PARTS_ISSUE,
+            WORKSHOP_QUALITY_CHECK,
+            WORKSHOP_CLOSE,
+            WORKSHOP_FINANCE_READ,
             ADMIN_USERS,
             AUDIT_READ,
+            OUTBOX_READ,
+            OUTBOX_REPLAY,
             # Stabilization/P0-F6: ERP modules (admin can post but not reverse accounting)
             HR_READ,
             HR_WRITE,
@@ -191,6 +224,15 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             FUEL_WRITE,
             WORKSHOP_READ,
             WORKSHOP_WRITE,
+            WORKSHOP_RECEPTION,
+            WORKSHOP_QUOTE,
+            WORKSHOP_QUOTE_APPROVE,
+            WORKSHOP_APPROVE,
+            WORKSHOP_EXECUTE,
+            WORKSHOP_PARTS_ISSUE,
+            WORKSHOP_QUALITY_CHECK,
+            WORKSHOP_CLOSE,
+            WORKSHOP_FINANCE_READ,
             # Stabilization/P0-F6: billing approval, payroll approve, accounting approve
             HR_READ,
             HR_WRITE,
@@ -228,6 +270,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             BILLING_READ,
             WORKSHOP_READ,
             WORKSHOP_WRITE,
+            WORKSHOP_EXECUTE,
             WORKSHOP_RELEASE,
             WORKSHOP_RECEPTION,
             WORKSHOP_QUOTE,
@@ -247,7 +290,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
 }
 
 # ── ALL_PERMISSIONS: union of every role's permission set ─────────────────────
-# Should equal exactly 23 unique permission strings.
+# Union is derived from role mappings so additions remain visible to auth claims.
 ALL_PERMISSIONS: frozenset[str] = frozenset().union(*ROLE_PERMISSIONS.values())
 
 
@@ -272,13 +315,19 @@ def require_permission(*permissions: str) -> Callable:
     # Principal must be a concrete type (not a string forward-ref) so FastAPI's
     # get_type_hints() can resolve it and recognise the Depends() annotation rather
     # than treating `principal` as a query parameter.
-    from app.core.auth import Principal, get_current_principal  # noqa: PLC0415
+    from app.core.auth import Principal, TenantPrincipal, get_current_principal  # noqa: PLC0415
 
     required: frozenset[str] = frozenset(permissions)
 
     async def dependency(
         principal: Annotated[Principal, Depends(get_current_principal)],
-    ) -> Principal:
+    ) -> TenantPrincipal:
+        if principal.tenant_id is None:
+            raise ApiError(
+                "tenant_context_required",
+                "A tenant context is required for this permission.",
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
         if not principal.has_any_permission(required):
             raise ApiError(
                 "forbidden",
@@ -286,7 +335,16 @@ def require_permission(*permissions: str) -> Callable:
                 status_code=status.HTTP_403_FORBIDDEN,
                 details={"required_permissions": sorted(required)},
             )
-        return principal
+        return TenantPrincipal(
+            subject=principal.subject,
+            tenant_id=principal.tenant_id,
+            scope=principal.scope,
+            role=principal.role,
+            user_id=principal.user_id,
+            driver_id=principal.driver_id,
+            device_id=principal.device_id,
+            permissions=principal.permissions,
+        )
 
     return dependency
 
@@ -410,9 +468,7 @@ def require_own_tenant_or_platform(
             return principal
         else:
             # Tenant path: full validation via the tenant decoder.
-            principal = await get_current_principal(
-                authorization=authorization, x_tenant_id=x_tenant_id
-            )
+            principal = await get_current_principal(authorization=authorization, x_tenant_id=x_tenant_id)
             if not principal.has_any_permission(frozenset({tenant_permission})):
                 raise ApiError(
                     "forbidden",

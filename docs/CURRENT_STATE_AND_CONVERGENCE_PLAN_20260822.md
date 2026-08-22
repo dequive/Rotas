@@ -84,6 +84,17 @@ A chave é única apenas por `(tenant_id, idempotency_key)`. O replay não compa
 Critério de fecho: owner mismatch falha fechado; concorrência e replay
 cross-driver/cross-device possuem testes negativos.
 
+### P0-TEST-DB-01 — Pytest escreve na base operacional configurada
+
+`backend/tests/conftest.py` usa `AsyncSessionLocal`/`DATABASE_URL` sem rollback
+ou cleanup. A configuração mascarada observada foi `localhost:55432/rotas` e
+os services fazem commits reais. A repetição da suíte acumula fixtures e não é
+evidência isolada/repetível.
+
+Critério de fecho: implementar ADR-010 com `TEST_DATABASE_URL` obrigatório,
+base PostgreSQL efémera `rotas_test_*` por execução/worker e falha fechada
+contra URLs operacionais. Não limpar os dados existentes sem autorização.
+
 ### P1-API-01 — Contratos Driver/Sync vazios
 
 Os sucessos de `/driver/bootstrap`, `/driver/vehicles`,
@@ -149,6 +160,7 @@ equivale a merge, CI remoto ou fecho da Issue #42.
 - allowlist e ownership em todas as mutações offline;
 - isolar idempotência/cache por tenant, motorista, dispositivo e sessão;
 - serializar consumo do pairing.
+- C1-I0: isolar a base de testes antes de executar novos pytest mutáveis.
 
 Estado em 2026-08-22: **em progresso**. O slice `77385bb` fechou localmente
 criação/atribuição de viagem e listagem de frota pelo Driver. `51509d5` vinculou

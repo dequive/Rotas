@@ -125,6 +125,13 @@ Um fluxo só pode ser chamado `fechado` quando possui, conjuntamente:
 
 ## 8. Próximo gate obrigatório
 
+Antes de qualquer novo pytest mutável, implementar C1-I0 conforme
+`docs/adr/ADR-010-base-de-dados-descartavel-para-testes.md`. A suíte atual usa
+`DATABASE_URL` diretamente e foi observada em `localhost:55432/rotas`; nenhum
+agente pode voltar a executar testes de escrita nessa base, limpá-la ou assumir
+que é descartável. Exigir `TEST_DATABASE_URL` fail-closed e base efémera
+`rotas_test_*`.
+
 O próximo incremento deve produzir testes negativos com token Driver real que
 provem:
 

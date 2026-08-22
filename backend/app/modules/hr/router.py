@@ -10,6 +10,7 @@ from app.core.rbac import (
     HR_PAYROLL_APPROVE,
     HR_PAYROLL_GENERATE,
     HR_READ,
+    HR_SALARY_VIEW,
     HR_WRITE,
     require_permission,
 )
@@ -21,8 +22,21 @@ from app.modules.hr import schemas, service
 
 router = APIRouter(prefix="/hr", tags=["hr"])
 
-PrincipalDep = Annotated[Principal, Depends(require_permission(HR_READ))]
+SalaryPrincipalDep = Annotated[Principal, Depends(require_permission(HR_SALARY_VIEW))]
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
+
+# Fields that are only visible to a principal holding HR_SALARY_VIEW. The employee
+# directory itself stays open to HR_READ — a dispatcher needs to know who works
+# here — but pay and bank details are not part of "who works here".
+SALARY_FIELDS = ("base_salary", "bank_account_nib")
+
+
+def _redact_salary(employee: object) -> dict:
+    """Return the employee as a dict with pay and bank fields blanked out."""
+    data = schemas.EmployeeResponse.model_validate(employee).model_dump()
+    for field in SALARY_FIELDS:
+        data[field] = None
+    return data
 
 
 # Aqui assumimos que apenas um utilizador logado de uma Tenant pode aceder:
@@ -31,7 +45,10 @@ async def list_employees(
     principal: Annotated[Principal, Depends(require_permission(HR_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.list_employees(principal.tenant_id, db)
+    employees = await service.list_employees(principal.tenant_id, db)
+    if principal.has_any_permission(frozenset({HR_SALARY_VIEW})):
+        return employees
+    return [_redact_salary(employee) for employee in employees]
 
 
 @router.post("/employees", response_model=schemas.EmployeeResponse, status_code=201)
@@ -75,7 +92,7 @@ async def generate_payroll(
 async def list_payroll_slips(
     month: int,
     year: int,
-    principal: Annotated[Principal, Depends(require_permission(HR_READ))],
+    principal: SalaryPrincipalDep,
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.list_payroll_slips(principal.tenant_id, month, year, db)
@@ -88,7 +105,7 @@ async def list_payroll_slips(
 
 @router.get("/advances", response_model=list[schemas.SalaryAdvanceResponse])
 async def list_salary_advances(
-    principal: PrincipalDep,
+    principal: SalaryPrincipalDep,
     db: SessionDep,
 ):
     from sqlalchemy import select
@@ -144,7 +161,7 @@ async def approve_salary_advance(
 async def export_ps2_file(
     month: int,
     year: int,
-    principal: PrincipalDep,
+    principal: SalaryPrincipalDep,
     db: SessionDep,
 ):
     """

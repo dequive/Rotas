@@ -7731,7 +7731,6 @@
           "bank_account_nib": {
             "anyOf": [
               {
-                "maxLength": 80,
                 "type": "string"
               },
               {
@@ -7741,9 +7740,15 @@
             "title": "Bank Account Nib"
           },
           "base_salary": {
-            "minimum": 0.0,
-            "title": "Base Salary",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Salary"
           },
           "created_at": {
             "format": "date-time",
@@ -7907,7 +7912,6 @@
           "last_name",
           "role",
           "department",
-          "base_salary",
           "hire_date",
           "id",
           "tenant_id",

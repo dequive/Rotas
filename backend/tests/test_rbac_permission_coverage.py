@@ -26,8 +26,8 @@ MODULES_ROOT = BACKEND_ROOT / "app" / "modules"
 
 
 # Permission constant -> why it gates nothing yet, and what guards the surface
-# instead. Every entry here is real RBAC debt, tracked in the F7.4 row of
-# docs/FRONTEND_REFOUNDATION_PLAN.md — not a permanent exemption.
+# instead. Every entry here is real RBAC debt, tracked in Issue #45 — not a
+# permanent exemption.
 UNENFORCED_ON_PURPOSE: dict[str, str] = {
     "WORKSHOP_RELEASE": (
         "No vehicle-release endpoint exists yet; app/modules/workshop/router.py "
@@ -47,11 +47,6 @@ UNENFORCED_ON_PURPOSE: dict[str, str] = {
         "Delivery-proof validate/dispute/resolve are gated by CARGO_WRITE, so the "
         "same principal that records a delivery can validate it — the separation "
         "of duties this permission exists for is not enforced."
-    ),
-    "HR_SALARY_VIEW": (
-        "GET /api/v1/hr/payroll is gated by HR_READ and returns gross_salary and "
-        "net_salary, so manager and viewer read payroll despite not holding this "
-        "permission — and the viewer block in rbac.py states 'no salary visibility'."
     ),
     "ACCOUNTING_REVERSE": "No reversal endpoint requires it yet.",
     "PAYABLES_APPROVE": "No approval endpoint requires it yet.",

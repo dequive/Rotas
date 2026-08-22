@@ -46,6 +46,12 @@ class EmployeeUpdate(BaseModel):
 
 
 class EmployeeResponse(EmployeeCreate):
+    # Nullable on purpose: the directory is readable with HR_READ, but pay and
+    # bank details are redacted for principals without HR_SALARY_VIEW. Clients
+    # must treat both as absent rather than assume a number is always present.
+    base_salary: float | None = None
+    bank_account_nib: str | None = None
+
     id: UUID
     tenant_id: UUID
     status: str

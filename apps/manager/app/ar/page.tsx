@@ -175,7 +175,7 @@ export default async function ArPage({
             type="date"
             name="as_of"
             defaultValue={asOf}
-            className="px-3 py-1.5 text-sm border border-border rounded-md bg-surface text-ink focus:outline-none focus:ring-2 focus:ring-amber/20 focus:border-amber"
+            className="px-3 py-1.5 text-sm border border-border rounded-md bg-surface text-ink focus:outline-none focus:ring-2 focus:ring-focus-soft focus:border-focus"
           />
           <button
             type="submit"

@@ -54,7 +54,12 @@ export default async function ContratosPage() {
       />
 
       <section className="bg-surface border border-border rounded-lg p-4">
-        <div className="table-wrap">
+        <div
+          className="table-wrap"
+          role="region"
+          aria-label="Tabela de contratos"
+          tabIndex={0}
+        >
           <table className="table">
             <thead>
               <tr>

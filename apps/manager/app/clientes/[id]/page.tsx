@@ -107,10 +107,10 @@ export default async function ClienteDetailPage({
   // Fetch billing documents filtered by client
   let invoices: BillingDocument[] = [];
   try {
-    const allDocs = await apiFetch<BillingDocument[]>("/api/v1/billing/documents?limit=200");
-    invoices = Array.isArray(allDocs)
-      ? allDocs.filter((d) => d.client_id === id)
-      : [];
+    const page = await apiFetch<{ items: BillingDocument[]; total: number }>(
+      "/api/v1/billing/documents?limit=200",
+    );
+    invoices = page.items.filter((document) => document.client_id === id);
   } catch {
     invoices = [];
   }

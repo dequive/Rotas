@@ -83,7 +83,7 @@ export default async function TerceiroDetailPage({
             <TabsTrigger value="conta">Conta Corrente</TabsTrigger>
             <TabsTrigger value="payables">Faturas & Pedidos</TabsTrigger>
             <TabsTrigger value="avaliacoes">
-              Avalia&#231;&#245;es
+              Avaliações
               {evalsResult.evaluations.length > 0
                 ? ` (${evalsResult.evaluations.length})`
                 : ""}
@@ -101,7 +101,7 @@ export default async function TerceiroDetailPage({
                 <dt className="text-muted">Sector</dt>
                 <dd className="text-ink m-0">{party.sector ?? "—"}</dd>
 
-                <dt className="text-muted">C&#243;digo de actividade</dt>
+                <dt className="text-muted">Código de actividade</dt>
                 <dd className="font-mono text-ink m-0">{party.activity_code ?? "—"}</dd>
 
                 <dt className="text-muted">Roles</dt>
@@ -208,11 +208,11 @@ export default async function TerceiroDetailPage({
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h2 className="text-base font-semibold text-ink">
-                    Avalia&#231;&#245;es de Fornecedor
+                    Avaliações de Fornecedor
                   </h2>
                   {evalsResult.average_score && (
                     <p className="text-[13px] text-muted mt-1">
-                      Score m&#233;dio:{" "}
+                      Score médio:{" "}
                       <span className="font-mono font-semibold text-ink">
                         {evalsResult.average_score}/10
                       </span>
@@ -223,12 +223,12 @@ export default async function TerceiroDetailPage({
                   href={`/terceiros/${id}/avaliacoes/nova`}
                   className="inline-flex items-center h-8 px-3 rounded-md bg-amber text-white text-xs font-bold no-underline hover:bg-amber-dark transition-colors duration-100"
                 >
-                  Nova Avalia&#231;&#227;o
+                  Nova Avaliação
                 </a>
               </div>
 
               {evalsResult.evaluations.length === 0 ? (
-                <p className="text-[13px] text-muted">Sem avalia&#231;&#245;es registadas</p>
+                <p className="text-[13px] text-muted">Sem avaliações registadas</p>
               ) : (
                 <div className="flex flex-col gap-4">
                   {evalsResult.evaluations.map((ev) => (

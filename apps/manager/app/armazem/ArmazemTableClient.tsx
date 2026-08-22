@@ -28,7 +28,7 @@ export function ArmazemTableClient({ initialItems, warehouses }: { initialItems:
             placeholder="Pesquisar por SKU ou nome da peça..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-border rounded-lg text-sm bg-surface-2 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+            className="w-full pl-10 pr-4 py-2 border border-border rounded-lg text-sm bg-surface-2 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-focus-soft focus:border-focus transition-all"
           />
         </div>
         <button

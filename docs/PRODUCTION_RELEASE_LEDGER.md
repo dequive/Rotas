@@ -25,9 +25,9 @@ Este ledger e a evidencia operacional da seccao 15 do
 
 | Gate | Estado | SHA/versao | Evidencia actual | Owner | Data | Excepcao/prazo |
 | --- | --- | --- | --- | --- | --- | --- |
-| G0 Source and Build Integrity | red | C0 `f0edfdd`; C1-I0 `3acabde` | C0 possui fonte única e matriz de 29 PRs. Pytest agora falha fechado sem `TEST_DATABASE_URL` e possui runner descartável local, mas a regressão integral isolada não foi repetida. Pyright tem 4 erros, build Manager inconclusivo, Actions mutáveis e CI sem execução útil | TL + QA | 2026-08-22 | nenhuma |
-| G1 Data Integrity | red | ADR-010 / `0b7a36c` + `3acabde` | Base efémera de `template0` migrou até `rec13`, executou 8 testes e foi eliminada; catálogo posterior mostrou zero `rotas_test_*`. A base operacional `rotas` ficou intocada. Snapshot real, rollback, RLS com role restrita, regressão integral e revisão/CI continuam pendentes | BE + SRE + SEC | 2026-08-22 | nenhuma |
-| G2 Contract and Security Boundary | red | C1 até `9ae52b5` | Driver recebe `403` ao criar viagens/listar frota; Sync valida dispositivo, ownership e replay/cache por owner/device. Idempotência e pairing concorrentes aceitam exatamente um efeito/consumidor; `rec14` impõe identidade única do dispositivo. Partições Driver/Sync/Auth isoladas 74/74, Ruff e Pyright focados verdes. Faltam seis schemas públicos e regressão integral isolada | TL + FE-D + BE + SEC | 2026-08-23 | nenhuma |
+| G0 Source and Build Integrity | red | C1/C3 `97e365d` | Backend isolado 968/968 sem skips; Ruff `app tests`, Pyright, OpenAPI drift, Manager typecheck e auditor 208/158/0 verdes localmente. G0 continua vermelho: build Manager reproduzível, Actions fixadas, supply chain, CI com jobs executados e revisão independente permanecem pendentes | TL + QA | 2026-08-23 | nenhuma |
+| G1 Data Integrity | red | ADR-010 / `97e365d`; head `rec14` | Base efémera de `template0` migrou até `rec14`, executou a regressão 968/968 e foi eliminada; a base operacional `rotas` ficou intocada. Snapshot real autorizado, rollback e RLS com role restrita no RC, revisão e CI continuam pendentes | BE + SRE + SEC | 2026-08-23 | nenhuma |
+| G2 Contract and Security Boundary | red | C1/C3 até `97e365d` | Driver/Sync possuem autorização, ownership, replay/cache e pairing concorrente com um vencedor. DTOs públicos excluem campos comerciais; operações proibidas anunciam apenas 403. Partições 68/68 e 74/74, regressão 968/968 sem skips e gates estáticos locais verdes. C2/PWA Driver, CI, revisão e prova no mesmo RC continuam pendentes | TL + FE-D + BE + SEC | 2026-08-23 | nenhuma |
 | G3 Reliability and Offline | red | C1 `9ae52b5`; linha Android `50955e1` não integrada | A branch atual prova replay e pairing concorrentes com um único vencedor, mas continua na PWA antiga e não integra a jornada Android aprovada. Recovery real, staging multi-instância e dispositivo no mesmo SHA continuam pendentes | BE + FE-D + SRE | 2026-08-23 | nenhuma |
 | G4 Production Operations | red | sem RC | Sem registry/deploy imutável, runner externo, observabilidade real, PITR/DR, staging/soak, auditoria assistiva ou pentest no mesmo SHA | SEC + SRE + QA | 2026-08-22 | nenhuma |
 | G5 Pilot Evidence | red | sem RC | Piloto e soak não executados no SHA integrado; evidência Android de outra branch não promove este gate | PO + QA + SRE | 2026-08-22 | nenhuma |
@@ -80,6 +80,8 @@ Este ledger e a evidencia operacional da seccao 15 do
 | 2026-08-22 | PR-44 | `c912cb1` | **exceção revogada** | Auditoria vinculativa encontrou P0 de autorização/ownership. Merge não autorizado; ver revogação abaixo |
 | 2026-08-23 | G2/G3 | `9698314` + `e1d69c4` | green local focado | Replay cross-driver/cross-device falha com `idempotency_owner_mismatch` antes de devolver cache e deixa auditoria sem `server_id`; corrida real entre dois dispositivos aceita uma resposta processada, um conflito e um único efeito físico. Runner descartável: Driver/Sync 57/57; Ruff e Pyright focados verdes. Pairing, OpenAPI, regressão integral, CI e RC permanecem pendentes |
 | 2026-08-23 | G2/G3 | `9ae52b5` / `rec14` | green local focado | Pairing usa lock de linha: corrida real devolve 200/401, cria um dispositivo e uma sessão. Migration reconcilia duplicados antes da unicidade `(tenant, driver, device)`. No SHA: Driver/Sync/Auth 74/74 em base descartável até `rec14`; Ruff/Pyright focados verdes. OpenAPI, regressão integral, CI e RC permanecem pendentes |
+| 2026-08-23 | G0/G2 | `987273c` | green local focado | Driver/Sync receberam DTOs públicos; viagem do motorista omite billing/custos/receita/margem e operações proibidas não anunciam 2xx. OpenAPI SHA-256 `3e9e87ad...`, cliente TypeScript e drift alinhados; backend OpenAPI/Driver/Sync 68/68, Ruff/Pyright focados, Manager typecheck e auditor 208 refs/158 ops/0 violações verdes. Regressão integral, CI e RC pendentes |
+| 2026-08-23 | G0/G1/G2 | `ccb4dc4` + `97e365d` | green local integral | Pyright global ficou em 0 e o contrato HR passou a representar salário redigido como nullable; OpenAPI atual `abadc941...fc0c4`. O único skip fixo foi convertido em prova ativa do plano de viaturas ilimitado. Base descartável `template0 -> rec14`: 968/968, zero skips; Ruff `app tests`, Pyright e drift verdes. CI, build reproduzível, C2, staging, Android e RC permanecem pendentes |
 | 2026-07-22 | baseline | `1111b2b` | NO-GO | Auditoria de arquitectura e prontidao |
 | 2026-07-22 | G0 | `1111b2b` | parcial | Backend importou 371 rotas; 520 testes colectados |
 | 2026-07-22 | G0 | `1111b2b` | parcial | Manager e Driver typecheck/build verdes |
@@ -210,8 +212,9 @@ idempotência pode atravessar motoristas/dispositivos, pairing não é serializa
 contratos Driver estão vazios e a linha Android aprovada não foi integrada.
 
 Estes são defeitos de produto e segurança, não controlos externos dispensáveis.
-Testes locais não os compensam. Além disso, Pyright está vermelho e as Actions
-fixadas por SHA não convergiram nesta branch.
+Testes locais não os compensam. O Pyright local foi posteriormente corrigido em
+`ccb4dc4`, mas as Actions fixadas por SHA, a CI executada e as demais provas de
+release ainda não convergiram nesta branch.
 
 **Decisão vinculativa.** PR #44 recebe `request changes` e não pode ser fundido
 por exceção. A indisponibilidade de CI pode bloquear promoção, mas nunca autoriza

@@ -2890,3 +2890,51 @@ P1-AUTH-01 fica **fechado localmente**. O próximo gate obrigatório são os sei
 schemas públicos Driver/Sync vazios e os contract tests correspondentes; depois
 vem a regressão backend integral isolada. CI, staging, Android físico e release
 candidate permanecem pendentes. Veredito global: **NO-GO**.
+
+### 16.16 C3 — Contratos públicos Driver/Sync — 2026-08-23
+
+- o contract test RED confirmou schemas `{}` nos sucessos Driver/Sync;
+- `987273c` introduziu DTOs próprios para perfil, templates, viagem ativa,
+  bootstrap e Sync, sem reutilizar o serializer integral do gestor;
+- `DriverTripRead` exclui tenant/contrato, billing, custos, receita, margem e
+  reconciliação; uma prova de runtime carregou esses valores na viagem física e
+  confirmou ausência tanto na viagem ativa como no bootstrap;
+- `/driver/vehicles` e `POST /driver/trips` são sempre proibidos: deixaram de
+  anunciar um sucesso impossível e expõem contrato estruturado `403`;
+- `checklist-templates`, embora ausente da lista histórica dos seis, também foi
+  tipado por pertencer à mesma fronteira pública;
+- OpenAPI e cliente TypeScript foram regenerados pelo fluxo oficial. O digest
+  integral atual, após a correção HR de `ccb4dc4`, é
+  `abadc941169773797976f4db9ff2c6b48cf37eabed8e4ff40f9863739e6fc0c4`;
+- numa base descartável até `rec14`, OpenAPI/Driver/Sync passou `68/68`; Ruff e
+  Pyright focados, drift OpenAPI, check dos tipos gerados, Manager typecheck e
+  auditor `208 referências / 158 operações / 0 violações` ficaram verdes.
+
+P1-API-01 fica **fechado localmente**. O próximo gate obrigatório é a regressão
+backend integral pelo runner isolado, seguida de Ruff/Pyright globais e
+reconciliação das falhas reais sem reduzir gates. CI, staging, Android no mesmo
+SHA e release candidate continuam pendentes. Veredito global: **NO-GO**.
+
+### 16.17 Regressão backend integral e gates estáticos — 2026-08-23
+
+- `ccb4dc4` separou o contrato comum do colaborador dos contratos de criação e
+  leitura: `base_salary` permanece obrigatório na criação e nullable quando a
+  permissão salarial exige redação; os seis erros Pyright foram eliminados;
+- OpenAPI foi regenerado pelo fluxo oficial e o Manager permaneceu alinhado:
+  check de tipos, typecheck e auditor `208 referências / 158 operações / 0
+  violações` verdes;
+- a primeira regressão integral encontrou `967 passed, 1 skipped`; o skip
+  “null limit guard not yet implemented” não foi aceite como gate verde;
+- `97e365d` substituiu o placeholder por uma prova ativa: um tenant com
+  `max_vehicles = NULL` cria mais de cinco viaturas sem receber `403`;
+- no SHA `97e365d`, a base efémera foi criada de `template0`, migrada até
+  `rec14`, executou `968 passed` sem skips e foi eliminada. A base operacional
+  online permaneceu intocada;
+- Ruff canónico `app tests`, Pyright `0/0/0` e drift OpenAPI ficaram verdes.
+
+O slice backend C1/C3 fica **fechado localmente**, mas G0-G5 permanecem
+vermelhos. O próximo incremento obrigatório é C2: substituir a jornada PWA
+Driver administrativa por Minhas Viagens atribuídas, histórico, documentos
+emitidos, pedidos de documento e viagem fechada somente leitura. Depois seguem
+build reproduzível, Actions/supply chain, CI real, staging e Android físico no
+mesmo RC. Veredito global: **NO-GO**.

@@ -116,6 +116,16 @@ Os sucessos de `/driver/bootstrap`, `/driver/vehicles`,
 continuam com schema OpenAPI `{}`. O auditor a zero cobre o Manager, não o
 Driver.
 
+Estado em 2026-08-23: **fechado localmente** por `987273c`. Bootstrap, templates,
+viagem ativa e Sync usam DTOs públicos explícitos; `DriverTripRead` exclui tenant,
+contrato, billing, custos, receita e margem. `/driver/vehicles` e
+`POST /driver/trips`, sempre proibidos, deixaram de anunciar `200` e documentam
+erro estruturado `403`. OpenAPI e cliente TypeScript foram regenerados pelo
+gerador oficial. Após a correção tipológica HR de `ccb4dc4`, o artefacto integral
+atual tem digest `abadc941169773797976f4db9ff2c6b48cf37eabed8e4ff40f9863739e6fc0c4`.
+Partição OpenAPI/Driver/Sync isolada `68/68`, Ruff/Pyright focados, drift,
+typecheck Manager e auditor `208/158/0` ficaram verdes.
+
 ### P1-DATA-01 — Serializer Driver expõe finanças internas
 
 O Driver recebe o serializer integral da viagem, incluindo custos, receita,
@@ -197,8 +207,13 @@ updates operacionais residuais. `9698314` e `e1d69c4` fecharam localmente replay
 e corrida idempotente por owner/device; a partição isolada Driver/Sync passou
 `57/57`. `9ae52b5` serializou o pairing e instalou a unicidade física do
 dispositivo; no mesmo SHA, as partições combinadas Driver/Sync/Auth passaram
-`74/74`. Permanecem bloqueantes os seis schemas públicos Driver/Sync e a
-regressão backend integral isolada.
+`74/74`. `987273c` fechou os DTOs públicos e a semântica 403, com partição
+OpenAPI/Driver/Sync `68/68`. `ccb4dc4` eliminou os seis diagnósticos Pyright sem
+alterar a semântica HR e regenerou o contrato. `97e365d` ativou a prova do plano
+de viaturas ilimitado e a regressão integral numa base descartável até `rec14`
+passou `968/968`, sem skips; Ruff `app tests`, Pyright e drift OpenAPI ficaram
+verdes. C1/C3 estão fechados apenas na fronteira backend local; C2, CI, revisão,
+staging e Android no mesmo SHA permanecem bloqueantes.
 
 ### C2 — Jornadas Driver
 
@@ -228,7 +243,8 @@ Depois de C0-C4 verdes, retomar Issue #43 e E0-E5 do plano mestre.
 
 ## 6. Critério de decisão
 
-Qualquer P0 acima aberto mantém G2/G3 vermelhos. CI sem jobs, Pyright vermelho,
-staging ausente ou evidência de outro SHA mantêm G0/G4/G5 vermelhos. Nenhum
+Qualquer P0 acima aberto mantém G2/G3 vermelhos. CI sem jobs, qualquer gate
+estático vermelho no RC, staging ausente ou evidência de outro SHA mantêm
+G0/G4/G5 vermelhos. Nenhum
 agente está autorizado a alterar esta decisão sem nova evidência reproduzida e
 registada no mesmo release candidate.

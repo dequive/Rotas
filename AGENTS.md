@@ -136,8 +136,8 @@ falha sem `TEST_DATABASE_URL`; nenhum agente pode contornar o gate, reutilizar
 O runner atual é deliberadamente serial e rejeita `xdist -n`. Paralelismo só
 pode ser ativado depois de existir uma base efémera independente por worker.
 
-Os incrementos C1 até `9ae52b5` já produziram testes negativos com token Driver
-real que provam:
+Os incrementos C1/C3 até `97e365d` já produziram testes e contratos com token
+Driver real que provam:
 
 - criar viagem, listar frota geral e emitir documentos retorna `403`;
 - dispositivo divergente é rejeitado;
@@ -145,12 +145,17 @@ real que provam:
 - replay entre motoristas/dispositivos é rejeitado, incluindo corrida entre
   dois dispositivos com exatamente um efeito físico;
 - duas requisições de pairing concorrentes aceitam exatamente um consumidor e
-  a identidade física do dispositivo é única por tenant/motorista.
+  a identidade física do dispositivo é única por tenant/motorista;
+- endpoints Driver/Sync reais possuem DTOs públicos não vazios e sem campos de
+  custo/receita/margem; operações sempre proibidas documentam apenas `403`.
 
-O próximo incremento obrigatório é fechar os schemas OpenAPI não vazios dos
-endpoints Driver/Sync e repetir os contract tests e partições relevantes pelo
-runner isolado. A regressão backend integral vem depois, antes de qualquer
-promoção de C1/C3 ou retoma funcional.
+A regressão backend integral no SHA `97e365d`, numa base descartável migrada de
+`template0` até `rec14`, passou `968/968` sem skips. Ruff `app tests`, Pyright,
+drift OpenAPI e gates Manager ficaram verdes localmente; isto não equivale a CI,
+staging, Android físico ou release candidate.
 
-Sem essas provas restantes e sem repetir as partições relevantes pelo runner
-isolado, o estado permanece `NO-GO`.
+O próximo incremento obrigatório é C2, contract-first: remover da PWA Driver a
+criação de viagem e emissão administrativa, entregar Minhas Viagens atribuídas,
+histórico, documentos emitidos, pedido de documento em falta e viagem fechada
+somente leitura. Depois retomam-se os bloqueios C3 restantes (build reproduzível,
+Actions/supply chain e CI efetivamente executada). O estado permanece `NO-GO`.

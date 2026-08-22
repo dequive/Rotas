@@ -66,6 +66,15 @@ Este ledger e a evidencia operacional da seccao 15 do
 
 | Data UTC | ID/Gate | SHA | Resultado | Artefacto/comando |
 | --- | --- | --- | --- | --- |
+| 2026-08-22 | G0/G2 | `c912cb1` | verde local | `verify:api-contracts` 208 refs / 158 ops / **0 violacoes** (era 72 schemas 2xx vazios); `test_openapi_contract` 9/9 |
+| 2026-08-22 | G0 | `c912cb1` | verde local | backend `pytest` 936 passed / 1 skipped; `ruff check app tests` limpo |
+| 2026-08-22 | G0 | `c912cb1` | verde local | Manager `tsc --noEmit` 0 erros; Vitest 128/128 em 33 ficheiros; build 96 rotas |
+| 2026-08-22 | G0 | `c912cb1` | verde local | Driver `tsc --noEmit` 0 erros; Vitest 30/30; build PWA precache 6 (351.58 KiB) |
+| 2026-08-22 | G2 | `c912cb1` | correccao | `HR_SALARY_VIEW` passa a proteger processamento salarial, adiantamentos e export PS2. Antes, `viewer` e `manager` liam salario bruto/liquido e NIB bancario com `HR_READ`, contra a intencao declarada em `rbac.py` |
+| 2026-08-22 | G2 | `c912cb1` | divida registada | 8 das 53 permissoes declaradas nao protegem rota nenhuma; teste-guarda impede novas. Issue #45 |
+| 2026-08-22 | G3 | `c912cb1` | correccao | Uma operacao invalida deixava de derrubar o lote de sincronizacao inteiro. Falha passa a ser por operacao, com codigo estavel e mensagem accionavel em portugues na PWA |
+| 2026-08-22 | G3 | `c912cb1` | verde local | Matriz de idempotencia: replay e conflito nos 9 tipos de create e no update do sync; 17 das 54 operacoes HTTP; RBAC 10 mutacoes e 5 transicoes x 6 papeis |
+| 2026-08-22 | PR-44 | `c912cb1` | **excepcao** | Fusao autorizada sem CI remota e sem revisao independente. Ver "Excepcao PR-44" abaixo |
 | 2026-07-22 | baseline | `1111b2b` | NO-GO | Auditoria de arquitectura e prontidao |
 | 2026-07-22 | G0 | `1111b2b` | parcial | Backend importou 371 rotas; 520 testes colectados |
 | 2026-07-22 | G0 | `1111b2b` | parcial | Manager e Driver typecheck/build verdes |
@@ -179,3 +188,36 @@ Este ledger e a evidencia operacional da seccao 15 do
 Uma linha so muda para `green` quando a evidencia foi reproduzida no mesmo SHA
 do release candidate. Presenca de codigo, commit message, mock ou teste isolado
 nao e evidencia suficiente para gates de runtime, dados, seguranca ou operacao.
+
+
+## Excepcao PR-44 — fusao sem CI remota nem revisao independente
+
+**Registada em:** 2026-08-22
+**SHA:** `c912cb1`
+**Owner:** dequive (Produto + Engenharia, interinamente)
+
+**O que se dispensa.** A politica de merge deste ledger exige que nenhum merge
+ocorra com gate blocking vermelho, e a norma de engenharia exige revisao
+independente. A PR #44 e fundida sem nenhuma das duas.
+
+**Porque.** A conta GitHub esta bloqueada por facturacao desde 2026-08-08
+(Issue #2). Nenhum job de CI arranca: `Issue PR Contract` termina em 1s com
+"the job was not started because your account is locked due to a billing
+issue". Nao ha segundo colaborador no repositorio, pelo que nao existe revisor
+possivel. Manter 39 commits e 734 ficheiros por fundir por tempo indefinido
+acumula risco de conflito e de perda, sem reduzir o risco que a CI reduziria.
+
+**Mitigacao.** Todos os gates verificaveis localmente foram executados no SHA
+exacto a fundir e estao registados acima: 1.094 testes nas tres aplicacoes,
+typecheck, lint, builds e auditor de contratos a zero. A logica do gate
+`Issue PR Contract` foi executada localmente contra o corpo da PR e passa. A
+base `stabilization/p0-2026-q3` mantem-se protegida e o SHA anterior permanece
+disponivel para reversao.
+
+**O que esta excepcao NAO converte.** Prova local nao e certificacao de
+runtime. G0 a G3 permanecem `yellow`, G4 e G5 permanecem `red`, e a decisao
+global permanece **NO-GO**. Esta fusao nao autoriza promocao a producao.
+
+**Prazo.** A excepcao caduca quando a facturacao for restaurada. Nessa altura
+a CI tem de correr sobre o SHA fundido e a evidencia remota substitui a local
+neste ledger. Ate la, nenhuma nova excepcao do mesmo tipo deve ser aberta.

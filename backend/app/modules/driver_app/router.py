@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import DriverPrincipal, get_driver_principal
 from app.core.deps import get_session
 from app.core.errors import ApiError
-from app.modules.driver_app import service
+from app.modules.driver_app import schemas, service
 
 router = APIRouter(prefix="/driver", tags=["driver-app"])
 
@@ -25,7 +25,7 @@ def _require_driver_id(principal: DriverPrincipal) -> UUID:
     return principal.driver_id
 
 
-@router.get("/bootstrap")
+@router.get("/bootstrap", response_model=schemas.DriverBootstrapRead)
 async def bootstrap_driver_app(
     principal: DriverPrincipalDependency,
     db: RlsSession,
@@ -39,7 +39,10 @@ async def bootstrap_driver_app(
     )
 
 
-@router.get("/checklist-templates")
+@router.get(
+    "/checklist-templates",
+    response_model=list[schemas.DriverChecklistTemplateRead],
+)
 async def list_checklist_templates(
     principal: DriverPrincipalDependency,
     db: RlsSession,
@@ -50,8 +53,14 @@ async def list_checklist_templates(
 
 @router.get(
     "/vehicles",
+    status_code=403,
     deprecated=True,
-    responses={403: {"description": "Fleet selection is restricted to dispatch."}},
+    responses={
+        403: {
+            "model": schemas.ApiErrorResponse,
+            "description": "Fleet selection is restricted to dispatch.",
+        }
+    },
 )
 async def list_vehicles(
     principal: DriverPrincipalDependency,
@@ -64,7 +73,7 @@ async def list_vehicles(
     )
 
 
-@router.get("/active-trip")
+@router.get("/active-trip", response_model=schemas.DriverTripRead | None)
 async def get_active_trip(
     principal: DriverPrincipalDependency,
     db: RlsSession,
@@ -79,8 +88,14 @@ async def get_active_trip(
 
 @router.post(
     "/trips",
+    status_code=403,
     deprecated=True,
-    responses={403: {"description": "Trip creation is restricted to dispatch."}},
+    responses={
+        403: {
+            "model": schemas.ApiErrorResponse,
+            "description": "Trip creation is restricted to dispatch.",
+        }
+    },
 )
 async def create_trip(
     principal: DriverPrincipalDependency,

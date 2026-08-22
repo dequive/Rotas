@@ -446,6 +446,46 @@
         "title": "AlertStatusPatch",
         "type": "object"
       },
+      "ApiErrorDetail": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": true,
+            "title": "Details",
+            "type": "object"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "request_id"
+        ],
+        "title": "ApiErrorDetail",
+        "type": "object"
+      },
+      "ApiErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ApiErrorDetail"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ApiErrorResponse",
+        "type": "object"
+      },
       "ApplyAdvanceRequest": {
         "properties": {
           "amount_applied": {
@@ -6059,6 +6099,104 @@
         "title": "DocumentVerify",
         "type": "object"
       },
+      "DriverBootstrapRead": {
+        "properties": {
+          "activeTrip": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriverTripRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checklistTemplates": {
+            "items": {
+              "$ref": "#/components/schemas/DriverChecklistTemplateRead"
+            },
+            "title": "Checklisttemplates",
+            "type": "array"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/DriverProfileRead"
+          },
+          "vehicles": {
+            "items": {
+              "$ref": "#/components/schemas/DriverVehicleRead"
+            },
+            "title": "Vehicles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "profile",
+          "checklistTemplates",
+          "activeTrip"
+        ],
+        "title": "DriverBootstrapRead",
+        "type": "object"
+      },
+      "DriverChecklistTemplateRead": {
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DriverChecklistTemplateRead",
+        "type": "object"
+      },
       "DriverCreate": {
         "properties": {
           "bi_number": {
@@ -6923,6 +7061,37 @@
         "title": "DriverPatch",
         "type": "object"
       },
+      "DriverProfileRead": {
+        "properties": {
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
+          },
+          "driver_id": {
+            "format": "uuid",
+            "title": "Driver Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "driver_id"
+        ],
+        "title": "DriverProfileRead",
+        "type": "object"
+      },
       "DriverRead": {
         "properties": {
           "bi_number": {
@@ -7236,6 +7405,258 @@
           "driver"
         ],
         "title": "DriverTokenResponse",
+        "type": "object"
+      },
+      "DriverTripRead": {
+        "description": "Trip execution fields visible to the assigned driver.",
+        "properties": {
+          "actual_arrival": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Arrival"
+          },
+          "actual_departure": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Departure"
+          },
+          "cargo_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cargo Class"
+          },
+          "cargo_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cargo Status"
+          },
+          "cargo_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cargo Type"
+          },
+          "cargo_weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cargo Weight"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "destination": {
+            "title": "Destination",
+            "type": "string"
+          },
+          "driver_id": {
+            "format": "uuid",
+            "title": "Driver Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "km_end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Km End"
+          },
+          "km_start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Km Start"
+          },
+          "load_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load State"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "planned_arrival": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Arrival"
+          },
+          "planned_departure": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Departure"
+          },
+          "recipient_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient Name"
+          },
+          "requires_cargo_manifest": {
+            "title": "Requires Cargo Manifest",
+            "type": "boolean"
+          },
+          "requires_load_permit": {
+            "title": "Requires Load Permit",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "vehicle_id": {
+            "format": "uuid",
+            "title": "Vehicle Id",
+            "type": "string"
+          },
+          "waybill_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waybill Number"
+          }
+        },
+        "required": [
+          "id",
+          "vehicle_id",
+          "driver_id",
+          "origin",
+          "destination",
+          "requires_load_permit",
+          "requires_cargo_manifest",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DriverTripRead",
+        "type": "object"
+      },
+      "DriverVehicleRead": {
+        "properties": {
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "plate": {
+            "title": "Plate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "plate"
+        ],
+        "title": "DriverVehicleRead",
         "type": "object"
       },
       "EmailNotificationCreate": {
@@ -16083,6 +16504,74 @@
         "title": "SyncBatchRequest",
         "type": "object"
       },
+      "SyncBatchResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SyncResult"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "results"
+        ],
+        "title": "SyncBatchResponse",
+        "type": "object"
+      },
+      "SyncBootstrapResponse": {
+        "properties": {
+          "idempotency_ttl_days": {
+            "title": "Idempotency Ttl Days",
+            "type": "integer"
+          },
+          "server_time": {
+            "format": "date-time",
+            "title": "Server Time",
+            "type": "string"
+          },
+          "supported_entity_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Supported Entity Types",
+            "type": "array"
+          },
+          "supported_operations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Supported Operations",
+            "type": "array"
+          },
+          "supported_operations_by_entity": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Supported Operations By Entity",
+            "type": "object"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "server_time",
+          "supported_entity_types",
+          "supported_operations",
+          "supported_operations_by_entity",
+          "idempotency_ttl_days"
+        ],
+        "title": "SyncBootstrapResponse",
+        "type": "object"
+      },
       "SyncOperation": {
         "properties": {
           "client_timestamp": {
@@ -16127,6 +16616,74 @@
           "payload"
         ],
         "title": "SyncOperation",
+        "type": "object"
+      },
+      "SyncResult": {
+        "properties": {
+          "entity_type": {
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "local_id": {
+            "title": "Local Id",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "server_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Id"
+          },
+          "server_timestamp": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Timestamp"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "local_id",
+          "status",
+          "entity_type"
+        ],
+        "title": "SyncResult",
         "type": "object"
       },
       "TaskAssignRequest": {
@@ -29900,7 +30457,17 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/DriverTripRead"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Active Trip Api V1 Driver Active Trip Get"
+                }
               }
             },
             "description": "Successful Response"
@@ -29964,7 +30531,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/DriverBootstrapRead"
+                }
               }
             },
             "description": "Successful Response"
@@ -30028,7 +30597,13 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DriverChecklistTemplateRead"
+                  },
+                  "title": "Response List Checklist Templates Api V1 Driver Checklist Templates Get",
+                  "type": "array"
+                }
               }
             },
             "description": "Successful Response"
@@ -30090,15 +30665,14 @@
           }
         ],
         "responses": {
-          "200": {
+          "403": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
               }
             },
-            "description": "Successful Response"
-          },
-          "403": {
             "description": "Trip creation is restricted to dispatch."
           },
           "422": {
@@ -30158,15 +30732,14 @@
           }
         ],
         "responses": {
-          "200": {
+          "403": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
               }
             },
-            "description": "Successful Response"
-          },
-          "403": {
             "description": "Fleet selection is restricted to dispatch."
           },
           "422": {
@@ -37315,7 +37888,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/SyncBatchResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -37379,7 +37954,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/SyncBootstrapResponse"
+                }
               }
             },
             "description": "Successful Response"

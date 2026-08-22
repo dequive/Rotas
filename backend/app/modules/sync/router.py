@@ -13,7 +13,7 @@ from app.modules.sync import schemas, service
 router = APIRouter(prefix="/sync", tags=["sync"])
 
 
-@router.post("/batch")
+@router.post("/batch", response_model=schemas.SyncBatchResponse)
 async def process_batch(
     payload: schemas.SyncBatchRequest,
     principal: Annotated[DriverPrincipal, Depends(get_driver_principal)],
@@ -28,7 +28,7 @@ async def process_batch(
     return await service.process_batch(db, payload, principal)
 
 
-@router.get("/bootstrap")
+@router.get("/bootstrap", response_model=schemas.SyncBootstrapResponse)
 async def bootstrap(
     principal: Annotated[DriverPrincipal, Depends(get_driver_principal)],
 ):

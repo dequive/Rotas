@@ -104,6 +104,58 @@ async def test_driver_bootstrap_uses_driver_contract(async_client, driver_app_co
 
 
 @pytest.mark.asyncio
+async def test_driver_trip_contract_omits_manager_financial_fields(
+    async_client, db, tenant_id, driver_app_context
+):
+    assigned_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Beira",
+        status="planned",
+        billing_status="pending_delivery_proof",
+        total_fuel_cost=1000,
+        total_expense_cost=2000,
+        total_transport_cost=3000,
+        actual_revenue=5000,
+        actual_margin=2000,
+    )
+    db.add(assigned_trip)
+    await db.commit()
+
+    responses = [
+        await async_client.get(
+            "/api/v1/driver/active-trip",
+            headers=driver_app_context["headers"],
+        ),
+        await async_client.get(
+            "/api/v1/driver/bootstrap",
+            headers=driver_app_context["headers"],
+        ),
+    ]
+    forbidden_fields = {
+        "tenant_id",
+        "contract_id",
+        "billing_status",
+        "billing_document_id",
+        "total_fuel_cost",
+        "total_expense_cost",
+        "total_transport_cost",
+        "actual_revenue",
+        "actual_margin",
+        "costs_reconciled_at",
+    }
+    active_trip = responses[0].json()
+    bootstrap_trip = responses[1].json()["activeTrip"]
+
+    assert all(response.status_code == 200 for response in responses)
+    assert active_trip["id"] == str(assigned_trip.id)
+    assert bootstrap_trip == active_trip
+    assert forbidden_fields.isdisjoint(active_trip)
+
+
+@pytest.mark.asyncio
 async def test_dashboard_token_cannot_use_driver_contract(async_client, viewer_headers):
     response = await async_client.get(
         "/api/v1/driver/bootstrap",

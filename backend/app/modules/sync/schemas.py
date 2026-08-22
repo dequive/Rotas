@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -30,3 +31,12 @@ class SyncResult(BaseModel):
 
 class SyncBatchResponse(BaseModel):
     results: list[SyncResult]
+
+
+class SyncBootstrapResponse(BaseModel):
+    tenant_id: UUID
+    server_time: datetime
+    supported_entity_types: list[str]
+    supported_operations: list[str]
+    supported_operations_by_entity: dict[str, list[str]]
+    idempotency_ttl_days: int

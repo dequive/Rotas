@@ -1411,7 +1411,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create Trip */
+        /**
+         * Create Trip
+         * @deprecated
+         */
         post: operations["create_trip_api_v1_driver_trips_post"];
         delete?: never;
         options?: never;
@@ -1426,7 +1429,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Vehicles */
+        /**
+         * List Vehicles
+         * @deprecated
+         */
         get: operations["list_vehicles_api_v1_driver_vehicles_get"];
         put?: never;
         post?: never;
@@ -5681,6 +5687,79 @@ export interface components {
             /** Parent Id */
             parent_id?: string | null;
         };
+        /**
+         * AdjustmentNoteResponse
+         * @description FDOC-02/03: Nota de Débito and Nota de Crédito issued against an invoice.
+         */
+        AdjustmentNoteResponse: {
+            /** Document Type */
+            document_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Invoice Number */
+            invoice_number?: string | null;
+            /** Issued At */
+            issued_at?: string | null;
+            /** Parent Document Id */
+            parent_document_id?: string | null;
+            /** Parent Invoice Number */
+            parent_invoice_number?: string | null;
+            /** Status */
+            status: string;
+            /** Subtotal */
+            subtotal: string;
+            /** Tax Amount */
+            tax_amount: string;
+            /** Total Amount */
+            total_amount: string;
+        };
+        /**
+         * AdvanceResponse
+         * @description Mirrors `advance_service.serialize_advance`.
+         */
+        AdvanceResponse: {
+            /** Allowance Mzn */
+            allowance_mzn: string;
+            /** Amount Mzn */
+            amount_mzn: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Driver Id
+             * Format: uuid
+             */
+            driver_id: string;
+            /** Expenses Mzn */
+            expenses_mzn: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Issued At */
+            issued_at?: string | null;
+            /** Issued By */
+            issued_by?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Request Reference */
+            request_reference?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
+        };
         /** AlertCreate */
         AlertCreate: {
             /** Alert Type */
@@ -5753,6 +5832,23 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** ApiErrorDetail */
+        ApiErrorDetail: {
+            /** Code */
+            code: string;
+            /** Details */
+            details?: {
+                [key: string]: unknown;
+            };
+            /** Message */
+            message: string;
+            /** Request Id */
+            request_id: string;
+        };
+        /** ApiErrorResponse */
+        ApiErrorResponse: {
+            error: components["schemas"]["ApiErrorDetail"];
+        };
         /** ApplyAdvanceRequest */
         ApplyAdvanceRequest: {
             /** Amount Applied */
@@ -5762,6 +5858,25 @@ export interface components {
              * Format: uuid
              */
             billing_document_id: string;
+        };
+        /** ArSummaryResponse */
+        ArSummaryResponse: {
+            /** 1 30 */
+            "1_30": string;
+            /** 31 60 */
+            "31_60": string;
+            /** 61 90 */
+            "61_90": string;
+            /** As Of */
+            as_of: string;
+            /** Currency */
+            currency: string;
+            /** Current */
+            current: string;
+            /** Over 90 */
+            over_90: string;
+            /** Total Ar */
+            total_ar: string;
         };
         /** AssignCustomRoleRequest */
         AssignCustomRoleRequest: {
@@ -5785,6 +5900,51 @@ export interface components {
              */
             vehicle_id: string;
         };
+        /** AssignmentOut */
+        AssignmentOut: {
+            /**
+             * Assigned At
+             * Format: date-time
+             */
+            assigned_at: string;
+            /** Assigned By */
+            assigned_by: string | null;
+            /** Assignment Type */
+            assignment_type: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Driver Id
+             * Format: uuid
+             */
+            driver_id: string;
+            /** Driver Name */
+            driver_name?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Unassigned At */
+            unassigned_at: string | null;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /** Vehicle Plate */
+            vehicle_plate?: string | null;
+        };
         /** AssociateContractRequest */
         AssociateContractRequest: {
             /**
@@ -5807,6 +5967,60 @@ export interface components {
              */
             token_type: string;
             user: components["schemas"]["TokenUser"];
+        };
+        /** BillableTripResponse */
+        BillableTripResponse: {
+            /** Amount */
+            amount?: string | null;
+            /** Billing Status */
+            billing_status?: string | null;
+            /** Candidate Status */
+            candidate_status: string;
+            /** Cargo Class */
+            cargo_class?: string | null;
+            /** Cargo Type */
+            cargo_type?: string | null;
+            /** Client Name */
+            client_name?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
+            /** Contract Reference */
+            contract_reference?: string | null;
+            /** Delivered At */
+            delivered_at?: string | null;
+            /** Delivery Proof Id */
+            delivery_proof_id?: string | null;
+            /** Delivery Proof Status */
+            delivery_proof_status?: string | null;
+            /** Destination */
+            destination?: string | null;
+            /** Load State */
+            load_state?: string | null;
+            /** Origin */
+            origin?: string | null;
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
+            /** Vehicle Id */
+            vehicle_id?: string | null;
+            /** Vehicle Plate */
+            vehicle_plate?: string | null;
+            /** Waiver Status */
+            waiver_status?: string | null;
+        };
+        /** BillingDocumentCancelledResponse */
+        BillingDocumentCancelledResponse: {
+            /** Cancellation Reason */
+            cancellation_reason?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Status */
+            status: string;
         };
         /** BillingDocumentCancelRequest */
         BillingDocumentCancelRequest: {
@@ -5841,10 +6055,276 @@ export interface components {
             /** Trip Ids */
             trip_ids?: string[];
         };
+        /** BillingDocumentExportResponse */
+        BillingDocumentExportResponse: {
+            /**
+             * Billing Document Id
+             * Format: uuid
+             */
+            billing_document_id: string;
+            /** Content Type */
+            content_type: string;
+            /** Download Url */
+            download_url: string;
+            /** Export Format */
+            export_format: string;
+            /**
+             * File Id
+             * Format: uuid
+             */
+            file_id: string;
+            /** Filename */
+            filename: string;
+            /** Message */
+            message: string;
+            /** Sha256 Hash */
+            sha256_hash: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Status */
+            status: string;
+        };
+        /** BillingDocumentListResponse */
+        BillingDocumentListResponse: {
+            /** Items */
+            items: components["schemas"]["BillingDocumentSummaryResponse"][];
+            /** Total */
+            total: number;
+        };
         /** BillingDocumentMarkPaidRequest */
         BillingDocumentMarkPaidRequest: {
             /** Paid At */
             paid_at?: string | null;
+        };
+        /** BillingDocumentResponse */
+        BillingDocumentResponse: {
+            /**
+             * Billing Period End
+             * Format: date-time
+             */
+            billing_period_end: string;
+            /**
+             * Billing Period Start
+             * Format: date-time
+             */
+            billing_period_start: string;
+            /** Client Name */
+            client_name: string;
+            /** Client Nuit */
+            client_nuit?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
+            /** Contract Reference */
+            contract_reference?: string | null;
+            /** Currency */
+            currency: string;
+            /** Document Type */
+            document_type: string;
+            /** Due Date */
+            due_date?: string | null;
+            /** File Id */
+            file_id?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Invoice Number */
+            invoice_number?: string | null;
+            /** Issued At */
+            issued_at?: string | null;
+            /** Items */
+            items?: components["schemas"]["BillingItemResponse"][];
+            /** Iva Rate */
+            iva_rate?: string | null;
+            /** Paid At */
+            paid_at?: string | null;
+            /** Parent Document Id */
+            parent_document_id?: string | null;
+            /** Status */
+            status: string;
+            /** Subtotal */
+            subtotal: string;
+            /** Tax Amount */
+            tax_amount: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Total Amount */
+            total_amount: string;
+        };
+        /** BillingDocumentStatusResponse */
+        BillingDocumentStatusResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Paid At */
+            paid_at?: string | null;
+            /** Status */
+            status: string;
+        };
+        /** BillingDocumentSummaryResponse */
+        BillingDocumentSummaryResponse: {
+            /**
+             * Billing Period End
+             * Format: date-time
+             */
+            billing_period_end: string;
+            /**
+             * Billing Period Start
+             * Format: date-time
+             */
+            billing_period_start: string;
+            /** Client Id */
+            client_id?: string | null;
+            /** Client Name */
+            client_name: string;
+            /** Contract Id */
+            contract_id?: string | null;
+            /** Contract Reference */
+            contract_reference?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Document Type */
+            document_type: string;
+            /** Due Date */
+            due_date?: string | null;
+            /** File Id */
+            file_id?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Invoice Number */
+            invoice_number?: string | null;
+            /** Issued At */
+            issued_at?: string | null;
+            /** Item Count */
+            item_count: number;
+            /** Paid At */
+            paid_at?: string | null;
+            /** Status */
+            status: string;
+            /** Subtotal */
+            subtotal: string;
+            /** Tax Amount */
+            tax_amount: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Total Amount */
+            total_amount: string;
+        };
+        /** BillingItemResponse */
+        BillingItemResponse: {
+            /** Amount */
+            amount: string;
+            /**
+             * Billing Document Id
+             * Format: uuid
+             */
+            billing_document_id: string;
+            /** Cargo Class */
+            cargo_class?: string | null;
+            /** Cargo Description */
+            cargo_description?: string | null;
+            /** Cargo Manifest Id */
+            cargo_manifest_id?: string | null;
+            /** Client Reference */
+            client_reference?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Delivered At
+             * Format: date-time
+             */
+            delivered_at: string;
+            /** Delivery Proof Id */
+            delivery_proof_id?: string | null;
+            /** Destination */
+            destination?: string | null;
+            /** District */
+            district?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Iva Amount */
+            iva_amount?: string | null;
+            /** Iva Rate */
+            iva_rate?: string | null;
+            /** Load Permit Id */
+            load_permit_id?: string | null;
+            /** Load State */
+            load_state?: string | null;
+            /** Loaded At */
+            loaded_at?: string | null;
+            /** Origin */
+            origin?: string | null;
+            /** Quantity */
+            quantity?: string | null;
+            /** Status */
+            status: string;
+            /** Transport Document Id */
+            transport_document_id?: string | null;
+            /** Trip Id */
+            trip_id?: string | null;
+            /** Unit Price */
+            unit_price?: string | null;
+        };
+        /** BillingWaiverDecisionResponse */
+        BillingWaiverDecisionResponse: {
+            /** Approved By */
+            approved_by?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Status */
+            status: string;
+        };
+        /** BillingWaiverResponse */
+        BillingWaiverResponse: {
+            /** Approved By */
+            approved_by: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Reason */
+            reason: string;
+            /** Status */
+            status: string;
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
         };
         /** Body_upload_file_api_v1_files_upload_post */
         Body_upload_file_api_v1_files_upload_post: {
@@ -6023,6 +6503,73 @@ export interface components {
             /** Status */
             status?: string | null;
         };
+        /**
+         * ChecklistRead
+         * @description Mirrors `service.serialize_checklist`.
+         */
+        ChecklistRead: {
+            /** Blocking Failures */
+            blocking_failures?: {
+                [key: string]: unknown;
+            }[];
+            /** Client Captured At */
+            client_captured_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Driver Id */
+            driver_id?: string | null;
+            /** Duration Seconds */
+            duration_seconds?: number | null;
+            /** Gps Accuracy M */
+            gps_accuracy_m?: number | null;
+            /** Gps Source */
+            gps_source?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Location */
+            location?: {
+                [key: string]: unknown;
+            } | null;
+            /** Responses */
+            responses?: {
+                [key: string]: unknown;
+            } | {
+                [key: string]: unknown;
+            }[];
+            /** Server Received At */
+            server_received_at?: string | null;
+            /** Signature File Id */
+            signature_file_id?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Template Id
+             * Format: uuid
+             */
+            template_id: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Type */
+            type: string;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+        };
         /** ChecklistTemplateCreate */
         ChecklistTemplateCreate: {
             /** Category */
@@ -6138,6 +6685,65 @@ export interface components {
              */
             value_date: string;
         };
+        /** ClientPaymentListResponse */
+        ClientPaymentListResponse: {
+            /** Items */
+            items: components["schemas"]["ClientPaymentResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** ClientPaymentResponse */
+        ClientPaymentResponse: {
+            /** Allocations */
+            allocations?: components["schemas"]["PaymentAllocationResponse"][];
+            /** Amount */
+            amount: string;
+            /** Billing Document Id */
+            billing_document_id?: string | null;
+            /**
+             * Client Id
+             * Format: uuid
+             */
+            client_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by?: string | null;
+            /** Currency */
+            currency: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Notes */
+            notes?: string | null;
+            /** Payment Method */
+            payment_method: string;
+            /** Reference */
+            reference?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Value Date
+             * Format: date-time
+             */
+            value_date: string;
+            /** Void Reason */
+            void_reason?: string | null;
+            /** Voided At */
+            voided_at?: string | null;
+            /** Voided By */
+            voided_by?: string | null;
+        };
         /** ClientResponse */
         ClientResponse: {
             /** Address */
@@ -6185,6 +6791,122 @@ export interface components {
              */
             updated_at: string;
         };
+        /** ClientStatementDocumentOut */
+        ClientStatementDocumentOut: {
+            /** Amount Paid */
+            amount_paid: string;
+            /** Billing Period End */
+            billing_period_end?: string | null;
+            /** Billing Period Start */
+            billing_period_start?: string | null;
+            /** Due Date */
+            due_date?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Invoice Number */
+            invoice_number?: string | null;
+            /** Issued At */
+            issued_at?: string | null;
+            /** Outstanding Balance */
+            outstanding_balance: string;
+            /** Status */
+            status: string;
+            /** Total Amount */
+            total_amount: string;
+        };
+        /** ClientStatementDocumentResponse */
+        ClientStatementDocumentResponse: {
+            /** Amount Paid */
+            amount_paid: string;
+            /** Currency */
+            currency: string;
+            /** Document Type */
+            document_type: string;
+            /** Due Date */
+            due_date?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Invoice Number */
+            invoice_number?: string | null;
+            /** Issued At */
+            issued_at?: string | null;
+            /** Outstanding */
+            outstanding: string;
+            /** Status */
+            status: string;
+            /** Total Amount */
+            total_amount: string;
+        };
+        /** ClientStatementOut */
+        ClientStatementOut: {
+            client: components["schemas"]["ClientResponse"];
+            /** Documents */
+            documents: components["schemas"]["ClientStatementDocumentOut"][];
+            /** Payments */
+            payments: components["schemas"]["ClientStatementPaymentOut"][];
+            summary: components["schemas"]["ClientStatementSummaryOut"];
+        };
+        /** ClientStatementPaymentOut */
+        ClientStatementPaymentOut: {
+            /** Allocated */
+            allocated: string;
+            /** Amount */
+            amount: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Payment Method */
+            payment_method?: string | null;
+            /** Reference */
+            reference?: string | null;
+            /** Status */
+            status: string;
+            /** Unallocated */
+            unallocated: string;
+            /** Value Date */
+            value_date: string;
+        };
+        /** ClientStatementResponse */
+        ClientStatementResponse: {
+            /** As Of */
+            as_of?: string | null;
+            /** Balance */
+            balance: string;
+            /**
+             * Client Id
+             * Format: uuid
+             */
+            client_id: string;
+            /** Client Name */
+            client_name: string;
+            /** Currency */
+            currency: string;
+            /** Documents */
+            documents: components["schemas"]["ClientStatementDocumentResponse"][];
+            /** Total Invoiced */
+            total_invoiced: string;
+            /** Total Paid */
+            total_paid: string;
+        };
+        /** ClientStatementSummaryOut */
+        ClientStatementSummaryOut: {
+            /** Advance Balance */
+            advance_balance: string;
+            /** Total Invoiced */
+            total_invoiced: string;
+            /** Total Outstanding */
+            total_outstanding: string;
+            /** Total Paid */
+            total_paid: string;
+        };
         /** CompleteChecklistRequest */
         CompleteChecklistRequest: {
             /** Completed At */
@@ -6230,6 +6952,34 @@ export interface components {
             phone?: string | null;
             /** Role */
             role?: string | null;
+        };
+        /** ContactOut */
+        ContactOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Email */
+            email?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Primary */
+            is_primary: boolean;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+            /** Role */
+            role?: string | null;
+            /**
+             * Third Party Id
+             * Format: uuid
+             */
+            third_party_id: string;
         };
         /** ContractCreate */
         ContractCreate: {
@@ -6424,6 +7174,139 @@ export interface components {
             new_ends_at?: string | null;
             /** Termination Reason */
             termination_reason?: string | null;
+        };
+        /**
+         * ControlTowerQueues
+         * @description The 15 operational queues.
+         *
+         *     Each queue is a heterogeneous row set built by its own aggregation helper —
+         *     a dispatch clearance row and a spare-part row share no fields. They stay as
+         *     open objects here rather than being flattened into a false common shape.
+         */
+        ControlTowerQueues: {
+            /** Active Work Orders */
+            active_work_orders?: {
+                [key: string]: unknown;
+            }[];
+            /** Alerts */
+            alerts?: {
+                [key: string]: unknown;
+            }[];
+            /** Blocked Dispatch */
+            blocked_dispatch?: {
+                [key: string]: unknown;
+            }[];
+            /** Delayed Trips */
+            delayed_trips?: {
+                [key: string]: unknown;
+            }[];
+            /** Disputed Delivery Proofs */
+            disputed_delivery_proofs?: {
+                [key: string]: unknown;
+            }[];
+            /** Driver Despacho Pending */
+            driver_despacho_pending?: {
+                [key: string]: unknown;
+            }[];
+            /** Driver Documents Expiring */
+            driver_documents_expiring?: {
+                [key: string]: unknown;
+            }[];
+            /** Failed Checklists */
+            failed_checklists?: {
+                [key: string]: unknown;
+            }[];
+            /** Negative Margin Trips */
+            negative_margin_trips?: {
+                [key: string]: unknown;
+            }[];
+            /** Open Incidents */
+            open_incidents?: {
+                [key: string]: unknown;
+            }[];
+            /** Operational Close Candidates */
+            operational_close_candidates?: {
+                [key: string]: unknown;
+            }[];
+            /** Operational Exceptions */
+            operational_exceptions?: {
+                [key: string]: unknown;
+            }[];
+            /** Pending Delivery Validation */
+            pending_delivery_validation?: {
+                [key: string]: unknown;
+            }[];
+            /** Pending Dispatch */
+            pending_dispatch?: {
+                [key: string]: unknown;
+            }[];
+            /** Vehicle Documents Expiring */
+            vehicle_documents_expiring?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** ControlTowerResponse */
+        ControlTowerResponse: {
+            /** Date */
+            date: string;
+            queues: components["schemas"]["ControlTowerQueues"];
+            summary: components["schemas"]["ControlTowerSummary"];
+        };
+        /**
+         * ControlTowerSummary
+         * @description KPI row rendered above the queues. Mirrors `service.get_control_tower`.
+         */
+        ControlTowerSummary: {
+            /** Active Waivers */
+            active_waivers: number;
+            /** Alerts Active */
+            alerts_active: number;
+            /** Billing Ready */
+            billing_ready: number;
+            /** Closed Trips Unreconciled */
+            closed_trips_unreconciled: number;
+            /** Contract Revenue Total */
+            contract_revenue_total: number;
+            /** Costs Reconciled Trips */
+            costs_reconciled_trips: number;
+            /** Delivery Proofs Pending Validation */
+            delivery_proofs_pending_validation: number;
+            /** Dispatch Blocked */
+            dispatch_blocked: number;
+            /** Dispatch Pending */
+            dispatch_pending: number;
+            /** Driver Documents Expiring */
+            driver_documents_expiring: number;
+            /** Drivers Active */
+            drivers_active: number;
+            /** Incidents Open */
+            incidents_open: number;
+            /** Maintenance Overdue */
+            maintenance_overdue: number;
+            /** Margin Total */
+            margin_total: number;
+            /** Negative Margin Trips */
+            negative_margin_trips: number;
+            /** Operational Exceptions Open */
+            operational_exceptions_open: number;
+            /** Spare Parts Low Stock */
+            spare_parts_low_stock: number;
+            /** Tool Checkouts Overdue */
+            tool_checkouts_overdue: number;
+            /** Transport Cost Total */
+            transport_cost_total: number;
+            /** Trip Orders Open */
+            trip_orders_open: number;
+            /** Trips Created Today */
+            trips_created_today: number;
+            /** Trips In Execution */
+            trips_in_execution: number;
+            /** Vehicle Documents Expiring */
+            vehicle_documents_expiring: number;
+            /** Vehicles Active */
+            vehicles_active: number;
+            /** Work Orders Active */
+            work_orders_active: number;
         };
         /** CreateBillingWaiver */
         CreateBillingWaiver: {
@@ -6719,12 +7602,101 @@ export interface components {
             /** Subject Type */
             subject_type: string;
         };
+        /** DocumentOut */
+        DocumentOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Document Number */
+            document_number: string | null;
+            /** Document Type */
+            document_type: string;
+            /** Expiry Date */
+            expiry_date: string | null;
+            /** File Id */
+            file_id: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Issued At */
+            issued_at: string | null;
+            /** Issuing Authority */
+            issuing_authority: string | null;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Subject Id
+             * Format: uuid
+             */
+            subject_id: string;
+            /** Subject Type */
+            subject_type: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Verification Status */
+            verification_status: string;
+            /** Verified At */
+            verified_at: string | null;
+            /** Verified By */
+            verified_by: string | null;
+        };
         /** DocumentVerify */
         DocumentVerify: {
             /** Notes */
             notes?: string | null;
             /** Verification Status */
             verification_status: string;
+        };
+        /** DriverBootstrapRead */
+        DriverBootstrapRead: {
+            activeTrip: components["schemas"]["DriverTripRead"] | null;
+            /** Checklisttemplates */
+            checklistTemplates: components["schemas"]["DriverChecklistTemplateRead"][];
+            profile: components["schemas"]["DriverProfileRead"];
+            /** Vehicles */
+            vehicles?: components["schemas"]["DriverVehicleRead"][];
+        };
+        /** DriverChecklistTemplateRead */
+        DriverChecklistTemplateRead: {
+            /** Category */
+            category?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Items */
+            items?: {
+                [key: string]: unknown;
+            }[];
+            /** Name */
+            name: string;
+            /** Type */
+            type: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** DriverCreate */
         DriverCreate: {
@@ -6760,6 +7732,73 @@ export interface components {
             passport_valid_until?: string | null;
             /** Phone */
             phone?: string | null;
+        };
+        /**
+         * DriverDespachoTable
+         * @description Despacho table applied to the allowance, as configured per tenant.
+         */
+        DriverDespachoTable: {
+            /** Currency */
+            currency: string;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Entry Mode */
+            entry_mode?: string | null;
+            /** Name */
+            name: string;
+            /** Reference */
+            reference?: string | null;
+            /** Source */
+            source: string;
+        };
+        /**
+         * DriverDespachoTableRead
+         * @description Stored despacho table.
+         *
+         *     Adds the provenance fields the service stamps on write (`entry_mode`) or that
+         *     other writers may carry (`source`). `extra="allow"` keeps the stored JSON
+         *     intact — the table lives inside `tenant.compliance_policy` and must never be
+         *     silently truncated by the response contract.
+         */
+        DriverDespachoTableRead: {
+            /**
+             * Currency
+             * @default MZN
+             */
+            currency: string;
+            /** Effective From */
+            effective_from?: string | null;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Entry Mode */
+            entry_mode?: string | null;
+            /**
+             * Min Long Course Km
+             * @default 100
+             */
+            min_long_course_km: number;
+            /** Source */
+            source?: string | null;
+            /** Table Name */
+            table_name: string;
+            /** Table Reference */
+            table_reference?: string | null;
+            /** Tiers */
+            tiers: components["schemas"]["DriverDespachoTableTier"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DriverDespachoTableResponse
+         * @description Current despacho table for the tenant; `table` is null until configured.
+         */
+        DriverDespachoTableResponse: {
+            /** Configured */
+            configured: boolean;
+            table?: components["schemas"]["DriverDespachoTableRead"] | null;
         };
         /** DriverDespachoTableTier */
         DriverDespachoTableTier: {
@@ -6923,6 +7962,21 @@ export interface components {
             /** Status */
             status?: string | null;
         };
+        /** DriverProfileRead */
+        DriverProfileRead: {
+            /** Device Id */
+            device_id?: string | null;
+            /**
+             * Driver Id
+             * Format: uuid
+             */
+            driver_id: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+        };
         /** DriverRead */
         DriverRead: {
             /** Bi Number */
@@ -7009,6 +8063,102 @@ export interface components {
              */
             tier: "verde" | "amarelo" | "vermelho" | "insuficiente";
         };
+        /** DriverTokenResponse */
+        DriverTokenResponse: {
+            /** Access Token */
+            access_token: string;
+            driver: components["schemas"]["TokenDriver"];
+            /** Expires In */
+            expires_in: number;
+            /** Refresh Token */
+            refresh_token: string;
+            /**
+             * Token Type
+             * @default bearer
+             */
+            token_type: string;
+        };
+        /**
+         * DriverTripRead
+         * @description Trip execution fields visible to the assigned driver.
+         */
+        DriverTripRead: {
+            /** Actual Arrival */
+            actual_arrival?: string | null;
+            /** Actual Departure */
+            actual_departure?: string | null;
+            /** Cargo Class */
+            cargo_class?: string | null;
+            /** Cargo Status */
+            cargo_status?: string | null;
+            /** Cargo Type */
+            cargo_type?: string | null;
+            /** Cargo Weight */
+            cargo_weight?: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Destination */
+            destination: string;
+            /**
+             * Driver Id
+             * Format: uuid
+             */
+            driver_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Km End */
+            km_end?: number | null;
+            /** Km Start */
+            km_start?: number | null;
+            /** Load State */
+            load_state?: string | null;
+            /** Origin */
+            origin: string;
+            /** Planned Arrival */
+            planned_arrival?: string | null;
+            /** Planned Departure */
+            planned_departure?: string | null;
+            /** Recipient Name */
+            recipient_name?: string | null;
+            /** Requires Cargo Manifest */
+            requires_cargo_manifest: boolean;
+            /** Requires Load Permit */
+            requires_load_permit: boolean;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /** Waybill Number */
+            waybill_number?: string | null;
+        };
+        /** DriverVehicleRead */
+        DriverVehicleRead: {
+            /** Brand */
+            brand?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Model */
+            model?: string | null;
+            /** Plate */
+            plate: string;
+        };
         /** EmailNotificationCreate */
         EmailNotificationCreate: {
             /** Body Html */
@@ -7032,6 +8182,13 @@ export interface components {
         EmailVerificationRequest: {
             /** Token */
             token: string;
+        };
+        /** EmailVerificationResponse */
+        EmailVerificationResponse: {
+            /** Email Verified At */
+            email_verified_at: string;
+            /** Ok */
+            ok: boolean;
         };
         /** EmployeeCreate */
         EmployeeCreate: {
@@ -7155,7 +8312,7 @@ export interface components {
             /** Bank Account Nib */
             bank_account_nib?: string | null;
             /** Base Salary */
-            base_salary: number;
+            base_salary?: number | null;
             /**
              * Created At
              * Format: date-time
@@ -7233,6 +8390,132 @@ export interface components {
             /** Notes */
             notes?: string | null;
         };
+        /** EvaluationListOut */
+        EvaluationListOut: {
+            /** Average Score */
+            average_score?: string | null;
+            /** Evaluations */
+            evaluations: components["schemas"]["EvaluationOut"][];
+        };
+        /** EvaluationOut */
+        EvaluationOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Criteria */
+            criteria: {
+                [key: string]: unknown;
+            }[];
+            /** Evaluated By */
+            evaluated_by?: string | null;
+            /**
+             * Evaluation Date
+             * Format: date
+             */
+            evaluation_date: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Notes */
+            notes?: string | null;
+            /** Score */
+            score: string;
+            /**
+             * Third Party Id
+             * Format: uuid
+             */
+            third_party_id: string;
+        };
+        /** ExportJobEnqueuedResponse */
+        ExportJobEnqueuedResponse: {
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Status */
+            status: string;
+        };
+        /** ExportJobStatusResponse */
+        ExportJobStatusResponse: {
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Job Type */
+            job_type: string;
+            /** Status */
+            status: string;
+        };
+        /** FileResponse */
+        FileResponse: {
+            /** Confirmed At */
+            confirmed_at?: string | null;
+            /** Entity Id */
+            entity_id?: string | null;
+            /** Entity Type */
+            entity_type?: string | null;
+            /** File Type */
+            file_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Mime Type */
+            mime_type: string;
+            /** Original Name */
+            original_name: string;
+            /** Sha256 Hash */
+            sha256_hash: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Storage Key */
+            storage_key: string;
+            /** Storage Provider */
+            storage_provider: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Uploaded At */
+            uploaded_at?: string | null;
+            /** Uploaded By Driver Id */
+            uploaded_by_driver_id?: string | null;
+            /** Uploaded By User Id */
+            uploaded_by_user_id?: string | null;
+        };
+        /** FuelBoardQueues */
+        FuelBoardQueues: {
+            /** Low Stock Tanks */
+            low_stock_tanks: components["schemas"]["FuelTankRead"][];
+        };
+        /** FuelBoardSummary */
+        FuelBoardSummary: {
+            /** Low Stock Tanks */
+            low_stock_tanks: number;
+            /** Purchases Pending */
+            purchases_pending: number;
+            /** Stock Adjustments Pending */
+            stock_adjustments_pending: number;
+            /** Tanks */
+            tanks: number;
+            /** Total Stock Liters */
+            total_stock_liters: string;
+        };
+        /** FuelControlBoardResponse */
+        FuelControlBoardResponse: {
+            queues: components["schemas"]["FuelBoardQueues"];
+            summary: components["schemas"]["FuelBoardSummary"];
+            /** Tanks */
+            tanks: components["schemas"]["FuelTankRead"][];
+        };
         /** FuelLogCreate */
         FuelLogCreate: {
             /** Client Captured At */
@@ -7303,6 +8586,51 @@ export interface components {
             /** Unit Price */
             unit_price: number;
         };
+        /**
+         * FuelPurchaseRead
+         * @description Mirrors `operations.serialize_purchase`.
+         */
+        FuelPurchaseRead: {
+            /** Approved At */
+            approved_at?: string | null;
+            /** Approved By */
+            approved_by?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Fuel Type */
+            fuel_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Notes */
+            notes?: string | null;
+            /** Ordered At */
+            ordered_at?: string | null;
+            /** Ordered Liters */
+            ordered_liters: string;
+            /** Purchase Reference */
+            purchase_reference?: string | null;
+            /** Status */
+            status: string;
+            /** Supplier Name */
+            supplier_name?: string | null;
+            /** Supplier Third Party Id */
+            supplier_third_party_id?: string | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Total Cost */
+            total_cost: string;
+            /** Unit Price */
+            unit_price: string;
+        };
         /** FuelReceiptCreate */
         FuelReceiptCreate: {
             /** Delivery Note File Id */
@@ -7372,6 +8700,50 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * FuelTankRead
+         * @description Mirrors `operations.serialize_tank`.
+         */
+        FuelTankRead: {
+            /** Average Unit Cost */
+            average_unit_cost?: string | null;
+            /** Capacity Liters */
+            capacity_liters: string;
+            /** Code */
+            code: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Current Stock Liters */
+            current_stock_liters: string;
+            /** Fuel Type */
+            fuel_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Location */
+            location?: string | null;
+            /** Minimum Stock Liters */
+            minimum_stock_liters: string;
+            /** Name */
+            name: string;
+            /** Status */
+            status: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** GuiaRemessaCreate */
         GuiaRemessaCreate: {
             /** Cargo Description */
@@ -7407,6 +8779,31 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** ImminentMaintenanceAlertResponse */
+        ImminentMaintenanceAlertResponse: {
+            /** Current Km */
+            current_km?: number | null;
+            /** Next Due At */
+            next_due_at?: string | null;
+            /** Next Due Km */
+            next_due_km?: number | null;
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            /** Plan Name */
+            plan_name: string;
+            /** Trigger Type */
+            trigger_type: string;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /** Vehicle Plate */
+            vehicle_plate: string;
         };
         /** InsuranceClaimCreate */
         InsuranceClaimCreate: {
@@ -7460,6 +8857,33 @@ export interface components {
              * Format: date-time
              */
             value_date: string;
+        };
+        /**
+         * InvoiceReceiptResponse
+         * @description FDOC-04: Fatura-Recibo created from a settled invoice.
+         */
+        InvoiceReceiptResponse: {
+            /** Document Type */
+            document_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Invoice Number */
+            invoice_number?: string | null;
+            /** Issued At */
+            issued_at?: string | null;
+            /** Parent Document Id */
+            parent_document_id?: string | null;
+            /** Parent Invoice Number */
+            parent_invoice_number?: string | null;
+            /** Parent Status */
+            parent_status: string;
+            /** Status */
+            status: string;
+            /** Total Amount */
+            total_amount: string;
         };
         /** IssueAdvanceRequest */
         IssueAdvanceRequest: {
@@ -7760,6 +9184,50 @@ export interface components {
             /** Voided At */
             voided_at?: string | null;
         };
+        /** LedgerCurrencyBalance */
+        LedgerCurrencyBalance: {
+            /** Balance */
+            balance: string;
+            /** Total Credits */
+            total_credits: string;
+            /** Total Debits */
+            total_debits: string;
+        };
+        /** LedgerEntryOut */
+        LedgerEntryOut: {
+            /** Amount */
+            amount: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Entry Date
+             * Format: date
+             */
+            entry_date: string;
+            /** Entry Type */
+            entry_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Source Id */
+            source_id?: string | null;
+            /** Source Type */
+            source_type?: string | null;
+            /**
+             * Third Party Id
+             * Format: uuid
+             */
+            third_party_id: string;
+        };
         /** LineItem */
         LineItem: {
             /** Description */
@@ -7831,6 +9299,35 @@ export interface components {
         LogoutRequest: {
             /** Refresh Token */
             refresh_token?: string | null;
+        };
+        /** LowStockListResponse */
+        LowStockListResponse: {
+            /** Items */
+            items: components["schemas"]["LowStockPartResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** LowStockPartResponse */
+        LowStockPartResponse: {
+            /** Current Quantity */
+            current_quantity: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Lead Time Days */
+            lead_time_days?: number | null;
+            /** Minimum Quantity */
+            minimum_quantity: string;
+            /** Name */
+            name: string;
+            /** Reorder Quantity */
+            reorder_quantity?: string | null;
+            /** Sku */
+            sku: string;
+            /** Supplier Name */
+            supplier_name?: string | null;
         };
         /** MaintenancePartIssueCreate */
         MaintenancePartIssueCreate: {
@@ -8194,6 +9691,48 @@ export interface components {
             /** Waiver Type */
             waiver_type: string;
         };
+        /**
+         * OperationalWaiverRead
+         * @description Mirrors `service.serialize_waiver`.
+         */
+        OperationalWaiverRead: {
+            /** Approved At */
+            approved_at?: string | null;
+            /** Approved By */
+            approved_by?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Entity Id
+             * Format: uuid
+             */
+            entity_id: string;
+            /** Entity Type */
+            entity_type: string;
+            /** Expires At */
+            expires_at?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Reason */
+            reason: string;
+            /** Risk Level */
+            risk_level?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Waiver Type */
+            waiver_type: string;
+        };
         /** OperationalWaiverRevokeRequest */
         OperationalWaiverRevokeRequest: {
             /** Reason */
@@ -8269,6 +9808,8 @@ export interface components {
         PartyDirectoryEntry: {
             /** Name */
             name: string;
+            /** Roles */
+            roles?: string[] | null;
             /** Status */
             status: string;
             /**
@@ -8302,6 +9843,26 @@ export interface components {
             /** Reset Url */
             reset_url?: string | null;
         };
+        /** PaymentAllocationResponse */
+        PaymentAllocationResponse: {
+            /** Amount Applied */
+            amount_applied: string;
+            /**
+             * Billing Document Id
+             * Format: uuid
+             */
+            billing_document_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+        };
         /** PaymentCreate */
         PaymentCreate: {
             /** Amount */
@@ -8319,6 +9880,41 @@ export interface components {
             payment_date?: string | null;
             /** Work Order Id */
             work_order_id?: string | null;
+        };
+        /** PaymentRecordOut */
+        PaymentRecordOut: {
+            /** Amount */
+            amount: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Entry Date
+             * Format: date
+             */
+            entry_date: string;
+            /** Entry Type */
+            entry_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Source Id */
+            source_id?: string | null;
+            /** Source Type */
+            source_type?: string | null;
+            /**
+             * Third Party Id
+             * Format: uuid
+             */
+            third_party_id: string;
         };
         /** PayrollGenerationRequest */
         PayrollGenerationRequest: {
@@ -8453,6 +10049,20 @@ export interface components {
             /** Size Bytes */
             size_bytes: number;
         };
+        /** PresignResponse */
+        PresignResponse: {
+            /** Expires In */
+            expires_in: number;
+            /**
+             * File Id
+             * Format: uuid
+             */
+            file_id: string;
+            /** Storage Key */
+            storage_key: string;
+            /** Upload Url */
+            upload_url: string;
+        };
         /** PreventiveScheduleCreate */
         PreventiveScheduleCreate: {
             /**
@@ -8471,6 +10081,75 @@ export interface components {
             /** Product Modules */
             product_modules: string[];
         };
+        /** ProfitabilitySummaryResponse */
+        ProfitabilitySummaryResponse: {
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            summary: components["schemas"]["ProfitabilitySummaryTotals"];
+            /** Total Count */
+            total_count: number;
+            /** Work Orders */
+            work_orders: components["schemas"]["ProfitabilitySummaryWorkOrder"][];
+        };
+        /** ProfitabilitySummaryTotals */
+        ProfitabilitySummaryTotals: {
+            /** Confirmed Gross Margin Pct */
+            confirmed_gross_margin_pct: number;
+            /** Confirmed Gross Profit */
+            confirmed_gross_profit: number;
+            /** Confirmed Revenue */
+            confirmed_revenue: number;
+            /** Negative Margin Count */
+            negative_margin_count: number;
+            /** Projected Revenue */
+            projected_revenue: number;
+            /** Total Cost */
+            total_cost: number;
+            /** Total Labor Cost */
+            total_labor_cost: number;
+            /** Total Parts Cost */
+            total_parts_cost: number;
+            /** Total Work Orders */
+            total_work_orders: number;
+        };
+        /** ProfitabilitySummaryWorkOrder */
+        ProfitabilitySummaryWorkOrder: {
+            /** Client */
+            client?: string | null;
+            /** Confirmed Revenue */
+            confirmed_revenue: number;
+            /** Created At */
+            created_at?: string | null;
+            /** Effective Revenue */
+            effective_revenue: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Profitable */
+            is_profitable: boolean;
+            /** Labor Cost */
+            labor_cost: number;
+            /** Margin Mzn */
+            margin_mzn: number;
+            /** Margin Pct */
+            margin_pct: number;
+            /** Parts Cost */
+            parts_cost: number;
+            /** Projected Revenue */
+            projected_revenue: number;
+            /** Status */
+            status: string;
+            /** Total Cost */
+            total_cost: number;
+            /** Vehicle */
+            vehicle?: string | null;
+            /** Wo Number */
+            wo_number: string;
+        };
         /** ProfitAndLossResponse */
         ProfitAndLossResponse: {
             /** Ebitda */
@@ -8481,6 +10160,17 @@ export interface components {
             total_expense: string;
             /** Total Revenue */
             total_revenue: string;
+        };
+        /** ProvinceOut */
+        ProvinceOut: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Name Local */
+            name_local: string | null;
+            /** Region */
+            region: string | null;
         };
         /** PurchaseOrderCreate */
         PurchaseOrderCreate: {
@@ -8682,6 +10372,31 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /**
+         * ReceiptResponse
+         * @description FDOC-04: standalone Recibo for a partial or out-of-band payment.
+         */
+        ReceiptResponse: {
+            /** Amount Paid */
+            amount_paid: string;
+            /** Document Type */
+            document_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Invoice Number */
+            invoice_number?: string | null;
+            /** Issued At */
+            issued_at?: string | null;
+            /** Parent Document Id */
+            parent_document_id?: string | null;
+            /** Parent Invoice Number */
+            parent_invoice_number?: string | null;
+            /** Status */
+            status: string;
+        };
         /** RecentTripRead */
         RecentTripRead: {
             /**
@@ -8865,6 +10580,37 @@ export interface components {
             /** Role Type */
             role_type: string;
         };
+        /** RoleOut */
+        RoleOut: {
+            /** Certification Ref */
+            certification_ref: string | null;
+            /** Certified At */
+            certified_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Role Type */
+            role_type: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Third Party Id
+             * Format: uuid
+             */
+            third_party_id: string;
+        };
         /** SalaryAdvanceCreate */
         SalaryAdvanceCreate: {
             /** Amount */
@@ -8936,6 +10682,36 @@ export interface components {
              */
             vehicle_id: string;
         };
+        /** SerialItemResponse */
+        SerialItemResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Installed At */
+            installed_at?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Part Id
+             * Format: uuid
+             */
+            part_id: string;
+            /** Scrapped At */
+            scrapped_at?: string | null;
+            /** Serial Number */
+            serial_number: string;
+            /** Status */
+            status: string;
+            /** Vehicle Id */
+            vehicle_id?: string | null;
+        };
         /** ServiceProviderProfileCreate */
         ServiceProviderProfileCreate: {
             /** Coverage Province Codes */
@@ -8946,6 +10722,42 @@ export interface components {
             response_time_hours?: number | null;
             /** Service Categories */
             service_categories?: string[] | null;
+        };
+        /** ServiceProviderProfileOut */
+        ServiceProviderProfileOut: {
+            /** Coverage Province Codes */
+            coverage_province_codes: unknown[] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Rate Per Hour */
+            rate_per_hour: string | null;
+            /** Response Time Hours */
+            response_time_hours: number | null;
+            /** Service Categories */
+            service_categories: unknown[] | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Third Party Id
+             * Format: uuid
+             */
+            third_party_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** SessionResponse */
         SessionResponse: {
@@ -8988,6 +10800,47 @@ export interface components {
             /** Revoked */
             revoked: boolean;
         };
+        /**
+         * SettlementResponse
+         * @description Mirrors `settlement_service.serialize_settlement`.
+         */
+        SettlementResponse: {
+            /** Advance Amount Mzn */
+            advance_amount_mzn: string;
+            /** Advance Id */
+            advance_id?: string | null;
+            /** Approved At */
+            approved_at?: string | null;
+            /** Approved By */
+            approved_by?: string | null;
+            /** Balance Mzn */
+            balance_mzn: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Pdf File Id */
+            pdf_file_id?: string | null;
+            /** Rejection Reason */
+            rejection_reason?: string | null;
+            /** Settled At */
+            settled_at?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Total Costs Mzn */
+            total_costs_mzn: string;
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
+        };
         /** SparePartInventoryCreate */
         SparePartInventoryCreate: {
             /**
@@ -9004,6 +10857,97 @@ export interface components {
              * @default unit
              */
             unit: string;
+        };
+        /** SparePartInventoryResponse */
+        SparePartInventoryResponse: {
+            /** Average Unit Cost */
+            average_unit_cost?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Current Quantity */
+            current_quantity: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Minimum Quantity */
+            minimum_quantity: string;
+            /** Name */
+            name: string;
+            /** Sku */
+            sku: string;
+            /** Status */
+            status: string;
+            /** Supplier Name */
+            supplier_name?: string | null;
+            /** Supplier Third Party Id */
+            supplier_third_party_id?: string | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Unit */
+            unit: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** SparePartMovementResponse */
+        SparePartMovementResponse: {
+            /** Balance After Quantity */
+            balance_after_quantity: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Direction */
+            direction: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Inventory Id
+             * Format: uuid
+             */
+            inventory_id: string;
+            /** Movement Type */
+            movement_type: string;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Quantity */
+            quantity: string;
+            /** Recorded By */
+            recorded_by?: string | null;
+            /** Request Reference */
+            request_reference?: string | null;
+            /** Source Id */
+            source_id?: string | null;
+            /** Source Type */
+            source_type?: string | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Total Cost */
+            total_cost?: string | null;
+            /** Unit Cost */
+            unit_cost?: string | null;
         };
         /** SparePartReceiptCreate */
         SparePartReceiptCreate: {
@@ -9130,6 +11074,32 @@ export interface components {
              * Format: uuid
              */
             warehouse_id: string;
+        };
+        /** SupplierAccountOut */
+        SupplierAccountOut: {
+            /** Balance */
+            balance: string;
+            /** Balances */
+            balances: {
+                [key: string]: components["schemas"]["LedgerCurrencyBalance"];
+            };
+            /** Date From */
+            date_from?: string | null;
+            /** Date To */
+            date_to?: string | null;
+            /** Entries */
+            entries: components["schemas"]["LedgerEntryOut"][];
+            /** Opening Balance */
+            opening_balance?: string | null;
+            /**
+             * Third Party Id
+             * Format: uuid
+             */
+            third_party_id: string;
+            /** Total Credits */
+            total_credits: string;
+            /** Total Debits */
+            total_debits: string;
         };
         /** SupplierInvoiceCreate */
         SupplierInvoiceCreate: {
@@ -9311,12 +11281,78 @@ export interface components {
              */
             preferred_currency: string | null;
         };
+        /** SupplierProfileOut */
+        SupplierProfileOut: {
+            /** Account Number */
+            account_number: string | null;
+            /** Bank Name */
+            bank_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Credit Limit */
+            credit_limit: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Payment Terms */
+            payment_terms: string | null;
+            /** Preferred Currency */
+            preferred_currency: string | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Third Party Id
+             * Format: uuid
+             */
+            third_party_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** SyncBatchRequest */
         SyncBatchRequest: {
             /** Device Id */
             device_id: string;
             /** Operations */
             operations: components["schemas"]["SyncOperation"][];
+        };
+        /** SyncBatchResponse */
+        SyncBatchResponse: {
+            /** Results */
+            results: components["schemas"]["SyncResult"][];
+        };
+        /** SyncBootstrapResponse */
+        SyncBootstrapResponse: {
+            /** Idempotency Ttl Days */
+            idempotency_ttl_days: number;
+            /**
+             * Server Time
+             * Format: date-time
+             */
+            server_time: string;
+            /** Supported Entity Types */
+            supported_entity_types: string[];
+            /** Supported Operations */
+            supported_operations: string[];
+            /** Supported Operations By Entity */
+            supported_operations_by_entity: {
+                [key: string]: string[];
+            };
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
         };
         /** SyncOperation */
         SyncOperation: {
@@ -9334,6 +11370,23 @@ export interface components {
             payload: {
                 [key: string]: unknown;
             };
+        };
+        /** SyncResult */
+        SyncResult: {
+            /** Entity Type */
+            entity_type: string;
+            /** Error Code */
+            error_code?: string | null;
+            /** Local Id */
+            local_id: string;
+            /** Message */
+            message?: string | null;
+            /** Server Id */
+            server_id?: string | null;
+            /** Server Timestamp */
+            server_timestamp?: string | null;
+            /** Status */
+            status: string;
         };
         /** TaskAssignRequest */
         TaskAssignRequest: {
@@ -9545,6 +11598,59 @@ export interface components {
             /** Trade Name */
             trade_name?: string | null;
         };
+        /** ThirdPartyOut */
+        ThirdPartyOut: {
+            /** Activity Code */
+            activity_code?: string | null;
+            /** Address */
+            address: string | null;
+            /** Average Score */
+            average_score?: string | null;
+            /** Contact Email */
+            contact_email: string | null;
+            /** Contact Phone */
+            contact_phone: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Verified */
+            is_verified: boolean;
+            /** Legal Type */
+            legal_type: string | null;
+            /** Name */
+            name: string;
+            /** Notes */
+            notes: string | null;
+            /** Nuit */
+            nuit: string | null;
+            /** Province Code */
+            province_code: string | null;
+            /** Sector */
+            sector?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Trade Name */
+            trade_name: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Verified At */
+            verified_at: string | null;
+        };
         /** ThirdPartyUpdate */
         ThirdPartyUpdate: {
             /** Address */
@@ -9569,6 +11675,21 @@ export interface components {
             status?: string | null;
             /** Trade Name */
             trade_name?: string | null;
+        };
+        /** TokenDriver */
+        TokenDriver: {
+            /** Full Name */
+            full_name: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
         };
         /** TokenUser */
         TokenUser: {
@@ -9603,6 +11724,38 @@ export interface components {
             next_due_at: string;
             /** Notes */
             notes?: string | null;
+        };
+        /** ToolCalibrationResponse */
+        ToolCalibrationResponse: {
+            /**
+             * Calibrated At
+             * Format: date-time
+             */
+            calibrated_at: string;
+            /** Calibrated By */
+            calibrated_by?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Next Due At
+             * Format: date-time
+             */
+            next_due_at: string;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Tool Id
+             * Format: uuid
+             */
+            tool_id: string;
         };
         /** ToolCheckoutCreate */
         ToolCheckoutCreate: {
@@ -9650,6 +11803,20 @@ export interface components {
             location?: string | null;
             /** Status */
             status?: string | null;
+        };
+        /** TopDebtorResponse */
+        TopDebtorResponse: {
+            /**
+             * Client Id
+             * Format: uuid
+             */
+            client_id: string;
+            /** Client Name */
+            client_name: string;
+            /** Outstanding */
+            outstanding: string;
+            /** Worst Bucket */
+            worst_bucket: string;
         };
         /** TransportDocumentCreate */
         TransportDocumentCreate: {
@@ -9815,6 +11982,56 @@ export interface components {
             notes?: string | null;
             /** Request Reference */
             request_reference?: string | null;
+        };
+        /**
+         * TripDriverAllowanceResponse
+         * @description `service.record_driver_travel_allowance` — trip cost plus applied policy.
+         */
+        TripDriverAllowanceResponse: {
+            /** Allowance Amount */
+            allowance_amount: number;
+            /** Amount */
+            amount: string;
+            /** Cost Type */
+            cost_type: string;
+            /** Currency */
+            currency: string;
+            /** Description */
+            description?: string | null;
+            despacho_table: components["schemas"]["DriverDespachoTable"];
+            /** Despacho Tier */
+            despacho_tier?: {
+                [key: string]: unknown;
+            } | null;
+            /** Distance Km */
+            distance_km: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Incurred At
+             * Format: date-time
+             */
+            incurred_at: string;
+            /** Paid By */
+            paid_by?: string | null;
+            /** Payment Method */
+            payment_method?: string | null;
+            /** Receipt File Id */
+            receipt_file_id?: string | null;
+            /** Request Reference */
+            request_reference?: string | null;
+            /** Source Id */
+            source_id?: string | null;
+            /** Source Type */
+            source_type?: string | null;
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
         };
         /** TripExecutionEventCreate */
         TripExecutionEventCreate: {
@@ -10438,6 +12655,81 @@ export interface components {
              */
             valid_until: string;
         };
+        /**
+         * VehicleHistoryCursorPage
+         * @description Cursor-paginated shape, returned when cursor/types/from/to are supplied.
+         */
+        VehicleHistoryCursorPage: {
+            /** Events */
+            events: components["schemas"]["VehicleHistoryEvent"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Total Count */
+            total_count: number;
+        };
+        /** VehicleHistoryEvent */
+        VehicleHistoryEvent: {
+            /** Description */
+            description?: string | null;
+            /** Event Date */
+            event_date?: string | null;
+            /** Event Type */
+            event_type: string;
+            /** Odometer Reading */
+            odometer_reading?: number | null;
+            /** Reference Id */
+            reference_id?: string | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** VehicleHistoryItem */
+        VehicleHistoryItem: {
+            /** Details */
+            details?: {
+                [key: string]: unknown;
+            };
+            /** Event Type */
+            event_type: string;
+            /** Occurred At */
+            occurred_at?: string | null;
+            /** Reference Id */
+            reference_id?: string | null;
+            /** Reference Type */
+            reference_type?: string | null;
+            /** Source */
+            source: string;
+            /** Summary */
+            summary?: string | null;
+        };
+        /**
+         * VehicleHistoryPage
+         * @description Legacy offset-paginated shape (no cursor/types/from/to query params).
+         */
+        VehicleHistoryPage: {
+            /** Items */
+            items: components["schemas"]["VehicleHistoryItem"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Returned */
+            returned: number;
+            vehicle: components["schemas"]["VehicleHistorySubject"];
+        };
+        /** VehicleHistorySubject */
+        VehicleHistorySubject: {
+            /** Current Km */
+            current_km?: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Plate */
+            plate: string;
+            /** Status */
+            status: string;
+        };
         /** VehicleInsuranceCreate */
         VehicleInsuranceCreate: {
             /** Coverage Type */
@@ -10460,6 +12752,54 @@ export interface components {
              * Format: date
              */
             valid_until: string;
+        };
+        /** VehicleInsuranceRead */
+        VehicleInsuranceRead: {
+            /** Coverage Type */
+            coverage_type: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Insurer */
+            insurer: string;
+            /** Notes */
+            notes: string | null;
+            /** Policy Number */
+            policy_number: string;
+            /** Premium Amount */
+            premium_amount: string | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Valid From
+             * Format: date
+             */
+            valid_from: string;
+            /**
+             * Valid Until
+             * Format: date
+             */
+            valid_until: string;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
         };
         /** VehiclePatch */
         VehiclePatch: {
@@ -10495,6 +12835,20 @@ export interface components {
             status?: string | null;
             /** Year */
             year?: number | null;
+        };
+        /** VehicleQrCodeRead */
+        VehicleQrCodeRead: {
+            /** Deep Link */
+            deep_link: string;
+            /** Plate */
+            plate: string;
+            /** Qr Code Hash */
+            qr_code_hash: string;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
         };
         /** VehicleRead */
         VehicleRead: {
@@ -10852,6 +13206,36 @@ export interface components {
             vehicle?: components["schemas"]["VehicleDetail"] | null;
             work_order: components["schemas"]["WorkOrderDetailCore"];
         };
+        /** WorkOrderProfitabilityResponse */
+        WorkOrderProfitabilityResponse: {
+            /** Confirmed Revenue */
+            confirmed_revenue: number;
+            /** Gross Profit Margin Percent */
+            gross_profit_margin_percent: number;
+            /** Gross Profit Mzn */
+            gross_profit_mzn: number;
+            /** Is Profitable */
+            is_profitable: boolean;
+            /** Projected Revenue */
+            projected_revenue: number;
+            /** Total Cost */
+            total_cost: number;
+            /** Total Labor Cost */
+            total_labor_cost: number;
+            /** Total Labor Minutes */
+            total_labor_minutes: number;
+            /** Total Parts Cost */
+            total_parts_cost: number;
+            /** Total Revenue */
+            total_revenue: number;
+            /**
+             * Work Order Id
+             * Format: uuid
+             */
+            work_order_id: string;
+            /** Work Order Number */
+            work_order_number: string;
+        };
         /** WorkOrderResponse */
         WorkOrderResponse: {
             /** Actual Cost */
@@ -10962,6 +13346,51 @@ export interface components {
             is_critical: boolean;
             /** Name */
             name: string;
+        };
+        /** WorkshopToolResponse */
+        WorkshopToolResponse: {
+            /** Calibration Due At */
+            calibration_due_at?: string | null;
+            /** Calibration Interval Days */
+            calibration_interval_days?: number | null;
+            /** Category */
+            category?: string | null;
+            /** Code */
+            code: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Critical */
+            is_critical: boolean;
+            /** Location */
+            location?: string | null;
+            /** Name */
+            name: string;
+            /** Purchase Cost */
+            purchase_cost?: string | null;
+            /** Purchase Date */
+            purchase_date?: string | null;
+            /** Serial Number */
+            serial_number?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
     };
     responses: never;
@@ -11267,12 +13696,12 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ExportJobEnqueuedResponse"];
                 };
             };
             /** @description Validation Error */
@@ -11375,12 +13804,12 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ExportJobEnqueuedResponse"];
                 };
             };
             /** @description Validation Error */
@@ -11796,7 +14225,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AuthTokenResponse"] | components["schemas"]["DriverTokenResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12009,7 +14438,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ArSummaryResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12045,7 +14474,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["TopDebtorResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -12085,7 +14514,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["BillableTripResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -12122,7 +14551,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ClientStatementResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12153,13 +14582,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description PDF document bytes. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": unknown;
+                    "application/pdf": string;
                 };
             };
             /** @description Validation Error */
@@ -12193,7 +14623,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ExportJobEnqueuedResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12233,7 +14663,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["BillingDocumentListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12270,7 +14700,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["BillingDocumentResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12304,7 +14734,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["BillingDocumentResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12342,7 +14772,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["BillingDocumentCancelledResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12381,7 +14811,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AdjustmentNoteResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12420,7 +14850,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AdjustmentNoteResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12456,7 +14886,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["BillingDocumentExportResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12492,7 +14922,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ExportJobEnqueuedResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12526,7 +14956,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["InvoiceReceiptResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12565,7 +14995,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["BillingDocumentResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12603,7 +15033,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["BillingDocumentStatusResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12641,7 +15071,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ReceiptResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12709,7 +15139,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ExportJobStatusResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12748,7 +15178,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ClientPaymentListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12785,7 +15215,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ClientPaymentResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12823,7 +15253,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ClientPaymentResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12861,7 +15291,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ClientPaymentResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12897,7 +15327,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["BillingWaiverResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12931,7 +15361,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["BillingWaiverDecisionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12965,7 +15395,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["BillingWaiverDecisionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -13075,7 +15505,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ChecklistRead"][];
                 };
             };
             /** @description Validation Error */
@@ -13440,7 +15870,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ClientStatementOut"];
                 };
             };
             /** @description Validation Error */
@@ -13810,7 +16240,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ControlTowerResponse"];
                 };
             };
             /** @description Validation Error */
@@ -13915,7 +16345,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DriverTokenResponse"];
                 };
             };
             /** @description Validation Error */
@@ -13947,7 +16377,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DriverTripRead"] | null;
                 };
             };
             /** @description Validation Error */
@@ -13979,7 +16409,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DriverBootstrapRead"];
                 };
             };
             /** @description Validation Error */
@@ -14011,7 +16441,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DriverChecklistTemplateRead"][];
                 };
             };
             /** @description Validation Error */
@@ -14035,19 +16465,15 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TripCreate"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Successful Response */
-            201: {
+            /** @description Trip creation is restricted to dispatch. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
             /** @description Validation Error */
@@ -14063,9 +16489,7 @@ export interface operations {
     };
     list_vehicles_api_v1_driver_vehicles_get: {
         parameters: {
-            query?: {
-                limit?: number;
-            };
+            query?: never;
             header?: {
                 Authorization?: string | null;
                 "X-Tenant-Id"?: string | null;
@@ -14075,13 +16499,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description Fleet selection is restricted to dispatch. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
             /** @description Validation Error */
@@ -14479,7 +16903,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["FileResponse"];
                 };
             };
             /** @description Validation Error */
@@ -14507,13 +16931,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Stored file bytes with its original media type. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/octet-stream": string;
                 };
             };
             /** @description Validation Error */
@@ -14549,7 +16973,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["FileResponse"];
                 };
             };
             /** @description Validation Error */
@@ -14586,7 +17010,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["PresignResponse"];
                 };
             };
             /** @description Validation Error */
@@ -14623,7 +17047,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["FileResponse"];
                 };
             };
             /** @description Validation Error */
@@ -14731,7 +17155,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["FuelControlBoardResponse"];
                 };
             };
             /** @description Validation Error */
@@ -14803,7 +17227,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["FuelPurchaseRead"];
                 };
             };
             /** @description Validation Error */
@@ -15015,7 +17439,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["FuelTankRead"][];
                 };
             };
             /** @description Validation Error */
@@ -16176,7 +18600,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["EmailVerificationResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16321,7 +18745,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["OperationalWaiverRead"][];
                 };
             };
             /** @description Validation Error */
@@ -16358,7 +18782,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["OperationalWaiverRead"];
                 };
             };
             /** @description Validation Error */
@@ -16396,7 +18820,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["OperationalWaiverRead"];
                 };
             };
             /** @description Validation Error */
@@ -16814,13 +19238,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description PDF document bytes. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": unknown;
+                    "application/pdf": string;
                 };
             };
             /** @description Validation Error */
@@ -17209,7 +19634,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SyncBatchResponse"];
                 };
             };
             /** @description Validation Error */
@@ -17241,7 +19666,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SyncBootstrapResponse"];
                 };
             };
             /** @description Validation Error */
@@ -17410,7 +19835,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DriverDespachoTableResponse"];
                 };
             };
             /** @description Validation Error */
@@ -17445,7 +19870,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DriverDespachoTableResponse"];
                 };
             };
             /** @description Validation Error */
@@ -17556,7 +19981,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ThirdPartyOut"][];
                 };
             };
             /** @description Validation Error */
@@ -17592,7 +20017,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ThirdPartyOut"];
                 };
             };
             /** @description Validation Error */
@@ -17629,7 +20054,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SupplierAccountOut"];
                 };
             };
             /** @description Validation Error */
@@ -17660,13 +20085,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description PDF document bytes. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": unknown;
+                    "application/pdf": string;
                 };
             };
             /** @description Validation Error */
@@ -17700,7 +20126,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ContactOut"][];
                 };
             };
             /** @description Validation Error */
@@ -17739,7 +20165,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ContactOut"];
                 };
             };
             /** @description Validation Error */
@@ -17806,7 +20232,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["EvaluationListOut"];
                 };
             };
             /** @description Validation Error */
@@ -17845,7 +20271,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["EvaluationOut"];
                 };
             };
             /** @description Validation Error */
@@ -17884,7 +20310,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["PaymentRecordOut"];
                 };
             };
             /** @description Validation Error */
@@ -17918,7 +20344,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ThirdPartyOut"];
                 };
             };
             /** @description Validation Error */
@@ -17956,7 +20382,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ThirdPartyOut"];
                 };
             };
             /** @description Validation Error */
@@ -17990,7 +20416,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["RoleOut"][];
                 };
             };
             /** @description Validation Error */
@@ -18028,7 +20454,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["RoleOut"];
                 };
             };
             /** @description Validation Error */
@@ -18066,7 +20492,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ServiceProviderProfileOut"];
                 };
             };
             /** @description Validation Error */
@@ -18104,7 +20530,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SupplierProfileOut"];
                 };
             };
             /** @description Validation Error */
@@ -18142,7 +20568,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DocumentOut"][];
                 };
             };
             /** @description Validation Error */
@@ -18178,7 +20604,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DocumentOut"];
                 };
             };
             /** @description Validation Error */
@@ -18216,7 +20642,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DocumentOut"];
                 };
             };
             /** @description Validation Error */
@@ -18250,7 +20676,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DocumentOut"][];
                 };
             };
             /** @description Validation Error */
@@ -18288,7 +20714,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AssignmentOut"][];
                 };
             };
             /** @description Validation Error */
@@ -18324,7 +20750,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AssignmentOut"];
                 };
             };
             /** @description Validation Error */
@@ -18426,7 +20852,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ProvinceOut"][];
                 };
             };
         };
@@ -18910,7 +21336,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AdvanceResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -18949,7 +21375,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AdvanceResponse"];
                 };
             };
             /** @description Validation Error */
@@ -18984,7 +21410,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AdvanceResponse"];
                 };
             };
             /** @description Validation Error */
@@ -19743,7 +22169,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["TripDriverAllowanceResponse"];
                 };
             };
             /** @description Validation Error */
@@ -20075,7 +22501,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SettlementResponse"];
                 };
             };
             /** @description Validation Error */
@@ -20109,7 +22535,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SettlementResponse"];
                 };
             };
             /** @description Validation Error */
@@ -20143,7 +22569,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SettlementResponse"];
                 };
             };
             /** @description Validation Error */
@@ -20171,13 +22597,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description PDF document bytes. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": unknown;
+                    "application/pdf": string;
                 };
             };
             /** @description Validation Error */
@@ -20215,7 +22642,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SettlementResponse"];
                 };
             };
             /** @description Validation Error */
@@ -21003,7 +23430,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["VehicleHistoryCursorPage"] | components["schemas"]["VehicleHistoryPage"];
                 };
             };
             /** @description Validation Error */
@@ -21040,7 +23467,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["VehicleInsuranceRead"][];
                 };
             };
             /** @description Validation Error */
@@ -21078,7 +23505,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["VehicleInsuranceRead"];
                 };
             };
             /** @description Validation Error */
@@ -21113,7 +23540,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["VehicleInsuranceRead"];
                 };
             };
             /** @description Validation Error */
@@ -21185,7 +23612,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["VehicleInsuranceRead"];
                 };
             };
             /** @description Validation Error */
@@ -21336,7 +23763,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["VehicleQrCodeRead"];
                 };
             };
             /** @description Validation Error */
@@ -21602,7 +24029,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ImminentMaintenanceAlertResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -22237,7 +24664,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ProfitabilitySummaryResponse"];
                 };
             };
             /** @description Validation Error */
@@ -22801,7 +25228,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SparePartInventoryResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -22838,7 +25265,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SparePartInventoryResponse"];
                 };
             };
             /** @description Validation Error */
@@ -22876,7 +25303,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SparePartMovementResponse"];
                 };
             };
             /** @description Validation Error */
@@ -22982,7 +25409,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["LowStockListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -23331,7 +25758,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["WorkshopToolResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -23440,7 +25867,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ToolCalibrationResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -23512,7 +25939,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SerialItemResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -24098,7 +26525,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["WorkOrderProfitabilityResponse"];
                 };
             };
             /** @description Validation Error */

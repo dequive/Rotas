@@ -207,3 +207,53 @@ def test_manager_known_route_operations_have_typed_contracts() -> None:
             "application/json"
         ]["schema"]
         assert "$ref" in schema, f"{method.upper()} {path} accepts an untyped object"
+
+
+def test_driver_and_sync_operations_have_explicit_public_contracts() -> None:
+    contract = build_contract()
+    successful_operations = {
+        ("get", "/api/v1/driver/bootstrap"),
+        ("get", "/api/v1/driver/checklist-templates"),
+        ("get", "/api/v1/driver/active-trip"),
+        ("post", "/api/v1/sync/batch"),
+        ("get", "/api/v1/sync/bootstrap"),
+    }
+    forbidden_operations = {
+        ("get", "/api/v1/driver/vehicles"),
+        ("post", "/api/v1/driver/trips"),
+    }
+
+    for method, path in successful_operations:
+        operation = contract["paths"][path][method]
+        success_schemas = [
+            response.get("content", {}).get("application/json", {}).get("schema")
+            for status, response in operation["responses"].items()
+            if str(status).startswith("2")
+        ]
+        assert success_schemas, f"{method.upper()} {path} has no success response"
+        assert all(schema not in ({}, None) for schema in success_schemas), (
+            f"{method.upper()} {path} has an empty success schema"
+        )
+
+    for method, path in forbidden_operations:
+        responses = contract["paths"][path][method]["responses"]
+        assert not any(str(status).startswith("2") for status in responses), (
+            f"{method.upper()} {path} advertises a success the Driver can never receive"
+        )
+        forbidden_schema = responses["403"]["content"]["application/json"]["schema"]
+        assert forbidden_schema not in ({}, None)
+
+    driver_trip = contract["components"]["schemas"]["DriverTripRead"]
+    forbidden_fields = {
+        "tenant_id",
+        "contract_id",
+        "billing_status",
+        "billing_document_id",
+        "total_fuel_cost",
+        "total_expense_cost",
+        "total_transport_cost",
+        "actual_revenue",
+        "actual_margin",
+        "costs_reconciled_at",
+    }
+    assert forbidden_fields.isdisjoint(driver_trip["properties"])

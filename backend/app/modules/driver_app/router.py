@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal, get_driver_principal
+from app.core.auth import DriverPrincipal, get_driver_principal
 from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.modules.driver_app import service
@@ -12,12 +12,12 @@ from app.modules.trips.schemas import TripCreate
 
 router = APIRouter(prefix="/driver", tags=["driver-app"])
 
-DriverPrincipal = Annotated[Principal, Depends(get_driver_principal)]
+DriverPrincipalDependency = Annotated[DriverPrincipal, Depends(get_driver_principal)]
 RlsSession = Annotated[AsyncSession, Depends(get_session)]
 VehicleLimit = Annotated[int, Query(ge=1, le=50)]
 
 
-def _require_driver_id(principal: Principal) -> UUID:
+def _require_driver_id(principal: DriverPrincipal) -> UUID:
     if principal.driver_id is None:
         raise ApiError(
             "driver_required",
@@ -29,7 +29,7 @@ def _require_driver_id(principal: Principal) -> UUID:
 
 @router.get("/bootstrap")
 async def bootstrap_driver_app(
-    principal: DriverPrincipal,
+    principal: DriverPrincipalDependency,
     db: RlsSession,
 ):
     driver_id = _require_driver_id(principal)
@@ -43,7 +43,7 @@ async def bootstrap_driver_app(
 
 @router.get("/checklist-templates")
 async def list_checklist_templates(
-    principal: DriverPrincipal,
+    principal: DriverPrincipalDependency,
     db: RlsSession,
 ):
     _require_driver_id(principal)
@@ -52,7 +52,7 @@ async def list_checklist_templates(
 
 @router.get("/vehicles")
 async def list_vehicles(
-    principal: DriverPrincipal,
+    principal: DriverPrincipalDependency,
     db: RlsSession,
     limit: VehicleLimit = 50,
 ):
@@ -63,7 +63,7 @@ async def list_vehicles(
 
 @router.get("/active-trip")
 async def get_active_trip(
-    principal: DriverPrincipal,
+    principal: DriverPrincipalDependency,
     db: RlsSession,
 ):
     driver_id = _require_driver_id(principal)
@@ -77,7 +77,7 @@ async def get_active_trip(
 @router.post("/trips", status_code=201)
 async def create_trip(
     payload: TripCreate,
-    principal: DriverPrincipal,
+    principal: DriverPrincipalDependency,
     db: RlsSession,
 ):
     driver_id = _require_driver_id(principal)

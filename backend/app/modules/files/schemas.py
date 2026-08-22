@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -38,4 +39,7 @@ class FileResponse(BaseModel):
     mime_type: str
     size_bytes: int
     sha256_hash: str
-    confirmed_at: str | None = None
+    uploaded_by_user_id: UUID | None = None
+    uploaded_by_driver_id: UUID | None = None
+    uploaded_at: datetime | None = None
+    confirmed_at: datetime | None = None

@@ -10,8 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import DriverPrincipal
 from app.core.idempotency import IDEMPOTENCY_TTL_DAYS, canonical_request_hash, ttl_for
+from app.core.performance_diagnostics import measure_request_phase
+from app.database import defer_session_commits
 from app.modules.cargo import schemas as cargo_schemas
 from app.modules.cargo import service as cargo_service
 from app.modules.checklists import schemas as checklist_schemas
@@ -267,7 +269,7 @@ async def _dispatch_operation(
 
 async def _record_event(
     db: AsyncSession,
-    principal: Principal,
+    principal: DriverPrincipal,
     payload: SyncBatchRequest,
     operation: SyncOperation,
     result: dict,
@@ -293,17 +295,24 @@ async def _record_event(
 
 async def _process_operation(
     db: AsyncSession,
-    principal: Principal,
+    principal: DriverPrincipal,
     payload: SyncBatchRequest,
     operation: SyncOperation,
+    *,
+    defer_commit: bool = False,
+    existing_by_key: dict[str, IdempotencyKey] | None = None,
 ) -> dict:
     request_hash = _request_hash(operation)
-    existing = await db.scalar(
-        select(IdempotencyKey).where(
-            IdempotencyKey.tenant_id == principal.tenant_id,
-            IdempotencyKey.idempotency_key == operation.idempotency_key,
-        )
-    )
+    if existing_by_key is None:
+        with measure_request_phase("sync_idempotency"):
+            existing = await db.scalar(
+                select(IdempotencyKey).where(
+                    IdempotencyKey.tenant_id == principal.tenant_id,
+                    IdempotencyKey.idempotency_key == operation.idempotency_key,
+                )
+            )
+    else:
+        existing = existing_by_key.get(operation.idempotency_key)
     if existing:
         if existing.request_hash != request_hash:
             result = _result(
@@ -320,7 +329,8 @@ async def _process_operation(
             "message": cached.get("message") or "idempotent_replay",
         }
 
-    result = await _dispatch_operation(db, principal.tenant_id, operation)
+    with measure_request_phase("sync_dispatch"):
+        result = await _dispatch_operation(db, principal.tenant_id, operation)
     response_body = jsonable_encoder(result)
     idempotency = IdempotencyKey(
         tenant_id=principal.tenant_id,
@@ -336,10 +346,18 @@ async def _process_operation(
         expires_at=datetime.now(UTC) + timedelta(days=ttl_for(operation.entity_type)),
     )
     db.add(idempotency)
+    if existing_by_key is not None:
+        existing_by_key[operation.idempotency_key] = idempotency
     await _record_event(db, principal, payload, operation, result)
 
+    if defer_commit:
+        with measure_request_phase("sync_flush"):
+            await db.flush()
+        return result
+
     try:
-        await db.commit()
+        with measure_request_phase("sync_commit"):
+            await db.commit()
     except IntegrityError:
         await db.rollback()
         existing = await db.scalar(
@@ -366,15 +384,62 @@ async def _process_operation(
 async def process_batch(
     db: AsyncSession,
     payload: SyncBatchRequest,
-    principal: Principal,
+    principal: DriverPrincipal,
 ) -> dict:
-    results = []
-    for operation in payload.operations:
-        results.append(await _process_operation(db, principal, payload, operation))
-    return {"results": results}
+    if len(payload.operations) <= 1:
+        results = [
+            await _process_operation(db, principal, payload, operation)
+            for operation in payload.operations
+        ]
+        return {"results": results}
+
+    try:
+        operation_keys = {
+            operation.idempotency_key for operation in payload.operations
+        }
+        with measure_request_phase("sync_idempotency"):
+            existing_rows = (
+                await db.scalars(
+                    select(IdempotencyKey).where(
+                        IdempotencyKey.tenant_id == principal.tenant_id,
+                        IdempotencyKey.idempotency_key.in_(operation_keys),
+                    )
+                )
+            ).all()
+        existing_by_key = {
+            row.idempotency_key: row for row in existing_rows
+        }
+        # Domain services historically call commit internally. During a batch,
+        # those commits become flushes so all operations share one transaction.
+        # This removes N commits without changing the services' standalone API.
+        with defer_session_commits(db):
+            results = [
+                await _process_operation(
+                    db,
+                    principal,
+                    payload,
+                    operation,
+                    defer_commit=True,
+                    existing_by_key=existing_by_key,
+                )
+                for operation in payload.operations
+            ]
+        with measure_request_phase("sync_commit"):
+            await db.commit()
+        return {"results": results}
+    except IntegrityError:
+        # A competing batch may win an idempotency-key race during the single
+        # outer commit. Roll back all local effects, then use the established
+        # per-operation replay path to reconcile safely.
+        await db.rollback()
+        results = [
+            await _process_operation(db, principal, payload, operation)
+            for operation in payload.operations
+        ]
+        return {"results": results}
 
 
-async def bootstrap(principal: Principal) -> dict:
+async def bootstrap(principal: DriverPrincipal) -> dict:
     return {
         "tenant_id": principal.tenant_id,
         "server_time": datetime.now(UTC),

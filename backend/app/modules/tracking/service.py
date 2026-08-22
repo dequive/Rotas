@@ -71,36 +71,17 @@ async def get_public_tracking_payload(db: AsyncSession, token_val: str) -> dict[
 
     now = datetime.now(UTC)
     if token.expires_at < now:
-        raise ApiError(
-            "token_expired", "This tracking link has expired", status_code=status.HTTP_410_GONE
-        )
+        raise ApiError("token_expired", "This tracking link has expired", status_code=status.HTTP_410_GONE)
 
-    from app.modules.cargo.models import DeliveryProof
     from app.modules.drivers.models import Driver
     from app.modules.trips.models import Trip
     from app.modules.vehicles.models import Vehicle
 
     trip = await db.scalar(select(Trip).where(Trip.id == token.trip_id))
     driver = await db.scalar(select(Driver).where(Driver.id == trip.driver_id)) if trip else None
-    vehicle = (
-        await db.scalar(select(Vehicle).where(Vehicle.id == trip.vehicle_id)) if trip else None
-    )
+    vehicle = await db.scalar(select(Vehicle).where(Vehicle.id == trip.vehicle_id)) if trip else None
     last_pos = (
-        await db.scalar(
-            select(VehicleLastPosition).where(VehicleLastPosition.vehicle_id == trip.vehicle_id)
-        )
-        if trip
-        else None
-    )
-
-    # Latest delivery proof photo
-    delivery_proof = (
-        await db.scalar(
-            select(DeliveryProof)
-            .where(DeliveryProof.trip_id == token.trip_id)
-            .order_by(DeliveryProof.created_at.desc())
-            .limit(1)
-        )
+        await db.scalar(select(VehicleLastPosition).where(VehicleLastPosition.vehicle_id == trip.vehicle_id))
         if trip
         else None
     )

@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -53,3 +54,62 @@ class FuelStockCountCreate(BaseModel):
 
 class FuelStockAdjustmentApprove(BaseModel):
     notes: str | None = None
+
+
+# ── Response contracts (F7.2) ─────────────────────────────────────────────────
+
+
+class FuelTankRead(BaseModel):
+    """Mirrors `operations.serialize_tank`."""
+
+    id: UUID
+    tenant_id: UUID
+    code: str
+    name: str
+    fuel_type: str
+    capacity_liters: Decimal
+    minimum_stock_liters: Decimal
+    current_stock_liters: Decimal
+    average_unit_cost: Decimal | None = None
+    location: str | None = None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class FuelPurchaseRead(BaseModel):
+    """Mirrors `operations.serialize_purchase`."""
+
+    id: UUID
+    tenant_id: UUID
+    supplier_name: str | None = None
+    supplier_third_party_id: UUID | None = None
+    purchase_reference: str | None = None
+    fuel_type: str
+    ordered_liters: Decimal
+    unit_price: Decimal
+    total_cost: Decimal
+    status: str
+    ordered_at: datetime | None = None
+    approved_by: UUID | None = None
+    approved_at: datetime | None = None
+    notes: str | None = None
+    created_at: datetime
+
+
+class FuelBoardSummary(BaseModel):
+    tanks: int
+    purchases_pending: int
+    low_stock_tanks: int
+    stock_adjustments_pending: int
+    total_stock_liters: Decimal
+
+
+class FuelBoardQueues(BaseModel):
+    low_stock_tanks: list[FuelTankRead]
+
+
+class FuelControlBoardResponse(BaseModel):
+    summary: FuelBoardSummary
+    tanks: list[FuelTankRead]
+    queues: FuelBoardQueues

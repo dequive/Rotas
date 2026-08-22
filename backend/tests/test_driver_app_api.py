@@ -77,6 +77,7 @@ async def driver_app_context(db, tenant_id):
         "other_driver": other_driver,
         "vehicle": vehicle,
         "template": template,
+        "device_id": device_id,
     }
 
 
@@ -175,3 +176,17 @@ async def test_driver_trip_creation_is_forbidden_before_payload_validation(
 
     assert response.status_code == 403, response.text
     assert response.json()["error"]["code"] == "driver_operation_forbidden"
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_rejects_another_authenticated_device(
+    async_client, driver_app_context
+):
+    response = await async_client.post(
+        "/api/v1/sync/batch",
+        headers=driver_app_context["headers"],
+        json={"device_id": "another-device", "operations": []},
+    )
+
+    assert response.status_code == 403, response.text
+    assert response.json()["error"]["code"] == "driver_device_mismatch"

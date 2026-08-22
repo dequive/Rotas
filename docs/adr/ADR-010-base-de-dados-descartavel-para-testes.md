@@ -2,7 +2,7 @@
 
 ## Estado
 
-Aceite; implementação pendente como bloqueio C1-I0.
+Aceite e implementada localmente; adoção em CI e regressão integral pendentes.
 
 ## Data
 
@@ -48,6 +48,25 @@ evidência. Também cria risco de corrupção de uma cópia original/local.
    base. São permitidos lint, typecheck, geração estática e inspeções
    comprovadamente read-only.
 
+## Implementação e evidência local
+
+- `0b7a36c` introduziu o validador fail-closed e ligou-o antes dos imports da
+  aplicação em `tests/conftest.py`.
+- `3acabde` introduziu o runner `scripts.run_isolated_pytest`, com nome aleatório
+  validado, `CREATE DATABASE ... TEMPLATE template0`, Alembic até `head`, pytest
+  e `DROP DATABASE` em `finally`.
+- A execução
+  `python -m scripts.run_isolated_pytest tests/test_test_database_guard.py -q`
+  migrou uma base nova até `rec13`, executou `8 passed` e eliminou-a.
+- Uma consulta posterior a `pg_database` devolveu zero nomes
+  `rotas_test_*`, comprovando cleanup nessa execução.
+- O runner é serial e rejeita `-n`/`--numprocesses`; paralelismo permanece
+  fail-closed até existir isolamento por worker.
+- Os 13 testes unitários do guard/lifecycle e Ruff focado estão verdes.
+
+Esta evidência fecha C1-I0 localmente, mas não certifica CI nem substitui a
+repetição das partições Driver/Sync e da suíte integral no runner isolado.
+
 ## Alternativas consideradas
 
 ### Continuar a usar `DATABASE_URL`
@@ -76,4 +95,5 @@ auditáveis e paralelizáveis.
   teste.
 - O arranque fica ligeiramente mais lento, mas a evidência torna-se repetível.
 - O baseline anterior de testes permanece evidência histórica; não certifica
-  isolamento até C1-I0 ser implementado e a suíte repetida.
+  isolamento. Apenas execuções posteriores pelo runner descartável são
+  evidência válida para testes mutáveis.

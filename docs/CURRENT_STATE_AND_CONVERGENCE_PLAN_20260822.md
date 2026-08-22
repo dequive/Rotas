@@ -95,6 +95,12 @@ Critério de fecho: implementar ADR-010 com `TEST_DATABASE_URL` obrigatório,
 base PostgreSQL efémera `rotas_test_*` por execução/worker e falha fechada
 contra URLs operacionais. Não limpar os dados existentes sem autorização.
 
+Estado em 2026-08-22: **fechado localmente em modo serial** por `0b7a36c` e
+`3acabde`. O guard bloqueia a coleção insegura; o runner criou uma base de
+`template0`, migrou até `rec13`, executou 8 testes e deixou zero bases
+`rotas_test_*`. `xdist` permanece proibido até haver uma base por worker. CI e
+regressão integral ainda não foram repetidos nesta infraestrutura.
+
 ### P1-API-01 — Contratos Driver/Sync vazios
 
 Os sucessos de `/driver/bootstrap`, `/driver/vehicles`,
@@ -166,10 +172,12 @@ Estado em 2026-08-22: **em progresso**. O slice `77385bb` fechou localmente
 criação/atribuição de viagem e listagem de frota pelo Driver. `51509d5` vinculou
 o batch ao dispositivo do JWT; `58b730a` introduziu allowlist e bloqueou
 operações de despacho via Sync. `d30f1b0`, `aa28bc2` e `e7de9e6` fecharam
-ownership de criação por viagem/viatura e update de combustível. Há RED/GREEN,
-Ruff e partições de até 55 testes Sync/Driver verdes, além da evidência backend
-combinada anterior de 938 passados/1 skip. Updates residuais, idempotência por
-owner/device e pairing continuam P0.
+ownership de criação por viagem/viatura e update de combustível. `0b7a36c` e
+`3acabde` fecharam C1-I0 localmente com base PostgreSQL descartável e
+fail-closed. Há RED/GREEN e Ruff anteriores, mas as partições Sync/Driver e o
+baseline combinado de 938 passados/1 skip antecedem o isolamento e são apenas
+históricos. Updates residuais, idempotência por owner/device, pairing e a
+repetição isolada continuam P0.
 
 ### C2 — Jornadas Driver
 

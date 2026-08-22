@@ -2805,3 +2805,22 @@ Issue #43 começa apenas após C0-C4. Depois seguem E0 SaaS Boundary, E1 P2P e
 inventário, E2 O2C/oficina/fecho, E3 pessoas/payroll/ativos, E4 Trusted BI e E5
 piloto. Nenhum agente pode promover etapa posterior contornando um gate
 anterior vermelho.
+
+### 16.12 C1-I0 — Isolamento fail-closed do pytest — 2026-08-22
+
+- `0b7a36c` tornou `TEST_DATABASE_URL` obrigatório antes da coleção e rejeita
+  nome fora de `rotas_test_*`, host não autorizado e colisão física com URLs
+  operacionais, mesmo quando as credenciais diferem;
+- `3acabde` criou o runner serial que provisiona de `template0`, migra até
+  Alembic `head`, executa pytest e elimina a base em `finally`;
+- a prova real chegou a `rec13`, passou 8 testes em 0,47 s e uma inspeção
+  posterior encontrou zero bases `rotas_test_*`;
+- a base operacional observada em `localhost:55432/rotas` não foi limpa nem
+  usada pelo pytest;
+- `xdist` é rejeitado até existir uma base independente por worker.
+
+C1-I0 fica **fechado localmente em modo serial**. G0/G1 continuam vermelhos
+porque faltam regressão integral nesta infraestrutura, CI/revisão independente,
+snapshot/restore e provas RLS do release candidate. O próximo trabalho continua
+em C1: ownership residual, idempotência por motorista/dispositivo e pairing
+concorrente; o veredito global permanece **NO-GO**.

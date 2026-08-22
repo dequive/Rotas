@@ -125,12 +125,16 @@ Um fluxo só pode ser chamado `fechado` quando possui, conjuntamente:
 
 ## 8. Próximo gate obrigatório
 
-Antes de qualquer novo pytest mutável, implementar C1-I0 conforme
-`docs/adr/ADR-010-base-de-dados-descartavel-para-testes.md`. A suíte atual usa
-`DATABASE_URL` diretamente e foi observada em `localhost:55432/rotas`; nenhum
-agente pode voltar a executar testes de escrita nessa base, limpá-la ou assumir
-que é descartável. Exigir `TEST_DATABASE_URL` fail-closed e base efémera
-`rotas_test_*`.
+C1-I0 está implementado localmente pelos commits `0b7a36c` e `3acabde`, conforme
+`docs/adr/ADR-010-base-de-dados-descartavel-para-testes.md`. Todo pytest backend
+mutável deve ser executado exclusivamente por
+`python -m scripts.run_isolated_pytest <argumentos pytest>`, que cria uma base
+`rotas_test_*`, aplica Alembic `head` e elimina a base no fim. A coleção direta
+falha sem `TEST_DATABASE_URL`; nenhum agente pode contornar o gate, reutilizar
+`localhost:55432/rotas`, limpar essa base ou assumir que é descartável.
+
+O runner atual é deliberadamente serial e rejeita `xdist -n`. Paralelismo só
+pode ser ativado depois de existir uma base efémera independente por worker.
 
 O próximo incremento deve produzir testes negativos com token Driver real que
 provem:
@@ -142,4 +146,5 @@ provem:
 - pairing concorrente aceita exatamente um consumidor;
 - endpoints Driver/Sync têm schemas OpenAPI não vazios.
 
-Sem estas provas, o estado permanece `NO-GO`.
+Sem estas provas e sem repetir as partições relevantes pelo runner isolado, o
+estado permanece `NO-GO`.

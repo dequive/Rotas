@@ -223,6 +223,14 @@ staging e Android no mesmo SHA permanecem bloqueantes.
 - viagem fechada somente leitura;
 - cache offline e sync reconciliado.
 
+Estado em 2026-08-23: **em progresso**. `5286fe1` fechou o primeiro slice da
+fronteira de persona na PWA: removeu criação de viagem, seleção de frota,
+formulários de Load Permit/manifesto e o painel de cobrança. O cliente já não
+exporta as chamadas proibidas; 32/32 testes, TypeScript e build PWA/service
+worker passaram. Permanecem Minhas Viagens, histórico, documentos emitidos,
+pedidos de documento e read-only terminal, que exigem contratos backend antes
+da nova navegação.
+
 ### C3 — Contratos e gates
 
 - DTOs Driver/Sync e OpenAPI não vazio;

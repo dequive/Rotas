@@ -154,8 +154,9 @@ A regressão backend integral no SHA `97e365d`, numa base descartável migrada d
 drift OpenAPI e gates Manager ficaram verdes localmente; isto não equivale a CI,
 staging, Android físico ou release candidate.
 
-O próximo incremento obrigatório é C2, contract-first: remover da PWA Driver a
-criação de viagem e emissão administrativa, entregar Minhas Viagens atribuídas,
-histórico, documentos emitidos, pedido de documento em falta e viagem fechada
-somente leitura. Depois retomam-se os bloqueios C3 restantes (build reproduzível,
-Actions/supply chain e CI efetivamente executada). O estado permanece `NO-GO`.
+O primeiro slice C2 `5286fe1` removeu da PWA Driver a criação de viagem, seleção
+de frota, emissão de Load Permit/manifesto e cobrança. O próximo incremento
+obrigatório continua em C2, contract-first: contratos backend de Minhas Viagens,
+histórico, documentos emitidos e pedido de documento em falta, com ownership e
+viagem fechada somente leitura; só depois se implementa a nova navegação. Depois
+retomam-se build reproduzível, Actions/supply chain e CI. Estado: `NO-GO`.

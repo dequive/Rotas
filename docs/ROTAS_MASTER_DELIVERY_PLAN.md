@@ -2938,3 +2938,21 @@ Driver administrativa por Minhas Viagens atribuídas, histórico, documentos
 emitidos, pedidos de documento e viagem fechada somente leitura. Depois seguem
 build reproduzível, Actions/supply chain, CI real, staging e Android físico no
 mesmo RC. Veredito global: **NO-GO**.
+
+### 16.18 C2 — Fronteira de persona na PWA Driver — 2026-08-23
+
+- testes RED provaram que a PWA ainda mostrava Load Permit, manifesto, cobrança
+  e instruía o motorista a criar uma viagem quando não havia atribuição;
+- `5286fe1` removeu as views de criação de viagem e emissão de Load
+  Permit/manifesto, além do painel de cobrança;
+- o cliente Driver deixou de exportar seleção de frota e criação de viagem;
+- o estado vazio informa que as viagens são atribuídas pelo gestor de frota;
+- o contrato UX cobre viagem atribuída e ausência de atribuição;
+- Vitest passou `32/32`, TypeScript passou e o build de produção gerou a PWA e
+  o service worker `injectManifest`. A primeira tentativa no sandbox falhou por
+  leitura negada acima do workspace; a execução autorizada fora dessa restrição
+  confirmou o build do produto.
+
+C2 permanece **em progresso**. O próximo vertical é backend contract-first para
+Minhas Viagens, histórico, documentos emitidos, pedido de documento em falta e
+terminal read-only; depois vem a nova navegação mobile. G0-G5: **NO-GO**.

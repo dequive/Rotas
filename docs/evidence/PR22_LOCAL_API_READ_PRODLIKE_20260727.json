@@ -1,0 +1,43 @@
+{
+  "checks": {
+    "p95_http": false,
+    "p99_http": false,
+    "unexpected_error_rate": true
+  },
+  "concurrency": 12,
+  "elapsed_seconds": 7.712,
+  "evidence_class": "engineering_evidence_only",
+  "generated_at": "2026-07-27T12:57:29.731443+00:00",
+  "metrics": {
+    "delivered_requests": 600,
+    "distinct_server_ids": 0,
+    "domain_failure_rate": 0,
+    "end_to_end_ms": {
+      "max": 1450.585,
+      "p95": 261.846
+    },
+    "http_ms": {
+      "max": 1450.464,
+      "mean": 133.446,
+      "p50": 100.442,
+      "p95": 261.798,
+      "p99": 1110.499
+    },
+    "requests": 600,
+    "simulated_drop_rate": 0.0,
+    "status_codes": {
+      "200": 600
+    },
+    "unexpected_error_rate": 0.0
+  },
+  "passed": false,
+  "policy_id": "PR22-PERFORMANCE-V1",
+  "profile": "local_drill",
+  "scenario": "api_read",
+  "schema_version": 1,
+  "target": {
+    "authorization": "redacted",
+    "base_url": "http://127.0.0.1:8000",
+    "tenant_id": "0000b8a3-5dd0-43f7-8f78-57c2fc7afc58"
+  }
+}

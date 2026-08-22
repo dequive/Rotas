@@ -1,0 +1,58 @@
+{
+  "blockers": [
+    "production_zero_high_critical",
+    "complete_zero_high_critical"
+  ],
+  "checks": {
+    "complete_zero_high_critical": false,
+    "cyclonedx_sbom_generated": true,
+    "dependency_tree_valid": true,
+    "node_20": true,
+    "production_zero_high_critical": false,
+    "release_sha_bound": true
+  },
+  "complete_audit": {
+    "critical": 0,
+    "high": 13,
+    "info": 0,
+    "low": 0,
+    "moderate": 1,
+    "total": 14
+  },
+  "dependency_tree": {
+    "exit_code": 0,
+    "problems": []
+  },
+  "evidence_class": "engineering_evidence_only",
+  "generated_at": "2026-07-31T08:33:01.590421+00:00",
+  "passed": false,
+  "policy_id": "PR18-DEPENDENCY-SECURITY-V1",
+  "production_audit": {
+    "critical": 0,
+    "high": 3,
+    "info": 0,
+    "low": 0,
+    "moderate": 1,
+    "total": 4
+  },
+  "profile": "local",
+  "release_sha": null,
+  "runtime": {
+    "node": "v20.20.2",
+    "npm": "10.8.2"
+  },
+  "sbom": {
+    "attested": false,
+    "components": 859,
+    "format": "CycloneDX",
+    "sha256": "58626c0dbdde5b18d1e1b875f58aa0b8454b6218c5aaafd446dc7aacd90583c4",
+    "spec_version": "1.5"
+  },
+  "schema_version": 1,
+  "vulnerable_production_packages": [
+    "@sentry/nextjs",
+    "next",
+    "postcss",
+    "sharp"
+  ]
+}

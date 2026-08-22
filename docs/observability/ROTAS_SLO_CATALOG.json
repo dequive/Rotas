@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "gate": "PR-20",
+  "scope": "staging release candidate",
+  "label_policy": "No tenant, user, event or document identifiers in Prometheus labels.",
+  "slos": [
+    {
+      "id": "api_availability",
+      "owner": "SRE + BE",
+      "window_days": 30,
+      "objective": 0.999,
+      "indicator": "1 - 5xx responses / all instrumented responses",
+      "source": "http_requests_total",
+      "recording_rule": "rotas:api_availability:ratio5m",
+      "alert": "RotasApiHighErrorRate",
+      "runbook": "PR20_OBSERVABILITY_RUNBOOK.md#rotasapihigherrorrate"
+    },
+    {
+      "id": "api_latency_p95",
+      "owner": "SRE + BE",
+      "window_days": 30,
+      "objective_seconds": 0.2,
+      "indicator": "p95 request duration across instrumented API requests",
+      "source": "http_request_duration_highr_seconds_bucket",
+      "recording_rule": "rotas:api_latency:p95_5m",
+      "alert": "RotasApiLatencyBudget",
+      "runbook": "PR20_OBSERVABILITY_RUNBOOK.md#rotasapilatencybudget"
+    },
+    {
+      "id": "outbox_dead_letter",
+      "owner": "SRE + BE",
+      "window_days": 30,
+      "objective": 0,
+      "indicator": "new transactional outbox dead-letter outcomes",
+      "source": "rotas_outbox_delivery_outcomes_total",
+      "recording_rule": "rotas:outbox_dead_letter:increase5m",
+      "alert": "RotasOutboxDeadLetter",
+      "runbook": "PR20_OBSERVABILITY_RUNBOOK.md#rotasoutboxdeadletter"
+    },
+    {
+      "id": "metrics_target_availability",
+      "owner": "SRE",
+      "window_days": 30,
+      "objective": 0.999,
+      "indicator": "Prometheus scrape availability for the backend target",
+      "source": "up{job=\"rotas-backend\"}",
+      "recording_rule": "up{job=\"rotas-backend\"}",
+      "alert": "RotasBackendDown",
+      "runbook": "PR20_OBSERVABILITY_RUNBOOK.md#rotasbackenddown"
+    }
+  ]
+}

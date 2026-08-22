@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "policy_id": "PR25-IR-V1",
+  "generated_at_utc": "2026-07-28T16:28:08.986728+00:00",
+  "release_ref": "working-tree",
+  "status": "tabletop_passed",
+  "evidence_scope": "local_control_plane_only",
+  "gate_effect": "none",
+  "validation": {
+    "severities": 4,
+    "roles": 6,
+    "lifecycle_states": 7,
+    "scenarios": 5
+  },
+  "scenarios": [
+    {
+      "id": "backend_unavailable",
+      "severity": "SEV1",
+      "signal": "RotasBackendDown",
+      "runbook": "docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasbackenddown",
+      "controls_reviewed": [
+        "page",
+        "declare",
+        "rollback_or_forward_fix",
+        "recovery_validation",
+        "communication"
+      ],
+      "result": "tabletop_control_path_present"
+    },
+    {
+      "id": "api_error_or_latency",
+      "severity": "SEV2",
+      "signal": "RotasApiHighErrorRate",
+      "runbook": "docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasapihigherrorrate",
+      "controls_reviewed": [
+        "page",
+        "declare",
+        "triage_dependencies",
+        "containment",
+        "communication"
+      ],
+      "result": "tabletop_control_path_present"
+    },
+    {
+      "id": "outbox_dead_letter",
+      "severity": "SEV2",
+      "signal": "RotasOutboxDeadLetter",
+      "runbook": "docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasoutboxdeadletter",
+      "controls_reviewed": [
+        "page",
+        "tenant_scoped_reconciliation",
+        "audited_replay",
+        "recovery_validation",
+        "communication"
+      ],
+      "result": "tabletop_control_path_present"
+    },
+    {
+      "id": "database_loss_and_restore",
+      "severity": "SEV1",
+      "signal": "restore_drill",
+      "runbook": "docs/DR_BACKUP_RESTORE_RUNBOOK.md#restore-isolado",
+      "controls_reviewed": [
+        "page",
+        "declare",
+        "isolated_restore",
+        "rls_and_accounting_validation",
+        "communication"
+      ],
+      "result": "tabletop_control_path_present"
+    },
+    {
+      "id": "tenant_isolation_or_privacy",
+      "severity": "SEV1",
+      "signal": "security_report",
+      "runbook": "docs/security/ROTAS_THREAT_AND_PRIVACY_MODEL.md",
+      "controls_reviewed": [
+        "page",
+        "contain_access",
+        "preserve_evidence",
+        "legal_privacy_escalation",
+        "tenant_scoped_communication"
+      ],
+      "result": "tabletop_control_path_present"
+    }
+  ],
+  "unproven": [
+    "real_paging_delivery",
+    "human_acknowledgement_and_escalation",
+    "production_like_failure_injection",
+    "measured_containment_and_recovery",
+    "measured_rpo_and_rto",
+    "independent_operator_and_sign_off"
+  ]
+}

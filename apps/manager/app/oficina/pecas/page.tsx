@@ -59,7 +59,7 @@ export default async function WorkshopPartsPage() {
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Referências em Stock
               </span>
-              <Package className="h-5 w-5 text-indigo-500" />
+              <Package className="h-5 w-5 text-amber" />
             </div>
             <div className="text-2xl font-bold text-foreground">{totalParts}</div>
           </div>

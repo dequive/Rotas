@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
+import { Button } from "@/app/components/ui/Button";
 import { ModalDialog } from "@/app/components/ui/ModalDialog";
 import { ThirdPartyCombobox } from "@/app/components/ThirdPartyCombobox";
 
@@ -27,7 +28,7 @@ interface WorkOrderFormModalProps {
 }
 
 const inputCls =
-  "w-full min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-2 focus:ring-amber/20";
+  "w-full min-h-10 px-3 border border-border-strong rounded-[var(--r-md)] bg-surface text-ink text-[13px] focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft";
 const labelCls = "block text-[11px] font-semibold uppercase tracking-wide text-muted mb-1";
 
 export function WorkOrderFormModal({ vehicleOptions: vehicleOptionsProp, onSuccess }: WorkOrderFormModalProps) {
@@ -78,7 +79,10 @@ export function WorkOrderFormModal({ vehicleOptions: vehicleOptionsProp, onSucce
     try {
       const res = await fetch("/api/work-orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": crypto.randomUUID(),
+        },
         body: JSON.stringify(form),
       });
       if (!res.ok) {
@@ -104,13 +108,10 @@ export function WorkOrderFormModal({ vehicleOptions: vehicleOptionsProp, onSucce
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 h-[38px] px-3.5 border-none rounded-md bg-amber text-white text-[13px] font-bold cursor-pointer hover:bg-amber-dark transition-colors duration-100"
-      >
+      <Button type="button" onClick={() => setOpen(true)}>
         <Plus size={15} />
         Nova Ordem de Trabalho
-      </button>
+      </Button>
 
       <ModalDialog
         open={open}
@@ -249,20 +250,19 @@ export function WorkOrderFormModal({ vehicleOptions: vehicleOptionsProp, onSucce
             </div>
 
             <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
-              <button
+              <Button
                 type="button"
                 onClick={handleClose}
-                className="px-4 py-2 border border-border rounded-md bg-transparent text-muted text-[13px] font-semibold cursor-pointer hover:bg-surface-2 transition-colors"
+                variant="secondary"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                disabled={submitting}
-                className="px-4 py-2 rounded-md bg-amber text-white border-none text-[13px] font-bold cursor-pointer hover:bg-amber-dark transition-colors disabled:bg-muted disabled:cursor-not-allowed"
+                loading={submitting}
               >
-                {submitting ? "A criar..." : "Criar Ordem"}
-              </button>
+                Criar ordem
+              </Button>
             </div>
           </form>
         </div>

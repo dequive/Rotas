@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { bffRequest } from "@/app/lib/bff";
 
 interface VehicleHistoryPanelProps {
   vehicleId: string | null;
@@ -46,78 +47,44 @@ interface InterventionHistory {
 export default function VehicleHistoryPanel({ vehicleId }: VehicleHistoryPanelProps) {
   const [history, setHistory] = useState<InterventionHistory | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"receptions" | "work_orders" | "parts" | "warranties">("receptions");
 
   useEffect(() => {
     if (!vehicleId) {
       setHistory(null);
+      setError(null);
       return;
     }
 
     async function fetchHistory() {
       setIsLoading(true);
+      setError(null);
+      setHistory(null);
       try {
-        const res = await fetch(`/api/v1/workshop/receptions/vehicles/${vehicleId}/history`);
+        const res = await bffRequest(
+          `/api/v1/workshop/receptions/vehicles/${vehicleId}/history`,
+        );
         if (res.ok) {
           const data = await res.json();
           setHistory(data);
         } else {
-          // Demo fallback state
-          setHistory({
-            vehicle_id: vehicleId || "",
-            plate: "AFM-8821-TR",
-            current_odometer_km: 48500,
-            receptions: [
-              {
-                id: "rec-prev-1",
-                reception_number: "REC-2026-0004",
-                received_at: new Date(Date.now() - 86400000 * 45).toISOString(),
-                odometer_at_reception: 45000,
-                reported_issues: "Mudança de óleo e pastilhas dianteiras",
-                status: "delivered",
-              },
-            ],
-            work_orders: [
-              {
-                id: "wo-prev-1",
-                work_order_number: "OS-2026-0012",
-                status: "closed",
-                created_at: new Date(Date.now() - 86400000 * 45).toISOString(),
-                total_labor_minutes: 90,
-                actual_cost: 8500,
-              },
-            ],
-            parts_used: [
-              {
-                id: "part-1",
-                part_name: "Filtro de Óleo 1.6 DCI",
-                quantity: 1,
-                unit_cost: 1200,
-                created_at: new Date(Date.now() - 86400000 * 45).toISOString(),
-              },
-            ],
-            warranties: [
-              {
-                id: "war-1",
-                warranty_type: "parts",
-                title: "Garantia (parts)",
-                expires_at: new Date(Date.now() + 86400000 * 180).toISOString(),
-                status: "active",
-                notes: "Garantia de 6 meses no filtro e pastilhas",
-              },
-            ],
-          });
+          const body = (await res.json().catch(() => ({}))) as {
+            detail?: string;
+            error?: { message?: string };
+          };
+          setError(
+            body.error?.message ??
+              body.detail ??
+              `Não foi possível carregar o histórico (HTTP ${res.status}).`,
+          );
         }
       } catch (err) {
-        setHistory({
-          vehicle_id: vehicleId || "",
-          plate: "AFM-8821-TR",
-          current_odometer_km: 0,
-          receptions: [],
-          work_orders: [],
-          parts_used: [],
-          warranties: [],
-        });
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Erro de ligação ao carregar o histórico.",
+        );
       } finally {
         setIsLoading(false);
       }
@@ -128,7 +95,7 @@ export default function VehicleHistoryPanel({ vehicleId }: VehicleHistoryPanelPr
 
   if (!vehicleId) {
     return (
-      <div className="border border-slate-200 rounded-lg p-5 bg-slate-50 text-center text-slate-500 text-xs">
+      <div className="rounded-lg border border-border bg-surface-2 p-5 text-center text-xs text-muted">
         Selecione uma viatura para visualizar o histórico de intervenções anteriores.
       </div>
     );
@@ -136,9 +103,21 @@ export default function VehicleHistoryPanel({ vehicleId }: VehicleHistoryPanelPr
 
   if (isLoading) {
     return (
-      <div className="border border-slate-200 rounded-lg p-5 bg-white text-slate-500 text-xs">
-        <h4 className="text-sm font-bold text-slate-800 mb-3">Histórico de Intervenções</h4>
+      <div className="rounded-lg border border-border bg-surface p-5 text-xs text-muted">
+        <h4 className="mb-3 text-sm font-bold text-ink">Histórico de Intervenções</h4>
         <p className="text-center animate-pulse">A carregar histórico da viatura...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        role="alert"
+        className="rounded-lg border border-status-cancelled bg-status-cancelled-soft p-4 text-sm text-status-cancelled"
+      >
+        <h4 className="font-semibold">Histórico indisponível</h4>
+        <p className="mt-1 text-xs">{error}</p>
       </div>
     );
   }
@@ -151,25 +130,25 @@ export default function VehicleHistoryPanel({ vehicleId }: VehicleHistoryPanelPr
       history.warranties.length === 0);
 
   return (
-    <div className="border border-slate-200 rounded-lg bg-white p-4 shadow-sm space-y-3">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+    <div className="space-y-3 rounded-lg border border-border bg-surface p-4 shadow-card">
+      <div className="flex items-center justify-between border-b border-border pb-2">
         <div>
-          <h4 className="text-sm font-bold text-slate-800">Histórico de Intervenções</h4>
-          <p className="text-[11px] text-slate-500">
-            Viatura: <span className="font-semibold text-slate-700">{history?.plate || "N/D"}</span> | Odómetro
-            histórico: <span className="font-semibold text-slate-700">{history?.current_odometer_km || 0} km</span>
+          <h4 className="text-sm font-bold text-ink">Histórico de Intervenções</h4>
+          <p className="text-[11px] text-muted">
+            Viatura: <span className="font-semibold text-ink">{history?.plate || "N/D"}</span> | Odómetro
+            histórico: <span className="font-mono font-semibold tabular-nums text-ink">{history?.current_odometer_km || 0} km</span>
           </p>
         </div>
         {history?.warranties && history.warranties.filter((w) => w.status === "active").length > 0 && (
-          <span className="px-2 py-0.5 text-[10px] font-semibold text-amber-800 bg-amber-100 border border-amber-200 rounded-full">
-            🛡️ Garantia Ativa
+          <span className="rounded-full border border-status-awaiting bg-status-awaiting-soft px-2 py-0.5 text-[10px] font-semibold text-status-awaiting">
+            Garantia ativa
           </span>
         )}
       </div>
 
       {isEmpty ? (
-        <div className="py-4 text-center text-slate-500 text-xs bg-slate-50 rounded border border-dashed border-slate-200">
-          ℹ️ Primeira entrada desta viatura na oficina. Sem registos anteriores.
+        <div className="rounded border border-dashed border-border bg-surface-2 py-4 text-center text-xs text-muted">
+          Primeira entrada desta viatura na oficina. Sem registos anteriores.
         </div>
       ) : (
         <>

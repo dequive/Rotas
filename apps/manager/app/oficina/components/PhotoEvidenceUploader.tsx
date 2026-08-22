@@ -75,10 +75,15 @@ export function PhotoEvidenceUploader({
 
         const res = await fetch("/api/files/upload", {
           method: "POST",
+          headers: { "Idempotency-Key": crypto.randomUUID() },
           body: formData,
         });
 
         if (!res.ok) {
+          if (res.status === 401) {
+            window.location.href = "/login";
+            return;
+          }
           const errBody = (await res.json().catch(() => ({}))) as { detail?: string };
           throw new Error(errBody?.detail ?? `Upload falhou: HTTP ${res.status}`);
         }

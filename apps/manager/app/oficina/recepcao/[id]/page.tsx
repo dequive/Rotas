@@ -1,186 +1,265 @@
-"use client";
+import { ArrowLeft, Camera, FileSignature, Gauge, UserRound } from "lucide-react";
+import Link from "next/link";
 
-import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
 import { SidebarLayout } from "../../../components/SidebarLayout";
+import { PageHeader } from "../../../components/ui/PageHeader";
+import { StatusBadge } from "../../../components/ui/StatusBadge";
+import { requireSession } from "../../../lib/auth";
+import { loadVehicles } from "../../../lib/vehicles-api";
+import { loadReceptionDetailResult } from "../../../lib/workshop-api";
+import { QuoteFormModal } from "../../components/QuoteFormModal";
 import VehicleHistoryPanel from "../../components/VehicleHistoryPanel";
 
-interface ReceptionDetail {
-  id: string;
-  reception_number: string;
-  vehicle_id: string;
-  received_at: string;
-  odometer_at_reception: number;
-  reported_issues: string | null;
-  visual_condition: string | null;
-  fuel_level: string;
-  delivered_by_name: string | null;
-  delivered_by_phone: string | null;
-  pickup_authorized_by_name: string | null;
-  pickup_authorized_by_phone: string | null;
-  status: string;
-  photos: Array<{ id: string; file_id: string; caption: string | null }>;
+const secondaryAction =
+  "inline-flex h-10 items-center justify-center gap-2 rounded-[var(--r-md)] border border-border bg-surface px-4 text-sm font-semibold text-ink shadow-design-sm transition-colors hover:border-border-strong hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2";
+
+function DetailValue({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+        {label}
+      </dt>
+      <dd className="mt-1 text-sm font-medium text-ink">{children}</dd>
+    </div>
+  );
 }
 
-export default function ReceptionDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const receptionId = (params?.id as string) || "REC-2026-0005";
+export default async function ReceptionDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ evidence_warning?: string }>;
+}) {
+  await requireSession();
+  const { id } = await params;
+  const { evidence_warning: evidenceWarning } = await searchParams;
+  const [result, vehicles] = await Promise.all([
+    loadReceptionDetailResult(id),
+    loadVehicles(),
+  ]);
 
-  const [detail, setDetail] = useState<ReceptionDetail | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchDetail() {
-      try {
-        const res = await fetch(`/api/v1/workshop/receptions/${receptionId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setDetail(data);
-        } else {
-          // Demo fallback detail
-          setDetail({
-            id: receptionId,
-            reception_number: receptionId.startsWith("REC-") ? receptionId : "REC-2026-0005",
-            vehicle_id: "veh-demo-01",
-            received_at: new Date().toISOString(),
-            odometer_at_reception: 48500,
-            reported_issues: "Mudança de óleo sintético 5W30 e calibração de discos de travão",
-            visual_condition: "Sem mossas visíveis. Pequeno arranhão na porta traseira esquerda.",
-            fuel_level: "half",
-            delivered_by_name: "João Muchanga",
-            delivered_by_phone: "+258 84 123 4567",
-            pickup_authorized_by_name: "João Muchanga",
-            pickup_authorized_by_phone: "+258 84 123 4567",
-            status: "received",
-            photos: [],
-          });
-        }
-      } catch (err) {
-        setDetail({
-          id: receptionId,
-          reception_number: "REC-2026-0005",
-          vehicle_id: "veh-demo-01",
-          received_at: new Date().toISOString(),
-          odometer_at_reception: 48500,
-          reported_issues: "Mudança de óleo sintético 5W30",
-          visual_condition: "Bom estado geral",
-          fuel_level: "half",
-          delivered_by_name: "João Muchanga",
-          delivered_by_phone: "+258 84 123 4567",
-          pickup_authorized_by_name: "João Muchanga",
-          pickup_authorized_by_phone: "+258 84 123 4567",
-          status: "received",
-          photos: [],
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchDetail();
-  }, [receptionId]);
-
-  if (isLoading) {
-    return (
-      <SidebarLayout active="recepcao">
-        <div className="max-w-5xl mx-auto p-6 text-center text-slate-500 text-xs animate-pulse">
-          A carregar registo de recepção {receptionId}...
-        </div>
-      </SidebarLayout>
-    );
-  }
+  const vehicleOptions = vehicles.map((vehicle) => ({
+    id: vehicle.id,
+    plate: vehicle.plate,
+    brand: vehicle.brand,
+    model: vehicle.model,
+  }));
+  const detail = result.data;
+  const vehicle = detail
+    ? vehicles.find((item) => item.id === detail.vehicle_id)
+    : null;
 
   return (
     <SidebarLayout active="recepcao">
-      <div className="max-w-6xl mx-auto space-y-6 pb-12">
-        {/* Top Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-4 gap-4">
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="px-2.5 py-0.5 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded">
-                {detail?.reception_number}
-              </span>
-              <span className="px-2 py-0.5 text-[11px] font-semibold text-emerald-800 bg-emerald-100 rounded-full">
-                {detail?.status.toUpperCase()}
-              </span>
-            </div>
-            <h1 className="text-xl font-bold text-slate-900 mt-1">Check-in de Viatura Confirmado</h1>
-          </div>
-
-          {/* Action CTAs */}
-          <div className="flex items-center space-x-3">
-            <button
-              type="button"
-              onClick={() => router.push(`/oficina/orcamentos/novo?reception_id=${detail?.id}`)}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+      <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+        {!detail ? (
+          <>
+            <PageHeader
+              eyebrow="Oficina Auto"
+              title="Receção indisponível"
+              description="Não foi possível obter a ficha pedida a partir da API."
+              actions={
+                <Link href="/oficina" className={secondaryAction}>
+                  <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+                  Voltar à oficina
+                </Link>
+              }
+            />
+            <div
+              role="alert"
+              className="rounded-[var(--r-md)] border border-status-cancelled bg-status-cancelled-soft p-4 text-sm text-status-cancelled"
             >
-              🟣 Criar Orçamento Comercial (ORC-2026-XXXX)
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Reception Information */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-sm space-y-4">
-              <h2 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
-                Resumo da Ficha de Entrada
-              </h2>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
-                <div>
-                  <span className="text-slate-500 block">Data/Hora da Entrada</span>
-                  <span className="font-semibold text-slate-800">
-                    {detail?.received_at ? new Date(detail.received_at).toLocaleString("pt-MZ") : "N/D"}
-                  </span>
-                </div>
-
-                <div>
-                  <span className="text-slate-500 block">Odómetro Registado</span>
-                  <span className="font-semibold text-slate-800">{detail?.odometer_at_reception} km</span>
-                </div>
-
-                <div>
-                  <span className="text-slate-500 block">Nível de Combustível</span>
-                  <span className="font-semibold text-slate-800 uppercase">{detail?.fuel_level}</span>
-                </div>
-
-                <div>
-                  <span className="text-slate-500 block">Entregue Por</span>
-                  <span className="font-semibold text-slate-800">{detail?.delivered_by_name || "N/D"}</span>
-                  <span className="text-[10px] text-slate-500 block">{detail?.delivered_by_phone}</span>
-                </div>
-
-                <div>
-                  <span className="text-slate-500 block">Autorizado no Levantamento</span>
-                  <span className="font-semibold text-slate-800">{detail?.pickup_authorized_by_name || "N/D"}</span>
-                  <span className="text-[10px] text-slate-500 block">{detail?.pickup_authorized_by_phone}</span>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 space-y-2 text-xs">
-                <div>
-                  <span className="font-semibold text-slate-700 block">Avarias & Sintomas Reportados:</span>
-                  <p className="text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 mt-1">
-                    {detail?.reported_issues || "Nenhum sintoma específico registado."}
-                  </p>
-                </div>
-
-                <div>
-                  <span className="font-semibold text-slate-700 block">Condição Visual de Entrada:</span>
-                  <p className="text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 mt-1">
-                    {detail?.visual_condition || "Viatura sem danos visíveis reportados."}
-                  </p>
-                </div>
-              </div>
+              {result.error ?? "A receção não existe ou não está acessível neste tenant."}
             </div>
-          </div>
+          </>
+        ) : (
+          <>
+            <PageHeader
+              eyebrow="Ficha de entrada"
+              title={detail.reception_number}
+              description={
+                vehicle
+                  ? `${vehicle.plate} · ${vehicle.brand} ${vehicle.model}`
+                  : `Viatura ${detail.vehicle_id}`
+              }
+              meta={<StatusBadge status={detail.status} />}
+              actions={
+                <>
+                  <Link href="/oficina" className={secondaryAction}>
+                    <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+                    Voltar
+                  </Link>
+                  <QuoteFormModal
+                    vehicleOptions={vehicleOptions}
+                    initialVehicleId={detail.vehicle_id}
+                    initialClientId={detail.client_id}
+                    initialReceptionId={detail.id}
+                    triggerLabel="Criar orçamento"
+                  />
+                </>
+              }
+            />
 
-          {/* Vehicle Intervention History Panel */}
-          <div className="lg:col-span-1">
-            <VehicleHistoryPanel vehicleId={detail?.vehicle_id || null} />
-          </div>
-        </div>
+            {evidenceWarning && (
+              <div
+                role="alert"
+                className="rounded-[var(--r-md)] border border-status-awaiting bg-status-awaiting-soft p-4 text-sm text-status-awaiting"
+              >
+                A receção foi criada, mas {evidenceWarning} fotografia(s) não
+                puderam ser associadas. O registo operacional foi preservado;
+                confirme os anexos antes de avançar.
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+              <div className="space-y-6">
+                <section className="rounded-[var(--r-lg)] border border-border bg-surface p-4 shadow-card sm:p-6">
+                  <div className="mb-5 flex items-center gap-2">
+                    <Gauge aria-hidden="true" className="h-5 w-5 text-rotas-600" />
+                    <h2 className="text-base font-semibold text-ink">
+                      Dados da entrada
+                    </h2>
+                  </div>
+                  <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    <DetailValue label="Data e hora">
+                      {new Date(detail.received_at).toLocaleString("pt-MZ")}
+                    </DetailValue>
+                    <DetailValue label="Odómetro">
+                      <span className="font-mono tabular-nums">
+                        {detail.odometer_at_reception.toLocaleString("pt-MZ")} km
+                      </span>
+                    </DetailValue>
+                    <DetailValue label="Combustível">
+                      {detail.fuel_level || "Não registado"}
+                    </DetailValue>
+                    <DetailValue label="Conclusão estimada">
+                      {detail.estimated_completion_at
+                        ? new Date(detail.estimated_completion_at).toLocaleString("pt-MZ")
+                        : "Não definida"}
+                    </DetailValue>
+                    <DetailValue label="Responsável pela receção">
+                      {detail.received_by}
+                    </DetailValue>
+                    <DetailValue label="Assinatura do cliente">
+                      {detail.client_signature_file_id ? (
+                        <a
+                          href={`/api/files/${detail.client_signature_file_id}/download`}
+                          className="font-semibold text-rotas-600 underline-offset-4 hover:underline"
+                        >
+                          Consultar evidência
+                        </a>
+                      ) : (
+                        "Não anexada"
+                      )}
+                    </DetailValue>
+                  </dl>
+                </section>
+
+                <section className="rounded-[var(--r-lg)] border border-border bg-surface p-4 shadow-card sm:p-6">
+                  <div className="mb-5 flex items-center gap-2">
+                    <UserRound aria-hidden="true" className="h-5 w-5 text-rotas-600" />
+                    <h2 className="text-base font-semibold text-ink">
+                      Entrega e levantamento
+                    </h2>
+                  </div>
+                  <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <DetailValue label="Entregue por">
+                      {detail.delivered_by_name || "Não registado"}
+                      {detail.delivered_by_phone && (
+                        <span className="mt-0.5 block text-xs font-normal text-muted">
+                          {detail.delivered_by_phone}
+                        </span>
+                      )}
+                    </DetailValue>
+                    <DetailValue label="Autorizado a levantar">
+                      {detail.pickup_authorized_by_name || "Não registado"}
+                      {detail.pickup_authorized_by_phone && (
+                        <span className="mt-0.5 block text-xs font-normal text-muted">
+                          {detail.pickup_authorized_by_phone}
+                        </span>
+                      )}
+                    </DetailValue>
+                    <DetailValue label="Objetos pessoais">
+                      {detail.personal_items || "Nenhum objeto registado"}
+                    </DetailValue>
+                  </dl>
+                </section>
+
+                <section className="rounded-[var(--r-lg)] border border-border bg-surface p-4 shadow-card sm:p-6">
+                  <div className="mb-4 flex items-center gap-2">
+                    <FileSignature aria-hidden="true" className="h-5 w-5 text-rotas-600" />
+                    <h2 className="text-base font-semibold text-ink">
+                      Declarações de entrada
+                    </h2>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="rounded-[var(--r-md)] border border-border bg-surface-2 p-4">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                        Sintomas reportados
+                      </h3>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink">
+                        {detail.reported_issues || "Nenhum sintoma registado."}
+                      </p>
+                    </div>
+                    <div className="rounded-[var(--r-md)] border border-border bg-surface-2 p-4">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                        Condição visual
+                      </h3>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink">
+                        {detail.visual_condition || "Nenhuma observação registada."}
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="rounded-[var(--r-lg)] border border-border bg-surface p-4 shadow-card sm:p-6">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Camera aria-hidden="true" className="h-5 w-5 text-rotas-600" />
+                      <h2 className="text-base font-semibold text-ink">
+                        Evidências fotográficas
+                      </h2>
+                    </div>
+                    <span className="font-mono text-xs tabular-nums text-muted">
+                      {detail.photos.length}
+                    </span>
+                  </div>
+                  <p className="mb-4 text-xs text-muted">
+                    Evidências anexadas são tratadas como registos imutáveis.
+                  </p>
+                  {detail.photos.length === 0 ? (
+                    <p className="rounded-[var(--r-md)] border border-dashed border-border p-6 text-center text-sm text-muted">
+                      Nenhuma fotografia anexada a esta receção.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {detail.photos.map((photo, index) => (
+                        <a
+                          key={photo.id}
+                          href={`/api/files/${photo.file_id}/download`}
+                          className="min-h-11 rounded-[var(--r-md)] border border-border px-3 py-2 text-xs font-semibold text-rotas-600 hover:bg-rotas-50 dark:hover:bg-surface-2"
+                        >
+                          {photo.caption || `Fotografia ${index + 1}`}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </div>
+
+              <aside>
+                <VehicleHistoryPanel vehicleId={detail.vehicle_id} />
+              </aside>
+            </div>
+          </>
+        )}
       </div>
     </SidebarLayout>
   );

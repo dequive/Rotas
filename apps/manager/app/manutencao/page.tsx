@@ -87,7 +87,7 @@ export default async function ManutencaoPage() {
                 label="Viaturas em Oficina"
                 value={inProgressOrders}
                 icon={<Play size={18} />}
-                semantic="amber"
+                semantic="accent"
               />
               <KpiCard
                 label="Alertas Ativos"

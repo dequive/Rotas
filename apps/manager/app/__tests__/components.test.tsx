@@ -30,9 +30,9 @@ describe("Manager Standard Components", () => {
   });
 
   describe("StatusBadge", () => {
-    it("renders status with label and dot", () => {
+    it("renders status with its operational label", () => {
       render(<StatusBadge status="em-rota" />);
-      expect(screen.getByText("Em Rota")).toBeInTheDocument();
+      expect(screen.getByText("Em rota")).toBeInTheDocument();
     });
 
     it("supports override label", () => {

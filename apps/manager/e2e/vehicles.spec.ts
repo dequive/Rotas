@@ -12,7 +12,7 @@ test('vehicle detail page shows Apólices de Seguro section', async ({ page }) =
   await page.goto('/viaturas');
 
   // If no vehicles exist, skip gracefully
-  const firstLink = page.locator('table tbody tr a').first();
+  const firstLink = page.getByRole('link', { name: 'Ver Detalhe' }).first();
   const count = await firstLink.count();
   if (count === 0) {
     test.skip();
@@ -22,6 +22,6 @@ test('vehicle detail page shows Apólices de Seguro section', async ({ page }) =
   await firstLink.click();
   await page.waitForURL(/\/viaturas\/.+/, { timeout: 10_000 });
 
-  // InsuranceTab renders "Apólices de Seguro" heading
+  await page.getByRole('tab', { name: 'Administração' }).click();
   await expect(page.getByText('Apólices de Seguro')).toBeVisible({ timeout: 10_000 });
 });

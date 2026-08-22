@@ -67,7 +67,7 @@ describe("VehicleHistoryPanel Component", () => {
     await waitFor(() => {
       expect(screen.getByText("AFM-8821-TR")).toBeDefined();
       expect(screen.getByText("52000 km")).toBeDefined();
-      expect(screen.getByText(/🛡️ Garantia Ativa/i)).toBeDefined();
+      expect(screen.getByText(/Garantia ativa/i)).toBeDefined();
       expect(screen.getByText("REC-2026-0004")).toBeDefined();
     });
 

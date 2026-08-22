@@ -28,6 +28,21 @@ describe("SignatureCanvas Component", () => {
 
   it("triggers onSignatureCaptured callback when digital signature is confirmed", async () => {
     const onCaptured = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            id: "signature-file-1",
+            sha256_hash: "a8f9c0e123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+          }),
+          {
+            status: 201,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      ),
+    );
     render(<SignatureCanvas onSignatureCaptured={onCaptured} />);
 
     // Mock HTMLCanvasElement.toBlob
@@ -43,7 +58,11 @@ describe("SignatureCanvas Component", () => {
     fireEvent.click(confirmBtn);
 
     await waitFor(() => {
-      expect(onCaptured).toHaveBeenCalled();
+      expect(onCaptured).toHaveBeenCalledWith(
+        "signature-file-1",
+        "a8f9c0e123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      );
     });
+    vi.unstubAllGlobals();
   });
 });

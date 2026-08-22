@@ -1,12 +1,21 @@
 import { withSentryConfig } from "@sentry/nextjs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const managerDir = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Safe fallback for Next.js 14.2.x — some patch versions need this flag
-  // to auto-discover instrumentation.ts at project root.
-  experimental: {
-    instrumentationHook: true,
+  output: "standalone",
+  outputFileTracingRoot: path.resolve(managerDir, "../.."),
+  // PR-18: the Manager does not use next/image. Keep the runtime image
+  // optimizer disabled so tenant-controlled uploads never reach Sharp/libvips.
+  images: {
+    unoptimized: true,
+  },
+  turbopack: {
+    root: path.resolve(managerDir, "../.."),
   },
 };
 

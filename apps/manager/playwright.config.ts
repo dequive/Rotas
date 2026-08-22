@@ -35,8 +35,5 @@ export default defineConfig({
         url: 'http://localhost:3030',
         reuseExistingServer: true,
         timeout: 120_000,
-        env: {
-          ROTAS_ALLOW_DEMO_FALLBACK: '1',
-        },
       },
 });

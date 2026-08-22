@@ -1,0 +1,139 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "rotas-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "textMode": "auto"},
+      "targets": [{"expr": "rotas:api_availability:ratio5m", "refId": "A"}],
+      "title": "API availability — 5m",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "rotas-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "textMode": "auto"},
+      "targets": [{"expr": "rotas:api_latency:p95_5m", "refId": "A"}],
+      "title": "API latency p95 — 5m",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "rotas-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "textMode": "auto"},
+      "targets": [{"expr": "rotas:http_requests:rate5m", "refId": "A"}],
+      "title": "API request rate — 5m",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "rotas-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "textMode": "auto"},
+      "targets": [{"expr": "rotas:outbox_dead_letter:increase5m", "refId": "A"}],
+      "title": "Outbox dead-letter — 5m",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "rotas-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 5},
+      "id": 5,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "targets": [{"expr": "rotas:api_availability:ratio5m", "legendFormat": "availability", "refId": "A"}],
+      "title": "API availability",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "rotas-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 5},
+      "id": 6,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "targets": [{"expr": "rotas:api_latency:p95_5m", "legendFormat": "p95", "refId": "A"}],
+      "title": "API latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "rotas-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 24, "x": 0, "y": 13},
+      "id": 7,
+      "options": {"showHeader": true},
+      "targets": [{"expr": "ALERTS{alertstate=\"firing\"}", "format": "table", "instant": true, "refId": "A"}],
+      "title": "Firing release alerts",
+      "type": "table"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "rotas-prometheus"},
+      "fieldConfig": {"defaults": {"min": 0, "max": 1, "unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 20},
+      "id": 8,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "targets": [
+        {
+          "expr": "sum by (pool) (rotas_db_pool_connections{state=\"checked_out\"}) / sum by (pool) (rotas_db_pool_capacity{limit=\"max_connections\"})",
+          "legendFormat": "{{pool}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Database pool utilisation",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "rotas-prometheus"},
+      "fieldConfig": {"defaults": {"min": 0, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28},
+      "id": 9,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "targets": [
+        {
+          "expr": "rotas_event_loop_lag_seconds",
+          "legendFormat": "maximum worker lag",
+          "refId": "A"
+        }
+      ],
+      "title": "Event-loop scheduling lag",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "rotas-prometheus"},
+      "fieldConfig": {"defaults": {"min": 0, "unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 28},
+      "id": 10,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "targets": [
+        {
+          "expr": "rotas_process_cpu_utilization_ratio",
+          "legendFormat": "API workers",
+          "refId": "A"
+        }
+      ],
+      "title": "API worker CPU utilisation",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": ["rotas", "pr-20", "slo"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser",
+  "title": "ROTAS Release SLOs",
+  "uid": "rotas-release-slos",
+  "version": 1
+}

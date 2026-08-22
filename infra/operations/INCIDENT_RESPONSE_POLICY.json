@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "policy_id": "PR25-IR-V1",
+  "scope": "staging release candidate and production operations",
+  "owners": ["SRE", "PO"],
+  "roster": {
+    "source": "external_on_call_directory",
+    "people_or_contacts_in_repository": false,
+    "primary_and_secondary_required": true,
+    "quarterly_access_review_required": true
+  },
+  "severities": {
+    "SEV1": {
+      "definition": "Total outage, confirmed tenant isolation breach, material data loss or safety-critical operational failure.",
+      "acknowledge_minutes": 5,
+      "incident_commander_minutes": 15,
+      "stakeholder_update_minutes": 30,
+      "executive_and_security_notification_minutes": 15
+    },
+    "SEV2": {
+      "definition": "Major degradation, blocked critical workflow or suspected security/data integrity incident without confirmed broad impact.",
+      "acknowledge_minutes": 15,
+      "incident_commander_minutes": 30,
+      "stakeholder_update_minutes": 60,
+      "executive_and_security_notification_minutes": 30
+    },
+    "SEV3": {
+      "definition": "Limited degradation with workaround and no known security, isolation or accounting impact.",
+      "acknowledge_minutes": 240,
+      "incident_commander_minutes": 480,
+      "stakeholder_update_minutes": 480,
+      "executive_and_security_notification_minutes": 480
+    },
+    "SEV4": {
+      "definition": "Low-risk defect or support request handled in normal planning.",
+      "acknowledge_minutes": 1440,
+      "incident_commander_minutes": 1440,
+      "stakeholder_update_minutes": 1440,
+      "executive_and_security_notification_minutes": 1440
+    }
+  },
+  "required_roles": [
+    "incident_commander",
+    "operations_lead",
+    "communications_lead",
+    "scribe",
+    "security_privacy_lead",
+    "business_owner"
+  ],
+  "lifecycle": [
+    "declared",
+    "triaged",
+    "contained",
+    "recovered",
+    "monitoring",
+    "resolved",
+    "review_closed"
+  ],
+  "communication": {
+    "paging_endpoint_source": "external_secret",
+    "internal_incident_channel_required": true,
+    "customer_status_channel_required": true,
+    "tenant_scoped_customer_updates": true,
+    "public_messages_must_exclude_tenant_identifiers": true,
+    "update_cadence_from_severity": true
+  },
+  "required_artifacts": [
+    "incident_timeline",
+    "impact_and_tenant_scope",
+    "decision_log",
+    "commands_and_changes",
+    "communication_log",
+    "recovery_validation",
+    "follow_up_owners_and_dates"
+  ],
+  "closure": {
+    "independent_recovery_validation_required": true,
+    "security_privacy_review_for_sev1_sev2": true,
+    "post_incident_review_hours_sev1": 48,
+    "post_incident_review_hours_sev2": 120,
+    "open_actions_block_review_closure": true
+  },
+  "game_day": {
+    "minimum_scenarios": 5,
+    "independent_facilitator_required": true,
+    "real_paging_delivery_required_for_gate": true,
+    "release_candidate_required_for_gate": true,
+    "production_like_staging_required_for_gate": true
+  },
+  "scenarios": [
+    {
+      "id": "backend_unavailable",
+      "severity": "SEV1",
+      "signal": "RotasBackendDown",
+      "runbook": "docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasbackenddown",
+      "expected_controls": ["page", "declare", "rollback_or_forward_fix", "recovery_validation", "communication"]
+    },
+    {
+      "id": "api_error_or_latency",
+      "severity": "SEV2",
+      "signal": "RotasApiHighErrorRate",
+      "runbook": "docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasapihigherrorrate",
+      "expected_controls": ["page", "declare", "triage_dependencies", "containment", "communication"]
+    },
+    {
+      "id": "outbox_dead_letter",
+      "severity": "SEV2",
+      "signal": "RotasOutboxDeadLetter",
+      "runbook": "docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasoutboxdeadletter",
+      "expected_controls": ["page", "tenant_scoped_reconciliation", "audited_replay", "recovery_validation", "communication"]
+    },
+    {
+      "id": "database_loss_and_restore",
+      "severity": "SEV1",
+      "signal": "restore_drill",
+      "runbook": "docs/DR_BACKUP_RESTORE_RUNBOOK.md#restore-isolado",
+      "expected_controls": ["page", "declare", "isolated_restore", "rls_and_accounting_validation", "communication"]
+    },
+    {
+      "id": "tenant_isolation_or_privacy",
+      "severity": "SEV1",
+      "signal": "security_report",
+      "runbook": "docs/security/ROTAS_THREAT_AND_PRIVACY_MODEL.md",
+      "expected_controls": ["page", "contain_access", "preserve_evidence", "legal_privacy_escalation", "tenant_scoped_communication"]
+    }
+  ]
+}

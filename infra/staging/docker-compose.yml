@@ -1,0 +1,388 @@
+name: rotas-staging
+
+x-backend-image: &backend-image "${ROTAS_BACKEND_IMAGE:?ROTAS_BACKEND_IMAGE must be digest-pinned}"
+x-governance-image: &governance-image "${ROTAS_GOVERNANCE_IMAGE:?ROTAS_GOVERNANCE_IMAGE must be digest-pinned}"
+x-manager-image: &manager-image "${ROTAS_MANAGER_IMAGE:?ROTAS_MANAGER_IMAGE must be digest-pinned}"
+x-driver-image: &driver-image "${ROTAS_DRIVER_IMAGE:?ROTAS_DRIVER_IMAGE must be digest-pinned}"
+
+x-application-hardening: &application-hardening
+  restart: unless-stopped
+  read_only: true
+  init: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+
+x-backend-environment: &backend-environment
+  ENVIRONMENT: production
+  VERSION: "${ROTAS_RELEASE_SHA:?ROTAS_RELEASE_SHA must be the full release SHA}"
+  DATABASE_URL_FILE: /run/secrets/rotas_database_url
+  ADMIN_DATABASE_URL_FILE: /run/secrets/rotas_admin_database_url
+  ALEMBIC_DATABASE_URL_FILE: /run/secrets/rotas_alembic_database_url
+  JWT_SECRET_KEY_FILE: /run/secrets/rotas_jwt_secret
+  REDIS_URL_FILE: /run/secrets/rotas_redis_url
+  CORS_ORIGINS: "[\"https://${ROTAS_MANAGER_HOST:?}\",\"https://${ROTAS_DRIVER_HOST:?}\"]"
+  STORAGE_PROVIDER: r2
+  R2_BUCKET: "${R2_BUCKET:?}"
+  R2_ENDPOINT_URL: "${R2_ENDPOINT_URL:?}"
+  R2_ACCESS_KEY_ID_FILE: /run/secrets/rotas_r2_access_key_id
+  R2_SECRET_ACCESS_KEY_FILE: /run/secrets/rotas_r2_secret_access_key
+  MANAGER_PUBLIC_URL: "https://${ROTAS_MANAGER_HOST:?}"
+  EMAIL_PROVIDER: outbox
+  EMAIL_FROM_ADDRESS: "${EMAIL_FROM_ADDRESS:?}"
+  GOVERNANCE_ENGINE_URL: http://governance:8000
+  GOVERNANCE_API_KEY_FILE: /run/secrets/rotas_governance_api_key
+  FF_GOVERNANCE_OUTBOX: "true"
+  FF_MANAGER_BFF: "true"
+  FF_PWA_OFFLINE_LIFECYCLE: "true"
+
+x-backend-secrets: &backend-secrets
+  - rotas_database_url
+  - rotas_admin_database_url
+  - rotas_alembic_database_url
+  - rotas_jwt_secret
+  - rotas_redis_url
+  - rotas_r2_access_key_id
+  - rotas_r2_secret_access_key
+  - rotas_governance_api_key
+
+services:
+  edge:
+    image: caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    restart: unless-stopped
+    init: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      ACME_EMAIL: "${ACME_EMAIL:?}"
+      ROTAS_MANAGER_HOST: "${ROTAS_MANAGER_HOST:?}"
+      ROTAS_DRIVER_HOST: "${ROTAS_DRIVER_HOST:?}"
+      ROTAS_API_HOST: "${ROTAS_API_HOST:?}"
+      ROTAS_GRAFANA_HOST: "${ROTAS_GRAFANA_HOST:?}"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+
+  postgres:
+    image: postgres:16@sha256:081f1bc7bd5e143dbb6e487b710bbc27712cdcfaced4c071b8e47349aa1b4171
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rotas
+      POSTGRES_USER: rotas_owner
+      POSTGRES_PASSWORD_FILE: /run/secrets/rotas_owner_password
+    secrets:
+      - rotas_owner_password
+      - rotas_app_password
+      - rotas_admin_password
+    volumes:
+      - rotas_postgres_data:/var/lib/postgresql/data
+      - ./init-rotas-db.sh:/docker-entrypoint-initdb.d/01-rotas-roles.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rotas_owner -d rotas"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - data
+
+  redis:
+    image: redis:7@sha256:33d7c9a245edd95e6703a0addbeaa48fe40c3b3b4783627a72085155462ebfdb
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -ec
+      - exec redis-server --appendonly yes --requirepass "$$(cat /run/secrets/rotas_redis_password)"
+    secrets:
+      - rotas_redis_password
+    volumes:
+      - rotas_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$(cat /run/secrets/rotas_redis_password)\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - data
+
+  governance-postgres:
+    image: postgres:16@sha256:081f1bc7bd5e143dbb6e487b710bbc27712cdcfaced4c071b8e47349aa1b4171
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: governance
+      POSTGRES_USER: governance_app
+      POSTGRES_PASSWORD_FILE: /run/secrets/governance_database_password
+    secrets:
+      - governance_database_password
+    volumes:
+      - governance_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U governance_app -d governance"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - data
+
+  migrations:
+    <<: *application-hardening
+    image: *backend-image
+    restart: "no"
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    environment: *backend-environment
+    secrets: *backend-secrets
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - data
+
+  governance-migrations:
+    <<: *application-hardening
+    image: *governance-image
+    restart: "no"
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    environment:
+      ENVIRONMENT: production
+      GOVERNANCE_DATABASE_URL_FILE: /run/secrets/governance_database_url
+      JWT_SECRET_KEY_FILE: /run/secrets/governance_jwt_secret
+      PLATFORM_ADMIN_KEY_FILE: /run/secrets/governance_platform_admin_key
+      CORS_ORIGINS: "[]"
+    secrets:
+      - governance_database_url
+      - governance_jwt_secret
+      - governance_platform_admin_key
+    depends_on:
+      governance-postgres:
+        condition: service_healthy
+    networks:
+      - data
+
+  governance:
+    <<: *application-hardening
+    image: *governance-image
+    environment:
+      ENVIRONMENT: production
+      GOVERNANCE_DATABASE_URL_FILE: /run/secrets/governance_database_url
+      JWT_SECRET_KEY_FILE: /run/secrets/governance_jwt_secret
+      PLATFORM_ADMIN_KEY_FILE: /run/secrets/governance_platform_admin_key
+      CORS_ORIGINS: "[]"
+    secrets:
+      - governance_database_url
+      - governance_jwt_secret
+      - governance_platform_admin_key
+    depends_on:
+      governance-migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+    networks:
+      - data
+
+  backend:
+    <<: *application-hardening
+    image: *backend-image
+    environment: *backend-environment
+    secrets: *backend-secrets
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      governance:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/deep', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+    networks:
+      - edge
+      - data
+      - observability
+
+  worker:
+    <<: *application-hardening
+    image: *backend-image
+    command: ["arq", "app.worker.WorkerSettings"]
+    environment: *backend-environment
+    secrets: *backend-secrets
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      governance:
+        condition: service_healthy
+    networks:
+      - data
+
+  manager:
+    <<: *application-hardening
+    image: *manager-image
+    environment:
+      NODE_ENV: production
+      ROTAS_API_BASE_URL: http://backend:8000
+      GOVERNANCE_API_URL: http://governance:8000
+      GOVERNANCE_TENANT_ID: "${ROTAS_GOVERNANCE_TENANT_ID:?ROTAS_GOVERNANCE_TENANT_ID is required}"
+      GOVERNANCE_API_KEY_FILE: /run/secrets/manager_governance_api_key
+      GOVERNANCE_ALLOW_INSECURE_INTERNAL: "true"
+    secrets:
+      - manager_governance_api_key
+    depends_on:
+      backend:
+        condition: service_healthy
+      governance:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+    networks:
+      - edge
+      - data
+
+  driver:
+    <<: *application-hardening
+    image: *driver-image
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+    networks:
+      - edge
+
+  prometheus:
+    <<: *application-hardening
+    image: prom/prometheus@sha256:cff72a3f49918f41c4b5c8a6174dd8433036bebf7878120da538b3720ba3fa0d
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle
+    volumes:
+      - ../observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../observability/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      backend:
+        condition: service_healthy
+      alertmanager:
+        condition: service_started
+    networks:
+      - observability
+
+  alertmanager:
+    <<: *application-hardening
+    image: prom/alertmanager@sha256:51a825c2a40acc3e338fdd00d622e01ec090f72be2b3ea46be0839cd47a4d286
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    secrets:
+      - alertmanager_webhook_url
+    volumes:
+      - ../observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    networks:
+      - observability
+
+  grafana:
+    <<: *application-hardening
+    image: grafana/grafana@sha256:121a7a9ece6dc10b969f1f96eed64b4f07dfac0d0b8abc070f7cb83bbde86f63
+    environment:
+      GF_SERVER_ROOT_URL: "https://${ROTAS_GRAFANA_HOST:?}"
+      GF_SECURITY_ADMIN_USER: rotas_admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    secrets:
+      - grafana_admin_password
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_started
+    networks:
+      - edge
+      - observability
+
+secrets:
+  rotas_owner_password:
+    file: "${STAGING_SECRETS_DIR:?}/rotas_owner_password"
+  rotas_app_password:
+    file: "${STAGING_SECRETS_DIR:?}/rotas_app_password"
+  rotas_admin_password:
+    file: "${STAGING_SECRETS_DIR:?}/rotas_admin_password"
+  rotas_database_url:
+    file: "${STAGING_SECRETS_DIR:?}/rotas_database_url"
+  rotas_admin_database_url:
+    file: "${STAGING_SECRETS_DIR:?}/rotas_admin_database_url"
+  rotas_alembic_database_url:
+    file: "${STAGING_SECRETS_DIR:?}/rotas_alembic_database_url"
+  rotas_jwt_secret:
+    file: "${STAGING_SECRETS_DIR:?}/rotas_jwt_secret"
+  rotas_redis_password:
+    file: "${STAGING_SECRETS_DIR:?}/rotas_redis_password"
+  rotas_redis_url:
+    file: "${STAGING_SECRETS_DIR:?}/rotas_redis_url"
+  rotas_r2_access_key_id:
+    file: "${STAGING_SECRETS_DIR:?}/rotas_r2_access_key_id"
+  rotas_r2_secret_access_key:
+    file: "${STAGING_SECRETS_DIR:?}/rotas_r2_secret_access_key"
+  rotas_governance_api_key:
+    file: "${STAGING_SECRETS_DIR:?}/rotas_governance_api_key"
+  manager_governance_api_key:
+    file: "${STAGING_SECRETS_DIR:?}/manager_governance_api_key"
+  governance_database_password:
+    file: "${STAGING_SECRETS_DIR:?}/governance_database_password"
+  governance_database_url:
+    file: "${STAGING_SECRETS_DIR:?}/governance_database_url"
+  governance_jwt_secret:
+    file: "${STAGING_SECRETS_DIR:?}/governance_jwt_secret"
+  governance_platform_admin_key:
+    file: "${STAGING_SECRETS_DIR:?}/governance_platform_admin_key"
+  alertmanager_webhook_url:
+    file: "${STAGING_SECRETS_DIR:?}/alertmanager_webhook_url"
+  grafana_admin_password:
+    file: "${STAGING_SECRETS_DIR:?}/grafana_admin_password"
+
+volumes:
+  caddy_data:
+  caddy_config:
+  rotas_postgres_data:
+  rotas_redis_data:
+  governance_postgres_data:
+  prometheus_data:
+  alertmanager_data:
+  grafana_data:
+
+networks:
+  edge:
+  data:
+    internal: true
+  observability:
+    internal: true

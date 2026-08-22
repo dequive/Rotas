@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "policy_id": "PR20-OBSERVABILITY-CERTIFICATION-V1",
+  "environment": "staging",
+  "release_sha": "0000000000000000000000000000000000000000",
+  "observed_at": "2026-07-31T00:00:00Z",
+  "external_runner": false,
+  "operator": "",
+  "metrics": {
+    "release_sha": "0000000000000000000000000000000000000000",
+    "prometheus_healthy": false,
+    "backend_target_up": false,
+    "rule_evaluation_failures": -1,
+    "dashboard_uid": "",
+    "dashboard_panels": 0,
+    "sensitive_label_scan_clean": false,
+    "slo_series": [],
+    "runtime_metrics": []
+  },
+  "logs": {
+    "provider": "",
+    "centralized": false,
+    "searchable_by_release_sha": false,
+    "request_id_correlation": false,
+    "tenant_access_control": false,
+    "pii_findings": -1,
+    "retention_days": 0
+  },
+  "traces": {
+    "provider": "",
+    "enabled": false,
+    "searchable_by_release_sha": false,
+    "request_id_correlation": false,
+    "error_trace_captured": false,
+    "pii_findings": -1,
+    "services": [],
+    "sampled_journeys": 0,
+    "retention_days": 0
+  },
+  "alerts": {
+    "RotasBackendDown": {
+      "release_sha": "0000000000000000000000000000000000000000",
+      "fired_at": "",
+      "delivered_at": "",
+      "acknowledged_at": "",
+      "resolved_at": "",
+      "channel": "",
+      "delivery_id": "",
+      "acknowledged_by_role": "",
+      "firing_observed": false,
+      "resolved_observed": false
+    },
+    "RotasApiHighErrorRate": {
+      "release_sha": "0000000000000000000000000000000000000000",
+      "fired_at": "",
+      "delivered_at": "",
+      "acknowledged_at": "",
+      "resolved_at": "",
+      "channel": "",
+      "delivery_id": "",
+      "acknowledged_by_role": "",
+      "firing_observed": false,
+      "resolved_observed": false
+    },
+    "RotasApiLatencyBudget": {
+      "release_sha": "0000000000000000000000000000000000000000",
+      "fired_at": "",
+      "delivered_at": "",
+      "acknowledged_at": "",
+      "resolved_at": "",
+      "channel": "",
+      "delivery_id": "",
+      "acknowledged_by_role": "",
+      "firing_observed": false,
+      "resolved_observed": false
+    },
+    "RotasOutboxDeadLetter": {
+      "release_sha": "0000000000000000000000000000000000000000",
+      "fired_at": "",
+      "delivered_at": "",
+      "acknowledged_at": "",
+      "resolved_at": "",
+      "channel": "",
+      "delivery_id": "",
+      "acknowledged_by_role": "",
+      "firing_observed": false,
+      "resolved_observed": false
+    },
+    "RotasPrometheusRuleFailures": {
+      "release_sha": "0000000000000000000000000000000000000000",
+      "fired_at": "",
+      "delivered_at": "",
+      "acknowledged_at": "",
+      "resolved_at": "",
+      "channel": "",
+      "delivery_id": "",
+      "acknowledged_by_role": "",
+      "firing_observed": false,
+      "resolved_observed": false
+    }
+  },
+  "slo_window": {
+    "started_at": "",
+    "ended_at": "",
+    "complete": false,
+    "coverage_ratio": 0,
+    "slos": {
+      "api_availability": {
+        "value": 0,
+        "objective_met": false,
+        "sample_count": 0
+      },
+      "api_latency_p95": {
+        "value": 0,
+        "objective_met": false,
+        "sample_count": 0
+      },
+      "outbox_dead_letter": {
+        "value": -1,
+        "objective_met": false,
+        "sample_count": 0
+      },
+      "metrics_target_availability": {
+        "value": 0,
+        "objective_met": false,
+        "sample_count": 0
+      }
+    }
+  },
+  "evidence": {
+    "metrics": [],
+    "logs": [],
+    "traces": [],
+    "alerts": [],
+    "slo_window": []
+  }
+}

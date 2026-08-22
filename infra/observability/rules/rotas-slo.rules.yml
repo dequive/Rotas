@@ -1,0 +1,76 @@
+groups:
+  - name: rotas-sli-recording
+    interval: 30s
+    rules:
+      - record: rotas:http_requests:rate5m
+        expr: sum(rate(http_requests_total[5m]))
+
+      - record: rotas:http_5xx:rate5m
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m]))
+
+      - record: rotas:api_availability:ratio5m
+        expr: 1 - (rotas:http_5xx:rate5m / clamp_min(rotas:http_requests:rate5m, 0.001))
+
+      - record: rotas:api_latency:p95_5m
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_highr_seconds_bucket[5m])) by (le))
+
+      - record: rotas:outbox_dead_letter:increase5m
+        expr: sum(increase(rotas_outbox_delivery_outcomes_total{outcome="dead_letter"}[5m]))
+
+  - name: rotas-release-alerts
+    interval: 30s
+    rules:
+      - alert: RotasBackendDown
+        expr: up{job="rotas-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: backend
+          gate: PR-20
+        annotations:
+          summary: ROTAS backend metrics target is unavailable
+          runbook: docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasbackenddown
+
+      - alert: RotasApiHighErrorRate
+        expr: rotas:api_availability:ratio5m < 0.99 and rotas:http_requests:rate5m > 0
+        for: 10m
+        labels:
+          severity: critical
+          service: backend
+          gate: PR-20
+        annotations:
+          summary: ROTAS API availability is below the fast-burn threshold
+          runbook: docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasapihigherrorrate
+
+      - alert: RotasApiLatencyBudget
+        expr: rotas:api_latency:p95_5m > 0.2 and rotas:http_requests:rate5m > 0
+        for: 10m
+        labels:
+          severity: warning
+          service: backend
+          gate: PR-20
+        annotations:
+          summary: ROTAS API p95 latency exceeds 200 ms
+          runbook: docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasapilatencybudget
+
+      - alert: RotasOutboxDeadLetter
+        expr: rotas:outbox_dead_letter:increase5m > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: outbox
+          gate: PR-20
+        annotations:
+          summary: ROTAS transactional outbox produced a dead-letter event
+          runbook: docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasoutboxdeadletter
+
+      - alert: RotasPrometheusRuleFailures
+        expr: increase(prometheus_rule_evaluation_failures_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: observability
+          gate: PR-20
+        annotations:
+          summary: Prometheus failed to evaluate one or more ROTAS rules
+          runbook: docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasprometheusrulefailures

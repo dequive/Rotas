@@ -1,0 +1,43 @@
+{
+	email {$ACME_EMAIL}
+	admin off
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+}
+
+{$ROTAS_MANAGER_HOST} {
+	import security_headers
+	encode zstd gzip
+	reverse_proxy manager:3000
+}
+
+{$ROTAS_DRIVER_HOST} {
+	import security_headers
+	encode zstd gzip
+	reverse_proxy driver:8080
+}
+
+{$ROTAS_API_HOST} {
+	import security_headers
+	encode zstd gzip
+
+	@metrics path /metrics
+	respond @metrics 404
+
+	reverse_proxy backend:8000
+}
+
+{$ROTAS_GRAFANA_HOST} {
+	import security_headers
+	encode zstd gzip
+	reverse_proxy grafana:3000
+}

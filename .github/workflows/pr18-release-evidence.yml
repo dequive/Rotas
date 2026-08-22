@@ -1,0 +1,106 @@
+name: PR-18 Release Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Full 40-character SHA of the release candidate
+        required: true
+        type: string
+      waiver_manifest_path:
+        description: Optional repo-relative PR-18 waiver manifest
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-security:
+    name: Dependency security evidence
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      WAIVER_MANIFEST_PATH: ${{ inputs.waiver_manifest_path }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha }}
+
+      - name: Bind evidence to the checked-out release candidate
+        shell: bash
+        run: |
+          if [[ ! "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "release_sha must be a full lowercase Git SHA." >&2
+            exit 1
+          fi
+          if [[ "$RELEASE_SHA" != "$GITHUB_SHA" ]]; then
+            echo "Checked-out SHA does not match release_sha." >&2
+            exit 1
+          fi
+          if [[ -n "$WAIVER_MANIFEST_PATH" ]]; then
+            if [[ ! "$WAIVER_MANIFEST_PATH" =~ ^infra/release/waivers/[A-Za-z0-9._-]+\.json$ ]]; then
+              echo "waiver_manifest_path must be under infra/release/waivers." >&2
+              exit 1
+            fi
+            if [[ ! -f "$WAIVER_MANIFEST_PATH" ]]; then
+              echo "waiver manifest does not exist in the release candidate." >&2
+              exit 1
+            fi
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.20.2"
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install the exact dependency graph
+        run: npm ci --ignore-scripts
+
+      - name: Record runtime
+        run: |
+          node --version
+          npm --version
+
+      - name: Build the Manager runtime surface
+        run: npm --workspace apps/manager run build
+
+      - name: Verify vulnerable build tools are absent from the runtime image
+        shell: bash
+        run: |
+          test ! -d apps/manager/.next/standalone/node_modules/sharp
+          test ! -d apps/manager/.next/standalone/node_modules/postcss
+          test ! -d apps/manager/.next/standalone/node_modules/next/node_modules/postcss
+          test -f apps/manager/.next/standalone/pr18-runtime-surface.json
+          mkdir -p .release-evidence/pr18
+          cp apps/manager/.next/standalone/pr18-runtime-surface.json \
+            .release-evidence/pr18/runtime-surface.json
+
+      - name: Generate fail-closed PR-18 evidence
+        working-directory: backend
+        run: |
+          args=(
+            --repo-root .. \
+            --profile release_candidate \
+            --release-sha "$RELEASE_SHA" \
+            --report-output ../.release-evidence/pr18/dependency-gate.json \
+            --sbom-output ../.release-evidence/pr18/cyclonedx.json
+          )
+          if [[ -n "$WAIVER_MANIFEST_PATH" ]]; then
+            args+=(--waiver-manifest "../$WAIVER_MANIFEST_PATH")
+          fi
+          python -m scripts.dependency_security_gate "${args[@]}"
+
+      - name: Upload PR-18 evidence even on NO-GO
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr18-dependency-evidence-${{ github.run_id }}
+          path: .release-evidence/pr18/
+          if-no-files-found: warn
+          retention-days: 30

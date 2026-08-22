@@ -19,12 +19,18 @@ yarn.lock
 dist/
 build/
 coverage/
+playwright-report/
+test-results/
 *.tsbuildinfo
 
 # Environment and secrets
 .env
 .env.*
 !.env.example
+infra/staging/secrets/*
+!infra/staging/secrets/README.md
+infra/staging/*.env
+!infra/staging/staging.env.example
 
 # Local runtime
 *.log
@@ -47,3 +53,9 @@ Thumbs.db
 .gstack/
 
 .understand-anything/
+
+# Windows / OneDrive folder metadata
+desktop.ini
+
+# Nested unrelated checkouts (own git repo)
+.i25/

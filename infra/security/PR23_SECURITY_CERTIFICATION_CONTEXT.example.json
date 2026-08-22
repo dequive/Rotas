@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "policy_id": "PR23-SECURITY-CERTIFICATION-V1",
+  "environment": "staging",
+  "release_sha": "0000000000000000000000000000000000000000",
+  "observed_at": "2026-07-31T00:00:00Z",
+  "external_runner": false,
+  "images": {
+    "ROTAS_BACKEND_IMAGE": "registry.invalid/rotas/backend@sha256:0000000000000000000000000000000000000000000000000000000000000001",
+    "ROTAS_DRIVER_IMAGE": "registry.invalid/rotas/driver@sha256:0000000000000000000000000000000000000000000000000000000000000002",
+    "ROTAS_GOVERNANCE_IMAGE": "registry.invalid/rotas/governance@sha256:0000000000000000000000000000000000000000000000000000000000000003",
+    "ROTAS_MANAGER_IMAGE": "registry.invalid/rotas/manager@sha256:0000000000000000000000000000000000000000000000000000000000000004"
+  },
+  "pentest_independent": {
+    "release_sha": "0000000000000000000000000000000000000000",
+    "authorized": false,
+    "authorization_reference": "",
+    "completed": false,
+    "independent_assessor": false,
+    "no_conflict_of_interest": false,
+    "assessor_organization": "",
+    "assessor_report_id": "",
+    "encrypted_findings_channel": "",
+    "started_at": "",
+    "completed_at": "",
+    "roles_tested": [],
+    "surfaces_tested": [],
+    "two_tenants_overlapping_identifiers": false,
+    "restricted_database_role_tested": false,
+    "test_accounts_revoked": false,
+    "allowlists_removed": false,
+    "audit_logs_reconciled": false,
+    "stop_rule_incidents": -1
+  },
+  "zero_high_critical": {
+    "open_counts": {
+      "critical": -1,
+      "high": -1,
+      "medium": -1,
+      "low": -1
+    },
+    "remediated_findings": -1,
+    "independently_retested_findings": -1,
+    "failed_retests": -1,
+    "threat_model_items_tested": 0,
+    "unresolved_release_blockers": -1,
+    "open_medium_low": []
+  },
+  "privacy_approved": {
+    "approved": false,
+    "legal_review_independent": false,
+    "jurisdiction": "",
+    "legal_opinion_reference": "",
+    "approver_name": "",
+    "approver_role": "",
+    "policy_version": "",
+    "signed_at": "",
+    "valid_until": "",
+    "tenant_contract_roles_defined": false,
+    "privacy_lifecycle_tests_passed": false,
+    "subprocessors_assessed": false,
+    "cross_tenant_bi_governed": false,
+    "controls_approved": [],
+    "open_high_privacy_risks": -1,
+    "privacy_flows_tested": 0
+  },
+  "evidence": {
+    "pentest_independent": [],
+    "zero_high_critical": [],
+    "privacy_approved": []
+  }
+}

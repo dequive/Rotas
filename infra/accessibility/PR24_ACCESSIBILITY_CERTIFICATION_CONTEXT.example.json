@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "policy_id": "PR24-ACCESSIBILITY-CERTIFICATION-V1",
+  "environment": "staging",
+  "release_sha": "0000000000000000000000000000000000000000",
+  "observed_at": "2026-07-31T00:00:00Z",
+  "external_runner": false,
+  "images": {
+    "ROTAS_GOVERNANCE_IMAGE": "registry.invalid/rotas/governance@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "ROTAS_BACKEND_IMAGE": "registry.invalid/rotas/backend@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "ROTAS_DRIVER_IMAGE": "registry.invalid/rotas/driver@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "ROTAS_MANAGER_IMAGE": "registry.invalid/rotas/manager@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "wcag_2_2_aa": {
+    "standard": "WCAG 2.2",
+    "level": "AA",
+    "manager_build_passed": false,
+    "driver_build_passed": false,
+    "route_inventory_complete": false,
+    "all_a_aa_criteria_evaluated": false,
+    "total_routes": 0,
+    "tested_routes": 0,
+    "failed_a_aa_criteria": 0,
+    "critical_axe_violations": 0,
+    "serious_axe_violations": 0,
+    "skipped_tests": 0,
+    "unresolved_exceptions": 0
+  },
+  "manual_assistive": {
+    "independent_assessor": false,
+    "no_conflict_of_interest": false,
+    "audit_completed": false,
+    "findings_retested": false,
+    "assessor_organization": "",
+    "report_id": "",
+    "assistive_technologies": [
+      "JAWS_Chrome",
+      "NVDA_Firefox",
+      "TalkBack_Chrome",
+      "VoiceOver_Safari"
+    ],
+    "checks": [
+      "authentication_and_errors",
+      "content_language_and_dynamic_updates",
+      "focus_not_obscured",
+      "forced_colors_and_contrast",
+      "keyboard_only",
+      "modal_focus_and_escape",
+      "orientation",
+      "reflow_400_percent",
+      "target_size",
+      "zoom_200_percent"
+    ],
+    "open_a_aa_findings": 0,
+    "failed_retests": 0,
+    "blocked_tasks": 0
+  },
+  "mobile_real": {
+    "physical_devices": false,
+    "platforms": ["Android", "iOS"],
+    "portrait_tested": false,
+    "landscape_tested": false,
+    "touch_targets_passed": false,
+    "one_handed_driver_journey_passed": false,
+    "screen_reader_gestures_passed": false,
+    "devices": [],
+    "failed_scenarios": 0,
+    "blocked_scenarios": 0
+  },
+  "role_coverage": {
+    "roles": [
+      "driver",
+      "finance",
+      "hr_manager",
+      "platform_admin",
+      "tenant_admin",
+      "transport_dispatcher",
+      "workshop_manager"
+    ],
+    "journeys": [
+      "accessible_authentication",
+      "driver_pairing_offline_delivery",
+      "finance_invoice_payment",
+      "fleet_vehicle_driver",
+      "hr_employee_payroll",
+      "inventory_issue_return",
+      "platform_tenant_lifecycle",
+      "transport_order_trip_delivery",
+      "workshop_reception_to_delivery"
+    ],
+    "two_tenants_overlapping_identifiers": false,
+    "all_states_covered": false,
+    "tenant_isolation_verified": false,
+    "po_approved": false,
+    "user_acceptance_approved": false,
+    "participants": 0,
+    "failed_journeys": 0,
+    "skipped_journeys": 0,
+    "cross_tenant_leaks": 0
+  },
+  "evidence": {
+    "wcag_2_2_aa": [],
+    "manual_assistive": [],
+    "mobile_real": [],
+    "role_coverage": []
+  }
+}

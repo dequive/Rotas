@@ -4,9 +4,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import TenantPrincipal as Principal
 from app.core.cache import invalidate_tenant_caches
-
-from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.core.idempotency import execute_http_idempotent
@@ -17,7 +16,7 @@ from app.modules.contracts.models import Contract
 router = APIRouter(prefix="/contracts", tags=["contracts"])
 
 
-@router.get("/")
+@router.get("/", response_model=list[schemas.ContractResponse])
 async def list_contracts(
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -38,7 +37,7 @@ async def list_contracts(
     )
 
 
-@router.post("/")
+@router.post("/", response_model=schemas.ContractResponse)
 async def create_contract(
     request: Request,
     payload: schemas.ContractCreate,
@@ -65,7 +64,7 @@ async def create_contract(
     return res
 
 
-@router.get("/{contract_id}")
+@router.get("/{contract_id}", response_model=schemas.ContractResponse)
 async def get_contract(
     contract_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
@@ -74,7 +73,7 @@ async def get_contract(
     return await service.get_contract(db, principal.tenant_id, contract_id)
 
 
-@router.patch("/{contract_id}")
+@router.patch("/{contract_id}", response_model=schemas.ContractResponse)
 async def patch_contract(
     request: Request,
     contract_id: UUID,

@@ -184,7 +184,7 @@ async def transition_contract(
     *,
     contract: Contract,
     new_status: str,
-    user_id: UUID,
+    user_id: UUID | None,
     tenant_id: UUID,
     termination_reason: str | None = None,
     new_ends_at: datetime | None = None,

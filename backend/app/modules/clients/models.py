@@ -20,6 +20,14 @@ from app.database import Base
 
 
 class Client(Base):
+    """Client is a legacy aggregate / compatibility layer.
+
+    Data Responsibility / Ownership:
+    - Canonical Identity (legal name, NUIT, address, phone, email): `third_parties`
+    - Client-specific operational attributes (payment terms, credit limit, currency): `client_profiles`
+    - Transitional aggregate maintained until full financial FK migration (client_id -> third_party_id).
+    """
+
     __tablename__ = "clients"
     __table_args__ = (
         UniqueConstraint("tenant_id", "nuit", name="uq_clients_tenant_nuit"),

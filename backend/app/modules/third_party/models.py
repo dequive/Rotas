@@ -32,6 +32,20 @@ class MzProvince(Base):
 
 
 class ThirdParty(Base):
+    """ThirdParty is the canonical identity for external entities.
+
+    Covers clients, suppliers, subcontractors and service providers — one row per
+    real-world entity, with `third_party_roles` carrying the roles it plays.
+
+    Data Responsibility / Ownership Matrix:
+    - Legal Name / Name: `third_parties`
+    - NUIT: `third_parties`
+    - Address: `third_parties`
+    - Phone: `third_parties`
+    - Email: `third_parties`
+    - Role / Functional Profiles: `client_profiles`, `supplier_profiles`, `service_provider_profiles`
+    """
+
     __tablename__ = "third_parties"
     __table_args__ = (UniqueConstraint("tenant_id", "nuit", name="uq_third_parties_tenant_nuit"),)
 
@@ -96,7 +110,7 @@ class ThirdPartyRole(Base):
         nullable=False,
     )
     role_type: Mapped[str] = mapped_column(String(40), nullable=False)
-    # Valid role_type values: fuel_supplier | spare_parts_supplier | service_provider
+    # Valid role_type values: client | fuel_supplier | spare_parts_supplier | service_provider
     # | transport_subcontractor
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     certified_at: Mapped[date | None] = mapped_column(Date, nullable=True)

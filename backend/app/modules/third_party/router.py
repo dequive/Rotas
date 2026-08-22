@@ -6,25 +6,38 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
+from app.core.openapi_responses import PDF_RESPONSE
 from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
 from app.database import AsyncSessionLocal
 from app.modules.third_party import service
 from app.modules.third_party.schemas import (
     AssignmentCreate,
+    AssignmentOut,
     ContactCreate,
+    ContactOut,
     DocumentCreate,
+    DocumentOut,
     DocumentVerify,
     EvaluationCreate,
+    EvaluationListOut,
+    EvaluationOut,
     PartyDirectoryEntry,
     PaymentCreate,
+    PaymentRecordOut,
+    ProvinceOut,
     RoleCreate,
+    RoleOut,
     ServiceProviderProfileCreate,
+    ServiceProviderProfileOut,
+    SupplierAccountOut,
     SupplierProfileCreate,
+    SupplierProfileOut,
     ThirdPartyCreate,
+    ThirdPartyOut,
     ThirdPartyUpdate,
 )
 
@@ -40,7 +53,7 @@ async def _get_anon_session() -> AsyncIterator[AsyncSession]:
 # ── Province reference (no auth needed — platform reference data) ─────────────
 
 
-@router.get("/provinces")
+@router.get("/provinces", response_model=list[ProvinceOut])
 async def list_provinces(
     db: Annotated[AsyncSession, Depends(_get_anon_session)],
 ):
@@ -50,7 +63,7 @@ async def list_provinces(
 # ── Third party CRUD ─────────────────────────────────────────────────────────
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, response_model=ThirdPartyOut)
 async def create_third_party(
     request: Request,
     payload: ThirdPartyCreate,
@@ -64,7 +77,7 @@ async def create_third_party(
     return res
 
 
-@router.get("")
+@router.get("", response_model=list[ThirdPartyOut])
 async def list_third_parties(
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -114,7 +127,7 @@ async def party_directory(
 # ── Operational Documents (BEFORE /{tp_id} to avoid path conflict) ────────────
 
 
-@router.post("/documents", status_code=201)
+@router.post("/documents", status_code=201, response_model=DocumentOut)
 async def create_document(
     request: Request,
     payload: DocumentCreate,
@@ -128,7 +141,7 @@ async def create_document(
     return res
 
 
-@router.get("/documents/expiring")
+@router.get("/documents/expiring", response_model=list[DocumentOut])
 async def get_expiring_documents(
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -137,7 +150,7 @@ async def get_expiring_documents(
     return await service.get_expiring_documents(db, principal.tenant_id, days_ahead)
 
 
-@router.get("/documents")
+@router.get("/documents", response_model=list[DocumentOut])
 async def list_documents(
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -158,7 +171,7 @@ async def list_documents(
     )
 
 
-@router.post("/documents/{doc_id}/verify")
+@router.post("/documents/{doc_id}/verify", response_model=DocumentOut)
 async def verify_document(
     request: Request,
     doc_id: UUID,
@@ -176,7 +189,7 @@ async def verify_document(
 # ── Sub-resource routes BEFORE /{tp_id} to avoid UUID path conflicts ──────────
 
 
-@router.get("/{tp_id}/roles")
+@router.get("/{tp_id}/roles", response_model=list[RoleOut])
 async def list_roles(
     tp_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -185,7 +198,7 @@ async def list_roles(
     return await service.list_roles(db, principal.tenant_id, tp_id)
 
 
-@router.post("/{tp_id}/roles", status_code=201)
+@router.post("/{tp_id}/roles", status_code=201, response_model=RoleOut)
 async def create_role(
     request: Request,
     tp_id: UUID,
@@ -200,7 +213,7 @@ async def create_role(
     return res
 
 
-@router.put("/{tp_id}/supplier-profile", status_code=200)
+@router.put("/{tp_id}/supplier-profile", status_code=200, response_model=SupplierProfileOut)
 async def upsert_supplier_profile(
     request: Request,
     tp_id: UUID,
@@ -215,7 +228,11 @@ async def upsert_supplier_profile(
     return res
 
 
-@router.put("/{tp_id}/service-provider-profile", status_code=200)
+@router.put(
+    "/{tp_id}/service-provider-profile",
+    status_code=200,
+    response_model=ServiceProviderProfileOut,
+)
 async def upsert_service_provider_profile(
     request: Request,
     tp_id: UUID,
@@ -233,7 +250,7 @@ async def upsert_service_provider_profile(
 # ── Single third party (after all sub-resource routes) ───────────────────────
 
 
-@router.get("/{tp_id}")
+@router.get("/{tp_id}", response_model=ThirdPartyOut)
 async def get_third_party(
     tp_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -242,7 +259,7 @@ async def get_third_party(
     return await service.get_third_party(db, principal.tenant_id, tp_id)
 
 
-@router.patch("/{tp_id}")
+@router.patch("/{tp_id}", response_model=ThirdPartyOut)
 async def update_third_party(
     request: Request,
     tp_id: UUID,
@@ -260,7 +277,11 @@ async def update_third_party(
 # ── Driver-Vehicle Assignments ────────────────────────────────────────────────
 
 
-@router.post("/driver-vehicle-assignments", status_code=201)
+@router.post(
+    "/driver-vehicle-assignments",
+    status_code=201,
+    response_model=AssignmentOut,
+)
 async def assign_driver_to_vehicle(
     request: Request,
     payload: AssignmentCreate,
@@ -274,7 +295,7 @@ async def assign_driver_to_vehicle(
     return res
 
 
-@router.get("/driver-vehicle-assignments")
+@router.get("/driver-vehicle-assignments", response_model=list[AssignmentOut])
 async def list_assignments(
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -312,7 +333,11 @@ async def unassign_driver_from_vehicle(
 # ── Contacts ──────────────────────────────────────────────────────────────────
 
 
-@router.post("/{third_party_id}/contacts", status_code=201)
+@router.post(
+    "/{third_party_id}/contacts",
+    status_code=201,
+    response_model=ContactOut,
+)
 async def create_contact(
     request: Request,
     third_party_id: UUID,
@@ -337,7 +362,7 @@ async def create_contact(
     return res
 
 
-@router.get("/{third_party_id}/contacts")
+@router.get("/{third_party_id}/contacts", response_model=list[ContactOut])
 async def list_contacts(
     third_party_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -363,7 +388,7 @@ async def delete_contact(
 # ── Ledger / account ──────────────────────────────────────────────────────────
 
 
-@router.get("/{third_party_id}/account")
+@router.get("/{third_party_id}/account", response_model=SupplierAccountOut)
 async def get_supplier_account(
     third_party_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -376,7 +401,7 @@ async def get_supplier_account(
     )
 
 
-@router.get("/{third_party_id}/account/statement.pdf")
+@router.get("/{third_party_id}/account/statement.pdf", responses=PDF_RESPONSE)
 async def get_supplier_statement_pdf(
     third_party_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -443,7 +468,7 @@ async def get_supplier_statement_pdf(
     )
 
 
-@router.post("/{third_party_id}/payments", status_code=201)
+@router.post("/{third_party_id}/payments", status_code=201, response_model=PaymentRecordOut)
 async def create_payment(
     request: Request,
     third_party_id: UUID,
@@ -471,7 +496,11 @@ async def create_payment(
 # ── Evaluations ───────────────────────────────────────────────────────────────
 
 
-@router.post("/{third_party_id}/evaluations", status_code=201)
+@router.post(
+    "/{third_party_id}/evaluations",
+    status_code=201,
+    response_model=EvaluationOut,
+)
 async def create_evaluation(
     request: Request,
     third_party_id: UUID,
@@ -496,7 +525,7 @@ async def create_evaluation(
     return res
 
 
-@router.get("/{third_party_id}/evaluations")
+@router.get("/{third_party_id}/evaluations", response_model=EvaluationListOut)
 async def list_evaluations(
     third_party_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],

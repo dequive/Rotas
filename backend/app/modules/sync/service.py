@@ -23,6 +23,7 @@ from app.modules.checklists import schemas as checklist_schemas
 from app.modules.checklists import service as checklist_service
 from app.modules.fuel import schemas as fuel_schemas
 from app.modules.fuel import service as fuel_service
+from app.modules.fuel.models import FuelLog
 from app.modules.sync.models import IdempotencyKey, SyncEvent
 from app.modules.sync.schemas import SyncBatchRequest, SyncOperation
 from app.modules.trips import schemas as trip_schemas
@@ -64,14 +65,16 @@ def _normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
-def _payload_uuid(payload: dict[str, Any], key: str) -> UUID | None:
-    value = payload.get(key)
-    if value is None:
-        return None
-    try:
-        return UUID(str(value))
-    except (TypeError, ValueError):
-        return None
+def _payload_uuid(payload: dict[str, Any], *keys: str) -> UUID | None:
+    for key in keys:
+        value = payload.get(key)
+        if value is None:
+            continue
+        try:
+            return UUID(str(value))
+        except (TypeError, ValueError):
+            return None
+    return None
 
 
 async def _authorize_driver_trip_create(
@@ -153,6 +156,36 @@ async def _authorize_driver_asset_create(
             status="failed",
             error_code="driver_vehicle_forbidden",
             message="Vehicle is not assigned to the authenticated driver.",
+        )
+    return None
+
+
+async def _authorize_driver_fuel_update(
+    db: AsyncSession,
+    principal: DriverPrincipal,
+    operation: SyncOperation,
+) -> dict | None:
+    if operation.operation != "update" or operation.entity_type != "fuel_log":
+        return None
+
+    server_id = _payload_uuid(_normalize_payload(operation.payload), "server_id", "id")
+    owned_record = (
+        await db.scalar(
+            select(FuelLog.id).where(
+                FuelLog.id == server_id,
+                FuelLog.tenant_id == principal.tenant_id,
+                FuelLog.driver_id == principal.driver_id,
+            )
+        )
+        if server_id is not None
+        else None
+    )
+    if owned_record is None:
+        return _result(
+            operation,
+            status="failed",
+            error_code="driver_record_forbidden",
+            message="Record does not belong to the authenticated driver.",
         )
     return None
 
@@ -463,6 +496,9 @@ async def _dispatch_failed_safe(
         if authorization_error is not None:
             return authorization_error
         authorization_error = await _authorize_driver_asset_create(db, principal, operation)
+        if authorization_error is not None:
+            return authorization_error
+        authorization_error = await _authorize_driver_fuel_update(db, principal, operation)
         if authorization_error is not None:
             return authorization_error
 

@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -483,3 +484,50 @@ async def test_driver_sync_accepts_own_assigned_vehicle(
     assert await db.scalar(
         select(func.count(FuelLog.id)).where(FuelLog.payment_reference == reference)
     ) == 1
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_cannot_update_another_drivers_fuel_log(
+    async_client, db, tenant_id, driver_app_context
+):
+    foreign_log = FuelLog(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        fuel_date=datetime.now(UTC),
+        liters=30,
+        total_cost=3000,
+        km_at_refuel=1300,
+        payment_reference=f"foreign-update-{uuid4()}",
+    )
+    db.add(foreign_log)
+    await db.commit()
+
+    response = await async_client.post(
+        "/api/v1/sync/batch",
+        headers=driver_app_context["headers"],
+        json={
+            "device_id": driver_app_context["device_id"],
+            "operations": [
+                {
+                    "local_id": "foreign-fuel-update",
+                    "idempotency_key": str(uuid4()),
+                    "operation": "update",
+                    "entity_type": "fuel_log",
+                    "payload": {
+                        "serverId": str(foreign_log.id),
+                        "liters": 99,
+                        "totalCost": 9900,
+                    },
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    result = response.json()["results"][0]
+    assert result["status"] == "failed"
+    assert result["error_code"] == "driver_record_forbidden"
+    await db.refresh(foreign_log)
+    assert float(foreign_log.liters) == 30
+    assert float(foreign_log.total_cost) == 3000

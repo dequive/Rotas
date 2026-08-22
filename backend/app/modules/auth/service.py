@@ -594,7 +594,7 @@ async def pair_driver_device(db: AsyncSession, payload: DriverPairRequest) -> di
             Driver.pairing_code_hash == hash_token(payload.pairing_code),
             Driver.pairing_code_expires_at > now,
             Driver.status == "active",
-        )
+        ).with_for_update()
     )
     if not driver:
         raise ApiError(

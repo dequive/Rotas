@@ -60,6 +60,14 @@ class Driver(Base):
 
 class DriverDevice(Base):
     __tablename__ = "driver_devices"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "driver_id",
+            "device_id",
+            name="uq_driver_devices_tenant_driver_device",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)

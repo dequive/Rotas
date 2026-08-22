@@ -3,13 +3,15 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from app.core.passwords import hash_password
 from app.core.totp import generate_totp_code
 from app.database import AsyncSessionLocal, engine, import_all_models
 from app.main import app
 from app.modules.auth import service as auth_service
-from app.modules.drivers.models import Driver
+from app.modules.drivers.models import Driver, DriverDevice, DriverSession
 from app.modules.tenants.models import Tenant
 from app.modules.users.models import User
 
@@ -284,6 +286,92 @@ async def test_driver_pairing_consumes_code_and_rotates_session() -> None:
         )
         assert refresh_response.status_code == 200
         assert refresh_response.json()["refresh_token"] != tokens["refresh_token"]
+
+
+@pytest.mark.asyncio
+async def test_driver_pairing_concurrency_accepts_exactly_one_device() -> None:
+    tenant, _other_tenant, user, driver = await create_entities()
+    async with await create_api_client() as client:
+        login_response = await client.post(
+            "/api/v1/auth/login",
+            json={"email": user.email, "password": "secure-password"},
+        )
+        code_response = await client.post(
+            f"/api/v1/drivers/{driver.id}/pairing-code",
+            headers={
+                "Authorization": f"Bearer {login_response.json()['access_token']}"
+            },
+        )
+        assert code_response.status_code == 200
+        pairing_code = code_response.json()["pairing_code"]
+
+        responses = await asyncio.gather(
+            client.post(
+                "/api/v1/driver-auth/pair",
+                json={
+                    "pairing_code": pairing_code,
+                    "device_id": "pair-race-device-a",
+                    "device_name": "Pair race A",
+                },
+            ),
+            client.post(
+                "/api/v1/driver-auth/pair",
+                json={
+                    "pairing_code": pairing_code,
+                    "device_id": "pair-race-device-b",
+                    "device_name": "Pair race B",
+                },
+            ),
+        )
+
+    assert sorted(response.status_code for response in responses) == [200, 401]
+    winner = next(response.json() for response in responses if response.status_code == 200)
+    loser = next(response.json() for response in responses if response.status_code == 401)
+    assert winner["access_token"]
+    assert winner["refresh_token"]
+    assert loser["error"]["code"] == "invalid_pairing_code"
+
+    async with AsyncSessionLocal() as db:
+        devices = (
+            await db.scalars(
+                select(DriverDevice).where(
+                    DriverDevice.tenant_id == tenant.id,
+                    DriverDevice.driver_id == driver.id,
+                )
+            )
+        ).all()
+        session_count = await db.scalar(
+            select(func.count(DriverSession.id)).where(
+                DriverSession.tenant_id == tenant.id,
+                DriverSession.driver_id == driver.id,
+            )
+        )
+    assert len(devices) == 1
+    assert devices[0].device_id in {"pair-race-device-a", "pair-race-device-b"}
+    assert session_count == 1
+
+
+@pytest.mark.asyncio
+async def test_driver_device_identity_is_unique_per_driver() -> None:
+    tenant, _other_tenant, _user, driver = await create_entities()
+    async with AsyncSessionLocal() as db:
+        db.add_all(
+            [
+                DriverDevice(
+                    tenant_id=tenant.id,
+                    driver_id=driver.id,
+                    device_id="duplicate-physical-device",
+                ),
+                DriverDevice(
+                    tenant_id=tenant.id,
+                    driver_id=driver.id,
+                    device_id="duplicate-physical-device",
+                ),
+            ]
+        )
+        with pytest.raises(IntegrityError):
+            await db.commit()
+        await db.rollback()
 
 
 @pytest.mark.asyncio

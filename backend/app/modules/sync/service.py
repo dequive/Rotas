@@ -27,6 +27,7 @@ from app.modules.sync.models import IdempotencyKey, SyncEvent
 from app.modules.sync.schemas import SyncBatchRequest, SyncOperation
 from app.modules.trips import schemas as trip_schemas
 from app.modules.trips import service as trip_service
+from app.modules.trips.models import Trip
 
 DRIVER_SYNC_POLICY: dict[str, frozenset[str]] = {
     "create": frozenset(
@@ -40,6 +41,10 @@ DRIVER_SYNC_POLICY: dict[str, frozenset[str]] = {
     ),
     "update": frozenset({"checklist", "fuel_log", "trip_stop", "delivery_proof"}),
 }
+ACTIVE_ASSIGNED_TRIP_STATUSES = frozenset(
+    {"planned", "dispatch_pending", "dispatched", "in_progress", "delayed", "incident"}
+)
+DRIVER_TRIP_BOUND_CREATE_TYPES = frozenset({"trip_stop", "delivery_proof", "trip_cost"})
 
 
 def _snake_case(value: str) -> str:
@@ -56,6 +61,56 @@ def _normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
         else:
             normalized[target_key] = value
     return normalized
+
+
+def _payload_uuid(payload: dict[str, Any], key: str) -> UUID | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    try:
+        return UUID(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+async def _authorize_driver_trip_create(
+    db: AsyncSession,
+    principal: DriverPrincipal,
+    operation: SyncOperation,
+) -> dict | None:
+    if (
+        operation.operation != "create"
+        or operation.entity_type not in DRIVER_TRIP_BOUND_CREATE_TYPES
+    ):
+        return None
+
+    trip_id = _payload_uuid(_normalize_payload(operation.payload), "trip_id")
+    trip_status = (
+        await db.scalar(
+            select(Trip.status).where(
+                Trip.id == trip_id,
+                Trip.tenant_id == principal.tenant_id,
+                Trip.driver_id == principal.driver_id,
+            )
+        )
+        if trip_id is not None
+        else None
+    )
+    if trip_status is None:
+        return _result(
+            operation,
+            status="failed",
+            error_code="driver_trip_forbidden",
+            message="Trip is not assigned to the authenticated driver.",
+        )
+    if trip_status not in ACTIVE_ASSIGNED_TRIP_STATUSES:
+        return _result(
+            operation,
+            status="failed",
+            error_code="driver_trip_not_active",
+            message="Driver operations require an active assigned trip.",
+        )
+    return None
 
 
 def _request_hash(operation: SyncOperation) -> str:
@@ -358,6 +413,11 @@ async def _dispatch_failed_safe(
             error_code="driver_operation_forbidden",
             message="This operation is managed by fleet dispatch.",
         )
+
+    if principal.scope == "driver_app":
+        authorization_error = await _authorize_driver_trip_create(db, principal, operation)
+        if authorization_error is not None:
+            return authorization_error
 
     savepoint = await db.begin_nested() if defer_commit else None
 

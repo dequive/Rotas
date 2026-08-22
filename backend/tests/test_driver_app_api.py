@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from app.core.tokens import create_access_token
 from app.modules.checklists.models import ChecklistTemplate
 from app.modules.drivers.models import Driver, DriverDevice
-from app.modules.trips.models import Trip
+from app.modules.trips.models import Trip, TripStop
 from app.modules.vehicles.models import Vehicle
 
 
@@ -255,3 +255,101 @@ async def test_driver_sync_bootstrap_only_advertises_driver_owned_operations(
         "delivery_proof",
         "trip_cost",
     }
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_cannot_write_to_another_drivers_trip(
+    async_client, db, tenant_id, driver_app_context
+):
+    other_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="in_progress",
+        billing_status="pending_delivery_proof",
+    )
+    db.add(other_trip)
+    await db.commit()
+
+    response = await async_client.post(
+        "/api/v1/sync/batch",
+        headers=driver_app_context["headers"],
+        json={
+            "device_id": driver_app_context["device_id"],
+            "operations": [
+                {
+                    "local_id": "foreign-stop",
+                    "idempotency_key": str(uuid4()),
+                    "operation": "create",
+                    "entity_type": "trip_stop",
+                    "payload": {
+                        "tripId": str(other_trip.id),
+                        "stopType": "rest",
+                        "address": "Matola",
+                    },
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    result = response.json()["results"][0]
+    assert result["status"] == "failed"
+    assert result["error_code"] == "driver_trip_forbidden"
+    assert (
+        await db.scalar(
+            select(func.count(TripStop.id)).where(TripStop.trip_id == other_trip.id)
+        )
+        == 0
+    )
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_cannot_add_operations_to_a_closed_trip(
+    async_client, db, tenant_id, driver_app_context
+):
+    closed_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="closed",
+        billing_status="pending_delivery_proof",
+    )
+    db.add(closed_trip)
+    await db.commit()
+
+    response = await async_client.post(
+        "/api/v1/sync/batch",
+        headers=driver_app_context["headers"],
+        json={
+            "device_id": driver_app_context["device_id"],
+            "operations": [
+                {
+                    "local_id": "closed-trip-stop",
+                    "idempotency_key": str(uuid4()),
+                    "operation": "create",
+                    "entity_type": "trip_stop",
+                    "payload": {
+                        "tripId": str(closed_trip.id),
+                        "stopType": "rest",
+                        "address": "Matola",
+                    },
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    result = response.json()["results"][0]
+    assert result["status"] == "failed"
+    assert result["error_code"] == "driver_trip_not_active"
+    assert (
+        await db.scalar(
+            select(func.count(TripStop.id)).where(TripStop.trip_id == closed_trip.id)
+        )
+        == 0
+    )

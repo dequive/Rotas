@@ -9,6 +9,7 @@ from app.modules.cargo.models import DeliveryProof
 from app.modules.checklists.models import Checklist, ChecklistTemplate
 from app.modules.drivers.models import Driver, DriverDevice
 from app.modules.fuel.models import FuelLog
+from app.modules.sync.models import SyncEvent
 from app.modules.trips.models import Trip, TripStop
 from app.modules.vehicles.models import Vehicle
 
@@ -628,3 +629,117 @@ async def test_driver_sync_cannot_update_another_drivers_operational_records(
     assert foreign_checklist.responses == {}
     assert foreign_stop.notes == "original stop"
     assert foreign_proof.notes == "original proof"
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_rejects_idempotent_replay_from_another_owner_or_device(
+    async_client, db, tenant_id, driver_app_context
+):
+    assigned_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="in_progress",
+        billing_status="pending_delivery_proof",
+    )
+    other_device_id = f"other-driver-device-{uuid4().hex[:8]}"
+    same_driver_device_id = f"same-driver-device-{uuid4().hex[:8]}"
+    db.add_all(
+        [
+            assigned_trip,
+            DriverDevice(
+                tenant_id=tenant_id,
+                driver_id=driver_app_context["other_driver"].id,
+                device_id=other_device_id,
+                device_name="Other Driver App",
+                is_active=True,
+            ),
+            DriverDevice(
+                tenant_id=tenant_id,
+                driver_id=driver_app_context["driver"].id,
+                device_id=same_driver_device_id,
+                device_name="Second Driver App",
+                is_active=True,
+            ),
+        ]
+    )
+    await db.commit()
+
+    other_token, _ = create_access_token(
+        tenant_id=tenant_id,
+        driver_id=driver_app_context["other_driver"].id,
+        device_id=other_device_id,
+        scope="driver_app",
+    )
+    same_driver_token, _ = create_access_token(
+        tenant_id=tenant_id,
+        driver_id=driver_app_context["driver"].id,
+        device_id=same_driver_device_id,
+        scope="driver_app",
+    )
+    key = str(uuid4())
+    operation = {
+        "local_id": "owned-stop-replay",
+        "idempotency_key": key,
+        "operation": "create",
+        "entity_type": "trip_stop",
+        "payload": {
+            "tripId": str(assigned_trip.id),
+            "stopType": "rest",
+            "address": "Matola",
+        },
+    }
+
+    first = await async_client.post(
+        "/api/v1/sync/batch",
+        headers=driver_app_context["headers"],
+        json={"device_id": driver_app_context["device_id"], "operations": [operation]},
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["results"][0]["status"] == "processed"
+
+    for token, device_id, operations in (
+        (other_token, other_device_id, [operation, operation]),
+        (same_driver_token, same_driver_device_id, [operation]),
+    ):
+        replay = await async_client.post(
+            "/api/v1/sync/batch",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "X-Tenant-Id": str(tenant_id),
+            },
+            json={"device_id": device_id, "operations": operations},
+        )
+        assert replay.status_code == 200, replay.text
+        for result in replay.json()["results"]:
+            assert result["status"] == "conflict"
+            assert result["error_code"] == "idempotency_owner_mismatch"
+            assert result["server_id"] is None
+
+    assert (
+        await db.scalar(
+            select(func.count(TripStop.id)).where(TripStop.trip_id == assigned_trip.id)
+        )
+        == 1
+    )
+    mismatch_events = (
+        await db.scalars(
+            select(SyncEvent).where(
+                SyncEvent.tenant_id == tenant_id,
+                SyncEvent.idempotency_key == key,
+                SyncEvent.error_code == "idempotency_owner_mismatch",
+            )
+        )
+    ).all()
+    assert len(mismatch_events) == 3
+    assert {event.driver_id for event in mismatch_events} == {
+        driver_app_context["driver"].id,
+        driver_app_context["other_driver"].id,
+    }
+    assert {event.device_id for event in mismatch_events} == {
+        other_device_id,
+        same_driver_device_id,
+    }
+    assert all(event.server_id is None for event in mismatch_events)

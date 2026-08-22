@@ -269,6 +269,18 @@ def _request_hash(operation: SyncOperation) -> str:
     return canonical_request_hash(raw)
 
 
+def _idempotency_owner_matches(
+    existing: IdempotencyKey,
+    principal: DriverPrincipal,
+    payload: SyncBatchRequest,
+) -> bool:
+    """Keep cached sync responses private to the driver/device that created them."""
+    return (
+        existing.driver_id == principal.driver_id
+        and existing.device_id == payload.device_id
+    )
+
+
 def _result(
     operation: SyncOperation,
     *,
@@ -639,6 +651,17 @@ async def _process_operation(
     else:
         existing = existing_by_key.get(operation.idempotency_key)
     if existing:
+        if not _idempotency_owner_matches(existing, principal, payload):
+            result = _result(
+                operation,
+                status="conflict",
+                error_code="idempotency_owner_mismatch",
+                message="Idempotency key belongs to another driver or device.",
+            )
+            await _record_event(db, principal, payload, operation, result)
+            if not defer_commit:
+                await db.commit()
+            return result
         if existing.request_hash != request_hash:
             result = _result(
                 operation,
@@ -647,6 +670,8 @@ async def _process_operation(
                 message="Idempotency key was reused with a different payload.",
             )
             await _record_event(db, principal, payload, operation, result)
+            if not defer_commit:
+                await db.commit()
             return result
         cached = existing.response_body or {}
         return {
@@ -693,17 +718,30 @@ async def _process_operation(
                 IdempotencyKey.idempotency_key == operation.idempotency_key,
             )
         )
+        if existing and not _idempotency_owner_matches(existing, principal, payload):
+            result = _result(
+                operation,
+                status="conflict",
+                error_code="idempotency_owner_mismatch",
+                message="Idempotency key belongs to another driver or device.",
+            )
+            await _record_event(db, principal, payload, operation, result)
+            await db.commit()
+            return result
         if existing and existing.request_hash == request_hash:
             return {
                 **(existing.response_body or {}),
                 "message": "idempotent_replay",
             }
-        return _result(
+        result = _result(
             operation,
             status="conflict",
             error_code="idempotency_race_conflict",
             message="Idempotency key conflict detected during concurrent sync.",
         )
+        await _record_event(db, principal, payload, operation, result)
+        await db.commit()
+        return result
 
     return result
 

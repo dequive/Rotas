@@ -680,9 +680,18 @@ async def _process_operation(
         }
 
     with measure_request_phase("sync_dispatch"):
-        result = await _dispatch_failed_safe(
-            db, principal, operation, defer_commit=defer_commit
-        )
+        if defer_commit:
+            result = await _dispatch_failed_safe(
+                db, principal, operation, defer_commit=True
+            )
+        else:
+            # Domain services still call commit internally. Keep the domain
+            # effect, idempotency row and sync event in one transaction so a
+            # losing concurrent consumer can roll back every local effect.
+            with defer_session_commits(db):
+                result = await _dispatch_failed_safe(
+                    db, principal, operation, defer_commit=False
+                )
     response_body = jsonable_encoder(result)
     idempotency = IdempotencyKey(
         tenant_id=principal.tenant_id,

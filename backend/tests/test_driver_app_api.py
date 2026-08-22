@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -9,7 +10,7 @@ from app.modules.cargo.models import DeliveryProof
 from app.modules.checklists.models import Checklist, ChecklistTemplate
 from app.modules.drivers.models import Driver, DriverDevice
 from app.modules.fuel.models import FuelLog
-from app.modules.sync.models import SyncEvent
+from app.modules.sync.models import IdempotencyKey, SyncEvent
 from app.modules.trips.models import Trip, TripStop
 from app.modules.vehicles.models import Vehicle
 
@@ -743,3 +744,91 @@ async def test_driver_sync_rejects_idempotent_replay_from_another_owner_or_devic
         same_driver_device_id,
     }
     assert all(event.server_id is None for event in mismatch_events)
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_concurrent_key_consumption_accepts_exactly_one_device(
+    async_client, db, tenant_id, driver_app_context
+):
+    assigned_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Marracuene",
+        status="in_progress",
+        billing_status="pending_delivery_proof",
+    )
+    second_device_id = f"racing-device-{uuid4().hex[:8]}"
+    db.add_all(
+        [
+            assigned_trip,
+            DriverDevice(
+                tenant_id=tenant_id,
+                driver_id=driver_app_context["driver"].id,
+                device_id=second_device_id,
+                device_name="Racing Driver App",
+                is_active=True,
+            ),
+        ]
+    )
+    await db.commit()
+
+    second_token, _ = create_access_token(
+        tenant_id=tenant_id,
+        driver_id=driver_app_context["driver"].id,
+        device_id=second_device_id,
+        scope="driver_app",
+    )
+    key = str(uuid4())
+    operation = {
+        "local_id": "concurrent-owned-stop",
+        "idempotency_key": key,
+        "operation": "create",
+        "entity_type": "trip_stop",
+        "payload": {
+            "tripId": str(assigned_trip.id),
+            "stopType": "rest",
+            "address": "Marracuene",
+        },
+    }
+
+    async def post(token: str, device_id: str):
+        return await async_client.post(
+            "/api/v1/sync/batch",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "X-Tenant-Id": str(tenant_id),
+            },
+            json={"device_id": device_id, "operations": [operation]},
+        )
+
+    responses = await asyncio.gather(
+        post(
+            driver_app_context["headers"]["Authorization"].removeprefix("Bearer "),
+            driver_app_context["device_id"],
+        ),
+        post(second_token, second_device_id),
+    )
+    assert all(response.status_code == 200 for response in responses)
+    results = [response.json()["results"][0] for response in responses]
+    assert sorted(result["status"] for result in results) == ["conflict", "processed"]
+    conflict = next(result for result in results if result["status"] == "conflict")
+    assert conflict["error_code"] == "idempotency_owner_mismatch"
+    assert conflict["server_id"] is None
+
+    assert (
+        await db.scalar(
+            select(func.count(TripStop.id)).where(TripStop.trip_id == assigned_trip.id)
+        )
+        == 1
+    )
+    stored = await db.scalar(
+        select(IdempotencyKey).where(
+            IdempotencyKey.tenant_id == tenant_id,
+            IdempotencyKey.idempotency_key == key,
+        )
+    )
+    assert stored is not None
+    assert stored.driver_id == driver_app_context["driver"].id
+    assert stored.device_id in {driver_app_context["device_id"], second_device_id}

@@ -42,14 +42,17 @@ certificação remota.
 
 ## 3. Bloqueios confirmados
 
-### P0-DRV-01 — Driver cria e atribui a si próprio viagens
+### P0-DRV-01 — Driver criava e atribuía a si próprio viagens
 
-`POST /api/v1/driver/trips` permanece público para o Driver, a PWA mostra
-“Nova viagem” e o teste atual exige `201`. O bootstrap também expõe frota ativa
-do tenant sem limitar às atribuições do motorista.
+No SHA `77385bb`, o backend passou a rejeitar com `403` tanto
+`POST /api/v1/driver/trips` como `GET /api/v1/driver/vehicles`; o bootstrap já
+não expõe frota geral e o teste prova que nenhuma viagem é persistida. A PWA
+antiga ainda contém a jornada “Nova viagem” e será substituída em C2.
 
 Critério de fecho: Driver recebe apenas viagens atribuídas e tentativas de
 criar/atribuir viagem ou listar frota geral devolvem `403` sem efeito persistido.
+
+Estado: **backend fechado localmente; jornada completa ainda aberta em C2**.
 
 ### P0-DRV-02 — Linha Android aprovada não convergiu
 
@@ -144,6 +147,11 @@ equivale a merge, CI remoto ou fecho da Issue #42.
 - allowlist e ownership em todas as mutações offline;
 - isolar idempotência/cache por tenant, motorista, dispositivo e sessão;
 - serializar consumo do pairing.
+
+Estado em 2026-08-22: **em progresso**. O slice `77385bb` fechou localmente
+criação/atribuição de viagem e listagem de frota pelo Driver, com RED/GREEN,
+Ruff, 29 testes RBAC/OpenAPI e evidência backend combinada de 938 passados/1
+skip. Ownership Sync, idempotência por owner/device e pairing continuam P0.
 
 ### C2 — Jornadas Driver
 

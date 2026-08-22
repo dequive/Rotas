@@ -1,6 +1,6 @@
 # ROTAS Production Release Ledger
 
-Versao: 0.6
+Versao: 0.7
 Aberto em: 2026-07-22
 Release candidate: por definir
 SHA de baseline auditada: `c912cb1c9e098b8cd4899c138232af7a02432c54`
@@ -27,8 +27,8 @@ Este ledger e a evidencia operacional da seccao 15 do
 | --- | --- | --- | --- | --- | --- | --- |
 | G0 Source and Build Integrity | red | C0 `f0edfdd`; C1-I0 `3acabde` | C0 possui fonte única e matriz de 29 PRs. Pytest agora falha fechado sem `TEST_DATABASE_URL` e possui runner descartável local, mas a regressão integral isolada não foi repetida. Pyright tem 4 erros, build Manager inconclusivo, Actions mutáveis e CI sem execução útil | TL + QA | 2026-08-22 | nenhuma |
 | G1 Data Integrity | red | ADR-010 / `0b7a36c` + `3acabde` | Base efémera de `template0` migrou até `rec13`, executou 8 testes e foi eliminada; catálogo posterior mostrou zero `rotas_test_*`. A base operacional `rotas` ficou intocada. Snapshot real, rollback, RLS com role restrita, regressão integral e revisão/CI continuam pendentes | BE + SRE + SEC | 2026-08-22 | nenhuma |
-| G2 Contract and Security Boundary | red | C1 até `5c7588e` | Driver recebe `403` ao criar viagens/listar frota; Sync valida dispositivo, bloqueia despacho e protege create/update por viagem, viatura e owner. Partição Driver isolada 16/16, Ruff e Pyright focados verdes. Faltam idempotência por owner/device, seis schemas públicos e pairing serializado | TL + FE-D + BE + SEC | 2026-08-22 | nenhuma |
-| G3 Reliability and Offline | red | `c912cb1`; linha Android `50955e1` não integrada | Driver aprovado em Android, journeys atribuídas, documentos e proteções de idempotência existem noutra linha Git. A branch atual regressou à PWA antiga e não tem prova cross-driver/device | BE + FE-D + SRE | 2026-08-22 | nenhuma |
+| G2 Contract and Security Boundary | red | C1 até `e1d69c4` | Driver recebe `403` ao criar viagens/listar frota; Sync valida dispositivo, bloqueia despacho e protege create/update por viagem, viatura e owner. Replay/cache valida owner/device antes de devolver dados; corrida entre dispositivos aceita um efeito transacional. Partição Driver/Sync isolada 57/57, Ruff e Pyright focados verdes. Faltam seis schemas públicos e pairing serializado | TL + FE-D + BE + SEC | 2026-08-23 | nenhuma |
+| G3 Reliability and Offline | red | C1 `e1d69c4`; linha Android `50955e1` não integrada | A branch atual já prova replay e corrida cross-driver/device com um único efeito, mas continua na PWA antiga e não integra a jornada Android aprovada. Pairing concorrente, recovery real, staging multi-instância e dispositivo no mesmo SHA continuam pendentes | BE + FE-D + SRE | 2026-08-23 | nenhuma |
 | G4 Production Operations | red | sem RC | Sem registry/deploy imutável, runner externo, observabilidade real, PITR/DR, staging/soak, auditoria assistiva ou pentest no mesmo SHA | SEC + SRE + QA | 2026-08-22 | nenhuma |
 | G5 Pilot Evidence | red | sem RC | Piloto e soak não executados no SHA integrado; evidência Android de outra branch não promove este gate | PO + QA + SRE | 2026-08-22 | nenhuma |
 
@@ -78,6 +78,7 @@ Este ledger e a evidencia operacional da seccao 15 do
 | 2026-08-22 | G3 | `c912cb1` | correccao | Uma operacao invalida deixava de derrubar o lote de sincronizacao inteiro. Falha passa a ser por operacao, com codigo estavel e mensagem accionavel em portugues na PWA |
 | 2026-08-22 | G3 | `c912cb1` | parcial local | Matriz cobre replay/conflito funcional, mas não owner mismatch cross-driver/cross-device; G3 permanece vermelho |
 | 2026-08-22 | PR-44 | `c912cb1` | **exceção revogada** | Auditoria vinculativa encontrou P0 de autorização/ownership. Merge não autorizado; ver revogação abaixo |
+| 2026-08-23 | G2/G3 | `9698314` + `e1d69c4` | green local focado | Replay cross-driver/cross-device falha com `idempotency_owner_mismatch` antes de devolver cache e deixa auditoria sem `server_id`; corrida real entre dois dispositivos aceita uma resposta processada, um conflito e um único efeito físico. Runner descartável: Driver/Sync 57/57; Ruff e Pyright focados verdes. Pairing, OpenAPI, regressão integral, CI e RC permanecem pendentes |
 | 2026-07-22 | baseline | `1111b2b` | NO-GO | Auditoria de arquitectura e prontidao |
 | 2026-07-22 | G0 | `1111b2b` | parcial | Backend importou 371 rotas; 520 testes colectados |
 | 2026-07-22 | G0 | `1111b2b` | parcial | Manager e Driver typecheck/build verdes |

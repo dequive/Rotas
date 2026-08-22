@@ -85,6 +85,13 @@ A chave é única apenas por `(tenant_id, idempotency_key)`. O replay não compa
 Critério de fecho: owner mismatch falha fechado; concorrência e replay
 cross-driver/cross-device possuem testes negativos.
 
+Estado em 2026-08-23: **fechado localmente** por `9698314` e `e1d69c4`. O
+replay valida motorista e dispositivo antes de comparar hash ou devolver cache;
+tentativas divergentes são auditadas sem expor `server_id`. A corrida entre dois
+dispositivos consolida efeito, chave e evento numa única transação e aceita
+exatamente um efeito físico. A partição Driver/Sync isolada passou `57/57`;
+Ruff e Pyright focados ficaram verdes.
+
 ### P0-TEST-DB-01 — Pytest escreve na base operacional configurada
 
 `backend/tests/conftest.py` usa `AsyncSessionLocal`/`DATABASE_URL` sem rollback
@@ -178,8 +185,10 @@ ownership de criação por viagem/viatura e update de combustível. `0b7a36c` e
 fail-closed. Há RED/GREEN e Ruff anteriores, mas as partições Sync/Driver e o
 baseline combinado de 938 passados/1 skip antecedem o isolamento e são apenas
 históricos. `5c7588e` repetiu a partição Driver isolada em `16/16` e fechou os
-updates operacionais residuais. Idempotência por owner/device, pairing e a
-regressão isolada mais ampla continuam P0.
+updates operacionais residuais. `9698314` e `e1d69c4` fecharam localmente replay
+e corrida idempotente por owner/device; a partição isolada Driver/Sync passou
+`57/57`. Pairing concorrente continua P0 e a regressão backend integral isolada
+continua pendente.
 
 ### C2 — Jornadas Driver
 

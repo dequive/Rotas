@@ -1,7 +1,7 @@
 # ROTAS — Instruções Canónicas para Agentes
 
 - Estado: vinculativo
-- Atualizado em: 2026-08-22
+- Atualizado em: 2026-08-23
 - Decisão de release: `NO-GO`
 
 Este ficheiro é o ponto de entrada obrigatório para qualquer agente humano ou
@@ -136,15 +136,18 @@ falha sem `TEST_DATABASE_URL`; nenhum agente pode contornar o gate, reutilizar
 O runner atual é deliberadamente serial e rejeita `xdist -n`. Paralelismo só
 pode ser ativado depois de existir uma base efémera independente por worker.
 
-O próximo incremento deve produzir testes negativos com token Driver real que
-provem:
+Os incrementos C1 até `e1d69c4` já produziram testes negativos com token Driver
+real que provam:
 
 - criar viagem, listar frota geral e emitir documentos retorna `403`;
 - dispositivo divergente é rejeitado;
 - viagem/viatura/documento de outro motorista do mesmo tenant é rejeitado;
-- replay entre motoristas/dispositivos é rejeitado;
-- pairing concorrente aceita exatamente um consumidor;
-- endpoints Driver/Sync têm schemas OpenAPI não vazios.
+- replay entre motoristas/dispositivos é rejeitado, incluindo corrida entre
+  dois dispositivos com exatamente um efeito físico.
 
-Sem estas provas e sem repetir as partições relevantes pelo runner isolado, o
-estado permanece `NO-GO`.
+O próximo incremento obrigatório é serializar o consumo do pairing e provar
+que duas requisições concorrentes aceitam exatamente um consumidor. Só depois
+se fecham os schemas OpenAPI não vazios dos endpoints Driver/Sync.
+
+Sem essas provas restantes e sem repetir as partições relevantes pelo runner
+isolado, o estado permanece `NO-GO`.

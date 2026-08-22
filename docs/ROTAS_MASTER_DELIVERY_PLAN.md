@@ -2843,3 +2843,27 @@ O ownership residual de entidades permitidas pelo Sync fica **fechado
 localmente**. Permanecem P0 em C1 a idempotência por
 tenant/motorista/dispositivo e o consumo concorrente do pairing. O estado global
 continua **NO-GO**.
+
+### 16.14 C1 — Idempotência por motorista/dispositivo — 2026-08-23
+
+- o RED com JWT Driver real demonstrou que outro motorista ou dispositivo do
+  mesmo tenant recebia a resposta `processed` e o `server_id` cacheado;
+- `9698314` passou a validar `driver_id` e `device_id` antes do hash e antes de
+  qualquer retorno de cache, tanto no replay normal como na recuperação de
+  colisão de unicidade;
+- owner mismatch devolve `idempotency_owner_mismatch`, sem `server_id`, e grava
+  um `SyncEvent` associado ao principal/dispositivo que tentou o replay;
+- um segundo RED concorrente demonstrou uma falha mais profunda: duas chamadas
+  simultâneas davam uma resposta processada e uma em conflito, mas persistiam
+  duas paragens porque o domínio fazia commit antes da chave;
+- `e1d69c4` passou a consolidar efeito de domínio, chave idempotente e evento na
+  mesma transação. A corrida entre dois dispositivos aceita exatamente um
+  consumidor e deixa um único efeito físico;
+- o runner descartável migrou até `rec13`; a partição Driver/Sync passou
+  `57/57`. Ruff e Pyright focados passaram sem diagnósticos.
+
+P0-SYNC-02 fica **fechado localmente**. C1 ainda não fecha: o próximo gate é o
+consumo concorrente do pairing com exatamente um vencedor; depois seguem os
+schemas OpenAPI Driver/Sync. Regressão backend integral isolada, CI, staging,
+Android no mesmo SHA e release candidate permanecem pendentes. Veredito global:
+**NO-GO**.

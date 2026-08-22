@@ -26,6 +26,7 @@ from app.database import import_all_models
 from app.modules.billing import service as billing_service
 from app.modules.billing.models import BillingDocument, BillingItem, ClientPayment
 from app.modules.billing.schemas import IssueBillingDocumentRequest
+from app.modules.cargo.models import DeliveryProof
 from app.modules.clients.models import Client
 from app.modules.contracts.models import Contract
 from app.modules.drivers.models import Driver, DriverAdvance
@@ -237,8 +238,53 @@ async def build_financial_context(db, owner_tenant_id: UUID) -> dict:
     await billing_service.issue_document(db, owner_tenant_id, document.id, IssueBillingDocumentRequest())
     await db.commit()
 
+    # A second draft invoice, kept unissued so `issue` has something to act on.
+    draft = BillingDocument(
+        tenant_id=owner_tenant_id,
+        contract_id=contract.id,
+        client_name=contract.client_name,
+        billing_period_start=now - timedelta(days=60),
+        billing_period_end=now - timedelta(days=31),
+        status="draft",
+        currency="MZN",
+        client_nuit="400123456",
+    )
+    db.add(draft)
+    await db.flush()
+    db.add(
+        BillingItem(
+            tenant_id=owner_tenant_id,
+            contract_id=contract.id,
+            billing_document_id=draft.id,
+            trip_id=billed_trip.id,
+            origin="Maputo",
+            destination="Nampula",
+            amount=Decimal("500.00"),
+            iva_rate=Decimal("0.1700"),
+            iva_amount=Decimal("85.00"),
+            delivered_at=now,
+            status="pending",
+        )
+    )
+
+    proof = DeliveryProof(
+        tenant_id=owner_tenant_id,
+        trip_id=trip.id,
+        proof_type="client_discharge_note",
+        client_type="company",
+        receiver_name="Armazem Beira",
+        delivered_at=now,
+        cargo_condition="intact",
+        quantity_delivered=Decimal("400.00"),
+        status="pending_validation",
+    )
+    db.add(proof)
+    await db.commit()
+
     return {
         "suffix": suffix,
+        "draft_document_id": draft.id,
+        "delivery_proof_id": proof.id,
         "client_id": client.id,
         "contract_id": contract.id,
         "driver_id": driver.id,
@@ -372,3 +418,66 @@ async def test_key_turns_domain_conflict_into_replay(
 
     without_key = await async_client.post(path, json=body, headers=auth_headers)
     assert without_key.status_code == 409, f"{case.name}: sem chave esperava-se o guarda de dominio"
+
+
+# ── Transitions ───────────────────────────────────────────────────────────────
+# Issuing an invoice and validating a delivery proof create no row: they change
+# the state of one. Counting rows would prove nothing here, so these assert the
+# state directly and stay out of the matrix above — folding them in would have
+# weakened its row assertion for every case that really is a create.
+
+
+async def _status_of(db, model: Any, entity_id: UUID) -> str | None:
+    return await db.scalar(select(model.status).where(model.id == entity_id))
+
+
+async def test_replaying_an_issue_does_not_number_the_invoice_twice(
+    async_client, auth_headers, db, tenant_id, financial_context
+) -> None:
+    """A second issue would take a second number in the AT sequential series."""
+    document_id = financial_context["draft_document_id"]
+    path = f"/api/v1/billing/documents/{document_id}/issue"
+    headers = {**auth_headers, "Idempotency-Key": f"issue:{uuid4().hex}"}
+
+    assert await _status_of(db, BillingDocument, document_id) == "draft"
+
+    first = await async_client.post(path, json={}, headers=headers)
+    assert first.status_code in (200, 201), first.text
+    issued_number = first.json().get("invoice_number")
+    assert issued_number, "a emissao nao atribuiu numero de factura"
+
+    replay = await async_client.post(path, json={}, headers=headers)
+    assert replay.status_code in (200, 201), replay.text
+    assert replay.json().get("invoice_number") == issued_number, (
+        "a repeticao atribuiu um segundo numero a mesma factura"
+    )
+
+    documents_with_that_number = await db.scalar(
+        select(func.count(BillingDocument.id)).where(
+            BillingDocument.tenant_id == tenant_id,
+            BillingDocument.invoice_number == issued_number,
+        )
+    )
+    assert documents_with_that_number == 1, "existe mais do que um documento com o mesmo numero de factura"
+
+
+async def test_replaying_a_delivery_validation_keeps_one_validation(
+    async_client, auth_headers, db, tenant_id, financial_context
+) -> None:
+    proof_id = financial_context["delivery_proof_id"]
+    path = f"/api/v1/trips/{financial_context['trip_id']}/delivery-proof/{proof_id}/validate"
+    headers = {**auth_headers, "Idempotency-Key": f"validate:{uuid4().hex}"}
+
+    first = await async_client.post(path, json={"validation_method": "manual_review"}, headers=headers)
+    assert first.status_code in (200, 201), first.text
+
+    db.expire_all()
+    state_after_first = await _status_of(db, DeliveryProof, proof_id)
+
+    replay = await async_client.post(path, json={"validation_method": "manual_review"}, headers=headers)
+    assert replay.status_code in (200, 201), replay.text
+
+    db.expire_all()
+    assert await _status_of(db, DeliveryProof, proof_id) == state_after_first, (
+        "a repeticao alterou o estado da prova de entrega"
+    )

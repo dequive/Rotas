@@ -1,15 +1,13 @@
 import {
   Camera,
   CheckCircle2,
-  FileText,
   LogOut,
   MapPin,
   ReceiptText,
   RefreshCw,
   Save,
-  Truck,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   getAuth,
   bootstrap,
@@ -30,9 +28,6 @@ import {
 } from "./db";
 import { processSyncQueue } from "./sync";
 import { PairingView } from "./views/PairingView";
-import { TripStartView } from "./views/TripStartView";
-import { LoadPermitView } from "./views/LoadPermitView";
-import { CargoManifestView } from "./views/CargoManifestView";
 import { TripStopView } from "./views/TripStopView";
 import { DeliveryProofView } from "./views/DeliveryProofView";
 import { useNetworkStatus } from "./hooks/useNetworkStatus";
@@ -45,11 +40,8 @@ type View =
   | "dashboard"
   | "checklist"
   | "fuel"
-  | "load_permit"
-  | "cargo_manifest"
   | "trip_stop"
-  | "delivery_proof"
-  | "new_trip";
+  | "delivery_proof";
 
 type ChecklistResponseState = Record<string, { value: boolean; photo?: File }>;
 
@@ -209,7 +201,7 @@ export function App() {
       return;
     }
     if (!activeTrip) {
-      setLastMessage("Não há viagem activa. Crie uma viagem primeiro.");
+      setLastMessage("Não há viagem atribuída. Contacte o gestor de frota.");
       return;
     }
 
@@ -370,16 +362,16 @@ export function App() {
             <p>Viagem activa</p>
             <strong>{activeTrip.origin} → {activeTrip.destination}</strong>
           </div>
-          <span className={`status-badge ${activeTrip.billing_status}`}>
+          <span className={`status-badge ${activeTrip.status}`}>
             {activeTrip.load_state ?? activeTrip.status}
           </span>
         </section>
       ) : (
         <section className="status-card status-card--empty">
-          <p>Sem viagem activa</p>
-          <button className="small-btn" onClick={() => setView("new_trip")}>
-            <Truck size={14} /> Nova viagem
-          </button>
+          <div>
+            <p>Sem viagem atribuída</p>
+            <strong>As novas viagens são atribuídas pelo gestor de frota.</strong>
+          </div>
         </section>
       )}
 
@@ -393,14 +385,6 @@ export function App() {
             <ReceiptText />
             Combustível
           </button>
-          <button type="button" onClick={() => setView("load_permit")} disabled={!activeTrip}>
-            <FileText />
-            Load Permit
-          </button>
-          <button type="button" onClick={() => setView("cargo_manifest")} disabled={!activeTrip}>
-            <Truck />
-            Manifesto
-          </button>
           <button type="button" onClick={() => setView("delivery_proof")} disabled={!activeTrip}>
             <Camera />
             Descarga
@@ -410,16 +394,6 @@ export function App() {
             Paragem
           </button>
         </section>
-      )}
-
-      {view === "new_trip" && (
-        <TripStartView
-          onTripCreated={(trip) => {
-            setActiveTrip(trip);
-            setView("dashboard");
-            setLastMessage(`Viagem ${trip.origin} → ${trip.destination} criada.`);
-          }}
-        />
       )}
 
       {view === "checklist" && checklistTemplate && (
@@ -442,20 +416,6 @@ export function App() {
         />
       )}
 
-      {view === "load_permit" && (
-        <LoadPermitView
-          tripLocalId={tripId}
-          onSaved={() => { void refreshPendingCount(); setLastMessage("Load Permit guardado."); setView("dashboard"); }}
-        />
-      )}
-
-      {view === "cargo_manifest" && (
-        <CargoManifestView
-          tripLocalId={tripId}
-          onSaved={() => { void refreshPendingCount(); setLastMessage("Manifesto guardado."); setView("dashboard"); }}
-        />
-      )}
-
       {view === "trip_stop" && (
         <TripStopView
           tripLocalId={tripId}
@@ -469,8 +429,6 @@ export function App() {
           onSaved={() => { void refreshPendingCount(); setLastMessage("Prova de entrega guardada."); setView("dashboard"); }}
         />
       )}
-
-      {view === "dashboard" && <BillingPanel trip={activeTrip} />}
 
       {view === "dashboard" && syncStatus.errorCount > 0 && (
         <SyncIssuesPanel onChanged={() => void refreshPendingCount()} />
@@ -586,35 +544,6 @@ function FuelPanel({
         <button className="primary-action" type="submit"><Save size={18} /> Guardar</button>
       </form>
       <p className={statusClassName(latestStatus)}>{latestStatus}</p>
-    </section>
-  );
-}
-
-// ── BillingPanel ────────────────────────────────────────────────
-
-function BillingPanel({ trip }: { trip: ActiveTrip | null }) {
-  if (!trip) return null;
-  const steps = ["Carga", "Viagem", "Descarga", "Cobrança"];
-  const doneIndex =
-    trip.billing_status === "billed" ? 4 :
-    trip.billing_status === "billable" ? 3 :
-    trip.billing_status === "pending_delivery_validation" ? 2 :
-    trip.billing_status === "pending_delivery_proof" ? 1 : 0;
-
-  return (
-    <section className="panel">
-      <h2>Estado de cobrança</h2>
-      <div className="progress">
-        {steps.map((step, i) => (
-          <span key={step} className={i < doneIndex ? "done" : ""}>{step}</span>
-        ))}
-      </div>
-      <p className="billing-status-text">{
-        trip.billing_status === "pending_delivery_proof" ? "Pendente: falta prova de descarga" :
-        trip.billing_status === "pending_delivery_validation" ? "A aguardar validação da descarga" :
-        trip.billing_status === "billable" ? "Pronto para cobrança" :
-        trip.billing_status === "billed" ? "Cobrado" : trip.billing_status
-      }</p>
     </section>
   );
 }

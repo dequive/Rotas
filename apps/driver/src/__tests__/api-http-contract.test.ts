@@ -1,7 +1,7 @@
 import { HttpContractError } from "@rotas/http-contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createTrip, getVehicles } from "../api";
+import { bootstrap } from "../api";
 
 beforeEach(() => {
   localStorage.clear();
@@ -17,55 +17,42 @@ afterEach(() => {
 });
 
 describe("Driver HTTP contract", () => {
-  it("repete uma mutação transitória com a mesma chave de idempotência", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(null, { status: 503 }))
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            id: "trip-1",
-            origin: "Maputo",
-            destination: "Beira",
-            status: "draft",
-            billing_status: "not_billed",
-            load_state: null,
-            vehicle_id: "vehicle-1",
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          },
-        ),
-      );
+  it("carrega apenas o bootstrap atribuído com a identidade autenticada", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({
+        profile: {
+          tenant_id: "tenant-1",
+          driver_id: "driver-1",
+          device_id: "device-1",
+        },
+        checklistTemplates: [],
+        activeTrip: null,
+        vehicles: [],
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
-    const trip = await createTrip({
-      vehicle_id: "vehicle-1",
-      driver_id: "driver-1",
-      origin: "Maputo",
-      destination: "Beira",
-    });
+    const data = await bootstrap();
 
-    expect(trip.id).toBe("trip-1");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const keys = fetchMock.mock.calls.map(([_, init]) =>
-      new Headers(init?.headers).get("Idempotency-Key"),
-    );
-    expect(keys[0]).toBeTruthy();
-    expect(keys[1]).toBe(keys[0]);
+    expect(data.activeTrip).toBeNull();
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/api/v1/driver/bootstrap");
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer access-token");
+    expect(headers.get("X-Tenant-Id")).toBe("tenant-1");
+    expect(headers.has("Idempotency-Key")).toBe(false);
   });
 
-  it("expõe o envelope de erro como HttpContractError tipado", async () => {
+  it("expõe o envelope de erro do bootstrap como HttpContractError tipado", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn<typeof fetch>().mockResolvedValue(
         new Response(
           JSON.stringify({
             error: {
-              code: "tenant_scope_invalid",
-              message: "Tenant inválido.",
-              details: { tenant_id: "tenant-1" },
+              code: "driver_access_revoked",
+              message: "Acesso revogado.",
+              details: {},
             },
           }),
           {
@@ -76,13 +63,13 @@ describe("Driver HTTP contract", () => {
       ),
     );
 
-    await expect(getVehicles()).rejects.toEqual(
+    await expect(bootstrap()).rejects.toEqual(
       expect.objectContaining<HttpContractError>({
         name: "HttpContractError",
         status: 403,
-        code: "tenant_scope_invalid",
-        message: "Tenant inválido.",
-        details: { tenant_id: "tenant-1" },
+        code: "driver_access_revoked",
+        message: "Acesso revogado.",
+        details: {},
         retryable: false,
       }),
     );

@@ -203,7 +203,6 @@ export interface ActiveTrip {
   origin: string;
   destination: string;
   status: string;
-  billing_status: string;
   load_state: string | null;
   vehicle_id: string;
   vehicle_plate?: string | null;
@@ -217,7 +216,8 @@ export interface BootstrapData {
   };
   checklistTemplates: ChecklistTemplate[];
   activeTrip: ActiveTrip | null;
-  vehicles: Vehicle[];
+  /** Transitional backend field. Driver clients never receive a fleet selector. */
+  vehicles: [];
 }
 
 export async function bootstrap(): Promise<BootstrapData> {
@@ -225,28 +225,4 @@ export async function bootstrap(): Promise<BootstrapData> {
   if (!auth) throw new Error("Não autenticado");
 
   return request<BootstrapData>("/api/v1/driver/bootstrap");
-}
-
-export interface Vehicle {
-  id: string;
-  plate: string;
-  brand: string;
-  model: string;
-  current_km: number;
-  status: string;
-}
-
-export async function getVehicles(): Promise<Vehicle[]> {
-  return request<Vehicle[]>("/api/v1/driver/vehicles?limit=50");
-}
-
-export async function createTrip(payload: {
-  vehicle_id: string;
-  driver_id: string;
-  origin: string;
-  destination: string;
-  cargo_type?: string;
-  load_state?: string;
-}): Promise<ActiveTrip> {
-  return request<ActiveTrip>("/api/v1/driver/trips", { method: "POST", body: JSON.stringify(payload) });
 }

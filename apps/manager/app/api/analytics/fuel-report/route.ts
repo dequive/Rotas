@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -14,7 +15,7 @@ async function getAuthHeaders() {
 
 export async function GET(request: NextRequest) {
   const month = request.nextUrl.searchParams.get("month") ?? "";
-  const res = await fetch(
+  const res = await upstreamFetch(
     `${API_BASE}/api/v1/analytics/fuel-report?month=${encodeURIComponent(month)}`,
     {
       method: "GET",

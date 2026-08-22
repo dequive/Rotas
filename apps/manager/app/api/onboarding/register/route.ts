@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -26,7 +27,7 @@ function errorMessage(body: unknown): string {
 
 export async function POST(req: NextRequest) {
   const payload = await req.json();
-  const upstream = await fetch(`${API_BASE}/api/v1/onboarding/register`, {
+  const upstream = await upstreamFetch(`${API_BASE}/api/v1/onboarding/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -59,6 +60,6 @@ export async function POST(req: NextRequest) {
     tenant: data.tenant,
     verificationUrl: data.verification_token
       ? `/verify-email?token=${data.verification_token}`
-      : data.verification_url,
+      : undefined,
   });
 }

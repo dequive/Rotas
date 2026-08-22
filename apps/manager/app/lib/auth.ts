@@ -2,8 +2,12 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { refreshTokenPair } from "./auth-refresh";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE =
+  process.env.ROTAS_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://127.0.0.1:8000";
 
 export interface AuthSession {
   accessToken: string;
@@ -84,23 +88,12 @@ export async function refreshAccessToken(): Promise<string | null> {
     const refreshToken = jar.get("rotas_refresh_token")?.value;
     if (!refreshToken) return null;
 
-    const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      // Refresh failed — clear the stale refresh_token to prevent infinite retry
+    const data = await refreshTokenPair(refreshToken);
+    if (!data) {
+      // Refresh failed — clear the stale refresh_token to prevent infinite retry.
       jar.delete("rotas_refresh_token");
       return null;
     }
-
-    const data = (await res.json()) as {
-      access_token: string;
-      refresh_token: string;
-    };
 
     const isProduction = process.env.NODE_ENV === "production";
     const opts = {
@@ -111,11 +104,11 @@ export async function refreshAccessToken(): Promise<string | null> {
     };
 
     // Update access_token cookie (keep 8h session window)
-    jar.set("rotas_access_token", data.access_token, { ...opts, maxAge: 60 * 60 * 8 });
+    jar.set("rotas_access_token", data.accessToken, { ...opts, maxAge: 60 * 60 * 8 });
     // Rotate refresh_token (token rotation — old one is now invalid)
-    jar.set("rotas_refresh_token", data.refresh_token, { ...opts, maxAge: 60 * 60 * 24 * 30 });
+    jar.set("rotas_refresh_token", data.refreshToken, { ...opts, maxAge: 60 * 60 * 24 * 30 });
 
-    return data.access_token;
+    return data.accessToken;
   } catch {
     return null;
   }

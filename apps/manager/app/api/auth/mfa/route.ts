@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -26,7 +27,7 @@ function errorMessage(body: unknown): string {
 export async function GET() {
   const headers = await authHeaders();
   if (!headers) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
-  const upstream = await fetch(`${API_BASE}/api/v1/auth/mfa`, { headers, cache: "no-store" });
+  const upstream = await upstreamFetch(`${API_BASE}/api/v1/auth/mfa`, { headers, cache: "no-store" });
   const body = await upstream.json().catch(() => ({}));
   if (!upstream.ok) {
     return NextResponse.json({ error: errorMessage(body) }, { status: upstream.status });
@@ -38,7 +39,7 @@ export async function DELETE(req: NextRequest) {
   const headers = await authHeaders();
   if (!headers) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
   const payload = await req.json();
-  const upstream = await fetch(`${API_BASE}/api/v1/auth/mfa`, {
+  const upstream = await upstreamFetch(`${API_BASE}/api/v1/auth/mfa`, {
     method: "DELETE",
     headers,
     body: JSON.stringify(payload),

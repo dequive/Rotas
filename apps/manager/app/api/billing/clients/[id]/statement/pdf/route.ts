@@ -1,7 +1,11 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE =
+  process.env.ROTAS_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://localhost:8000";
 
 export async function GET(
   request: NextRequest,
@@ -27,7 +31,7 @@ export async function GET(
 
   let backendResponse: Response;
   try {
-    backendResponse = await fetch(backendUrl, {
+    backendResponse = await upstreamFetch(backendUrl, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),

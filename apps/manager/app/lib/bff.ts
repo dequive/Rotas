@@ -1,4 +1,11 @@
 "use client";
+import {
+  HttpContractError,
+  type HttpPolicy,
+  ensureIdempotencyKey,
+  requestWithPolicy,
+  responseToHttpError,
+} from "@rotas/http-contract";
 /**
  * Stabilization/P0-F7: client-side helper that proxies through the Manager BFF.
  *
@@ -10,38 +17,62 @@
  * NOTE: prefers individual route handlers under /api/<domain>/** when they
  * exist; falls back to /api/proxy only when no dedicated handler exists.
  */
-export class ClientApiError extends Error {
-  constructor(message: string, public status: number) {
-    super(message);
+export class ClientApiError extends HttpContractError {
+  constructor(error: HttpContractError) {
+    super(
+      error.message,
+      error.status,
+      error.code,
+      error.details,
+      error.retryable,
+    );
+    this.name = "ClientApiError";
   }
+}
+
+type BffRequestInit = RequestInit & {
+  path?: string;
+  policy?: HttpPolicy;
+};
+
+export async function bffRequest(
+  targetPath: string,
+  init: BffRequestInit = {},
+): Promise<Response> {
+  const { path: explicit, policy, ...rest } = init;
+  const url =
+    explicit ?? `/api/proxy?path=${encodeURIComponent(targetPath)}`;
+  let headers = new Headers(rest.headers ?? {});
+  const hasBody = rest.body !== undefined && rest.body !== null;
+  if (
+    hasBody &&
+    !(rest.body instanceof FormData) &&
+    !headers.has("Content-Type")
+  ) {
+    headers.set("Content-Type", "application/json");
+  }
+  const method = (rest.method ?? "GET").toUpperCase();
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+    headers = ensureIdempotencyKey(headers);
+  }
+  return requestWithPolicy(
+    url,
+    {
+      ...rest,
+      headers,
+      credentials: "include",
+    },
+    policy,
+  );
 }
 
 export async function bffFetch<T>(
   targetPath: string,
-  init: RequestInit & { path?: string } = {},
+  init: BffRequestInit = {},
 ): Promise<T> {
-  const { path: explicit, ...rest } = init;
-  let url: string;
-  if (explicit) {
-    url = explicit;
-  } else {
-    url = `/api/proxy?path=${encodeURIComponent(targetPath)}`;
-  }
-  const headers = new Headers(rest.headers ?? {});
-  if (!headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-  const res = await fetch(url, {
-    ...rest,
-    headers,
-    credentials: "include",
-  });
+  const res = await bffRequest(targetPath, init);
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as {
-      error?: { message?: string };
-    };
-    const message = body?.error?.message ?? `HTTP ${res.status}`;
-    throw new ClientApiError(message, res.status);
+    throw new ClientApiError(await responseToHttpError(res));
   }
   return (await res.json()) as T;
 }

@@ -37,7 +37,7 @@ export interface CreateContractPayload {
 
 export async function loadContracts(): Promise<Contract[]> {
   try {
-    return await apiFetch<Contract[]>("/api/v1/contracts/?limit=200", { revalidate: 30 });
+    return await apiFetch<Contract[]>("/api/v1/contracts/?limit=200", { revalidate: 0 });
   } catch {
     return [];
   }

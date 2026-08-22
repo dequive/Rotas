@@ -1,6 +1,4 @@
 import { apiFetch } from "./api";
-import { throwWhenDemoFallbackDisabled } from "./runtime-guards";
-import { getApiConfig } from "./billing-api";
 
 export interface DriverDespachoTier {
   min_km: number;
@@ -24,41 +22,19 @@ export interface DriverDespachoTable {
 export interface DriverDespachoTableLoadResult {
   configured: boolean;
   table: DriverDespachoTable;
-  source: "api" | "fallback";
+  source: "api";
   message: string | null;
 }
 
-const fallbackTable: DriverDespachoTable = {
-  enabled: true,
-  table_name: "Tabela de despacho",
-  table_reference: "Por preencher",
+const unconfiguredTable: DriverDespachoTable = {
+  enabled: false,
+  table_name: "",
+  table_reference: null,
   currency: "MZN",
   effective_from: null,
-  min_long_course_km: 100,
+  min_long_course_km: 0,
   entry_mode: "manual",
-  tiers: [
-    {
-      min_km: 100,
-      max_km: 250,
-      amount: 500,
-      label: "Longo curso curto",
-      code: "LC-100",
-    },
-    {
-      min_km: 250,
-      max_km: 500,
-      amount: 1000,
-      label: "Longo curso medio",
-      code: "LC-250",
-    },
-    {
-      min_km: 500,
-      max_km: null,
-      amount: 1500,
-      label: "Longo curso nacional",
-      code: "LC-500",
-    },
-  ],
+  tiers: [],
 };
 
 interface ApiDriverDespachoTableResponse {
@@ -67,32 +43,29 @@ interface ApiDriverDespachoTableResponse {
 }
 
 export async function loadDriverDespachoTable(): Promise<DriverDespachoTableLoadResult> {
-  try {
-    const payload = await apiFetch<ApiDriverDespachoTableResponse>("/api/v1/tenants/me/driver-despacho-table");
-    return { configured: payload.configured, table: normalizeTable(payload.table), source: "api", message: null };
-  } catch (caught) {
-    throwWhenDemoFallbackDisabled("Tabela de despacho", caught);
-    return {
-      configured: false,
-      table: fallbackTable,
-      source: "fallback",
-      message: caught instanceof Error ? `Tabela de despacho: ${caught.message}` : "Indisponível.",
-    };
-  }
+  const payload = await apiFetch<ApiDriverDespachoTableResponse>(
+    "/api/v1/tenants/me/driver-despacho-table",
+  );
+  return {
+    configured: payload.configured,
+    table: normalizeTable(payload.table),
+    source: "api",
+    message: null,
+  };
 }
 
 function normalizeTable(table: Partial<DriverDespachoTable> | null): DriverDespachoTable {
   if (!table) {
-    return fallbackTable;
+    return unconfiguredTable;
   }
-  const tiers = Array.isArray(table.tiers) && table.tiers.length > 0 ? table.tiers : fallbackTable.tiers;
+  const tiers = Array.isArray(table.tiers) ? table.tiers : [];
   return {
-    enabled: table.enabled ?? true,
-    table_name: table.table_name ?? fallbackTable.table_name,
-    table_reference: table.table_reference ?? fallbackTable.table_reference,
-    currency: table.currency ?? fallbackTable.currency,
+    enabled: table.enabled ?? false,
+    table_name: table.table_name ?? "",
+    table_reference: table.table_reference ?? null,
+    currency: table.currency ?? "MZN",
     effective_from: table.effective_from ?? null,
-    min_long_course_km: Number(table.min_long_course_km ?? fallbackTable.min_long_course_km),
+    min_long_course_km: Number(table.min_long_course_km ?? 0),
     entry_mode: table.entry_mode ?? "manual",
     tiers: tiers.map((tier) => ({
       min_km: Number(tier.min_km ?? 0),

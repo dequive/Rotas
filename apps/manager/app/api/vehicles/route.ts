@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status");
   if (status) params.set("status", status);
 
-  const res = await fetch(`${API_BASE}/api/v1/vehicles?${params}`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/vehicles?${params}`, {
     method: "GET",
     headers: await getAuthHeaders(),
     cache: "no-store",
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const res = await fetch(`${API_BASE}/api/v1/vehicles`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/vehicles`, {
     method: "POST",
     headers: await getAuthHeaders(),
     body: JSON.stringify(body),
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const { id, ...body } = (await req.json()) as { id: string } & Record<string, unknown>;
-  const res = await fetch(`${API_BASE}/api/v1/vehicles/${id}`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/vehicles/${id}`, {
     method: "PATCH",
     headers: await getAuthHeaders(),
     body: JSON.stringify(body),

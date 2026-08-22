@@ -1,11 +1,16 @@
 import { apiFetch } from "./api";
+import type { components } from "../generated/rotas-api";
+
+type StartTripPayload = components["schemas"]["StartTripRequest"];
+type OperationalCloseTripPayload = components["schemas"]["OperationalCloseTripRequest"];
 
 export interface Trip {
   id: string;
+  tenant_id: string;
+  trip_order_id: string | null;
+  contract_id: string | null;
   vehicle_id: string;
   driver_id: string;
-  vehicle_plate: string | null;
-  driver_name: string | null;
   origin: string;
   destination: string;
   cargo_type: string | null;
@@ -31,10 +36,30 @@ export interface CreateTripPayload {
   distance_km?: number;
 }
 
+export interface TripExecutionEvent {
+  id: string;
+  tenant_id: string;
+  trip_id: string;
+  event_type: string;
+  event_time: string;
+  location?: Record<string, unknown> | null;
+  odometer_reading?: number | null;
+  fuel_level?: number | null;
+  notes?: string | null;
+  reported_by?: string | null;
+  source: string;
+  created_at: string;
+}
+
+export interface TripDispatchResponse {
+  trip: Trip;
+  event: TripExecutionEvent;
+}
+
 export async function loadTrips(status?: string): Promise<Trip[]> {
   try {
     const qs = status ? `?status=${status}&limit=200` : "?limit=200";
-    return await apiFetch<Trip[]>(`/api/v1/trips${qs}`, { revalidate: 10 });
+    return await apiFetch<Trip[]>(`/api/v1/trips${qs}`, { revalidate: 0 });
   } catch {
     return [];
   }
@@ -47,8 +72,11 @@ export async function createTrip(payload: CreateTripPayload): Promise<Trip> {
   });
 }
 
-export async function startTrip(id: string): Promise<Trip> {
-  return apiFetch<Trip>(`/api/v1/trips/${id}/start`, { method: "POST" });
+export async function startTrip(id: string, payload: StartTripPayload): Promise<Trip> {
+  return apiFetch<Trip>(`/api/v1/trips/${id}/start`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function completeTrip(id: string, payload: { km_end: number }): Promise<Trip> {
@@ -58,11 +86,11 @@ export async function completeTrip(id: string, payload: { km_end: number }): Pro
   });
 }
 
-export async function dispatchTrip(id: string): Promise<Trip> {
-  return apiFetch<Trip>(`/api/v1/trips/${id}/dispatch`, { method: "POST" });
+export async function dispatchTrip(id: string): Promise<TripDispatchResponse> {
+  return apiFetch<TripDispatchResponse>(`/api/v1/trips/${id}/dispatch`, { method: "POST" });
 }
 
-export async function closeTrip(id: string, payload: { pod_received: boolean, pod_waiver: boolean }): Promise<Trip> {
+export async function closeTrip(id: string, payload: OperationalCloseTripPayload): Promise<Trip> {
   return apiFetch<Trip>(`/api/v1/trips/${id}/close`, { 
     method: "POST",
     body: JSON.stringify(payload),

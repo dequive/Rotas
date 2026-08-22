@@ -32,7 +32,7 @@ export interface CreateClientPayload {
 
 export async function loadClients(): Promise<ClientResponse[]> {
   try {
-    return await apiFetch<ClientResponse[]>("/api/v1/clients?limit=200", { revalidate: 30 });
+    return await apiFetch<ClientResponse[]>("/api/v1/clients?limit=200", { revalidate: 0 });
   } catch {
     return [];
   }

@@ -1,5 +1,4 @@
 import { apiFetch } from "./api";
-import { throwWhenDemoFallbackDisabled } from "./runtime-guards";
 
 export type BillingStatus =
   | "pending_delivery_proof"
@@ -88,99 +87,16 @@ interface ApiBillingDocument {
   invoice_number: string | null;
 }
 
-export interface BillingTripLoadResult {
-  trips: BillingTrip[];
-  source: "api" | "fallback";
-  message: string | null;
+interface ApiBillingDocumentPage {
+  items: ApiBillingDocument[];
+  total: number;
 }
 
-const fallbackTrips: BillingTrip[] = [
-  {
-    id: "TRP-001",
-    deliveryProofId: null,
-    contractId: null,
-    plate: "MPT-00-RT",
-    client: null,
-    contractReference: null,
-    route: "Matola -> Beira",
-    loadState: "Carregado/Vazio",
-    cargo: "Cimento ensacado",
-    deliveredAt: "2026-06-03",
-    deliveryProof: "GD-001 validada",
-    status: "uncontracted",
-    amount: null,
-  },
-  {
-    id: "TRP-002",
-    deliveryProofId: null,
-    contractId: null,
-    plate: "ABC-123-MZ",
-    client: "Cliente Industrial Piloto",
-    contractReference: "CTR-PILOTO-001",
-    route: "Beira -> Nacala",
-    loadState: "Carregado/Carregado",
-    cargo: "Produtos manufaturados",
-    deliveredAt: "2026-06-05",
-    deliveryProof: "GD-002 em revisao",
-    status: "pending_delivery_validation",
-    amount: 18000,
-  },
-  {
-    id: "TRP-003",
-    deliveryProofId: null,
-    contractId: null,
-    plate: "ADF-987-MZ",
-    client: "Cliente Industrial Piloto",
-    contractReference: "CTR-PILOTO-001",
-    route: "Maputo -> Chimoio",
-    loadState: "Carregado/Vazio",
-    cargo: "Material de construcao",
-    deliveredAt: "2026-06-07",
-    deliveryProof: "GD-003 validada",
-    status: "billing_draft",
-    amount: 12500,
-  },
-  {
-    id: "TRP-004",
-    deliveryProofId: null,
-    contractId: null,
-    plate: "MPT-442-MZ",
-    client: "Distribuidora Norte",
-    contractReference: "CTR-NORTE-004",
-    route: "Nacala -> Nampula",
-    loadState: "Vazio/Carregado",
-    cargo: "Bebidas",
-    deliveredAt: "2026-06-08",
-    deliveryProof: "GD-004 validada",
-    status: "billed",
-    amount: 9500,
-  },
-];
-
-const fallbackDocuments: BillingDocumentSummary[] = [
-  {
-    id: "fallback-doc-001",
-    reference: "BIL-2026-06-001",
-    invoiceNumber: null,
-    client: "Cliente Industrial Piloto",
-    clientId: null,
-    period: "Junho 2026",
-    trips: 4,
-    amount: 68000,
-    status: "Rascunho",
-  },
-  {
-    id: "fallback-doc-002",
-    reference: "BIL-2026-06-002",
-    invoiceNumber: "2026/0001",
-    client: "Distribuidora Norte",
-    clientId: null,
-    period: "Junho 2026",
-    trips: 2,
-    amount: 19000,
-    status: "Emitido",
-  },
-];
+export interface BillingTripLoadResult {
+  trips: BillingTrip[];
+  source: "api";
+  message: string | null;
+}
 
 function parseAmount(value: ApiBillableTrip["amount"]) {
   if (value === null) {
@@ -251,25 +167,19 @@ function mapTrip(item: ApiBillableTrip): BillingTrip {
 }
 
 export function getApiConfig() {
+  // Client actions are always routed through the authenticated BFF.  This
+  // value is only a non-secret capability marker retained for legacy props.
   return {
-    apiBaseUrl: process.env.ROTAS_API_BASE_URL ?? "http://localhost:8000",
-    tenantId: process.env.ROTAS_TENANT_ID ?? null,
-    token: process.env.ROTAS_MANAGER_TOKEN ?? "",
+    tenantId: "bff-session",
   };
 }
 
 export async function loadBillingTrips(): Promise<BillingTripLoadResult> {
-  try {
-    const payload = await apiFetch<ApiBillableTrip[]>("/api/v1/billing/billable-trips?limit=200", { revalidate: 15 });
-    return { trips: payload.map(mapTrip), source: "api", message: null };
-  } catch (error) {
-    throwWhenDemoFallbackDisabled("Billing", error);
-    return {
-      trips: fallbackTrips,
-      source: "fallback",
-      message: error instanceof Error ? `Billing: ${error.message}` : "Indisponível.",
-    };
-  }
+  const payload = await apiFetch<ApiBillableTrip[]>(
+    "/api/v1/billing/billable-trips?limit=200",
+    { revalidate: 15 },
+  );
+  return { trips: payload.map(mapTrip), source: "api", message: null };
 }
 
 export async function loadContracts(): Promise<ContractOption[]> {
@@ -288,25 +198,23 @@ export async function loadContracts(): Promise<ContractOption[]> {
 }
 
 export async function loadBillingDocuments(): Promise<BillingDocumentSummary[]> {
-  try {
-    const payload = await apiFetch<ApiBillingDocument[]>("/api/v1/billing/documents?limit=20", { revalidate: 15 });
-    return payload.map((document) => ({
-      id: document.id,
-      reference: document.contract_reference
-        ? `BIL-${document.contract_reference}-${document.id.slice(0, 8)}`
-        : `BIL-${document.id.slice(0, 8)}`,
-      invoiceNumber: document.invoice_number ?? null,
-      client: document.client_name,
-      clientId: document.client_id ?? null,
-      period: formatPeriod(document.billing_period_start),
-      trips: document.item_count,
-      amount: parseAmount(document.total_amount),
-      status: mapDocumentStatus(document.status),
-    }));
-  } catch (error) {
-    throwWhenDemoFallbackDisabled("Billing documents", error);
-    return fallbackDocuments;
-  }
+  const payload = await apiFetch<ApiBillingDocumentPage>(
+    "/api/v1/billing/documents?limit=20",
+    { revalidate: 15 },
+  );
+  return payload.items.map((document) => ({
+    id: document.id,
+    reference: document.contract_reference
+      ? `BIL-${document.contract_reference}-${document.id.slice(0, 8)}`
+      : `BIL-${document.id.slice(0, 8)}`,
+    invoiceNumber: document.invoice_number ?? null,
+    client: document.client_name,
+    clientId: document.client_id ?? null,
+    period: formatPeriod(document.billing_period_start),
+    trips: document.item_count,
+    amount: parseAmount(document.total_amount),
+    status: mapDocumentStatus(document.status),
+  }));
 }
 
 // ─── Waiver API functions ───────────────────────────────────────────────────

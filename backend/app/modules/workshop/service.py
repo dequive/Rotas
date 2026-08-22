@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ApiError
 from app.modules.audit.service import record_audit_log
 from app.modules.operational_exceptions.service import ensure_exception
+from app.modules.outbox.models import OutboxEvent
+from app.modules.outbox.service import enqueue as enqueue_outbox
 from app.modules.trips.costs import record_trip_cost
 from app.modules.trips.models import Trip, TripIncident
 from app.modules.vehicles.models import Vehicle
@@ -104,6 +106,12 @@ def serialize_work_order(item: WorkOrder) -> dict:
         "closed_by": item.closed_by,
         "closed_at": item.closed_at,
         "close_notes": item.close_notes,
+        "quality_checked_by": item.quality_checked_by,
+        "quality_checked_at": item.quality_checked_at,
+        "quality_notes": item.quality_notes,
+        "billing_status": item.billing_status,
+        "billing_document_id": item.billing_document_id,
+        "billing_error": item.billing_error,
         "service_provider_third_party_id": item.service_provider_third_party_id,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
@@ -402,15 +410,15 @@ class SparePartMovementService:
                                 JournalItemCreate(
                                     account_id=acct_exp.id,
                                     description=f"Custo de Manutencao ({inventory.name})",
-                                    debit=float(item.total_cost),
-                                    credit=0,
+                                    debit=item.total_cost,
+                                    credit=Decimal("0"),
                                     vehicle_id=vehicle_id_for_cost,
                                 ),
                                 JournalItemCreate(
                                     account_id=acct_inv.id,
                                     description="Saida de Armazem",
-                                    debit=0,
-                                    credit=float(item.total_cost),
+                                    debit=Decimal("0"),
+                                    credit=item.total_cost,
                                 ),
                             ],
                         ),
@@ -591,7 +599,7 @@ async def approve_work_order(
     *,
     actor_id: UUID | None,
 ) -> dict:
-    item = await _require_work_order(db, tenant_id, work_order_id)
+    item = await _require_work_order(db, tenant_id, work_order_id, for_update=True)
     if item.status == "approved":
         return serialize_work_order(item)
     if item.status != "draft":
@@ -623,7 +631,7 @@ async def start_work_order(
     db: AsyncSession,
     tenant_id: UUID,
     work_order_id: UUID,
-    payload: WorkOrderTransitionRequest,
+    payload: WorkOrderTransitionRequest | None = None,
     *,
     actor_id: UUID | None,
 ) -> dict:
@@ -634,7 +642,7 @@ async def start_work_order(
         expected_status="approved",
         next_status="in_progress",
         action="work_order.started",
-        notes=payload.notes,
+        notes=payload.notes if payload else None,
         actor_id=actor_id,
     )
 
@@ -643,7 +651,7 @@ async def send_work_order_to_quality_check(
     db: AsyncSession,
     tenant_id: UUID,
     work_order_id: UUID,
-    payload: WorkOrderTransitionRequest,
+    payload: WorkOrderTransitionRequest | None = None,
     *,
     actor_id: UUID | None,
 ) -> dict:
@@ -651,13 +659,13 @@ async def send_work_order_to_quality_check(
         select(WorkOrderTask.id).where(
             WorkOrderTask.tenant_id == tenant_id,
             WorkOrderTask.work_order_id == work_order_id,
-            WorkOrderTask.status == "pending",
+            WorkOrderTask.status.in_(("pending", "in_progress")),
         )
     )
     if pending_task:
         raise ApiError(
             "work_order_tasks_pending",
-            "Work order still has pending tasks.",
+            "Work order still has pending or in-progress tasks.",
             status_code=409,
             details={"task_id": str(pending_task)},
         )
@@ -670,7 +678,7 @@ async def send_work_order_to_quality_check(
     )
     if active_checkout:
         raise ApiError(
-            "work_order_tools_checked_out",
+            "unreturned_tools_blocking",
             "Work order still has tools checked out.",
             status_code=409,
             details={"checkout_id": str(active_checkout)},
@@ -682,7 +690,7 @@ async def send_work_order_to_quality_check(
         expected_status="in_progress",
         next_status="quality_check",
         action="work_order.quality_check_requested",
-        notes=payload.notes,
+        notes=payload.notes if payload else None,
         actor_id=actor_id,
     )
 
@@ -691,11 +699,11 @@ async def close_work_order(
     db: AsyncSession,
     tenant_id: UUID,
     work_order_id: UUID,
-    payload: WorkOrderCloseRequest,
+    payload: WorkOrderCloseRequest | None = None,
     *,
     actor_id: UUID | None,
 ) -> dict:
-    item = await _require_work_order(db, tenant_id, work_order_id)
+    item = await _require_work_order(db, tenant_id, work_order_id, for_update=True)
     if item.status == "closed":
         return serialize_work_order(item)
     if item.status != "quality_check":
@@ -703,11 +711,16 @@ async def close_work_order(
 
     old_status = item.status
     item.status = "closed"
-    item.actual_cost = payload.actual_cost
-    item.close_notes = payload.notes
+    item.actual_cost = _decimal(payload.actual_cost) if (payload and payload.actual_cost is not None) else None
+    item.close_notes = payload.notes if payload else None
     item.closed_by = actor_id
     item.closed_at = now_utc()
-    if item.maintenance_request_id and item.actual_cost is not None:
+    item.billing_error = None
+    item.billing_status = (
+        "billing_pending" if item.origin_type in ("reception", "quote", "warranty") else "not_required"
+    )
+    actual_cost = item.actual_cost
+    if item.maintenance_request_id and actual_cost is not None:
         request = await _require_maintenance_request(db, tenant_id, item.maintenance_request_id)
         if request.trip_id:
             await record_trip_cost(
@@ -715,9 +728,9 @@ async def close_work_order(
                 tenant_id,
                 trip_id=request.trip_id,
                 cost_type="workshop_maintenance",
-                amount=item.actual_cost,
+                amount=actual_cost,
                 request_reference=f"work-order:{item.id}",
-                incurred_at=item.closed_at,
+                incurred_at=item.closed_at or now_utc(),
                 actor_id=actor_id,
                 description=item.close_notes,
                 source_type="work_order",
@@ -734,42 +747,72 @@ async def close_work_order(
         new_values={"status": item.status, "actual_cost": str(item.actual_cost or 0)},
     )
 
-    # Workshop billing: auto-generate draft invoice for oficina-origin WOs
-    invoice_draft = None
-    if item.origin_type in ("reception", "quote", "warranty"):
-        from app.modules.workshop.workshop_billing_service import create_workshop_invoice
-
-        try:
-            invoice_draft = await create_workshop_invoice(
-                db,
-                tenant_id,
-                work_order_id,
-                actor_id=actor_id,
-            )
-        except Exception:
-            pass  # Non-blocking: invoice can be generated manually later
-
-    # Preventive Maintenance: Catalog matching & automatic next cycle creation
-    try:
-        from app.modules.workshop.preventive_service import (
-            handle_work_order_completion_preventive_matching,
-        )
-
-        await handle_work_order_completion_preventive_matching(
+    if item.billing_status == "billing_pending":
+        await enqueue_outbox(
             db,
-            tenant_id,
-            work_order_id,
-            actor_id=actor_id,
+            tenant_id=tenant_id,
+            event_type="workshop.internal.invoice.create",
+            aggregate_type="work_order",
+            aggregate_id=item.id,
+            payload={"work_order_id": str(item.id), "actor_id": str(actor_id) if actor_id else None},
         )
-    except Exception:
-        pass  # Non-blocking: preventive cycle auto-advance should not block WO close
+    await enqueue_outbox(
+        db,
+        tenant_id=tenant_id,
+        event_type="workshop.internal.preventive.advance",
+        aggregate_type="work_order",
+        aggregate_id=item.id,
+        payload={"work_order_id": str(item.id), "actor_id": str(actor_id) if actor_id else None},
+    )
 
     await db.commit()
     await db.refresh(item)
     result = serialize_work_order(item)
-    if invoice_draft:
-        result["workshop_invoice_draft"] = invoice_draft
     return result
+
+
+async def retry_work_order_billing(
+    db: AsyncSession,
+    tenant_id: UUID,
+    work_order_id: UUID,
+    *,
+    actor_id: UUID | None,
+) -> dict:
+    item = await _require_work_order(db, tenant_id, work_order_id, for_update=True)
+    if item.status != "closed" or item.origin_type not in ("reception", "quote", "warranty"):
+        raise ApiError(
+            "work_order_billing_not_retryable",
+            "Billing retry is only available for closed customer workshop orders.",
+            status_code=409,
+        )
+    if item.billing_document_id:
+        item.billing_status = "draft_created"
+        item.billing_error = None
+        await db.commit()
+        return serialize_work_order(item)
+
+    pending = await db.scalar(
+        select(OutboxEvent.id).where(
+            OutboxEvent.tenant_id == tenant_id,
+            OutboxEvent.aggregate_id == item.id,
+            OutboxEvent.event_type == "workshop.internal.invoice.create",
+            OutboxEvent.status == "pending",
+        )
+    )
+    if not pending:
+        await enqueue_outbox(
+            db,
+            tenant_id=tenant_id,
+            event_type="workshop.internal.invoice.create",
+            aggregate_type="work_order",
+            aggregate_id=item.id,
+            payload={"work_order_id": str(item.id), "actor_id": str(actor_id) if actor_id else None},
+        )
+    item.billing_status = "billing_pending"
+    item.billing_error = None
+    await db.commit()
+    await db.refresh(item)
+    return serialize_work_order(item)
 
 
 async def list_work_order_tasks(
@@ -931,7 +974,7 @@ async def _transition_work_order(
     notes: str | None,
     actor_id: UUID | None,
 ) -> dict:
-    item = await _require_work_order(db, tenant_id, work_order_id)
+    item = await _require_work_order(db, tenant_id, work_order_id, for_update=True)
     if item.status == next_status:
         return serialize_work_order(item)
     if item.status != expected_status:
@@ -941,6 +984,10 @@ async def _transition_work_order(
             status_code=409,
         )
     item.status = next_status
+    if next_status == "quality_check":
+        item.quality_checked_by = actor_id
+        item.quality_checked_at = now_utc()
+        item.quality_notes = notes
     await record_audit_log(
         db,
         tenant_id=tenant_id,
@@ -1088,6 +1135,7 @@ async def issue_spare_part_to_work_order(
     usage.movement_id = movement.id
     usage.unit_cost = movement.unit_cost
     usage.total_cost = movement.total_cost
+    usage.net_total_cost = movement.total_cost
     await record_audit_log(
         db,
         tenant_id=tenant_id,
@@ -1553,11 +1601,11 @@ async def _trigger_maintenance_work_order(
 
 
 async def record_spare_part_receipt(
-    tenant_id: UUID, payload: SparePartReceiptCreate, actor_id: UUID, db: AsyncSession
+    tenant_id: UUID, payload: SparePartReceiptCreate, actor_id: UUID | None, db: AsyncSession
 ) -> SparePartMovement:
     part = await db.get(SparePartInventory, payload.inventory_id)
     if not part or part.tenant_id != tenant_id:
-        raise ApiError("PART_NOT_FOUND", status.HTTP_404_NOT_FOUND, "Peça não encontrada.")
+        raise ApiError("PART_NOT_FOUND", "Peça não encontrada.", status_code=status.HTTP_404_NOT_FOUND)
 
     old_qty = part.current_quantity
     new_qty = old_qty + _decimal(payload.quantity)
@@ -1600,7 +1648,7 @@ async def evaluate_maintenance_schedule_all_tenants(
     """
     from app.modules.tenants.models import Tenant
 
-    result = await db.execute(select(Tenant).where(Tenant.status == "active"))
+    result = await db.execute(select(Tenant).where(Tenant.is_active.is_(True)))
     tenants = result.scalars().all()
     total_created = 0
     for tenant in tenants:
@@ -1694,7 +1742,7 @@ async def assign_task_to_mechanic(
     )
     task = result.scalar_one_or_none()
     if task is None:
-        raise ApiError("task_not_found", "Task not found", status.HTTP_404_NOT_FOUND)
+        raise ApiError("task_not_found", "Task not found", status_code=status.HTTP_404_NOT_FOUND)
     task.assigned_to = data.assigned_to
     task.estimated_minutes = data.estimated_minutes
     await db.commit()
@@ -1834,7 +1882,7 @@ async def record_tool_calibration(
     )
     tool = tool_result.scalar_one_or_none()
     if tool is None:
-        raise ApiError("tool_not_found", "Tool not found", status.HTTP_404_NOT_FOUND)
+        raise ApiError("tool_not_found", "Tool not found", status_code=status.HTTP_404_NOT_FOUND)
 
     cal = ToolCalibration(
         tenant_id=tenant_id,
@@ -1880,6 +1928,15 @@ async def list_tool_calibration_history(
     tenant_id: UUID,
     db: AsyncSession,
 ) -> list[dict]:
+    tool = await db.scalar(
+        select(WorkshopTool.id).where(
+            WorkshopTool.id == tool_id,
+            WorkshopTool.tenant_id == tenant_id,
+        )
+    )
+    if not tool:
+        raise ApiError("tool_not_found", "Tool not found.", status_code=404)
+
     result = await db.execute(
         select(ToolCalibration)
         .where(
@@ -1905,7 +1962,7 @@ async def update_tool(
     )
     tool = result.scalar_one_or_none()
     if tool is None:
-        raise ApiError("tool_not_found", "Tool not found", status.HTTP_404_NOT_FOUND)
+        raise ApiError("tool_not_found", "Tool not found", status_code=status.HTTP_404_NOT_FOUND)
     if data.status is not None:
         tool.status = data.status
     if data.location is not None:
@@ -1951,7 +2008,7 @@ async def register_serial_item(
         )
     )
     if part_result.scalar_one_or_none() is None:
-        raise ApiError("part_not_found", "Spare part not found", status.HTTP_404_NOT_FOUND)
+        raise ApiError("part_not_found", "Spare part not found", status_code=status.HTTP_404_NOT_FOUND)
 
     item = SparePartSerialItem(
         tenant_id=tenant_id,
@@ -1988,12 +2045,12 @@ async def install_serial_item(
     )
     item = result.scalar_one_or_none()
     if item is None:
-        raise ApiError("serial_item_not_found", "Serial item not found", status.HTTP_404_NOT_FOUND)
+        raise ApiError("serial_item_not_found", "Serial item not found", status_code=status.HTTP_404_NOT_FOUND)
     if item.status != "in_stock":
         raise ApiError(
             "serial_item_not_in_stock",
             "Serial item is not available for installation",
-            status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_409_CONFLICT,
         )
 
     item.status = "installed"
@@ -2136,7 +2193,9 @@ def _validate_tool_checkout_replay(
         )
 
 
-async def _require_vehicle(db: AsyncSession, tenant_id: UUID, vehicle_id: UUID) -> Vehicle:
+async def _require_vehicle(db: AsyncSession, tenant_id: UUID, vehicle_id: UUID | None) -> Vehicle:
+    if not vehicle_id:
+        raise ApiError("vehicle_not_found", "Vehicle not found.", status_code=404)
     vehicle = await db.get(Vehicle, vehicle_id)
     if not vehicle or vehicle.tenant_id != tenant_id:
         raise ApiError("vehicle_not_found", "Vehicle not found.", status_code=404)
@@ -2158,8 +2217,27 @@ async def _require_maintenance_request(
     return item
 
 
-async def _require_work_order(db: AsyncSession, tenant_id: UUID, item_id: UUID) -> WorkOrder:
-    item = await db.get(WorkOrder, item_id)
+async def get_maintenance_request(
+    db: AsyncSession,
+    tenant_id: UUID,
+    request_id: UUID,
+) -> dict:
+    return serialize_maintenance_request(
+        await _require_maintenance_request(db, tenant_id, request_id)
+    )
+
+
+async def _require_work_order(
+    db: AsyncSession,
+    tenant_id: UUID,
+    item_id: UUID,
+    *,
+    for_update: bool = False,
+) -> WorkOrder:
+    query = select(WorkOrder).where(WorkOrder.id == item_id, WorkOrder.tenant_id == tenant_id)
+    if for_update:
+        query = query.with_for_update()
+    item = await db.scalar(query)
     if not item or item.tenant_id != tenant_id:
         raise ApiError("work_order_not_found", "Work order not found.", status_code=404)
     return item
@@ -2219,12 +2297,12 @@ async def add_maintenance_request_note(
 
     await record_audit_log(
         db,
-        tenant_id,
-        actor_id,
-        "workshop.maintenance_request.note_added",
-        "maintenance_request",
-        req.id,
-        {"body": payload.body},
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="workshop.maintenance_request.note_added",
+        entity_type="maintenance_request",
+        entity_id=req.id,
+        new_values={"body": payload.body},
     )
 
     await db.commit()
@@ -2255,7 +2333,7 @@ async def update_maintenance_request_status(
     tenant_id: UUID,
     request_id: UUID,
     payload: MaintenanceRequestStatusUpdate,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     req = await _require_maintenance_request(db, tenant_id, request_id)
     old_status = req.status
@@ -2263,12 +2341,12 @@ async def update_maintenance_request_status(
 
     await record_audit_log(
         db,
-        tenant_id,
-        actor_id,
-        "workshop.maintenance_request.status_updated",
-        "maintenance_request",
-        req.id,
-        {"old_status": old_status, "new_status": payload.status},
+        tenant_id=tenant_id,
+        user_id=actor_id,
+        action="workshop.maintenance_request.status_updated",
+        entity_type="maintenance_request",
+        entity_id=req.id,
+        new_values={"old_status": old_status, "new_status": payload.status},
     )
 
     await db.commit()

@@ -1,9 +1,12 @@
-"""Workshop Labor & OS Profitability Service — Gestão de Taxas Horárias, Apontamento de Mão de Obra e Rentabilidade da OS.
+"""Workshop Labor & OS Profitability Service.
+
+Gestão de Taxas Horárias, Apontamento de Mão de Obra e Rentabilidade da OS.
 
 Resolução das Regras de Ouro:
   1. Junção por FK Direta `BillingItem.work_order_id` (#1):
      Calcula a receita da OS via JOIN direto em BillingItem.work_order_id == wo.id com status ('issued', 'paid').
-     Suporta automaticamente faturas consolidadas contendo orçamento original + suplementares sem fragilidades de string.
+     Suporta faturas consolidadas com orçamento original e suplementares sem
+     depender de correspondências frágeis de texto.
   2. Suporte a Estorno (`void_task_labor_session`):
      Log de mão de obra possui `voided_at` e `void_reason`. Sessões estornadas são excluídas da soma de custos.
   3. Taxa Horária Vigente à Data `completed_at`:
@@ -21,7 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from datetime import UTC, date, datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -29,6 +32,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
 from app.modules.billing.models import BillingDocument, BillingItem
+from app.modules.clients.models import Client
+from app.modules.vehicles.models import Vehicle
 from app.modules.workshop.models import (
     MaintenancePartUsed,
     TaskLaborLog,
@@ -112,7 +117,9 @@ async def _assert_work_order_mutable(db: AsyncSession, tenant_id: UUID, work_ord
         raise ApiError("work_order_not_found", "Work order not found.", status_code=404)
 
     if wo.status in ("closed", "invoiced", "cancelled"):
-        raise ApiError("work_order_already_billed", "Work order is closed/billed and cannot accept labor edits.", status_code=409)
+        raise ApiError(
+            "work_order_already_billed", "Work order is closed/billed and cannot accept labor edits.", status_code=409
+        )
 
     # Verificar se existe fatura emitida/paga para esta OS via BillingItem.work_order_id
     billed_res = await db.execute(
@@ -209,22 +216,22 @@ async def void_task_labor_session(
     return log
 
 
-async def get_work_order_profitability(
+async def _compute_work_order_profitability_data(
     db: AsyncSession,
     tenant_id: UUID,
-    work_order_id: UUID,
+    wo: WorkOrder,
 ) -> dict:
-    """Relatório de Margem e Rentabilidade Direta da OS.
+    """Função core compartilhada para apuração de rentabilidade de uma OS.
 
     Chave de Integridade (#1): Receita faturada calculada via JOIN direto
     em `BillingItem.work_order_id == wo.id` com `BillingDocument.status IN ('issued', 'paid')`.
-    Suporta automaticamente faturas consolidadas com orçamentos originais e suplementares!
+    Segrega estritamente:
+      - confirmed_revenue: soma de BillingItem de faturas emitidas/pagas ('issued', 'paid')
+      - projected_revenue: estimativa da OS / orçamento se ainda não facturada
+      - total_labor_cost: custo total de mão-de-obra das sessões ativas
+      - total_parts_cost: custo líquido de peças (emissões - devoluções)
     """
-    wo = await db.get(WorkOrder, work_order_id)
-    if not wo or wo.tenant_id != tenant_id:
-        raise ApiError("work_order_not_found", "Work order not found.", status_code=404)
-
-    # 1. Receita Faturada Comercial (JOIN direto por FK BillingItem.work_order_id)
+    # 1. Receita Faturada Confirmada (JOIN direto por FK BillingItem.work_order_id)
     revenue_res = await db.execute(
         select(func.coalesce(func.sum(BillingItem.amount), Decimal("0.00")))
         .join(BillingDocument, BillingDocument.id == BillingItem.billing_document_id)
@@ -234,13 +241,14 @@ async def get_work_order_profitability(
             BillingDocument.status.in_(("issued", "paid")),
         )
     )
-    total_revenue = Decimal(str(revenue_res.scalar_one()))
+    confirmed_revenue = Decimal(str(revenue_res.scalar_one()))
 
-    # Se ainda não houver fatura confirmada/paga, considera a estimativa de custo/quote para apuração preliminar
-    if total_revenue == Decimal("0.00") and wo.estimated_cost:
-        total_revenue = Decimal(str(wo.estimated_cost))
+    # 2. Receita Projetada (Pipeline de orçamentos/OS em curso ainda não facturadas)
+    projected_revenue = Decimal("0.00")
+    if confirmed_revenue == Decimal("0.00") and wo.estimated_cost:
+        projected_revenue = Decimal(str(wo.estimated_cost))
 
-    # 2. Custo Direto de Mão de Obra (TaskLaborLog não estornados)
+    # 3. Custo Direto de Mão de Obra (TaskLaborLog não estornados)
     labor_res = await db.execute(
         select(
             func.coalesce(func.sum(TaskLaborLog.minutes_worked), 0),
@@ -257,33 +265,247 @@ async def get_work_order_profitability(
     total_labor_minutes = int(labor_row[0]) if labor_row else 0
     total_labor_cost = Decimal(str(labor_row[1])) if labor_row else Decimal("0.00")
 
-    # 3. Custo Direto de Peças (MaintenancePartUsed WACC)
+    # 4. Custo líquido de peças: emissões menos devoluções
     parts_res = await db.execute(
-        select(func.coalesce(func.sum(MaintenancePartUsed.total_cost), Decimal("0.00"))).where(
+        select(
+            func.coalesce(
+                func.sum(
+                    func.coalesce(MaintenancePartUsed.net_total_cost, MaintenancePartUsed.total_cost)
+                ),
+                Decimal("0.00"),
+            )
+        ).where(
             MaintenancePartUsed.tenant_id == tenant_id,
             MaintenancePartUsed.work_order_id == wo.id,
         )
     )
     total_parts_cost = Decimal(str(parts_res.scalar_one()))
 
-    # 4. Apuração da Margem Bruta
     total_cost = total_labor_cost + total_parts_cost
-    gross_profit = total_revenue - total_cost
+    effective_revenue_for_wo = confirmed_revenue if confirmed_revenue > Decimal("0.00") else projected_revenue
+    gross_profit = effective_revenue_for_wo - total_cost
 
     gross_profit_margin_pct = Decimal("0.00")
-    if total_revenue > Decimal("0.00"):
-        margin_pct = (gross_profit / total_revenue) * Decimal("100")
+    if effective_revenue_for_wo > Decimal("0.00"):
+        margin_pct = (gross_profit / effective_revenue_for_wo) * Decimal("100")
         gross_profit_margin_pct = margin_pct.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     return {
         "work_order_id": wo.id,
         "work_order_number": wo.work_order_number,
-        "total_revenue": float(total_revenue),
+        "status": wo.status,
+        "confirmed_revenue": confirmed_revenue,
+        "projected_revenue": projected_revenue,
+        "effective_revenue": effective_revenue_for_wo,
         "total_labor_minutes": total_labor_minutes,
-        "total_labor_cost": float(total_labor_cost),
-        "total_parts_cost": float(total_parts_cost),
-        "total_cost": float(total_cost),
-        "gross_profit_mzn": float(gross_profit),
-        "gross_profit_margin_percent": float(gross_profit_margin_pct),
+        "total_labor_cost": total_labor_cost,
+        "total_parts_cost": total_parts_cost,
+        "total_cost": total_cost,
+        "gross_profit_mzn": gross_profit,
+        "gross_profit_margin_percent": gross_profit_margin_pct,
         "is_profitable": gross_profit >= Decimal("0.00"),
+    }
+
+
+async def get_work_order_profitability(
+    db: AsyncSession,
+    tenant_id: UUID,
+    work_order_id: UUID,
+) -> dict:
+    """Relatório de Margem e Rentabilidade Direta de uma OS individual."""
+    wo = await db.get(WorkOrder, work_order_id)
+    if not wo or wo.tenant_id != tenant_id:
+        raise ApiError("work_order_not_found", "Work order not found.", status_code=404)
+
+    data = await _compute_work_order_profitability_data(db, tenant_id, wo)
+    return {
+        "work_order_id": data["work_order_id"],
+        "work_order_number": data["work_order_number"],
+        "total_revenue": float(data["effective_revenue"]),
+        "confirmed_revenue": float(data["confirmed_revenue"]),
+        "projected_revenue": float(data["projected_revenue"]),
+        "total_labor_minutes": data["total_labor_minutes"],
+        "total_labor_cost": float(data["total_labor_cost"]),
+        "total_parts_cost": float(data["total_parts_cost"]),
+        "total_cost": float(data["total_cost"]),
+        "gross_profit_mzn": float(data["gross_profit_mzn"]),
+        "gross_profit_margin_percent": float(data["gross_profit_margin_percent"]),
+        "is_profitable": data["is_profitable"],
+    }
+
+
+async def get_workshop_profitability_summary(
+    db: AsyncSession,
+    tenant_id: UUID,
+    *,
+    start_date: date | datetime | None = None,
+    end_date: date | datetime | None = None,
+    client_id: UUID | None = None,
+    vehicle_id: UUID | None = None,
+    status_filter: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict:
+    """Relatório Consolidado de Rentabilidade & BI da Oficina Auto por Tenant.
+
+    Aplica as 5 Regras de Ouro:
+    1. Reutilização do core `_compute_work_order_profitability_data` por OS
+    2. Segregação rigorosa: confirmed_revenue (KPI primário) vs projected_revenue (Pipeline)
+    3. Proteção RBAC com WORKSHOP_FINANCE_READ
+    4. Guard 404 estrito ao filtrar por cliente ou viatura de outro tenant
+    5. Precisão Decimal em todos os acumuladores antes de serializar
+    """
+    # Cross-tenant 404 guards para filtros foreign explicitados
+    if client_id:
+        client = await db.get(Client, client_id)
+        if not client or client.tenant_id != tenant_id:
+            raise ApiError("client_not_found", "Client not found.", status_code=404)
+
+    if vehicle_id:
+        vehicle = await db.get(Vehicle, vehicle_id)
+        if not vehicle or vehicle.tenant_id != tenant_id:
+            raise ApiError("vehicle_not_found", "Vehicle not found.", status_code=404)
+
+    # Base query de WorkOrders do tenant
+    query = select(WorkOrder).where(WorkOrder.tenant_id == tenant_id)
+
+    if vehicle_id:
+        query = query.where(WorkOrder.vehicle_id == vehicle_id)
+
+    if status_filter:
+        query = query.where(WorkOrder.status == status_filter)
+
+    if start_date:
+        s_dt = (
+            start_date
+            if isinstance(start_date, datetime)
+            else datetime.combine(start_date, datetime.min.time(), tzinfo=UTC)
+        )
+        query = query.where(WorkOrder.created_at >= s_dt)
+
+    if end_date:
+        e_dt = (
+            end_date
+            if isinstance(end_date, datetime)
+            else datetime.combine(end_date, datetime.max.time(), tzinfo=UTC)
+        )
+        query = query.where(WorkOrder.created_at <= e_dt)
+
+    query = query.order_by(WorkOrder.created_at.desc())
+
+    res = await db.execute(query)
+    all_wos = list(res.scalars().all())
+
+    # Pre-fetch de viaturas e clientes associados para o relatório
+    client_map = {}
+    vehicle_map = {}
+    vehicle_obj_map = {}
+
+    vehicle_ids = {wo.vehicle_id for wo in all_wos if wo.vehicle_id}
+
+    if vehicle_ids:
+        v_res = await db.execute(select(Vehicle).where(Vehicle.id.in_(vehicle_ids)))
+        for v in v_res.scalars().all():
+            vehicle_obj_map[v.id] = v
+            vehicle_map[v.id] = f"{v.brand or ''} {v.model or ''} ({v.plate})".strip()
+
+    client_ids = {v.customer_client_id for v in vehicle_obj_map.values() if v.customer_client_id}
+
+    if client_ids:
+        c_res = await db.execute(select(Client).where(Client.id.in_(client_ids)))
+        for c in c_res.scalars().all():
+            client_map[c.id] = c.trading_name or c.legal_name or f"Cliente #{str(c.id)[:6]}"
+
+    # Se client_id tiver sido passado, filtrar all_wos pelas viaturas pertencentes a esse cliente
+    if client_id:
+        all_wos = [
+            wo
+            for wo in all_wos
+            if wo.vehicle_id in vehicle_obj_map and vehicle_obj_map[wo.vehicle_id].customer_client_id == client_id
+        ]
+
+    # Acumuladores em Decimal para precisão perfeita
+    tot_confirmed_revenue = Decimal("0.00")
+    tot_projected_revenue = Decimal("0.00")
+    tot_labor_cost = Decimal("0.00")
+    tot_parts_cost = Decimal("0.00")
+    tot_cost = Decimal("0.00")
+    negative_margin_count = 0
+
+    items_output = []
+
+    for wo in all_wos:
+        data = await _compute_work_order_profitability_data(db, tenant_id, wo)
+
+        c_rev = data["confirmed_revenue"]
+        p_rev = data["projected_revenue"]
+        l_cost = data["total_labor_cost"]
+        pt_cost = data["total_parts_cost"]
+        t_cost = data["total_cost"]
+
+        tot_confirmed_revenue += c_rev
+        tot_projected_revenue += p_rev
+        tot_labor_cost += l_cost
+        tot_parts_cost += pt_cost
+        tot_cost += t_cost
+
+        eff_rev = data["effective_revenue"]
+        wo_profit = eff_rev - t_cost
+        if wo_profit < Decimal("0.00"):
+            negative_margin_count += 1
+
+        v_obj = vehicle_obj_map.get(wo.vehicle_id) if wo.vehicle_id else None
+        client_name = (
+            client_map.get(v_obj.customer_client_id, "Cliente Geral")
+            if v_obj and v_obj.customer_client_id
+            else "Frota Própria"
+        )
+        vehicle_name = vehicle_map.get(wo.vehicle_id, "Viatura Desconhecida") if wo.vehicle_id else "S/V"
+
+        items_output.append(
+            {
+                "id": str(wo.id),
+                "wo_number": wo.work_order_number,
+                "client": client_name,
+                "vehicle": vehicle_name,
+                "status": wo.status,
+                "confirmed_revenue": float(c_rev),
+                "projected_revenue": float(p_rev),
+                "effective_revenue": float(eff_rev),
+                "labor_cost": float(l_cost),
+                "parts_cost": float(pt_cost),
+                "total_cost": float(t_cost),
+                "margin_mzn": float(wo_profit),
+                "margin_pct": float(data["gross_profit_margin_percent"]),
+                "is_profitable": data["is_profitable"],
+                "created_at": wo.created_at.isoformat() if wo.created_at else None,
+            }
+        )
+
+    # Margem % média baseada na Receita Confirmada
+    avg_confirmed_margin_pct = Decimal("0.00")
+    if tot_confirmed_revenue > Decimal("0.00"):
+        avg_confirmed_margin_pct = (
+            (tot_confirmed_revenue - tot_cost) / tot_confirmed_revenue * Decimal("100")
+        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    # Paginação na lista de items
+    paginated_items = items_output[offset : offset + limit]
+
+    return {
+        "summary": {
+            "confirmed_revenue": float(tot_confirmed_revenue),
+            "projected_revenue": float(tot_projected_revenue),
+            "total_labor_cost": float(tot_labor_cost),
+            "total_parts_cost": float(tot_parts_cost),
+            "total_cost": float(tot_cost),
+            "confirmed_gross_profit": float(tot_confirmed_revenue - tot_cost),
+            "confirmed_gross_margin_pct": float(avg_confirmed_margin_pct),
+            "negative_margin_count": negative_margin_count,
+            "total_work_orders": len(all_wos),
+        },
+        "work_orders": paginated_items,
+        "total_count": len(all_wos),
+        "limit": limit,
+        "offset": offset,
     }

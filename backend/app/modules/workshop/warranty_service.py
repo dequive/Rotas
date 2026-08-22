@@ -1,7 +1,6 @@
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from fastapi import status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -126,7 +125,11 @@ async def claim_warranty(
         if km_elapsed > warranty.duration_km:
             warranty.status = "expired"
             await db.commit()
-            raise ApiError("warranty_km_exceeded", f"Warranty km limit exceeded by {km_elapsed - warranty.duration_km} km.", status_code=409)
+            raise ApiError(
+                "warranty_km_exceeded",
+                f"Warranty km limit exceeded by {km_elapsed - warranty.duration_km} km.",
+                status_code=409,
+            )
 
     warranty.status = "claimed"
     warranty.notes = f"{warranty.notes or ''}\nAcionamento garantia: {payload.claim_reason}".strip()

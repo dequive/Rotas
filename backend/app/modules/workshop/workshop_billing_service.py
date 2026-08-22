@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select, or_
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
@@ -44,6 +44,7 @@ async def create_workshop_invoice(
     work_order_id: UUID,
     *,
     actor_id: UUID | None = None,
+    commit: bool = True,
 ) -> dict:
     """Gera rascunho de fatura fiscal a partir de uma OS concluída.
 
@@ -56,28 +57,14 @@ async def create_workshop_invoice(
     """
 
     # ── 0. Idempotência ──────────────────────────────────────────────────────
-    existing = await db.scalar(
-        select(BillingDocument).where(
-            BillingDocument.tenant_id == tenant_id,
-            BillingDocument.document_source == "workshop",
-            BillingDocument.quote_id.isnot(None),  # workshop invoices always have quote_id
-        ).join(
-            WorkshopQuote,
-            BillingDocument.quote_id == WorkshopQuote.id,
-        ).where(
-            or_(
-                WorkshopQuote.related_work_order_id == work_order_id,
-                # For original quotes, the work_order was created from accept_quote
-                # We check via a subquery on converted quotes
-            )
-        )
-    )
-    # Simpler idempotency: check BillingItem.work_order_id directly
+    # Use BillingItem.work_order_id as the direct idempotency key.
     existing_doc_id = await db.scalar(
-        select(BillingItem.billing_document_id).where(
+        select(BillingItem.billing_document_id)
+        .where(
             BillingItem.tenant_id == tenant_id,
             BillingItem.work_order_id == work_order_id,
-        ).limit(1)
+        )
+        .limit(1)
     )
     if existing_doc_id:
         existing_doc = await db.get(BillingDocument, existing_doc_id)
@@ -102,11 +89,13 @@ async def create_workshop_invoice(
         quote_conds.append(WorkshopQuote.reception_id == wo.reception_id)
 
     quotes_result = await db.execute(
-        select(WorkshopQuote).where(
+        select(WorkshopQuote)
+        .where(
             WorkshopQuote.tenant_id == tenant_id,
             WorkshopQuote.status == "converted",
             or_(*quote_conds),
-        ).order_by(WorkshopQuote.created_at.asc())
+        )
+        .order_by(WorkshopQuote.created_at.asc())
     )
     converted_quotes = list(quotes_result.scalars().all())
     original_quote = converted_quotes[0] if converted_quotes else None
@@ -114,9 +103,7 @@ async def create_workshop_invoice(
     # Load all quote items for price ceiling lookup
     quote_item_prices: dict[str, Decimal] = {}  # description → approved unit_price
     for q in converted_quotes:
-        items_result = await db.execute(
-            select(WorkshopQuoteItem).where(WorkshopQuoteItem.quote_id == q.id)
-        )
+        items_result = await db.execute(select(WorkshopQuoteItem).where(WorkshopQuoteItem.quote_id == q.id))
         for qi in items_result.scalars().all():
             quote_item_prices[qi.description.strip().lower()] = qi.unit_price
 
@@ -135,10 +122,13 @@ async def create_workshop_invoice(
     for task in completed_tasks:
         if task.completed_by and task.completed_by not in staff_rates:
             rate = await db.scalar(
-                select(WorkshopStaffRate.hourly_rate).where(
+                select(WorkshopStaffRate.hourly_rate)
+                .where(
                     WorkshopStaffRate.tenant_id == tenant_id,
                     WorkshopStaffRate.user_id == task.completed_by,
-                ).order_by(WorkshopStaffRate.effective_from.desc()).limit(1)
+                )
+                .order_by(WorkshopStaffRate.effective_from.desc())
+                .limit(1)
             )
             staff_rates[task.completed_by] = rate or Decimal("0")
 
@@ -244,6 +234,9 @@ async def create_workshop_invoice(
 
     # 8b. Linhas de peças (consumo real via MaintenancePartUsed)
     for part_used in used_parts:
+        net_quantity = part_used.quantity - (part_used.returned_quantity or Decimal("0"))
+        if net_quantity <= 0:
+            continue
         part = await db.get(SparePartInventory, part_used.inventory_id)
         part_name = part.name if part else "Peça"
 
@@ -251,10 +244,10 @@ async def create_workshop_invoice(
         quoted_price = quote_item_prices.get(desc_key)
         if quoted_price:
             unit_cost = quoted_price
-            line_total = (part_used.quantity * quoted_price).quantize(Decimal("0.01"))
+            line_total = (net_quantity * quoted_price).quantize(Decimal("0.01"))
         else:
             unit_cost = part_used.unit_cost or (part.average_unit_cost if part else Decimal("0"))
-            line_total = (part_used.quantity * unit_cost).quantize(Decimal("0.01"))
+            line_total = (net_quantity * unit_cost).quantize(Decimal("0.01"))
 
         item = BillingItem(
             tenant_id=tenant_id,
@@ -262,7 +255,7 @@ async def create_workshop_invoice(
             client_reference=wo.work_order_number,
             cargo_description=f"Peça: {part_name}",
             delivered_at=part_used.issued_at or now,
-            quantity=part_used.quantity,
+            quantity=net_quantity,
             unit_price=unit_cost,
             amount=line_total,
             status="draft",
@@ -304,7 +297,10 @@ async def create_workshop_invoice(
         },
     )
 
-    await db.commit()
+    if commit:
+        await db.commit()
+    else:
+        await db.flush()
     await db.refresh(doc)
     return _serialize_workshop_invoice(doc)
 

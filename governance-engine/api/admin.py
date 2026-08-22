@@ -3,6 +3,7 @@ Admin API — taxonomy CRUD + API key management.
 All mutations use request bodies (never query params) to avoid leaking
 sensitive data into access logs, proxies, and referrer headers.
 """
+
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -35,6 +36,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 # ── Tenants ───────────────────────────────────────────────────────────────────
 
+
 @router.post("/tenants", status_code=201)
 async def create_tenant(
     body: CreateTenantRequest,
@@ -43,7 +45,10 @@ async def create_tenant(
 ):
     existing = await db.scalar(select(Tenant).where(Tenant.slug == body.slug))
     if existing:
-        raise HTTPException(status_code=409, detail={"code": "conflict", "message": f"Slug '{body.slug}' already exists."})
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "conflict", "message": f"Slug '{body.slug}' already exists."},
+        )
     tenant = Tenant(name=body.name, slug=body.slug)
     db.add(tenant)
     await db.commit()
@@ -52,6 +57,7 @@ async def create_tenant(
 
 
 # ── API Keys ──────────────────────────────────────────────────────────────────
+
 
 @router.post("/api-keys", status_code=201)
 async def create_api_key(
@@ -97,8 +103,14 @@ async def list_api_keys(
         )
     )
     return [
-        {"id": k.id, "label": k.label, "key_prefix": k.key_prefix,
-         "scopes": k.scopes, "expires_at": k.expires_at, "last_used_at": k.last_used_at}
+        {
+            "id": k.id,
+            "label": k.label,
+            "key_prefix": k.key_prefix,
+            "scopes": k.scopes,
+            "expires_at": k.expires_at,
+            "last_used_at": k.last_used_at,
+        }
         for k in result.scalars()
     ]
 
@@ -116,6 +128,7 @@ async def revoke_api_key(
 
 
 # ── Taxonomy Domains ──────────────────────────────────────────────────────────
+
 
 @router.post("/taxonomy/domains", status_code=201)
 async def create_domain(
@@ -141,10 +154,14 @@ async def list_domains(
     db: AsyncSession = Depends(get_session),
 ):
     result = await db.execute(select(TaxonomyDomain))
-    return [{"id": d.id, "code": d.code, "name": d.name, "is_active": d.is_active} for d in result.scalars()]
+    return [
+        {"id": d.id, "code": d.code, "name": d.name, "is_active": d.is_active}
+        for d in result.scalars()
+    ]
 
 
 # ── Taxonomy Case Types ───────────────────────────────────────────────────────
+
 
 @router.post("/taxonomy/case-types", status_code=201)
 async def create_case_type(
@@ -167,6 +184,7 @@ async def create_case_type(
 
 
 # ── Taxonomy Types ────────────────────────────────────────────────────────────
+
 
 @router.post("/taxonomy/types", status_code=201)
 async def create_type(
@@ -193,10 +211,14 @@ async def list_types(
     db: AsyncSession = Depends(get_session),
 ):
     result = await db.execute(select(TaxonomyType))
-    return [{"id": t.id, "code": t.code, "name": t.name, "is_active": t.is_active} for t in result.scalars()]
+    return [
+        {"id": t.id, "code": t.code, "name": t.name, "is_active": t.is_active}
+        for t in result.scalars()
+    ]
 
 
 # ── Promotion Rules ───────────────────────────────────────────────────────────
+
 
 @router.post("/taxonomy/promotions", status_code=201)
 async def create_promotion(
@@ -213,10 +235,16 @@ async def create_promotion(
     db.add(p)
     await db.commit()
     await db.refresh(p)
-    return {"id": p.id, "type_id": p.type_id, "case_type_id": p.case_type_id, "min_severity": p.min_severity}
+    return {
+        "id": p.id,
+        "type_id": p.type_id,
+        "case_type_id": p.case_type_id,
+        "min_severity": p.min_severity,
+    }
 
 
 # ── Transition Rules ──────────────────────────────────────────────────────────
+
 
 @router.post("/taxonomy/transition-rules", status_code=201)
 async def create_transition_rule(

@@ -4,6 +4,7 @@ Case Finite State Machine.
 All state changes go through this class — never update case.status directly.
 Pessimistic locking (SELECT FOR UPDATE) serialises concurrent transitions on the same case.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -12,14 +13,18 @@ from uuid import UUID
 from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.exceptions import IdempotencyConflict, IllegalTransition, MissingRequiredAttachment, MissingRequiredField, NotFound
+from core.exceptions import (
+    IllegalTransition,
+    MissingRequiredAttachment,
+    MissingRequiredField,
+    NotFound,
+)
 from core.models import (
     Activity,
     Case,
     CaseOccurrence,
     CaseTransition,
     CaseTransitionRule,
-    TaxonomyCaseType,
 )
 
 _SEVERITY_ORDER = ["baixa", "media", "alta", "critica"]
@@ -68,7 +73,7 @@ class CaseFSM:
             raise IllegalTransition(None, initial_status)
 
         # Validate required fields
-        for field_name in (rule.required_fields or []):
+        for field_name in rule.required_fields or []:
             if not payload.get(field_name):
                 raise MissingRequiredField(field_name)
 
@@ -93,11 +98,13 @@ class CaseFSM:
 
         # Link occurrences
         for occ_id in occurrence_ids:
-            self._db.add(CaseOccurrence(
-                case_id=case.id,
-                occurrence_id=occ_id,
-                tenant_id=self._tenant_id,
-            ))
+            self._db.add(
+                CaseOccurrence(
+                    case_id=case.id,
+                    occurrence_id=occ_id,
+                    tenant_id=self._tenant_id,
+                )
+            )
 
         # Record entry transition
         transition = CaseTransition(
@@ -112,17 +119,32 @@ class CaseFSM:
         self._db.add(transition)
         await self._db.flush()
 
-        # SLA activity
-        if sla_due_at:
-            self._db.add(Activity(
+        self._db.add(
+            Activity(
                 tenant_id=self._tenant_id,
                 case_id=case.id,
                 transition_id=transition.id,
                 actor_id=actor_id,
-                activity_type="sla_set",
-                description=f"SLA due at {sla_due_at.isoformat()}",
-                payload={"sla_due_at": sla_due_at.isoformat()},
-            ))
+                activity_type="case_opened",
+                description=f"Case opened in status {initial_status}",
+                payload={"from_status": None, "to_status": initial_status},
+            )
+        )
+        await self._db.flush()
+
+        # SLA activity
+        if sla_due_at:
+            self._db.add(
+                Activity(
+                    tenant_id=self._tenant_id,
+                    case_id=case.id,
+                    transition_id=transition.id,
+                    actor_id=actor_id,
+                    activity_type="sla_set",
+                    description=f"SLA due at {sla_due_at.isoformat()}",
+                    payload={"sla_due_at": sla_due_at.isoformat()},
+                )
+            )
             await self._db.flush()
 
         return case.id
@@ -174,7 +196,7 @@ class CaseFSM:
             raise IllegalTransition(case.status, to_status)
 
         # Validate required fields
-        for field_name in (rule.required_fields or []):
+        for field_name in rule.required_fields or []:
             if not payload.get(field_name):
                 raise MissingRequiredField(field_name)
 
@@ -198,6 +220,19 @@ class CaseFSM:
         self._db.add(transition)
         await self._db.flush()
 
+        self._db.add(
+            Activity(
+                tenant_id=self._tenant_id,
+                case_id=case_id,
+                transition_id=transition.id,
+                actor_id=actor_id,
+                activity_type="case_transitioned",
+                description=f"Case transitioned from {from_status} to {to_status}",
+                payload={"from_status": from_status, "to_status": to_status},
+            )
+        )
+        await self._db.flush()
+
         # Update case.status (only mutation allowed on cases)
         await self._db.execute(
             update(Case)
@@ -210,15 +245,17 @@ class CaseFSM:
         # SLA activity if rule defines new SLA
         if rule.sla_hours:
             sla_due_at = datetime.now(UTC) + timedelta(hours=rule.sla_hours)
-            self._db.add(Activity(
-                tenant_id=self._tenant_id,
-                case_id=case_id,
-                transition_id=transition.id,
-                actor_id=actor_id,
-                activity_type="sla_updated",
-                description=f"SLA reset to {sla_due_at.isoformat()}",
-                payload={"sla_due_at": sla_due_at.isoformat()},
-            ))
+            self._db.add(
+                Activity(
+                    tenant_id=self._tenant_id,
+                    case_id=case_id,
+                    transition_id=transition.id,
+                    actor_id=actor_id,
+                    activity_type="sla_updated",
+                    description=f"SLA reset to {sla_due_at.isoformat()}",
+                    payload={"sla_due_at": sla_due_at.isoformat()},
+                )
+            )
             await self._db.execute(
                 update(Case)
                 .where(Case.id == case_id)

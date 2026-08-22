@@ -2,6 +2,7 @@
 OccurrenceService — creates immutable occurrence records and triggers
 auto-promotion to Cases when taxonomy rules match.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -124,13 +125,15 @@ class OccurrenceService:
                 external_id=link.external_id,
                 display_name=link.display_name,
             )
-            self._db.add(OccurrenceLink(
-                tenant_id=self._tenant_id,
-                occurrence_id=occ.id,
-                instance_id=instance.id,
-                role=link.role,
-                snapshot=link.snapshot,
-            ))
+            self._db.add(
+                OccurrenceLink(
+                    tenant_id=self._tenant_id,
+                    occurrence_id=occ.id,
+                    instance_id=instance.id,
+                    role=link.role,
+                    snapshot=link.snapshot,
+                )
+            )
             instance_ids.append(instance.id)
         if links:
             await self._db.flush()
@@ -159,9 +162,7 @@ class OccurrenceService:
                     actor_id=self._actor_id,
                     idempotency_key=promo_idem_key,
                 )
-                case_obj = await self._db.scalar(
-                    select(Case).where(Case.id == case_id)
-                )
+                case_obj = await self._db.scalar(select(Case).where(Case.id == case_id))
                 if case_obj:
                     case_reference = case_obj.reference
 
@@ -200,13 +201,15 @@ class OccurrenceService:
             if inst is None:
                 continue
             catalog = await self._db.get(EntityCatalog, inst.catalog_id)
-            link_inputs.append(LinkInput(
-                entity_type=catalog.entity_type if catalog else "",
-                external_id=inst.external_id,
-                role=lnk.role,
-                display_name=inst.display_name,
-                snapshot=lnk.snapshot,
-            ))
+            link_inputs.append(
+                LinkInput(
+                    entity_type=catalog.entity_type if catalog else "",
+                    external_id=inst.external_id,
+                    role=lnk.role,
+                    display_name=inst.display_name,
+                    snapshot=lnk.snapshot,
+                )
+            )
 
         return await self.create(
             type_code=tax_type.code if tax_type else "",

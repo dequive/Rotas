@@ -9,6 +9,7 @@ Severity = Literal["baixa", "media", "alta", "critica"]
 
 # ── Occurrences ───────────────────────────────────────────────────────────────
 
+
 class LinkInputSchema(BaseModel):
     entity_type: str
     external_id: str
@@ -62,6 +63,7 @@ class OccurrenceReverseRequest(BaseModel):
 
 
 # ── Cases ─────────────────────────────────────────────────────────────────────
+
 
 class CaseCreate(BaseModel):
     case_type_code: str

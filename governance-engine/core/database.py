@@ -2,7 +2,12 @@ from collections.abc import AsyncIterator
 from contextvars import ContextVar
 
 from sqlalchemy import event, text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase
 
 from core.config import get_settings
@@ -33,6 +38,27 @@ _rls_tenant: ContextVar[str | None] = ContextVar("_rls_tenant", default=None)
 
 def set_rls_tenant(tenant_id: str | None) -> None:
     _rls_tenant.set(tenant_id)
+
+
+def install_rls_context(target_engine: AsyncEngine) -> None:
+    """Apply the current tenant at the start of every database transaction.
+
+    Services may commit and therefore release/reacquire a pooled connection.
+    Reapplying the transaction-local setting on every BEGIN prevents both
+    missing context and tenant leakage across pooled connections.
+    """
+
+    @event.listens_for(target_engine.sync_engine, "begin")
+    def _apply_tenant_context(connection) -> None:
+        tenant_id = _rls_tenant.get()
+        if tenant_id is not None:
+            connection.execute(
+                text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+                {"tenant_id": tenant_id},
+            )
+
+
+install_rls_context(engine)
 
 
 async def get_raw_session() -> AsyncIterator[AsyncSession]:

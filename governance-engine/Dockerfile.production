@@ -1,0 +1,51 @@
+FROM python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93 AS builder
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    VIRTUAL_ENV=/opt/venv
+
+RUN python -m venv "${VIRTUAL_ENV}"
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+
+WORKDIR /build
+COPY governance-engine/pyproject.toml ./
+COPY governance-engine/adapters ./adapters
+COPY governance-engine/api ./api
+COPY governance-engine/core ./core
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip setuptools wheel \
+    && pip install .
+
+
+FROM python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93 AS runtime
+
+ARG ROTAS_VERSION=dev
+ARG ROTAS_REVISION=unknown
+
+LABEL org.opencontainers.image.title="ROTAS Governance Engine" \
+      org.opencontainers.image.version="${ROTAS_VERSION}" \
+      org.opencontainers.image.revision="${ROTAS_REVISION}" \
+      org.opencontainers.image.source="ROTAS"
+
+ENV PATH="/opt/venv/bin:${PATH}" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN groupadd --gid 10001 governance \
+    && useradd --uid 10001 --gid governance --create-home --shell /usr/sbin/nologin governance
+
+COPY --from=builder /opt/venv /opt/venv
+WORKDIR /app
+COPY --chown=governance:governance governance-engine/alembic.ini ./
+COPY --chown=governance:governance governance-engine/alembic ./alembic
+COPY --chown=governance:governance governance-engine/adapters ./adapters
+COPY --chown=governance:governance governance-engine/api ./api
+COPY --chown=governance:governance governance-engine/core ./core
+COPY --chown=governance:governance governance-engine/main.py ./
+COPY --chown=root:root infra/staging/load-governance-secrets.sh /usr/local/bin/governance-entrypoint
+RUN chmod 0555 /usr/local/bin/governance-entrypoint
+
+USER 10001:10001
+EXPOSE 8000
+
+ENTRYPOINT ["/usr/local/bin/governance-entrypoint"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips=*"]

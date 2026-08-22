@@ -18,19 +18,19 @@ ROTAS_TO_GOVERNANCE_SEVERITY: dict[str, str] = {
 
 # ROTAS event type → governance taxonomy type code (must match bootstrap)
 ROTAS_EVENT_TYPE_CODES: dict[str, str] = {
-    "vehicle.breakdown":          "rotas.vehicle.breakdown",
-    "vehicle.accident":           "rotas.vehicle.accident",
-    "vehicle.overdue_checklist":  "rotas.vehicle.overdue_checklist",
-    "trip.incident":              "rotas.trip.incident",
-    "trip.route_deviation":       "rotas.trip.route_deviation",
+    "vehicle.breakdown": "rotas.vehicle.breakdown",
+    "vehicle.accident": "rotas.vehicle.accident",
+    "vehicle.overdue_checklist": "rotas.vehicle.overdue_checklist",
+    "trip.incident": "rotas.trip.incident",
+    "trip.route_deviation": "rotas.trip.route_deviation",
     "trip.operational_exception": "rotas.trip.operational_exception",
-    "fuel.anomaly":               "rotas.fuel.anomaly",
-    "fuel.theft_suspicion":       "rotas.fuel.theft_suspicion",
-    "cargo.damage":               "rotas.cargo.damage",
-    "cargo.loss":                 "rotas.cargo.loss",
-    "document.expired":           "rotas.document.expired",
-    "driver.infraction":          "rotas.driver.infraction",
-    "driver.absence":             "rotas.driver.absence",
+    "fuel.anomaly": "rotas.fuel.anomaly",
+    "fuel.theft_suspicion": "rotas.fuel.theft_suspicion",
+    "cargo.damage": "rotas.cargo.damage",
+    "cargo.loss": "rotas.cargo.loss",
+    "document.expired": "rotas.document.expired",
+    "driver.infraction": "rotas.driver.infraction",
+    "driver.absence": "rotas.driver.absence",
 }
 
 

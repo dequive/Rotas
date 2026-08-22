@@ -6,6 +6,7 @@ bootstrap()     — idempotent setup: creates entity catalogs, taxonomy types,
 sync_entities() — upserts entity instances from ROTAS by external_id.
 push_event()    — translates a ROTAS event push into an Occurrence (+ auto Case).
 """
+
 from __future__ import annotations
 
 from uuid import UUID
@@ -20,7 +21,6 @@ from adapters.rotas.schemas import (
     RotasEventPush,
     RotasEventPushResponse,
 )
-from core.exceptions import NotFound
 from core.models import (
     CaseTransitionRule,
     EntityCatalog,
@@ -41,52 +41,72 @@ _ENTITY_TYPES = ["vehicle", "driver", "trip", "third_party", "fuel_tank"]
 _TAXONOMY_TYPES = list(ROTAS_EVENT_TYPE_CODES.values())
 
 _CASE_TYPES = [
-    {"code": "rotas.incident",         "name": "Incidente Operacional",    "initial_status": "open",        "sla_hours": 48},
-    {"code": "rotas.compliance",       "name": "Incumprimento Documental", "initial_status": "open",        "sla_hours": 72},
-    {"code": "rotas.fuel_anomaly",     "name": "Anomalia de Combustível",  "initial_status": "open",        "sla_hours": 24},
-    {"code": "rotas.cargo_integrity",  "name": "Integridade de Carga",     "initial_status": "open",        "sla_hours": 24},
+    {
+        "code": "rotas.incident",
+        "name": "Incidente Operacional",
+        "initial_status": "open",
+        "sla_hours": 48,
+    },
+    {
+        "code": "rotas.compliance",
+        "name": "Incumprimento Documental",
+        "initial_status": "open",
+        "sla_hours": 72,
+    },
+    {
+        "code": "rotas.fuel_anomaly",
+        "name": "Anomalia de Combustível",
+        "initial_status": "open",
+        "sla_hours": 24,
+    },
+    {
+        "code": "rotas.cargo_integrity",
+        "name": "Integridade de Carga",
+        "initial_status": "open",
+        "sla_hours": 24,
+    },
 ]
 
 # (type_code, case_type_code, min_severity)
 _PROMOTIONS = [
-    ("rotas.vehicle.breakdown",          "rotas.incident",        "alta"),
-    ("rotas.vehicle.accident",           "rotas.incident",        "media"),
-    ("rotas.trip.incident",              "rotas.incident",        "media"),
-    ("rotas.fuel.anomaly",               "rotas.fuel_anomaly",    "alta"),
-    ("rotas.fuel.theft_suspicion",       "rotas.fuel_anomaly",    "media"),
-    ("rotas.cargo.damage",               "rotas.cargo_integrity", "media"),
-    ("rotas.cargo.loss",                 "rotas.cargo_integrity", "media"),
-    ("rotas.document.expired",           "rotas.compliance",      "baixa"),
-    ("rotas.vehicle.overdue_checklist",  "rotas.compliance",      "baixa"),
+    ("rotas.vehicle.breakdown", "rotas.incident", "alta"),
+    ("rotas.vehicle.accident", "rotas.incident", "media"),
+    ("rotas.trip.incident", "rotas.incident", "media"),
+    ("rotas.fuel.anomaly", "rotas.fuel_anomaly", "alta"),
+    ("rotas.fuel.theft_suspicion", "rotas.fuel_anomaly", "media"),
+    ("rotas.cargo.damage", "rotas.cargo_integrity", "media"),
+    ("rotas.cargo.loss", "rotas.cargo_integrity", "media"),
+    ("rotas.document.expired", "rotas.compliance", "baixa"),
+    ("rotas.vehicle.overdue_checklist", "rotas.compliance", "baixa"),
 ]
 
 # Transition rules per case type: (from_status, to_status, required_fields, required_attachments, sla_hours)
 _TRANSITION_RULES: dict[str, list[tuple]] = {
     "rotas.incident": [
-        (None,           "open",        [],                 False, None),
-        ("open",         "in_analysis", [],                 False, None),
-        ("in_analysis",  "resolved",    ["resolution_note"], False, None),
-        ("open",         "resolved",    ["resolution_note"], False, None),
-        ("resolved",     "closed",      [],                 False, None),
+        (None, "open", [], False, None),
+        ("open", "in_analysis", [], False, None),
+        ("in_analysis", "resolved", ["resolution_note"], False, None),
+        ("open", "resolved", ["resolution_note"], False, None),
+        ("resolved", "closed", [], False, None),
     ],
     "rotas.compliance": [
-        (None,           "open",        [],                  False, None),
-        ("open",         "in_analysis", [],                  False, None),
-        ("in_analysis",  "resolved",    ["resolution_note"], True,  None),
-        ("open",         "resolved",    ["resolution_note"], True,  None),
-        ("resolved",     "closed",      [],                  False, None),
+        (None, "open", [], False, None),
+        ("open", "in_analysis", [], False, None),
+        ("in_analysis", "resolved", ["resolution_note"], True, None),
+        ("open", "resolved", ["resolution_note"], True, None),
+        ("resolved", "closed", [], False, None),
     ],
     "rotas.fuel_anomaly": [
-        (None,           "open",        [],                  False, None),
-        ("open",         "in_analysis", [],                  False, None),
-        ("in_analysis",  "resolved",    ["resolution_note"], False, None),
-        ("resolved",     "closed",      [],                  False, None),
+        (None, "open", [], False, None),
+        ("open", "in_analysis", [], False, None),
+        ("in_analysis", "resolved", ["resolution_note"], False, None),
+        ("resolved", "closed", [], False, None),
     ],
     "rotas.cargo_integrity": [
-        (None,           "open",        [],                  False, None),
-        ("open",         "in_analysis", [],                  False, None),
-        ("in_analysis",  "resolved",    ["resolution_note"], True,  None),
-        ("resolved",     "closed",      [],                  False, None),
+        (None, "open", [], False, None),
+        ("open", "in_analysis", [], False, None),
+        ("in_analysis", "resolved", ["resolution_note"], True, None),
+        ("resolved", "closed", [], False, None),
     ],
 }
 
@@ -214,12 +234,14 @@ class RotasAdapterService:
                 )
             )
             if existing is None:
-                self._db.add(TaxonomyTypePromotion(
-                    tenant_id=self._tenant_id,
-                    type_id=t.id,
-                    case_type_id=ct.id,
-                    min_severity=min_sev,
-                ))
+                self._db.add(
+                    TaxonomyTypePromotion(
+                        tenant_id=self._tenant_id,
+                        type_id=t.id,
+                        case_type_id=ct.id,
+                        min_severity=min_sev,
+                    )
+                )
                 await self._db.flush()
 
     async def _ensure_transition_rules(self, case_types: dict[str, TaxonomyCaseType]) -> None:
@@ -237,15 +259,17 @@ class RotasAdapterService:
                     )
                 )
                 if existing is None:
-                    self._db.add(CaseTransitionRule(
-                        tenant_id=self._tenant_id,
-                        case_type_id=ct.id,
-                        from_status=from_s,
-                        to_status=to_s,
-                        required_fields=req_fields,
-                        required_attachments=req_attach,
-                        sla_hours=sla_h,
-                    ))
+                    self._db.add(
+                        CaseTransitionRule(
+                            tenant_id=self._tenant_id,
+                            case_type_id=ct.id,
+                            from_status=from_s,
+                            to_status=to_s,
+                            required_fields=req_fields,
+                            required_attachments=req_attach,
+                            sla_hours=sla_h,
+                        )
+                    )
                     await self._db.flush()
 
     # ── sync_entities ─────────────────────────────────────────────────────────

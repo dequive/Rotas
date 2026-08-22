@@ -7,28 +7,34 @@ which would conflict with append-only triggers.
 
 The session-scoped engine creates tables + SQL functions once per test run.
 """
+
+import os
 import uuid
 from collections.abc import AsyncIterator
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
+from sqlalchemy import NullPool, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from core.auth import generate_api_key
-from core.database import Base, set_rls_tenant
+from core.database import engine as app_engine
+from core.database import install_rls_context, set_rls_tenant
 from core.models import (
+    CaseTransitionRule,
     TaxonomyCaseType,
     TaxonomyDomain,
     TaxonomyType,
     TaxonomyTypePromotion,
-    CaseTransitionRule,
 )
 from core.models_auth import ApiKey, Tenant
 from main import app
 
-TEST_DB_URL = "postgresql+asyncpg://governance_app:governance@localhost:55433/governance"
+TEST_DB_URL = os.getenv(
+    "GOVERNANCE_TEST_DATABASE_URL",
+    "postgresql+asyncpg://governance_app:governance@localhost:55433/governance",
+)
 
 _NEXT_HUMAN_ID_SQL = """
 CREATE OR REPLACE FUNCTION next_human_id(
@@ -86,18 +92,26 @@ END $$;
 
 @pytest.fixture(scope="session")
 def engine():
-    eng = create_async_engine(TEST_DB_URL, echo=False)
+    # pytest-asyncio may use distinct loops for session and function fixtures.
+    # NullPool prevents an asyncpg connection created on one loop being reused
+    # by another while keeping the database itself session-scoped.
+    eng = create_async_engine(TEST_DB_URL, echo=False, poolclass=NullPool)
+    install_rls_context(eng)
     return eng
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def create_tables(engine):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        await conn.execute(text(_NEXT_HUMAN_ID_SQL))
-        await conn.execute(text(_IMMUTABILITY_FUNCTION_SQL))
-        await conn.execute(text(_TRIGGER_OCCURRENCES_SQL))
-        await conn.execute(text(_TRIGGER_TRANSITIONS_SQL))
+    """Require the canonical Alembic schema; application tests never run DDL."""
+    async with engine.connect() as conn:
+        occurrences = await conn.scalar(text("SELECT to_regclass('public.occurrences')"))
+        next_human_id = await conn.scalar(
+            text("SELECT to_regprocedure('public.next_human_id(uuid,text,smallint)')")
+        )
+    if occurrences is None or next_human_id is None:
+        raise RuntimeError(
+            "Governance test database is not migrated; run `alembic upgrade head` first."
+        )
     yield
 
 
@@ -105,6 +119,7 @@ async def create_tables(engine):
 async def dispose_engine_between_tests(engine):
     yield
     await engine.dispose()
+    await app_engine.dispose()
 
 
 @pytest.fixture
@@ -116,12 +131,21 @@ def tenant_id() -> uuid.UUID:
 @pytest_asyncio.fixture
 async def db(engine, tenant_id) -> AsyncIterator[AsyncSession]:
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    # Canonical migrations enforce tenant foreign keys. Seed the auth-layer
+    # tenant before inserting any tenant-scoped fixture rows.
+    async with session_factory() as auth_session:
+        if await auth_session.get(Tenant, tenant_id) is None:
+            auth_session.add(
+                Tenant(
+                    id=tenant_id,
+                    name="Test Tenant",
+                    slug=f"test-{tenant_id.hex[:12]}",
+                )
+            )
+            await auth_session.commit()
+
     set_rls_tenant(str(tenant_id))
     async with session_factory() as session:
-        await session.execute(
-            text("SELECT set_config('app.tenant_id', :tid, false)"),
-            {"tid": str(tenant_id)},
-        )
         yield session
     set_rls_tenant(None)
 
@@ -129,9 +153,7 @@ async def db(engine, tenant_id) -> AsyncIterator[AsyncSession]:
 @pytest_asyncio.fixture
 async def taxonomy(db: AsyncSession, tenant_id: uuid.UUID) -> dict:
     """Bootstrap minimal taxonomy for a test tenant."""
-    domain = TaxonomyDomain(
-        tenant_id=tenant_id, code="test", name="Test Domain"
-    )
+    domain = TaxonomyDomain(tenant_id=tenant_id, code="test", name="Test Domain")
     db.add(domain)
     await db.flush()
 
@@ -156,29 +178,33 @@ async def taxonomy(db: AsyncSession, tenant_id: uuid.UUID) -> dict:
     await db.flush()
 
     # Promotion: test.breakdown + alta → test.incident
-    db.add(TaxonomyTypePromotion(
-        tenant_id=tenant_id,
-        type_id=occ_type.id,
-        case_type_id=incident_case_type.id,
-        min_severity="alta",
-    ))
+    db.add(
+        TaxonomyTypePromotion(
+            tenant_id=tenant_id,
+            type_id=occ_type.id,
+            case_type_id=incident_case_type.id,
+            min_severity="alta",
+        )
+    )
 
     # Transition rules
     for from_s, to_s, req_fields, req_attach in [
-        (None,           "open",        [],                    False),
-        ("open",         "in_analysis", [],                    False),
-        ("in_analysis",  "resolved",    ["resolution_note"],   False),
-        ("open",         "resolved",    ["resolution_note"],   False),
-        ("resolved",     "closed",      [],                    False),
+        (None, "open", [], False),
+        ("open", "in_analysis", [], False),
+        ("in_analysis", "resolved", ["resolution_note"], False),
+        ("open", "resolved", ["resolution_note"], False),
+        ("resolved", "closed", [], False),
     ]:
-        db.add(CaseTransitionRule(
-            tenant_id=tenant_id,
-            case_type_id=incident_case_type.id,
-            from_status=from_s,
-            to_status=to_s,
-            required_fields=req_fields,
-            required_attachments=req_attach,
-        ))
+        db.add(
+            CaseTransitionRule(
+                tenant_id=tenant_id,
+                case_type_id=incident_case_type.id,
+                from_status=from_s,
+                to_status=to_s,
+                required_fields=req_fields,
+                required_attachments=req_attach,
+            )
+        )
 
     await db.commit()
     return {
@@ -196,9 +222,15 @@ async def api_key_raw(tenant_id: uuid.UUID, engine) -> str:
     # Create tenant row (no RLS on tenants table)
     set_rls_tenant(None)
     async with session_factory() as session:
-        tenant = Tenant(id=tenant_id, name="Test Tenant", slug=f"test-{tenant_id.hex[:8]}")
-        session.add(tenant)
-        await session.commit()
+        if await session.get(Tenant, tenant_id) is None:
+            session.add(
+                Tenant(
+                    id=tenant_id,
+                    name="Test Tenant",
+                    slug=f"test-{tenant_id.hex[:12]}",
+                )
+            )
+            await session.commit()
 
     full_key, prefix, key_hash = generate_api_key()
 
@@ -210,9 +242,12 @@ async def api_key_raw(tenant_id: uuid.UUID, engine) -> str:
             key_prefix=prefix,
             key_hash=key_hash,
             scopes=[
-                "occurrences:read", "occurrences:write",
-                "cases:read", "cases:write",
-                "admin:read", "admin:write",
+                "occurrences:read",
+                "occurrences:write",
+                "cases:read",
+                "cases:write",
+                "admin:read",
+                "admin:write",
                 "adapter:rotas",
             ],
         )

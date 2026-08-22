@@ -14,8 +14,8 @@ _KEY_VERSION = "1"
 
 def generate_api_key() -> tuple[str, str, str]:
     """Returns (full_key, prefix_8chars, sha256_hex)."""
-    prefix = secrets.token_hex(4)          # 8 hex chars
-    secret = secrets.token_urlsafe(24)     # 32 url-safe chars
+    prefix = secrets.token_hex(4)  # 8 hex chars
+    secret = secrets.token_urlsafe(24)  # 32 url-safe chars
     full_key = f"{_KEY_PREFIX}{_KEY_VERSION}_{prefix}_{secret}"
     key_hash = hashlib.sha256(full_key.encode()).hexdigest()
     return full_key, prefix, key_hash

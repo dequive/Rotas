@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -319,9 +319,7 @@ async def _post_batch(tenant_id, device_id: str, operations: list[dict]) -> http
 
 async def _count(model: Any, tenant_id) -> int:
     async with AsyncSessionLocal() as db:
-        return await db.scalar(
-            select(func.count(model.id)).where(model.tenant_id == tenant_id)
-        )
+        return await db.scalar(select(func.count(model.id)).where(model.tenant_id == tenant_id))
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c.entity_type)
@@ -371,17 +369,13 @@ async def test_corrected_payload_under_the_same_key_is_flagged_not_swallowed(
     device_id = f"phone-{uuid4().hex[:8]}"
     key = str(uuid4())
 
-    first = await _post_batch(
-        tenant_id, device_id, [_operation(case, ids, key, case.payload(ids))]
-    )
+    first = await _post_batch(tenant_id, device_id, [_operation(case, ids, key, case.payload(ids))])
     assert first.status_code == 200, first.text
     assert first.json()["results"][0]["status"] == "processed"
 
     after_first = await _count(case.model, tenant_id)
 
-    conflict = await _post_batch(
-        tenant_id, device_id, [_operation(case, ids, key, case.mutated(ids))]
-    )
+    conflict = await _post_batch(tenant_id, device_id, [_operation(case, ids, key, case.mutated(ids))])
     assert conflict.status_code == 200, conflict.text
     result = conflict.json()["results"][0]
 
@@ -390,9 +384,7 @@ async def test_corrected_payload_under_the_same_key_is_flagged_not_swallowed(
         f"A correccao do motorista foi engolida."
     )
     assert result["error_code"] == "idempotency_key_reused", result
-    assert await _count(case.model, tenant_id) == after_first, (
-        f"{case.entity_type}: o conflito escreveu na base"
-    )
+    assert await _count(case.model, tenant_id) == after_first, f"{case.entity_type}: o conflito escreveu na base"
 
 
 async def test_one_conflicting_operation_does_not_discard_the_rest_of_the_batch() -> None:
@@ -411,9 +403,7 @@ async def test_one_conflicting_operation_does_not_discard_the_rest_of_the_batch(
     stop_case = next(c for c in CASES if c.entity_type == "trip_stop")
 
     burnt_key = str(uuid4())
-    seeded = await _post_batch(
-        tenant_id, device_id, [_operation(fuel_case, ids, burnt_key, fuel_case.payload(ids))]
-    )
+    seeded = await _post_batch(tenant_id, device_id, [_operation(fuel_case, ids, burnt_key, fuel_case.payload(ids))])
     assert seeded.json()["results"][0]["status"] == "processed"
 
     stops_before = await _count(TripStop, tenant_id)
@@ -460,9 +450,7 @@ async def test_the_same_key_from_two_tenants_does_not_collide() -> None:
     assert second.status_code == 200, second.text
     result = second.json()["results"][0]
 
-    assert result["status"] == "processed", (
-        f"a chave gasta noutro tenant bloqueou esta escrita: {result}"
-    )
+    assert result["status"] == "processed", f"a chave gasta noutro tenant bloqueou esta escrita: {result}"
     assert result["server_id"] != first.json()["results"][0]["server_id"]
     assert await _count(FuelLog, second_ids["tenant_id"]) == 1
 
@@ -551,3 +539,148 @@ async def test_one_invalid_operation_does_not_poison_the_whole_batch() -> None:
         f"a operacao valida foi descartada por causa da invalida: {results['trip_stop']}"
     )
     assert await _count(TripStop, tenant_id) == stops_before + 1
+
+
+# ── Update operations ─────────────────────────────────────────────────────────
+# The update dispatcher already reports failure per operation, but nothing
+# proved that a retried update applies once, that a corrected payload under a
+# burnt key is refused, or that a rejected update leaves the row untouched.
+
+
+async def _create_fuel_log(ids: dict, device_id: str) -> str:
+    case = next(c for c in CASES if c.entity_type == "fuel_log")
+    response = await _post_batch(ids["tenant_id"], device_id, [_operation(case, ids, str(uuid4()), case.payload(ids))])
+    result = response.json()["results"][0]
+    assert result["status"] == "processed", result
+    return result["server_id"]
+
+
+def _update_operation(server_id: str, key: str, liters: float) -> dict:
+    return {
+        "local_id": f"local_update_{key[:8]}",
+        "idempotency_key": key,
+        "operation": "update",
+        "entity_type": "fuel_log",
+        "payload": {"serverId": server_id, "liters": liters, "totalCost": liters * 90.0},
+    }
+
+
+async def _liters_of(tenant_id, fuel_log_id: str) -> float:
+    async with AsyncSessionLocal() as db:
+        value = await db.scalar(select(FuelLog.liters).where(FuelLog.id == UUID(fuel_log_id)))
+        return float(value)
+
+
+async def test_replayed_update_applies_once() -> None:
+    ids = await _seed()
+    device_id = f"phone-{uuid4().hex[:8]}"
+    fuel_log_id = await _create_fuel_log(ids, device_id)
+    key = str(uuid4())
+
+    first = await _post_batch(ids["tenant_id"], device_id, [_update_operation(fuel_log_id, key, 91.0)])
+    assert first.json()["results"][0]["status"] == "processed", first.text
+    assert await _liters_of(ids["tenant_id"], fuel_log_id) == 91.0
+
+    replay = await _post_batch(ids["tenant_id"], device_id, [_update_operation(fuel_log_id, key, 91.0)])
+    assert replay.status_code == 200, replay.text
+    assert await _liters_of(ids["tenant_id"], fuel_log_id) == 91.0
+
+
+async def test_corrected_update_under_a_burnt_key_is_refused() -> None:
+    """The driver fixes the litres twice; the second correction must not vanish."""
+    ids = await _seed()
+    device_id = f"phone-{uuid4().hex[:8]}"
+    fuel_log_id = await _create_fuel_log(ids, device_id)
+    key = str(uuid4())
+
+    await _post_batch(ids["tenant_id"], device_id, [_update_operation(fuel_log_id, key, 91.0)])
+
+    conflict = await _post_batch(ids["tenant_id"], device_id, [_update_operation(fuel_log_id, key, 99.0)])
+    result = conflict.json()["results"][0]
+
+    assert result["status"] == "conflict", f"a segunda correccao foi engolida: {result}"
+    assert result["error_code"] == "idempotency_key_reused", result
+    assert await _liters_of(ids["tenant_id"], fuel_log_id) == 91.0, "o conflito alterou o registo na mesma"
+
+
+async def test_update_without_server_id_fails_alone() -> None:
+    ids = await _seed()
+    device_id = f"phone-{uuid4().hex[:8]}"
+    stop_case = next(c for c in CASES if c.entity_type == "trip_stop")
+    stops_before = await _count(TripStop, ids["tenant_id"])
+
+    response = await _post_batch(
+        ids["tenant_id"],
+        device_id,
+        [
+            {
+                "local_id": "local_update_no_id",
+                "idempotency_key": str(uuid4()),
+                "operation": "update",
+                "entity_type": "fuel_log",
+                "payload": {"liters": 91.0},
+            },
+            _operation(stop_case, ids, str(uuid4()), stop_case.payload(ids)),
+        ],
+    )
+
+    assert response.status_code == 200, response.text
+    results = {r["local_id"]: r for r in response.json()["results"]}
+    assert results["local_update_no_id"]["status"] == "failed"
+    assert results["local_update_no_id"]["error_code"] == "server_id_required"
+    assert await _count(TripStop, ids["tenant_id"]) == stops_before + 1, (
+        "a operacao valida foi descartada por causa do update sem server_id"
+    )
+
+
+async def test_update_with_a_malformed_server_id_does_not_abort_the_batch() -> None:
+    """`UUID(server_id)` runs outside the update handler's own try block.
+
+    Before failure isolation was added to the dispatcher, a corrupted id in the
+    device queue — a truncated string, a local id that never got mapped — took
+    the whole batch down with it.
+    """
+    ids = await _seed()
+    device_id = f"phone-{uuid4().hex[:8]}"
+    stop_case = next(c for c in CASES if c.entity_type == "trip_stop")
+    stops_before = await _count(TripStop, ids["tenant_id"])
+
+    response = await _post_batch(
+        ids["tenant_id"],
+        device_id,
+        [
+            {
+                "local_id": "local_update_bad_uuid",
+                "idempotency_key": str(uuid4()),
+                "operation": "update",
+                "entity_type": "fuel_log",
+                "payload": {"serverId": "nao-e-um-uuid", "liters": 91.0},
+            },
+            _operation(stop_case, ids, str(uuid4()), stop_case.payload(ids)),
+        ],
+    )
+
+    assert response.status_code == 200, f"um server_id corrompido derrubou o lote inteiro: {response.status_code}"
+    results = {r["local_id"]: r for r in response.json()["results"]}
+    assert results["local_update_bad_uuid"]["status"] == "failed"
+    assert await _count(TripStop, ids["tenant_id"]) == stops_before + 1
+
+
+async def test_update_cannot_reach_another_tenants_entity() -> None:
+    """A device paired to tenant A must not patch tenant B's fuel log."""
+    victim = await _seed()
+    attacker = await _seed()
+    victim_log_id = await _create_fuel_log(victim, f"phone-{uuid4().hex[:8]}")
+    litres_before = await _liters_of(victim["tenant_id"], victim_log_id)
+
+    response = await _post_batch(
+        attacker["tenant_id"],
+        f"phone-{uuid4().hex[:8]}",
+        [_update_operation(victim_log_id, str(uuid4()), 999.0)],
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["results"][0]["status"] == "failed", response.text
+    assert await _liters_of(victim["tenant_id"], victim_log_id) == litres_before, (
+        "um tenant alterou o registo de combustivel de outro pelo lote de sincronizacao"
+    )

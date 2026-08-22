@@ -70,8 +70,9 @@ Os SHAs `51509d5` e `58b730a` passaram a exigir que o `device_id` do batch
 coincida com o JWT Driver e bloquearam no dispatcher criação de viagem,
 licença, manifesto e documento de transporte. `d30f1b0` protegeu criações
 ligadas à viagem e o lifecycle; `aa28bc2` protegeu identidade/viatura em
-checklist e combustível; `e7de9e6` protegeu update de combustível. Faltam os
-updates de checklist, paragem e prova de entrega.
+checklist e combustível; `e7de9e6` protegeu update de combustível. `5c7588e`
+fechou ownership dos updates de checklist, paragem e prova de entrega, incluindo
+teste negativo com outro motorista do mesmo tenant.
 
 Critério de fecho: allowlist por persona/operação, ownership por entidade e
 `device_id` derivado/verificado contra o principal autenticado.
@@ -176,8 +177,9 @@ ownership de criação por viagem/viatura e update de combustível. `0b7a36c` e
 `3acabde` fecharam C1-I0 localmente com base PostgreSQL descartável e
 fail-closed. Há RED/GREEN e Ruff anteriores, mas as partições Sync/Driver e o
 baseline combinado de 938 passados/1 skip antecedem o isolamento e são apenas
-históricos. Updates residuais, idempotência por owner/device, pairing e a
-repetição isolada continuam P0.
+históricos. `5c7588e` repetiu a partição Driver isolada em `16/16` e fechou os
+updates operacionais residuais. Idempotência por owner/device, pairing e a
+regressão isolada mais ampla continuam P0.
 
 ### C2 — Jornadas Driver
 

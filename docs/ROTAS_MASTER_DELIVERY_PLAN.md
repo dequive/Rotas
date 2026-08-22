@@ -2823,4 +2823,23 @@ C1-I0 fica **fechado localmente em modo serial**. G0/G1 continuam vermelhos
 porque faltam regressão integral nesta infraestrutura, CI/revisão independente,
 snapshot/restore e provas RLS do release candidate. O próximo trabalho continua
 em C1: ownership residual, idempotência por motorista/dispositivo e pairing
-concorrente; o veredito global permanece **NO-GO**.
+concorrente; o veredito global permanece **NO-GO**. A secção 16.13 regista o
+fecho posterior do ownership residual.
+
+### 16.13 C1 — Ownership de updates operacionais Sync — 2026-08-22
+
+- um RED com JWT Driver real demonstrou que checklist, paragem e prova de
+  entrega de outro motorista do mesmo tenant eram atualizados com sucesso;
+- `5c7588e` passou a validar checklist pelo seu `driver_id` e paragem/prova pela
+  viagem atribuída antes de qualquer dispatch;
+- paragens só são mutáveis em viagem ativa; provas permitem a fase `delivered`,
+  mas não viagem `closed/cancelled`;
+- o teste verifica o código `driver_record_forbidden` e os três valores físicos
+  inalterados;
+- a partição isolada `test_driver_app_api.py` passou `16/16`; Ruff e Pyright
+  focados passaram sem diagnósticos.
+
+O ownership residual de entidades permitidas pelo Sync fica **fechado
+localmente**. Permanecem P0 em C1 a idempotência por
+tenant/motorista/dispositivo e o consumo concorrente do pairing. O estado global
+continua **NO-GO**.

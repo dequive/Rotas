@@ -227,9 +227,14 @@ Estado em 2026-08-23: **em progresso**. `5286fe1` fechou o primeiro slice da
 fronteira de persona na PWA: removeu criação de viagem, seleção de frota,
 formulários de Load Permit/manifesto e o painel de cobrança. O cliente já não
 exporta as chamadas proibidas; 32/32 testes, TypeScript e build PWA/service
-worker passaram. Permanecem Minhas Viagens, histórico, documentos emitidos,
-pedidos de documento e read-only terminal, que exigem contratos backend antes
-da nova navegação.
+worker passaram. `e70e79b` acrescentou os contratos paginados
+`GET /driver/trips` e `GET /driver/trips/history`: ambos filtram por tenant e
+motorista autenticado, excluem rascunhos e dados financeiros, e o histórico
+aceita apenas `closed/cancelled`. A partição Driver/OpenAPI passou `34/34`,
+Ruff/Pyright globais, drift OpenAPI, cliente TypeScript, typecheck Manager e o
+auditor `208/158/0` ficaram verdes; o OpenAPI tem SHA-256 `257276c7...7303`.
+Permanecem a UI de Minhas Viagens/histórico, documentos emitidos, pedidos de
+documento, read-only terminal, E2E/Android e repetição integral no SHA C2.
 
 ### C3 — Contratos e gates
 

@@ -2956,3 +2956,26 @@ mesmo RC. Veredito global: **NO-GO**.
 C2 permanece **em progresso**. O próximo vertical é backend contract-first para
 Minhas Viagens, histórico, documentos emitidos, pedido de documento em falta e
 terminal read-only; depois vem a nova navegação mobile. G0-G5: **NO-GO**.
+
+### 16.19 C2 — Minhas Viagens e histórico no backend — 2026-08-23
+
+- testes RED confirmaram `405/404` e ausência dos contratos OpenAPI antes da
+  implementação;
+- `e70e79b` publicou `GET /driver/trips` para viagens atribuídas não rascunho e
+  não terminais, e `GET /driver/trips/history` apenas para `closed/cancelled`;
+- ambos os endpoints são paginados (`1..100`), autenticados com escopo Driver e
+  filtrados por `(tenant_id, driver_id)` no predicado SQL;
+- o DTO público continua a excluir tenant, contrato, billing, custos, receita e
+  margem; token Manager recebe `403` e viagens do outro motorista do mesmo
+  tenant não aparecem;
+- a partição Driver/OpenAPI passou `34/34` numa base descartável até `rec14`;
+  Ruff/Pyright globais, drift OpenAPI, cliente TypeScript, typecheck Manager e o
+  auditor `208 referências / 158 operações / 0 violações` ficaram verdes;
+- contrato OpenAPI versionado: SHA-256 `257276c776e4706373c46467013d08fcded8442a622c32bcb07c68ebc67a7303`.
+
+Este vertical fica **verde local focado**, não fecha C2. O próximo incremento
+obrigatório é o contrato de documentos emitidos e pedidos de documento em falta,
+incluindo recusa de qualquer emissão pelo motorista e bloqueio total de mutação
+em viagem fechada. Depois seguem UI/navegação, offline, E2E e Android no mesmo
+SHA. A regressão backend integral mais recente continua `968/968` em `97e365d`;
+não foi reclassificada como prova do SHA atual. G0-G5: **NO-GO**.

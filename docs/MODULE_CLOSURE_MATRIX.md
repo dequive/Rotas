@@ -1,7 +1,7 @@
 # ROTAS Module Closure Matrix
 
 Estado: activo
-Data: 2026-08-22
+Data: 2026-08-23
 
 ## Override de auditoria — Issue #42
 
@@ -11,11 +11,11 @@ até nova auditoria no SHA integrado. Ver
 
 | Área | Estado vinculativo | Razão bloqueante |
 | --- | --- | --- |
-| Frota e Pessoas | avançado local; não fechado | pairing concorrente e Driver com acesso à frota geral |
-| Transporte e Carga | regredido / P0 | Driver cria viagens e documentos; linha Android não convergiu |
-| Sync/Offline | regredido / P0 | falta ownership intra-tenant e isolamento de idempotência por motorista/dispositivo |
-| Contratos API Driver | parcial / P1 | seis sucessos Driver/Sync mantêm schema OpenAPI vazio |
-| Segurança multi-tenant | forte entre tenants; incompleta intra-tenant | RLS não substitui ownership entre motoristas do mesmo tenant |
+| Frota e Pessoas | avançado local; não fechado | pairing e ownership Driver verdes localmente; faltam RC, revisão e Android |
+| Transporte e Carga | C2 parcial; não fechado | criação/emissão removidas e listas backend prontas; faltam documentos, pedidos, terminal read-only e UI Android |
+| Sync/Offline | avançado local; não fechado | ownership e idempotência por motorista/dispositivo verdes localmente; faltam recovery/staging/Android no RC |
+| Contratos API Driver | avançado local; não fechado | DTOs e OpenAPI explícitos, incluindo listas/histórico; faltam documentos e CI/RC |
+| Segurança multi-tenant | avançado local; não certificado | ownership intra-tenant provado localmente; falta RLS restrita e pentest no RC |
 | ERP financeiro/inventário | parcial | fontes duplicadas, limiar de stock fixo e fecho ponta a ponta não certificado |
 | SaaS comercial | parcial | planos públicos, pagamento/subscrição, branding e operação comercial pendentes |
 | Business Intelligence | implementado parcialmente; não Trusted BI | faltam lineage/reconciliação/SLO/piloto no mesmo RC |
@@ -43,8 +43,8 @@ Um modulo so e considerado fechado quando:
 | Modulo de produto | Inclui | Estado | Lacunas para fechamento |
 | --- | --- | --- | --- |
 | Centro de Comando | control_tower, alerts, operational_exceptions | avancado | dashboard executivo TMS coberto; faltam configuracao de filas por tenant, politicas adicionais de escalonamento e QA visual final em origem browser permitida |
-| Frota e Pessoas | vehicles, drivers, availability | avançado local; não fechado | pairing concorrente e exposição de frota geral ao Driver; falta prova intra-tenant por motorista/dispositivo |
-| Transporte e Carga | trip_orders, trips, checklists, cargo, operations | regredido / P0 | Driver cria viagens/documentos e a jornada atribuída/documental Android não convergiu |
+| Frota e Pessoas | vehicles, drivers, availability | avançado local; não fechado | pairing/ownership e remoção de frota geral verdes localmente; faltam revisão, RC e Android |
+| Transporte e Carga | trip_orders, trips, checklists, cargo, operations | C2 parcial; não fechado | listas/histórico backend prontos; faltam documentos/pedidos, terminal read-only, UI/E2E/Android |
 | Custos e Margem | trips custos, workshop custos, billing margem | avancado | reconciliacao final e politicas adicionais de margem |
 | Combustivel | fuel | operacional MVP | politicas adicionais de stock, desvios e segregacao |
 | Oficina e Manutencao | workshop | operacional MVP | ampliar board visual e politicas enterprise |
@@ -59,11 +59,11 @@ Um modulo so e considerado fechado quando:
 | audit | avancado | cobertura transversal residual |
 | contracts | operacional MVP | politicas adicionais de reajuste/renovacao |
 | vehicles | fechado MVP | evolucoes enterprise futuras |
-| drivers | parcial / P1 | pairing concorrente, contratos Driver e jornada atribuída por convergir |
+| drivers | avançado local; não fechado | pairing, ownership e contratos base verdes; falta concluir C2 e certificar RC |
 | files | operacional MVP | storage adapter R2 |
 | checklists | avancado | politicas adicionais e visual hardening |
 | trip_orders | fechado MVP | evolucoes enterprise futuras |
-| trips | parcial / P0 | proibir criação/edição pelo Driver sem assignment/ownership |
+| trips | C2 parcial | criação proibida e listas tenant+driver-scoped; faltam detalhe documental, terminal read-only e UI |
 | cargo | parcial / P0 | separar emissão de gestor, pedido do Driver e bloqueio após fecho |
 | billing | avancado | reconciliacao final e politicas adicionais |
 | fuel | operacional MVP | politicas adicionais |
@@ -74,7 +74,7 @@ Um modulo so e considerado fechado quando:
 | tenants | avancado | branding e politicas administrativas adicionais |
 | users | operacional MVP | politicas enterprise |
 | auth | operacional MVP | recovery codes e gates adicionais por email verificado |
-| sync | regredido / P0 | ownership intra-tenant e idempotência por motorista/dispositivo incompletos |
+| sync | avançado local; não fechado | ownership/idempotência verdes localmente; faltam E2E, staging e Android no RC |
 
 ## Ordem de Fechamento
 

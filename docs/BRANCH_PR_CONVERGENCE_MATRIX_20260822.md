@@ -80,6 +80,9 @@ Nenhuma classificação equivale a autorização de merge ou release.
 1. **C0:** manter freeze, publicar esta matriz e bloquear merges integrais.
 2. **C1:** fechar autorização/ownership Driver e Sync por testes de abuso.
 3. **C2:** portar de #41, uma vertical por vez, as jornadas mobile aprovadas.
+   Estado parcial: `5286fe1` fechou a fronteira negativa de persona na PWA e
+   `e70e79b` publicou Minhas Viagens/histórico tenant+driver-scoped. UI dessas
+   listas, documentos/pedidos, terminal read-only, E2E e Android permanecem.
 4. **C3:** portar #35/#40, fechar Pyright/OpenAPI e recuperar CI executável.
 5. **C4:** criar um RC único, executar staging, Android físico, Sentry, segurança,
    observabilidade e piloto no mesmo SHA/artefactos.

@@ -23,7 +23,7 @@ const DOCUMENT_TYPES = [
 ];
 
 const inputCls =
-  "w-full px-2.5 py-1.5 border border-border-strong rounded-md bg-surface-2 text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-2 focus:ring-amber/20";
+  "w-full px-2.5 py-1.5 border border-border-strong rounded-md bg-surface-2 text-ink text-[13px] focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft";
 const labelCls = "block text-[11px] font-semibold uppercase tracking-wide text-muted mb-1";
 
 export function DocumentUploadModal({ subjectType, subjectId, onSuccess }: DocumentUploadModalProps) {

@@ -6,46 +6,94 @@
   :root {
     color-scheme: light;
 
+    /* ── ROTAS Design System v1.3.1 ──────────────────── */
+    --rotas-950: #0a1628;
+    --rotas-900: #0f1f3a;
+    --rotas-800: #162a4a;
+    --rotas-700: #1e3a5f;
+    --rotas-600: #2a4d7a;
+    --rotas-500: #3b6b9c;
+    --rotas-400: #5b8ab8;
+    --rotas-300: #8bb0d4;
+    --rotas-200: #c2d6ea;
+    --rotas-100: #e4eef7;
+    --rotas-50: #f4f8fc;
+
+    /* ── Accent action — máximo um por ecrã ─────────── */
+    --accent-600: #c2410c;
+    --accent-500: #ea580c;
+    --accent-400: #f97316;
+    --accent-soft: #fff7ed;
+
+    /* ── Focus ───────────────────────────────────────── */
+    --focus-ring: var(--rotas-500);
+    --focus-ring-soft: rgba(59, 107, 156, 0.20);
+
     /* ── Sidebar ─────────────────────────────────────── */
-    --sidebar-bg:      #0f1623;
-    --sidebar-hover:   #1e2d3d;
-    --sidebar-active:  #1e3a52;
-    --sidebar-text:    #94a3b8;
+    --sidebar-bg: var(--rotas-950);
+    --sidebar-hover: var(--rotas-800);
+    --sidebar-active: var(--rotas-700);
+    --sidebar-text: var(--rotas-200);
     --sidebar-text-active: #f1f5f9;
-    --sidebar-section: #475569;
+    --sidebar-section: var(--rotas-300);
 
     /* ── Content surfaces ────────────────────────────── */
-    --bg:          #f1f5f9;
+    --bg:          #f8fafc;
     --surface:     #ffffff;
-    --surface-2:   #f8fafc;
+    --surface-2:   #f4f8fc;
+    --surface-elevated: #ffffff;
     --border-color: #e2e8f0;
     --border-strong: #cbd5e1;
 
+    /* ── Printable operational documents ────────────── */
+    --document-paper: #ffffff;
+    --document-ink: #0f172a;
+    --document-muted: #94a3b8;
+    --document-header: #dbeafe;
+    --document-canvas: #e2e8f0;
+
     /* ── Text ────────────────────────────────────────── */
     --ink:         #0f172a;
-    --ink-2:       #334155;
-    --muted-color: #64748b;
+    --ink-2:       #475569;
+    --muted-color: #475569;
+    --tertiary-color: #94a3b8;
     --placeholder: #94a3b8;
 
-    /* ── Accent — amber (primary) ────────────────────── */
-    --amber:       #f59e0b;
-    --amber-light: #fef3c7;
-    --amber-dark:  #d97706;
+    /* ── Oficina semantic status pairs ───────────────── */
+    --status-reception: #475569;
+    --status-reception-soft: #f1f5f9;
+    --status-diagnosis: #1d4ed8;
+    --status-diagnosis-soft: #eff6ff;
+    --status-awaiting: #b45309;
+    --status-awaiting-soft: #fffbeb;
+    --status-supplement: #c2410c;
+    --status-supplement-soft: #fff7ed;
+    --status-execution: #047857;
+    --status-execution-soft: #ecfdf5;
+    --status-quality: #6d28d9;
+    --status-quality-soft: #f5f3ff;
+    --status-delivered: #047857;
+    --status-delivered-soft: #ecfdf5;
+    --status-cancelled: #be123c;
+    --status-cancelled-soft: #fff1f2;
+    --status-draft: #475569;
+    --status-draft-soft: #f8fafc;
 
-    /* ── Accent — blue (secondary) ───────────────────── */
-    --blue:        #2563eb;
-    --blue-light:  #eff6ff;
-    --blue-dark:   #1d4ed8;
-
-    /* ── Semantic ────────────────────────────────────── */
-    --success:     #16a34a;
-    --success-bg:  #f0fdf4;
-    --warning:     #d97706;
-    --warning-bg:  #fffbeb;
-    --error:       #dc2626;
-    --error-bg:    #fef2f2;
-    --info:        #0891b2;
-    --info-bg:     #ecfeff;
+    /* ── Cross-domain semantic aliases ───────────────── */
+    --success: var(--status-execution);
+    --success-bg: var(--status-execution-soft);
+    --warning: var(--status-awaiting);
+    --warning-bg: var(--status-awaiting-soft);
+    --error: var(--status-cancelled);
+    --error-bg: var(--status-cancelled-soft);
+    --info: var(--status-diagnosis);
+    --info-bg: var(--status-diagnosis-soft);
+    --blue: var(--status-diagnosis);
+    --blue-light: var(--status-diagnosis-soft);
+    --blue-dark: var(--status-diagnosis);
+    --amber: var(--accent-600);
+    --amber-light: var(--accent-soft);
+    --amber-dark: var(--accent-500);
 
     /* ── Transitions ─────────────────────────────────── */
     --transition-fast:   80ms ease-out;
@@ -61,75 +109,129 @@
     --s6: 24px;
     --s7: 32px;
     --s8: 48px;
+    --s9: 64px;
 
     /* ── Border radius ───────────────────────────────── */
-    --r-sm: 4px;
-    --r-md: 6px;
-    --r-lg: 8px;
-    --r-xl: 12px;
+    --r-sm: 6px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-xl: 16px;
+    --r-full: 9999px;
 
     /* ── Elevation ───────────────────────────────────── */
-    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
-    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.10), 0 2px 4px rgba(15, 23, 42, 0.06);
+    --shadow-sm: 0 1px 2px rgba(10, 22, 40, 0.06);
+    --shadow: 0 1px 3px rgba(10, 22, 40, 0.10), 0 1px 2px rgba(10, 22, 40, 0.06);
+    --shadow-md: 0 8px 20px rgba(10, 22, 40, 0.10);
+    --shadow-lg: 0 18px 40px rgba(10, 22, 40, 0.14);
+    --shadow-card: 0 1px 3px rgba(10, 22, 40, 0.08);
 
     /* ── Semantic borders ────────────────────────────── */
-    --error-border:   #fca5a5;
-    --success-border: #b7e1c8;
-    --warning-border: #f4d292;
+    --error-border:   #fecdd3;
+    --success-border: #a7f3d0;
+    --warning-border: #fde68a;
     --blue-border:    #bfdbfe;
-    --info-border:    #a5f3fc;
+    --info-border:    #bfdbfe;
 
     /* ── Track / fill surface ────────────────────────── */
-    --track: #edf2f7;
+    --track: var(--rotas-100);
 
     /* ── Legacy aliases (kept for inline styles in components) ── */
-    --muted: #64748b;
+    --muted: var(--muted-color);
     --line: #e2e8f0;
     --panel: #ffffff;
-    --soft: #f1f5f9;
-    --nav: #0f1623;
-    --green: #16a34a;
-    --orange: #d97706;
-    --red: #dc2626;
-    --cyan: #0891b2;
+    --soft: var(--rotas-50);
+    --nav: var(--rotas-950);
+    --green: var(--status-execution);
+    --orange: var(--accent-600);
+    --red: var(--status-cancelled);
+    --cyan: var(--status-diagnosis);
 
     /* ── shadcn/ui HSL tokens (HSL format only) ─────── */
-    --background: 213 27% 96%;
+    --background: 210 40% 98%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 38 92% 50%;
-    --primary-foreground: 222 47% 9%;
-    --secondary: 213 27% 96%;
+    --primary: 210 45% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 47% 93%;
     --secondary-foreground: 222 47% 11%;
     --muted-foreground: 215 16% 47%;
-    --accent: 48 96% 89%;
-    --accent-foreground: 26 90% 37%;
-    --destructive: 0 84% 60%;
+    --accent: 210 47% 93%;
+    --accent-foreground: 210 52% 25%;
+    --destructive: 347 83% 41%;
     --destructive-foreground: 0 0% 100%;
     --border: 214 32% 91%;
     --input: 213 27% 84%;
-    --ring: 38 92% 50%;
-    --radius: 0.375rem;
+    --ring: 210 45% 42%;
+    --radius: 0.5rem;
 
     /* ── Chart ───────────────────────────────────────── */
-    --chart-1: 38 92% 50%;
-    --chart-2: 221 83% 53%;
-    --chart-3: 142 71% 45%;
-    --chart-4: 0 84% 60%;
-    --chart-5: 199 89% 48%;
+    --chart-1: 210 45% 42%;
+    --chart-2: 20 88% 40%;
+    --chart-3: 160 94% 24%;
+    --chart-4: 263 70% 50%;
+    --chart-5: 347 83% 41%;
 
     /* ── Sidebar shadcn tokens ───────────────────────── */
     --sidebar: 222 47% 9%;
     --sidebar-foreground: 215 20% 65%;
-    --sidebar-primary: 38 92% 50%;
-    --sidebar-primary-foreground: 222 47% 9%;
+    --sidebar-primary: 210 45% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 215 28% 17%;
     --sidebar-accent-foreground: 213 27% 96%;
     --sidebar-border: 215 28% 17%;
-    --sidebar-ring: 38 92% 50%;
+    --sidebar-ring: 210 45% 42%;
+  }
+
+  .dark,
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0b1220;
+    --surface: #111827;
+    --surface-2: #172033;
+    --surface-elevated: #1e293b;
+    --border-color: #293548;
+    --border-strong: #475569;
+    --ink: #f1f5f9;
+    --ink-2: #cbd5e1;
+    --muted-color: #94a3b8;
+    --tertiary-color: #64748b;
+    --placeholder: #64748b;
+    --status-reception: #cbd5e1;
+    --status-reception-soft: #1e293b;
+    --status-diagnosis: #93c5fd;
+    --status-diagnosis-soft: #172554;
+    --status-awaiting: #fbbf24;
+    --status-awaiting-soft: #422006;
+    --status-supplement: #fb923c;
+    --status-supplement-soft: #431407;
+    --status-execution: #34d399;
+    --status-execution-soft: #022c22;
+    --status-quality: #a78bfa;
+    --status-quality-soft: #2e1065;
+    --status-delivered: #34d399;
+    --status-delivered-soft: #022c22;
+    --status-cancelled: #fda4af;
+    --status-cancelled-soft: #4c0519;
+    --status-draft: #cbd5e1;
+    --status-draft-soft: #1e293b;
+    --focus-ring: var(--rotas-300);
+    --focus-ring-soft: rgba(139, 176, 212, 0.30);
+    --background: 218 48% 8%;
+    --foreground: 210 40% 96%;
+    --card: 221 39% 11%;
+    --card-foreground: 210 40% 96%;
+    --popover: 221 39% 11%;
+    --popover-foreground: 210 40% 96%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 96%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 96%;
+    --border: 216 28% 22%;
+    --input: 216 28% 22%;
   }
 
   * {
@@ -139,17 +241,58 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Manrope', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
     margin: 0;
   }
 
-  button, input, select {
+  button, input, select, textarea {
     font: inherit;
   }
 
   button {
     cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .skip-link {
+    position: fixed;
+    top: var(--s2);
+    left: var(--s2);
+    z-index: 100;
+    transform: translateY(calc(-100% - var(--s4)));
+    border-radius: var(--r-md);
+    background: var(--surface-elevated);
+    color: var(--ink);
+    padding: var(--s3) var(--s4);
+    box-shadow: var(--shadow-md);
+    font-weight: 700;
+  }
+
+  .skip-link:focus-visible {
+    transform: translateY(0);
+  }
+
+  [data-mono],
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
@@ -1190,10 +1333,22 @@
   border-color: var(--success-border);
 }
 
-.data-source.fallback {
+.data-source.cache {
+  background: var(--info-bg);
+  color: var(--info);
+  border-color: var(--info-border);
+}
+
+.data-source.degraded {
   background: var(--warning-bg);
   color: var(--warning);
   border-color: var(--warning-border);
+}
+
+.data-source.unavailable {
+  background: var(--error-bg);
+  color: var(--error);
+  border-color: var(--error-border);
 }
 
 .queue {
@@ -1626,8 +1781,8 @@
   white-space: nowrap;
 }
 
-.action-btn.green { color: var(--success); border-color: #b7e1c8; background: #e7f6ee; }
-.action-btn.cyan  { color: var(--info);  border-color: var(--info-border); background: #cffafe; }
+.action-btn.green { color: var(--success); border-color: var(--success-border); background: var(--success-bg); }
+.action-btn.cyan  { color: var(--info);  border-color: var(--info-border); background: var(--info-bg); }
 
 .action-cell {
   display: flex;
@@ -2141,9 +2296,9 @@
   padding-top: 0;
 }
 
-.tms-activity-icon.red { background: #fee4e2; color: var(--error); }
-.tms-activity-icon.blue { background: #dbeafe; color: var(--blue); }
-.tms-activity-icon.orange { background: #fff4df; color: var(--warning); }
+.tms-activity-icon.red { background: var(--error-bg); color: var(--error); }
+.tms-activity-icon.blue { background: var(--info-bg); color: var(--info); }
+.tms-activity-icon.orange { background: var(--warning-bg); color: var(--warning); }
 
 .tms-activity strong,
 .tms-activity span,

@@ -15,6 +15,7 @@ import {
   LogOut,
   Map,
   MapPin,
+  Menu,
   ReceiptText,
   Route,
   Settings,
@@ -22,11 +23,13 @@ import {
   Truck,
   Users,
   Wrench,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { bffRequest } from "@/app/lib/bff";
 
 type NavItem = {
   key: string;
@@ -109,10 +112,11 @@ export function SidebarLayout({
 }) {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [tenantModules, setTenantModules] = useState<string[]>(["tms", "oficina"]);
 
   useEffect(() => {
-    fetch("/api/tenants/me")
+    bffRequest("/api/v1/tenants/me")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.product_modules) {
@@ -133,17 +137,41 @@ export function SidebarLayout({
   }
 
   return (
-    <main
-      className="h-screen overflow-hidden grid"
-      style={{ gridTemplateColumns: `${collapsed ? "56px" : "248px"} minmax(0, 1fr)` }}
+    <>
+      <a
+        href="#main-content"
+        className="skip-link"
+      >
+        Saltar para o conteúdo principal
+      </a>
+      <div
+      className={cn(
+        "h-dvh overflow-hidden bg-bg lg:grid",
+        collapsed
+          ? "lg:grid-cols-[56px_minmax(0,1fr)]"
+          : "lg:grid-cols-[248px_minmax(0,1fr)]",
+      )}
     >
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Fechar navegação"
+          className="fixed inset-0 z-40 border-0 bg-rotas-950/60 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
       <aside
-        className="h-full flex flex-col overflow-hidden transition-all duration-150"
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex h-full w-[min(88vw,320px)] flex-col overflow-hidden bg-sidebar-bg shadow-design-lg transition-transform duration-150",
+          "lg:static lg:z-auto lg:w-auto lg:translate-x-0 lg:shadow-none",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+        )}
         style={{ background: "var(--sidebar-bg)" }}
       >
         {/* Logo + collapse toggle */}
         <div className="px-3 py-4 flex items-center justify-between flex-shrink-0">
-          {!collapsed && (
+          {(!collapsed || mobileOpen) && (
             <span
               className="text-[20px] font-extrabold tracking-tight px-2"
               style={{ color: "var(--sidebar-text-active)" }}
@@ -153,8 +181,11 @@ export function SidebarLayout({
           )}
           <button
             onClick={() => setCollapsed((c) => !c)}
+            type="button"
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            aria-expanded={!collapsed}
             className={cn(
-              "flex items-center justify-center h-7 w-7 rounded-md border-0 bg-transparent cursor-pointer transition-colors duration-100 flex-shrink-0",
+              "hidden items-center justify-center h-8 w-8 rounded-[var(--r-md)] border-0 bg-transparent cursor-pointer transition-colors duration-100 flex-shrink-0 lg:flex",
               collapsed && "mx-auto"
             )}
             style={{ color: "var(--sidebar-section)" }}
@@ -170,6 +201,14 @@ export function SidebarLayout({
           >
             {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
           </button>
+          <button
+            type="button"
+            aria-label="Fechar menu"
+            className="flex h-11 w-11 items-center justify-center rounded-[var(--r-md)] border-0 bg-transparent text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active lg:hidden"
+            onClick={() => setMobileOpen(false)}
+          >
+            <X aria-hidden="true" size={20} />
+          </button>
         </div>
 
         {/* Navigation sections */}
@@ -180,7 +219,7 @@ export function SidebarLayout({
           {visibleSections.map((section, sectionIdx) => (
             <div key={section.section}>
               {/* Section label — hidden when collapsed */}
-              {!collapsed && (
+              {(!collapsed || mobileOpen) && (
                 <span
                   className={cn(
                     "block px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest",
@@ -191,7 +230,7 @@ export function SidebarLayout({
                   {section.section}
                 </span>
               )}
-              {collapsed && sectionIdx > 0 && (
+              {collapsed && !mobileOpen && sectionIdx > 0 && (
                 <div className="my-2 mx-2 border-t" style={{ borderColor: "var(--sidebar-hover)" }} />
               )}
 
@@ -205,12 +244,13 @@ export function SidebarLayout({
                       key={item.key}
                       href={item.href}
                       title={collapsed ? item.label : undefined}
+                      onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center rounded-md text-[13px] no-underline border-0 relative transition-colors duration-100",
-                        collapsed
+                        collapsed && !mobileOpen
                           ? "justify-center h-9 w-9 mx-auto"
-                          : "gap-2.5 px-3 py-2 border-l-2",
-                        !collapsed && (isActive ? "border-amber pl-[10px]" : "border-transparent pl-[10px]")
+                          : "min-h-11 gap-2.5 px-3 py-2 border-l-2 lg:min-h-9",
+                        (!collapsed || mobileOpen) && (isActive ? "border-rotas-400 pl-[10px]" : "border-transparent pl-[10px]")
                       )}
                       style={{
                         color: isActive ? "var(--sidebar-text-active)" : "var(--sidebar-text)",
@@ -230,7 +270,7 @@ export function SidebarLayout({
                       }}
                     >
                       <Icon size={15} className="flex-shrink-0" />
-                      {!collapsed && <span className="truncate">{item.label}</span>}
+                      {(!collapsed || mobileOpen) && <span className="truncate">{item.label}</span>}
                     </Link>
                   );
                 })}
@@ -247,7 +287,7 @@ export function SidebarLayout({
           <button
             className={cn(
               "mt-3 flex items-center rounded-md text-[13px] border-0 bg-transparent cursor-pointer transition-colors duration-100",
-              collapsed ? "justify-center h-9 w-9 mx-auto" : "w-full gap-2.5 px-3 py-2"
+              collapsed && !mobileOpen ? "justify-center h-9 w-9 mx-auto" : "min-h-11 w-full gap-2.5 px-3 py-2 lg:min-h-9"
             )}
             style={{ color: "var(--sidebar-text)" }}
             onClick={handleLogout}
@@ -262,15 +302,33 @@ export function SidebarLayout({
             }}
           >
             <LogOut size={15} className="flex-shrink-0" />
-            {!collapsed && <span>Sair</span>}
+            {(!collapsed || mobileOpen) && <span>Sair</span>}
           </button>
         </div>
       </aside>
 
       {/* Main content area — independently scrollable */}
-      <section className="min-w-0 h-full overflow-y-auto bg-[var(--bg)]">
-        <div className="p-6">{children}</div>
-      </section>
-    </main>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="min-w-0 h-full overflow-y-auto bg-bg"
+      >
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-surface/95 px-4 backdrop-blur lg:hidden">
+          <button
+            type="button"
+            aria-label="Abrir navegação"
+            aria-expanded={mobileOpen}
+            className="flex h-11 w-11 items-center justify-center rounded-[var(--r-md)] border border-border bg-surface text-ink"
+            onClick={() => setMobileOpen(true)}
+          >
+            <Menu aria-hidden="true" size={20} />
+          </button>
+          <span className="font-semibold tracking-tight text-ink">ROTAS</span>
+          <span aria-hidden="true" className="h-11 w-11" />
+        </header>
+        <div className="p-4 sm:p-6">{children}</div>
+      </main>
+      </div>
+    </>
   );
 }

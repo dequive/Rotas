@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils'
-import { Gauge, WifiOff } from 'lucide-react'
+import { AlertTriangle, Database, Gauge, WifiOff } from 'lucide-react'
 
 interface DataSourceBadgeProps {
-  source: 'api' | 'fallback' | 'cache'
+  source: 'api' | 'cache' | 'degraded' | 'unavailable'
   message?: string
   className?: string
 }
@@ -15,16 +15,22 @@ const sourceConfig = {
     defaultMessage: 'Dados em tempo real.',
   },
   cache: {
-    icon: Gauge,
+    icon: Database,
     text: 'text-info',
     bg: 'bg-info-bg',
     defaultMessage: 'Dados em cache (< 60s).',
   },
-  fallback: {
-    icon: WifiOff,
+  degraded: {
+    icon: AlertTriangle,
     text: 'text-warning',
     bg: 'bg-warning-bg',
-    defaultMessage: 'A mostrar dados de fallback — API indisponível.',
+    defaultMessage: 'Dados operacionais degradados.',
+  },
+  unavailable: {
+    icon: WifiOff,
+    text: 'text-error',
+    bg: 'bg-error-bg',
+    defaultMessage: 'Fonte de dados indisponível.',
   },
 }
 

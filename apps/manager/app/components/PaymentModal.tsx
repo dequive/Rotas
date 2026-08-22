@@ -174,7 +174,7 @@ export function PaymentModal({
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value as "bank_transfer" | "cheque" | "cash")}
                   required
-                  className="w-full h-10 px-3 bg-surface border border-border rounded-md text-sm text-ink focus:outline-none focus:ring-2 focus:ring-amber/20 focus:border-amber transition-colors duration-100"
+                  className="w-full h-10 px-3 bg-surface border border-border rounded-md text-sm text-ink focus:outline-none focus:ring-2 focus:ring-focus-soft focus:border-focus transition-colors duration-100"
                 >
                   <option value="bank_transfer">Transferência Bancária</option>
                   <option value="cheque">Cheque</option>
@@ -205,7 +205,7 @@ export function PaymentModal({
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Observações adicionais..."
                   rows={2}
-                  className="w-full border border-border rounded-md px-3 py-2 text-sm text-ink bg-surface focus:outline-none focus:ring-2 focus:ring-amber/20 focus:border-amber resize-none transition-colors duration-100 placeholder:text-placeholder"
+                  className="w-full border border-border rounded-md px-3 py-2 text-sm text-ink bg-surface focus:outline-none focus:ring-2 focus:ring-focus-soft focus:border-focus resize-none transition-colors duration-100 placeholder:text-placeholder"
                 />
               </div>
 

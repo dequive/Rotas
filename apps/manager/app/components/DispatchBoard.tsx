@@ -3,9 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Truck, Users, Check, AlertCircle, ArrowRight } from "lucide-react";
-import { assignTripOrder, type TripOrder } from "../lib/trip-orders-api";
+import {
+  assignTripOrder,
+  confirmTripOrder,
+} from "../lib/trip-orders-client";
+import type { TripOrder } from "../lib/trip-orders-api";
 import type { Vehicle } from "../lib/vehicles-api";
 import type { Driver } from "../lib/drivers-api";
+import { Button } from "./ui/Button";
+import { ModalDialog } from "./ui/ModalDialog";
+import { StatusBadge } from "./ui/StatusBadge";
 
 interface DispatchBoardProps {
   pendingOrders: TripOrder[];
@@ -19,14 +26,17 @@ export function DispatchBoard({ pendingOrders, vehicles, drivers }: DispatchBoar
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmingOrderId, setConfirmingOrderId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const availableVehicles = vehicles.filter(v => v.status === "active");
   const availableDrivers = drivers.filter(d => d.status === "active");
 
   const handleAssign = async () => {
     if (!selectedOrder || !selectedVehicleId || !selectedDriverId) return;
-    
+
     setIsSubmitting(true);
+    setActionError(null);
     try {
       await assignTripOrder(selectedOrder.id, selectedVehicleId, selectedDriverId);
       setSelectedOrder(null);
@@ -34,79 +44,119 @@ export function DispatchBoard({ pendingOrders, vehicles, drivers }: DispatchBoar
       setSelectedDriverId("");
       router.refresh();
     } catch (error) {
-      alert("Erro ao despachar viagem. Verifique se o veículo ou motorista estão ocupados.");
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atribuir os recursos à ordem.",
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleConfirm = async (order: TripOrder) => {
+    setConfirmingOrderId(order.id);
+    setActionError(null);
+    try {
+      await confirmTripOrder(order.id, {
+        reason: "Confirmada no quadro de despacho",
+      });
+      router.refresh();
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível confirmar a ordem.",
+      );
+    } finally {
+      setConfirmingOrderId(null);
+    }
+  };
+
   if (pendingOrders.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center flex flex-col items-center justify-center mb-6 mt-4">
-        <div className="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center mb-3">
+      <div className="mb-6 mt-4 flex flex-col items-center justify-center rounded-xl border border-border bg-surface p-8 text-center shadow-design-sm">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-success-bg text-success">
           <Check size={24} />
         </div>
-        <h3 className="font-semibold text-slate-800">Tudo Despachado!</h3>
-        <p className="text-sm text-slate-500 max-w-sm mt-1">Não existem ordens de viagem pendentes de atribuição neste momento.</p>
+        <h3 className="font-semibold text-ink">Sem ordens abertas</h3>
+        <p className="mt-1 max-w-sm text-sm text-muted">Crie uma ordem de transporte para iniciar o fluxo de despacho.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6 mt-4">
-      <div className="border-b border-slate-200 p-4 bg-slate-50 flex items-center justify-between">
-        <h2 className="font-semibold text-slate-800 flex items-center gap-2">
-          <ArrowRight size={18} className="text-blue-600" />
+    <div className="mb-6 mt-4 overflow-hidden rounded-xl border border-border bg-surface shadow-design-sm">
+      <div className="flex items-center justify-between border-b border-border bg-surface-2 p-4">
+        <h2 className="flex items-center gap-2 font-semibold text-ink">
+          <ArrowRight size={18} className="text-accent-action-600" />
           Quadro de Despacho Operacional
         </h2>
-        <span className="text-xs font-semibold px-2 py-1 bg-amber-100 text-amber-800 rounded-md border border-amber-200">
-          {pendingOrders.length} Viagens Planeadas
+        <span className="rounded-md border border-border bg-surface px-2 py-1 text-xs font-semibold text-muted">
+          {pendingOrders.length} ordens abertas
         </span>
       </div>
 
-      <div className="divide-y divide-slate-100">
+      {actionError && (
+        <p role="alert" className="m-4 rounded-md border border-error-border bg-error-bg px-3 py-2 text-sm text-error">
+          <AlertCircle size={14} className="mr-1 inline" /> {actionError}
+        </p>
+      )}
+
+      <div className="divide-y divide-border">
         {pendingOrders.map((order) => (
-          <div key={order.id} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between">
+          <div key={order.id} className="flex flex-col gap-4 p-4 transition-colors hover:bg-surface-2 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                  {order.order_number || order.id.slice(0,8).toUpperCase()}
+                <span className="rounded bg-surface-2 px-2 py-0.5 text-xs font-bold text-muted">
+                  {order.customer_reference || order.id.slice(0,8).toUpperCase()}
                 </span>
-                <span className="font-semibold text-slate-800">{order.customer_name || "Cliente Interno"}</span>
+                <span className="font-semibold text-ink">
+                  {order.client_id ? "Cliente associado" : "Cliente Interno"}
+                </span>
+                <StatusBadge status={order.status} />
               </div>
-              <p className="text-sm text-slate-600">
-                <span className="font-medium text-slate-700">{order.origin}</span> → <span className="font-medium text-slate-700">{order.destination}</span>
+              <p className="text-sm text-muted">
+                <span className="font-medium text-ink">{order.origin}</span> → <span className="font-medium text-ink">{order.destination}</span>
               </p>
-              <p className="text-xs text-slate-400 mt-1">
-                Carga: {order.cargo_type || "Geral"} • Peso: {order.cargo_weight_kg || 0} kg
+              <p className="mt-1 text-xs text-muted">
+                Carga: {order.cargo_type || "Geral"} • Peso: {order.estimated_weight || 0} kg
               </p>
             </div>
-            
-            <button
-              onClick={() => setSelectedOrder(order)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-            >
-              Atribuir Motorista
-            </button>
+
+            {order.status === "draft" ? (
+              <Button
+                size="sm"
+                loading={confirmingOrderId === order.id}
+                onClick={() => handleConfirm(order)}
+              >
+                Confirmar ordem
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => setSelectedOrder(order)}>
+                Atribuir motorista
+              </Button>
+            )}
           </div>
         ))}
       </div>
 
-      {selectedOrder && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
-            <div className="p-4 border-b border-slate-100 bg-slate-50">
-              <h3 className="font-semibold text-slate-800">Despachar Viagem</h3>
-              <p className="text-xs text-slate-500 mt-1">{selectedOrder.origin} → {selectedOrder.destination}</p>
-            </div>
-            
+      <ModalDialog
+        open={selectedOrder !== null}
+        onClose={() => setSelectedOrder(null)}
+        title="Despachar viagem"
+      >
+        {selectedOrder && (
+          <>
+            <p className="border-b border-border bg-surface-2 px-6 py-3 text-xs text-muted">{selectedOrder.origin} → {selectedOrder.destination}</p>
             <div className="p-6 flex flex-col gap-5">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
-                  <Truck size={14} className="text-slate-400" /> Selecionar Viatura
+                <label htmlFor="dispatch-vehicle" className="mb-1 flex items-center gap-2 text-sm font-medium text-ink">
+                  <Truck size={14} className="text-muted" /> Selecionar viatura
                 </label>
-                <select 
-                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                <select
+                  id="dispatch-vehicle"
+                  className="w-full rounded-lg border border-border-strong bg-surface p-2.5 text-sm text-ink outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                   value={selectedVehicleId}
                   onChange={(e) => setSelectedVehicleId(e.target.value)}
                 >
@@ -118,11 +168,12 @@ export function DispatchBoard({ pendingOrders, vehicles, drivers }: DispatchBoar
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
-                  <Users size={14} className="text-slate-400" /> Selecionar Motorista
+                <label htmlFor="dispatch-driver" className="mb-1 flex items-center gap-2 text-sm font-medium text-ink">
+                  <Users size={14} className="text-muted" /> Selecionar motorista
                 </label>
-                <select 
-                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                <select
+                  id="dispatch-driver"
+                  className="w-full rounded-lg border border-border-strong bg-surface p-2.5 text-sm text-ink outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                   value={selectedDriverId}
                   onChange={(e) => setSelectedDriverId(e.target.value)}
                 >
@@ -134,25 +185,25 @@ export function DispatchBoard({ pendingOrders, vehicles, drivers }: DispatchBoar
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end">
-              <button
+            <div className="flex justify-end gap-3 border-t border-border bg-surface-2 p-4">
+              <Button
+                variant="secondary"
                 onClick={() => setSelectedOrder(null)}
-                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
                 disabled={isSubmitting}
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleAssign}
                 disabled={!selectedVehicleId || !selectedDriverId || isSubmitting}
-                className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                loading={isSubmitting}
               >
-                {isSubmitting ? "A Despachar..." : "Confirmar Despacho"}
-              </button>
+                Confirmar despacho
+              </Button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </ModalDialog>
     </div>
   );
 }

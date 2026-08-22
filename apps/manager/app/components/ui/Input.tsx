@@ -17,7 +17,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         className={cn(
           'w-full h-10 px-3 bg-surface border border-border rounded-md text-sm text-ink',
           'placeholder:text-placeholder',
-          'focus:outline-none focus:ring-2 focus:ring-amber/20 focus:border-amber',
+          'focus:outline-none focus:ring-2 focus:ring-focus-soft focus:border-focus',
           'disabled:opacity-50 disabled:cursor-not-allowed',
           'transition-colors duration-100',
           variant === 'mono' && 'font-mono tabular-nums',

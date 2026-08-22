@@ -14,6 +14,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { bffRequest } from "@/app/lib/bff";
 
 import type { BillingTrip, ContractOption } from "../lib/billing-api";
 import {
@@ -26,9 +27,7 @@ import {
 } from "../lib/billing-api";
 
 interface ApiConfig {
-  apiBaseUrl: string;
   tenantId: string | null;
-  token: string;
 }
 
 interface BillingTripActionsProps {
@@ -90,18 +89,16 @@ export function BillingTripActions({
   // ── Legacy callApi (for existing actions) ─────────────────────────────────
   async function callApi(path: string, body: unknown) {
     if (!apiConfig.tenantId) {
-      setError("Configure ROTAS_TENANT_ID.");
+      setError("Sessão BFF indisponível.");
       return null;
     }
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(`${apiConfig.apiBaseUrl}${path}`, {
+      const response = await bffRequest(path, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apiConfig.token}`,
           "Content-Type": "application/json",
-          "X-Tenant-Id": apiConfig.tenantId,
         },
         body: JSON.stringify(body),
       });

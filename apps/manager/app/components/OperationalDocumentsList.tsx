@@ -1,4 +1,4 @@
-import { FileText, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { StatusBadge } from "@/app/components/ui/StatusBadge";
 import { cn } from "@/lib/utils";
 
 export interface OperationalDocument {
@@ -22,25 +22,19 @@ interface Props {
 
 const VERIFICATION_BADGE: Record<
   string,
-  { label: string; wrapperClass: string; dotClass: string; Icon: React.ElementType }
+  { label: string; status: string }
 > = {
   pending: {
     label: "Pendente",
-    wrapperClass: "bg-warning-bg text-warning",
-    dotClass: "bg-amber",
-    Icon: Clock,
+    status: "pending",
   },
   verified: {
     label: "Verificado",
-    wrapperClass: "bg-success-bg text-success",
-    dotClass: "bg-success",
-    Icon: CheckCircle,
+    status: "valid",
   },
   rejected: {
     label: "Rejeitado",
-    wrapperClass: "bg-error-bg text-error",
-    dotClass: "bg-error",
-    Icon: AlertTriangle,
+    status: "rejected",
   },
 };
 
@@ -93,8 +87,6 @@ export function OperationalDocumentsList({ documents }: Props) {
                 const isExpired = days !== null && days < 0;
                 const badge =
                   VERIFICATION_BADGE[doc.verification_status] ?? VERIFICATION_BADGE.pending;
-                const BadgeIcon = badge.Icon;
-
                 return (
                   <tr key={doc.id} className="border-b border-border">
                     <td className="px-3 py-2.5 font-semibold text-ink whitespace-nowrap">
@@ -130,16 +122,7 @@ export function OperationalDocumentsList({ documents }: Props) {
                       {doc.issuing_authority ?? "—"}
                     </td>
                     <td className="px-3 py-2.5">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold",
-                          badge.wrapperClass,
-                        )}
-                      >
-                        <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", badge.dotClass)} />
-                        <BadgeIcon size={10} />
-                        {badge.label}
-                      </span>
+                      <StatusBadge status={badge.status} label={badge.label} />
                     </td>
                   </tr>
                 );

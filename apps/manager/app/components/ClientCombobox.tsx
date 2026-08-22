@@ -73,7 +73,7 @@ export function ClientCombobox({ value, onChange, disabled }: ClientComboboxProp
             className={cn(
               "w-full min-h-[38px] flex items-center justify-between px-2.5 text-[13px]",
               "border border-border-strong rounded-md bg-surface transition-colors duration-100",
-              "focus:outline-none focus:border-amber focus:ring-2 focus:ring-amber/20",
+              "focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft",
               selectedClient ? "text-ink" : "text-placeholder",
               disabled && "cursor-not-allowed opacity-60",
             )}

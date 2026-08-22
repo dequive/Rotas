@@ -8,7 +8,7 @@ import { Button } from "@/app/components/ui/Button";
 import { ModalDialog } from "@/app/components/ui/ModalDialog";
 
 const lbl = "flex flex-col gap-1.5 text-[13px] font-bold text-muted";
-const inp = "min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20";
+const inp = "min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft";
 const row = "grid grid-cols-2 gap-3";
 const actions = "flex justify-end gap-2.5 mt-1.5 pt-4 border-t border-border";
 

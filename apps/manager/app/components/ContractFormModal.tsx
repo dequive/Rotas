@@ -10,7 +10,7 @@ import { IconButton } from "@/app/components/ui/IconButton";
 import { ModalDialog } from "@/app/components/ui/ModalDialog";
 
 const lbl = "flex flex-col gap-1.5 text-[13px] font-bold text-muted";
-const inp = "min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20";
+const inp = "min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft";
 const row = "grid grid-cols-2 gap-3";
 const actions = "flex justify-end gap-2.5 mt-1.5 pt-4 border-t border-border";
 
@@ -159,7 +159,7 @@ export function ContractFormModal({ contract }: { contract?: Contract }) {
               Requer Prova de entrega
             </label>
           </div>
-          <label className={lbl}>Notas<textarea name="notes" rows={2} placeholder="Observações sobre o contrato..." className="px-2.5 py-2 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20 resize-y" /></label>
+          <label className={lbl}>Notas<textarea name="notes" rows={2} placeholder="Observações sobre o contrato..." className="px-2.5 py-2 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft resize-y" /></label>
           {error && <p className="text-error text-[13px] m-0 bg-error-bg border border-error-border rounded-md px-3 py-2">{error}</p>}
           <div className={actions}>
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>

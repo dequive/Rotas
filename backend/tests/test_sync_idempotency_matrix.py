@@ -510,18 +510,16 @@ async def test_one_invalid_operation_does_not_poison_the_whole_batch() -> None:
         device_id,
         [
             {
-                "local_id": "local_cost_broken",
+                "local_id": "local_fuel_broken",
                 "idempotency_key": str(uuid4()),
                 "operation": "create",
-                "entity_type": "trip_cost",
-                # requestReference is required by TripCostCreate and the driver
-                # app does not send it today.
+                "entity_type": "fuel_log",
+                # No vehicleId: a queue entry written by a build whose shape has
+                # since moved on, which is how this arrives in practice.
                 "payload": {
-                    "tripId": ids["trip_id"],
-                    "costType": "toll",
-                    "amount": 350.0,
-                    "currency": "MZN",
-                    "incurredAt": _now(),
+                    "driverId": ids["driver_id"],
+                    "fuelDate": _now(),
+                    "liters": 80.0,
                 },
             },
             _operation(stop_case, ids, str(uuid4()), stop_case.payload(ids)),
@@ -534,7 +532,8 @@ async def test_one_invalid_operation_does_not_poison_the_whole_batch() -> None:
     )
     results = {r["entity_type"]: r for r in response.json()["results"]}
 
-    assert results["trip_cost"]["status"] in ("failed", "conflict"), results["trip_cost"]
+    assert results["fuel_log"]["status"] == "failed", results["fuel_log"]
+    assert results["fuel_log"]["error_code"] == "payload_validation_failed"
     assert results["trip_stop"]["status"] == "processed", (
         f"a operacao valida foi descartada por causa da invalida: {results['trip_stop']}"
     )
@@ -683,4 +682,87 @@ async def test_update_cannot_reach_another_tenants_entity() -> None:
     assert response.json()["results"][0]["status"] == "failed", response.text
     assert await _liters_of(victim["tenant_id"], victim_log_id) == litres_before, (
         "um tenant alterou o registo de combustivel de outro pelo lote de sincronizacao"
+    )
+
+
+async def test_trip_cost_syncs_without_the_client_inventing_a_second_key() -> None:
+    """`request_reference` is derived from the operation's idempotency key.
+
+    A trip cost is deduplicated by `request_reference`, unique per tenant. That
+    is the same guarantee the sync key already carries, so requiring the device
+    to generate and store a second identifier would be asking it to solve a
+    problem it has already solved — and, until now, `trip_cost` was advertised
+    in `bootstrap` as supported while every such operation failed validation.
+    """
+    ids = await _seed()
+    tenant_id = ids["tenant_id"]
+    device_id = f"phone-{uuid4().hex[:8]}"
+    key = str(uuid4())
+    payload = {
+        "tripId": ids["trip_id"],
+        "costType": "toll",
+        "amount": 350.0,
+        "currency": "MZN",
+        "incurredAt": _now(),
+        "description": "Portagem EN1",
+    }
+    operation = {
+        "local_id": "local_cost_derived",
+        "idempotency_key": key,
+        "operation": "create",
+        "entity_type": "trip_cost",
+        "payload": payload,
+    }
+
+    before = await _count(TripCost, tenant_id)
+
+    first = await _post_batch(tenant_id, device_id, [operation])
+    assert first.status_code == 200, first.text
+    result = first.json()["results"][0]
+    assert result["status"] == "processed", result
+    assert await _count(TripCost, tenant_id) == before + 1
+
+    # The derived reference must also make the retry safe at the domain level,
+    # not only at the sync layer.
+    replay = await _post_batch(tenant_id, device_id, [operation])
+    assert replay.json()["results"][0]["server_id"] == result["server_id"]
+    assert await _count(TripCost, tenant_id) == before + 1
+
+
+async def test_an_explicit_request_reference_from_the_client_is_respected() -> None:
+    """Deriving is a default, not an override: a device that sends its own wins."""
+    ids = await _seed()
+    device_id = f"phone-{uuid4().hex[:8]}"
+    payload = {
+        "tripId": ids["trip_id"],
+        "costType": "fine",
+        "amount": 1200.0,
+        "currency": "MZN",
+        "incurredAt": _now(),
+        "requestReference": "multa-en1-2026-0042",
+    }
+
+    response = await _post_batch(
+        ids["tenant_id"],
+        device_id,
+        [
+            {
+                "local_id": "local_cost_explicit",
+                "idempotency_key": str(uuid4()),
+                "operation": "create",
+                "entity_type": "trip_cost",
+                "payload": payload,
+            }
+        ],
+    )
+    assert response.json()["results"][0]["status"] == "processed", response.text
+
+    async with AsyncSessionLocal() as db:
+        stored = await db.scalar(
+            select(TripCost.request_reference).where(
+                TripCost.tenant_id == ids["tenant_id"]
+            )
+        )
+    assert stored == "multa-en1-2026-0042", (
+        f"a referencia enviada pelo dispositivo foi substituida por {stored!r}"
     )

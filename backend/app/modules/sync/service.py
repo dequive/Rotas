@@ -127,6 +127,12 @@ async def _dispatch_create(
         return _result(operation, status="processed", server_id=created["id"])
 
     if entity_type == "trip_cost":
+        # `request_reference` is the domain dedup key for a cost: unique per
+        # tenant, with its own reuse conflict. That is the same guarantee the
+        # operation's idempotency key already carries, and the device generates
+        # it once per queued record — so derive it rather than demand a second
+        # key the driver app would have to invent.
+        payload.setdefault("request_reference", f"sync:{operation.idempotency_key}")
         created = await trip_service.create_cost(
             db,
             tenant_id,

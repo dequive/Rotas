@@ -112,3 +112,71 @@ describe("SyncIssuesPanel", () => {
     });
   });
 });
+
+describe("SyncIssuesPanel — mensagens accionáveis", () => {
+  beforeEach(async () => {
+    await db.syncQueue.clear();
+    localStorage.setItem("rotas_tenant_id", identityScope.tenantId);
+    localStorage.setItem("rotas_driver_id", identityScope.driverId);
+    localStorage.setItem("rotas_session_id", identityScope.sessionId);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  async function seedFailure(errorCode: string, lastError: string) {
+    await db.syncQueue.add({
+      ...identityScope,
+      localId: `local_${errorCode}`,
+      idempotencyKey: crypto.randomUUID(),
+      operation: "create",
+      entityType: "fuel_log",
+      payload: {},
+      retryCount: 1,
+      status: "failed",
+      lastError,
+      lastErrorCode: errorCode,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  it("não mostra a mensagem técnica do servidor como explicação principal", async () => {
+    // Exactamente o que o backend devolve para um payload incompleto.
+    await seedFailure("payload_validation_failed", "request_reference: Field required");
+    render(<SyncIssuesPanel />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Este registo está incompleto e o servidor não o aceita/i),
+      ).toBeTruthy();
+    });
+  });
+
+  it("desactiva o reenvio quando reenviar daria o mesmo resultado", async () => {
+    await seedFailure("payload_validation_failed", "request_reference: Field required");
+    render(<SyncIssuesPanel />);
+
+    const button = await screen.findByRole("button", { name: /Reenfileirar/i });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(button.getAttribute("title")).toMatch(/mesmo resultado/i);
+  });
+
+  it("mantém o reenvio disponível quando a falha é transitória", async () => {
+    await seedFailure("sync_operation_failed", "The server could not process this operation.");
+    render(<SyncIssuesPanel />);
+
+    const button = await screen.findByRole("button", { name: /Reenfileirar/i });
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("explica um código desconhecido em vez de mostrar nada", async () => {
+    await seedFailure("codigo_que_esta_app_nao_conhece", "something new from the server");
+    render(<SyncIssuesPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Este registo não foi aceite/i)).toBeTruthy();
+    });
+  });
+});

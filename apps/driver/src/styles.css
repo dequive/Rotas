@@ -836,6 +836,18 @@ button {
   font-size: 11px;
 }
 
+/* The server's technical wording is kept for support, but it must not compete
+   with the actionable sentence above it. */
+.sync-issue__detail {
+  overflow: hidden;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  opacity: 0.7;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sync-issue__actions {
   display: flex;
   flex-direction: column;

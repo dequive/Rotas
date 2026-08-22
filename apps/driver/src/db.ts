@@ -31,6 +31,8 @@ export interface SyncQueueItem {
   retryCount: number;
   status: SyncStatus;
   lastError?: string;
+  /** Stable server error_code. The UI localises from this, never from lastError. */
+  lastErrorCode?: string;
   lastAttemptAt?: string;
   nextAttemptAt?: string;
   deadLetteredAt?: string;

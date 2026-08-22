@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { explainSyncFailure } from "../syncErrors";
 import {
   db,
   discardSyncItem,
@@ -90,14 +91,26 @@ export function SyncIssuesPanel({ onChanged }: SyncIssuesPanelProps) {
             <div>
               <strong>{issue.entityType.replaceAll("_", " ")}</strong>
               <span>{issue.status.replace("_", " ")}</span>
-              <small>{issue.lastError ?? "Erro não especificado"}</small>
+              <small>{explainSyncFailure(issue.lastErrorCode).message}</small>
+              {/* The server's technical wording stays available for support,
+                  but it is never the first thing the driver reads. */}
+              {issue.lastError && (
+                <small className="sync-issue__detail" title={issue.lastError}>
+                  {issue.lastError}
+                </small>
+              )}
               <small>Tentativas: {issue.retryCount}/{5}</small>
             </div>
             <div className="sync-issue__actions">
               <button
                 className="small-btn"
-                disabled={busyId === issue.id}
+                disabled={busyId === issue.id || !explainSyncFailure(issue.lastErrorCode).canRetry}
                 onClick={() => void retry(issue)}
+                title={
+                  explainSyncFailure(issue.lastErrorCode).canRetry
+                    ? undefined
+                    : "Reenviar este registo daria o mesmo resultado."
+                }
                 type="button"
               >
                 Reenfileirar

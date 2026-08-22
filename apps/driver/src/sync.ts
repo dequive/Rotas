@@ -309,7 +309,8 @@ async function syncItem(
 
     await db.syncQueue.update(item.id!, {
       status: result.status === "conflict" ? "conflict" : "failed",
-      lastError: result.message ?? result.error_code ?? "sync_failed"
+      lastError: result.message ?? result.error_code ?? "sync_failed",
+      lastErrorCode: result.error_code ?? undefined
     });
   } catch (error) {
     if (error instanceof HttpContractError && error.status === 401) {
@@ -317,6 +318,7 @@ async function syncItem(
         status: "retrying",
         nextAttemptAt: new Date(now.getTime() + MAX_BACKOFF_MS).toISOString(),
         lastError: "session_expired",
+        lastErrorCode: "session_expired",
       });
       return;
     }
@@ -329,6 +331,7 @@ async function syncItem(
         status: "failed",
         nextAttemptAt: undefined,
         lastError: error.code,
+        lastErrorCode: error.code,
       });
       return;
     }

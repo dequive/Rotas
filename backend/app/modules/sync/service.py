@@ -19,8 +19,10 @@ from app.core.performance_diagnostics import measure_request_phase
 from app.database import defer_session_commits
 from app.modules.cargo import schemas as cargo_schemas
 from app.modules.cargo import service as cargo_service
+from app.modules.cargo.models import DeliveryProof
 from app.modules.checklists import schemas as checklist_schemas
 from app.modules.checklists import service as checklist_service
+from app.modules.checklists.models import Checklist
 from app.modules.fuel import schemas as fuel_schemas
 from app.modules.fuel import service as fuel_service
 from app.modules.fuel.models import FuelLog
@@ -28,7 +30,7 @@ from app.modules.sync.models import IdempotencyKey, SyncEvent
 from app.modules.sync.schemas import SyncBatchRequest, SyncOperation
 from app.modules.trips import schemas as trip_schemas
 from app.modules.trips import service as trip_service
-from app.modules.trips.models import Trip
+from app.modules.trips.models import Trip, TripStop
 
 DRIVER_SYNC_POLICY: dict[str, frozenset[str]] = {
     "create": frozenset(
@@ -47,6 +49,8 @@ ACTIVE_ASSIGNED_TRIP_STATUSES = frozenset(
 )
 DRIVER_TRIP_BOUND_CREATE_TYPES = frozenset({"trip_stop", "delivery_proof", "trip_cost"})
 DRIVER_ASSET_BOUND_CREATE_TYPES = frozenset({"checklist", "fuel_log"})
+DRIVER_OWNED_UPDATE_TYPES = frozenset({"checklist", "trip_stop", "delivery_proof"})
+DRIVER_MUTABLE_DELIVERY_TRIP_STATUSES = ACTIVE_ASSIGNED_TRIP_STATUSES | {"delivered"}
 
 
 def _snake_case(value: str) -> str:
@@ -188,6 +192,72 @@ async def _authorize_driver_fuel_update(
             message="Record does not belong to the authenticated driver.",
         )
     return None
+
+
+async def _authorize_driver_owned_update(
+    db: AsyncSession,
+    principal: DriverPrincipal,
+    operation: SyncOperation,
+) -> dict | None:
+    if (
+        operation.operation != "update"
+        or operation.entity_type not in DRIVER_OWNED_UPDATE_TYPES
+    ):
+        return None
+
+    server_id = _payload_uuid(_normalize_payload(operation.payload), "server_id", "id")
+    if operation.entity_type == "checklist":
+        owned_record = (
+            await db.scalar(
+                select(Checklist.id).where(
+                    Checklist.id == server_id,
+                    Checklist.tenant_id == principal.tenant_id,
+                    Checklist.driver_id == principal.driver_id,
+                )
+            )
+            if server_id is not None
+            else None
+        )
+        if owned_record is not None:
+            return None
+    else:
+        record_model = TripStop if operation.entity_type == "trip_stop" else DeliveryProof
+        row = (
+            (
+                await db.execute(
+                    select(Trip.driver_id, Trip.status)
+                    .join(record_model, record_model.trip_id == Trip.id)
+                    .where(
+                        record_model.id == server_id,
+                        record_model.tenant_id == principal.tenant_id,
+                        Trip.tenant_id == principal.tenant_id,
+                    )
+                )
+            ).one_or_none()
+            if server_id is not None
+            else None
+        )
+        if row is not None and row.driver_id == principal.driver_id:
+            allowed_statuses = (
+                ACTIVE_ASSIGNED_TRIP_STATUSES
+                if operation.entity_type == "trip_stop"
+                else DRIVER_MUTABLE_DELIVERY_TRIP_STATUSES
+            )
+            if row.status in allowed_statuses:
+                return None
+            return _result(
+                operation,
+                status="failed",
+                error_code="driver_trip_not_active",
+                message="Driver operations require a mutable assigned trip.",
+            )
+
+    return _result(
+        operation,
+        status="failed",
+        error_code="driver_record_forbidden",
+        message="Record does not belong to the authenticated driver.",
+    )
 
 
 def _request_hash(operation: SyncOperation) -> str:
@@ -499,6 +569,9 @@ async def _dispatch_failed_safe(
         if authorization_error is not None:
             return authorization_error
         authorization_error = await _authorize_driver_fuel_update(db, principal, operation)
+        if authorization_error is not None:
+            return authorization_error
+        authorization_error = await _authorize_driver_owned_update(db, principal, operation)
         if authorization_error is not None:
             return authorization_error
 

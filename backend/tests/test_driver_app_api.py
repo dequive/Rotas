@@ -5,7 +5,8 @@ import pytest
 from sqlalchemy import func, select
 
 from app.core.tokens import create_access_token
-from app.modules.checklists.models import ChecklistTemplate
+from app.modules.cargo.models import DeliveryProof
+from app.modules.checklists.models import Checklist, ChecklistTemplate
 from app.modules.drivers.models import Driver, DriverDevice
 from app.modules.fuel.models import FuelLog
 from app.modules.trips.models import Trip, TripStop
@@ -531,3 +532,99 @@ async def test_driver_sync_cannot_update_another_drivers_fuel_log(
     await db.refresh(foreign_log)
     assert float(foreign_log.liters) == 30
     assert float(foreign_log.total_cost) == 3000
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_cannot_update_another_drivers_operational_records(
+    async_client, db, tenant_id, driver_app_context
+):
+    foreign_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="in_progress",
+        billing_status="pending_delivery_proof",
+    )
+    foreign_checklist = Checklist(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        template_id=driver_app_context["template"].id,
+        type=driver_app_context["template"].type,
+        status="in_progress",
+        responses={},
+    )
+    db.add_all([foreign_trip, foreign_checklist])
+    await db.flush()
+    foreign_stop = TripStop(
+        tenant_id=tenant_id,
+        trip_id=foreign_trip.id,
+        stop_type="rest",
+        address="Matola",
+        notes="original stop",
+        stopped_at=datetime.now(UTC),
+    )
+    foreign_proof = DeliveryProof(
+        tenant_id=tenant_id,
+        trip_id=foreign_trip.id,
+        delivered_at=datetime.now(UTC),
+        notes="original proof",
+        status="pending",
+    )
+    db.add_all([foreign_stop, foreign_proof])
+    await db.commit()
+
+    response = await async_client.post(
+        "/api/v1/sync/batch",
+        headers=driver_app_context["headers"],
+        json={
+            "device_id": driver_app_context["device_id"],
+            "operations": [
+                {
+                    "local_id": "foreign-checklist-update",
+                    "idempotency_key": str(uuid4()),
+                    "operation": "update",
+                    "entity_type": "checklist",
+                    "payload": {
+                        "serverId": str(foreign_checklist.id),
+                        "responses": {"oil": True},
+                    },
+                },
+                {
+                    "local_id": "foreign-stop-update",
+                    "idempotency_key": str(uuid4()),
+                    "operation": "update",
+                    "entity_type": "trip_stop",
+                    "payload": {
+                        "serverId": str(foreign_stop.id),
+                        "notes": "tampered stop",
+                    },
+                },
+                {
+                    "local_id": "foreign-proof-update",
+                    "idempotency_key": str(uuid4()),
+                    "operation": "update",
+                    "entity_type": "delivery_proof",
+                    "payload": {
+                        "serverId": str(foreign_proof.id),
+                        "notes": "tampered proof",
+                    },
+                },
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert [result["error_code"] for result in response.json()["results"]] == [
+        "driver_record_forbidden",
+        "driver_record_forbidden",
+        "driver_record_forbidden",
+    ]
+    await db.refresh(foreign_checklist)
+    await db.refresh(foreign_stop)
+    await db.refresh(foreign_proof)
+    assert foreign_checklist.responses == {}
+    assert foreign_stop.notes == "original stop"
+    assert foreign_proof.notes == "original proof"

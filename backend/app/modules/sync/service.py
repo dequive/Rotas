@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import logging
 import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 from fastapi.encoders import jsonable_encoder
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import DriverPrincipal
+from app.core.errors import ApiError
 from app.core.idempotency import IDEMPOTENCY_TTL_DAYS, canonical_request_hash, ttl_for
 from app.core.performance_diagnostics import measure_request_phase
 from app.database import defer_session_commits
@@ -293,6 +296,81 @@ async def _record_event(
     )
 
 
+logger = logging.getLogger(__name__)
+
+
+async def _dispatch_failed_safe(
+    db: AsyncSession,
+    principal: DriverPrincipal,
+    operation: SyncOperation,
+    *,
+    defer_commit: bool,
+) -> dict:
+    """Dispatch one operation so that its failure cannot take the batch with it.
+
+    A driver's queue is built offline over hours. If one operation the server
+    cannot accept — a field an older installed client does not send, an entity
+    that no longer exists, a schema that moved on — aborted the request, every
+    record captured that day would be stuck behind it and retried forever. That
+    is the precise situation the offline guarantee exists for, so the failure is
+    reported per operation instead.
+
+    Isolation differs by mode, because the transaction does:
+
+    - batch: every operation shares one transaction and the domain services'
+      commits are deferred to flushes, so a SAVEPOINT contains a half-applied
+      write without discarding the operations already processed.
+    - single: the operation owns the transaction, so a plain rollback is both
+      sufficient and correct. A SAVEPOINT would not survive here — the services
+      commit internally, which closes it.
+
+    The driver PWA already models this: `apps/driver/src/sync.ts` types the
+    result status as processed | conflict | failed and routes failures to the
+    dead-letter queue.
+    """
+    savepoint = await db.begin_nested() if defer_commit else None
+
+    try:
+        result = await _dispatch_operation(db, principal.tenant_id, operation)
+    except Exception as exc:  # noqa: BLE001 - one operation must never abort the batch
+        if savepoint is not None and savepoint.is_active:
+            await savepoint.rollback()
+        elif savepoint is None:
+            await db.rollback()
+
+        if isinstance(exc, ValidationError):
+            first = exc.errors()[0] if exc.errors() else {}
+            field = ".".join(str(part) for part in first.get("loc", ())) or "payload"
+            return _result(
+                operation,
+                status="failed",
+                error_code="payload_validation_failed",
+                message=f"{field}: {first.get('msg', 'invalid payload')}",
+            )
+        if isinstance(exc, ApiError):
+            return _result(
+                operation,
+                status="failed",
+                error_code=exc.code,
+                message=exc.message,
+            )
+        logger.exception(
+            "sync_operation_failed entity_type=%s local_id=%s",
+            operation.entity_type,
+            operation.local_id,
+        )
+        return _result(
+            operation,
+            status="failed",
+            error_code="sync_operation_failed",
+            message="The server could not process this operation.",
+        )
+
+    if savepoint is not None and savepoint.is_active:
+        await savepoint.commit()
+    return result
+
+
 async def _process_operation(
     db: AsyncSession,
     principal: DriverPrincipal,
@@ -330,7 +408,9 @@ async def _process_operation(
         }
 
     with measure_request_phase("sync_dispatch"):
-        result = await _dispatch_operation(db, principal.tenant_id, operation)
+        result = await _dispatch_failed_safe(
+            db, principal, operation, defer_commit=defer_commit
+        )
     response_body = jsonable_encoder(result)
     idempotency = IdempotencyKey(
         tenant_id=principal.tenant_id,

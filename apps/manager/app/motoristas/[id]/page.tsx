@@ -84,8 +84,8 @@ export default async function DriverDetailPage({ params }: PageProps) {
   function expiryColor(dateStr: string | null): React.CSSProperties {
     const days = daysUntil(dateStr);
     if (days === null) return {};
-    if (days < 0) return { color: "var(--error, #ef4444)", fontWeight: 600 };
-    if (days <= 30) return { color: "var(--warning, #f59e0b)", fontWeight: 600 };
+    if (days < 0) return { color: "var(--error)", fontWeight: 600 };
+    if (days <= 30) return { color: "var(--warning)", fontWeight: 600 };
     return {};
   }
 
@@ -177,7 +177,7 @@ export default async function DriverDetailPage({ params }: PageProps) {
         <div className="bg-surface border border-border rounded-lg p-6 mb-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-ink">
-              Viaturas Atribu&#237;das
+              Viaturas Atribuídas
               {assignmentList.length > 0 && (
                 <span className="ml-2 text-xs font-normal text-muted">
                   ({assignmentList.length})
@@ -194,7 +194,7 @@ export default async function DriverDetailPage({ params }: PageProps) {
 
           {assignmentList.length === 0 ? (
             <p className="text-[13px] text-muted">
-              Sem viaturas atribu&#237;das a este motorista.
+              Sem viaturas atribuídas a este motorista.
             </p>
           ) : (
             <div className="overflow-x-auto">

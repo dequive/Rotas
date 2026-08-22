@@ -52,7 +52,12 @@ export default async function ViaturasPage() {
       />
 
       <section className="bg-surface border border-border rounded-lg p-4">
-        <div className="table-wrap">
+        <div
+          className="table-wrap"
+          role="region"
+          aria-label="Tabela de viaturas"
+          tabIndex={0}
+        >
           <table className="table">
             <thead>
               <tr>
@@ -120,23 +125,24 @@ export default async function ViaturasPage() {
                           href={`/api/v1/vehicles/${v.id}/qr-code`}
                           target="_blank"
                           title="Ver QR Code"
+                          aria-label={`Ver QR Code da viatura ${v.plate}`}
                           rel="noreferrer"
                           className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-surface text-ink-2 border border-border hover:bg-surface-2 hover:text-ink transition-colors duration-100 flex-shrink-0"
                         >
-                          <QrCode size={16} />
+                          <QrCode aria-hidden="true" size={16} />
                         </a>
                       </td>
                       <td>
                         <div className="flex flex-col gap-1">
                           <Link
                             href={`/viaturas/${v.id}`}
-                            className="text-xs font-semibold text-amber"
+                            className="inline-flex min-h-6 items-center text-xs font-semibold text-amber"
                           >
                             Ver Detalhe
                           </Link>
                           <Link
                             href={`/viaturas/${v.id}/historico`}
-                            className="text-xs font-semibold text-ink-2"
+                            className="inline-flex min-h-6 items-center text-xs font-semibold text-ink-2"
                           >
                             Ver Histórico
                           </Link>

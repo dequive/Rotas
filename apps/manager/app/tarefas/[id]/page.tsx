@@ -4,10 +4,11 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { apiFetch } from "@/app/lib/api";
-import { requireSession } from "@/app/lib/auth";
+import { assertUuid, governanceRequest } from "@/app/lib/governance-bff";
 import { TaskActions } from "../components/TaskActions";
 import { TaskNotes } from "../components/TaskNotes";
 import { TaskExecutionPanel } from "../components/TaskExecutionPanel";
+import { StatusBadge } from "@/app/components/ui/StatusBadge";
 export const dynamic = "force-dynamic";
 
 async function getTaskDetails(id: string, source: string) {
@@ -29,39 +30,47 @@ async function getTaskDetails(id: string, source: string) {
       notes: notesData || [],
     };
   } else {
-    // Governance case
-    const session = await requireSession();
-    const GOVERNANCE_API = process.env.GOVERNANCE_API_URL || "http://localhost:8001";
-    
-    const [caseRes, notesRes] = await Promise.all([
-      fetch(`${GOVERNANCE_API}/api/v1/cases/${id}`, {
-        headers: { "Authorization": `Bearer ${session.accessToken}`, "X-Tenant-Id": session.tenantId }
-      }).catch(() => null),
-      fetch(`${GOVERNANCE_API}/api/v1/cases/${id}/notes`, {
-        headers: { "Authorization": `Bearer ${session.accessToken}`, "X-Tenant-Id": session.tenantId }
-      }).catch(() => null)
+    const caseId = assertUuid(id);
+    const [caseRes, transitionsRes] = await Promise.all([
+      governanceRequest(`/api/v1/cases/${caseId}`),
+      governanceRequest(`/api/v1/cases/${caseId}/transitions`),
     ]);
 
-    const caseData = caseRes && caseRes.ok ? await caseRes.json() : null;
-    const notesData = notesRes && notesRes.ok ? await notesRes.json() : [];
+    const caseData = caseRes.ok ? await caseRes.json() : null;
+    const transitionsData = transitionsRes.ok ? await transitionsRes.json() : [];
 
     if (!caseData) return null;
 
     return {
       id: caseData.id,
-      title: caseData.title || "Caso Interno",
+      title: caseData.payload?.title || caseData.reference || "Caso Governance",
       status: caseData.status,
       createdAt: caseData.created_at,
       details: caseData,
       source: "governance",
-      category: "Back-office",
-      notes: notesData,
+      category: caseData.case_type_code,
+      notes: Array.isArray(transitionsData)
+        ? transitionsData.map((transition: any) => ({
+            id: transition.id,
+            body:
+              transition.reason ||
+              `Transição de ${transition.from_status || "início"} para ${transition.to_status}`,
+            created_at: transition.transitioned_at,
+          }))
+        : [],
     };
   }
 }
 
-export default async function TarefaDetailsPage({ params, searchParams }: { params: { id: string }, searchParams: { source: string } }) {
-  const task = await getTaskDetails(params.id, searchParams.source);
+export default async function TarefaDetailsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ source?: string }>;
+}) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const task = await getTaskDetails(id, query.source ?? "workshop");
 
   if (!task) {
     return (
@@ -91,9 +100,7 @@ export default async function TarefaDetailsPage({ params, searchParams }: { para
           </div>
           
           <div className="flex flex-col items-end">
-            <span className="px-3 py-1.5 bg-blue-100 text-blue-800 rounded-lg text-sm font-semibold border border-blue-200 uppercase tracking-wide">
-              {task.status}
-            </span>
+            <StatusBadge status={task.status} size="md" />
           </div>
         </div>
 
@@ -105,14 +112,14 @@ export default async function TarefaDetailsPage({ params, searchParams }: { para
                 <FileText size={18} className="text-indigo-600" /> Detalhes do Pedido
               </h2>
               <div className="prose prose-sm prose-slate max-w-none text-slate-700">
-                <p>{task.details.description || "Nenhuma descrição fornecida."}</p>
+                <p>{task.details.description || task.details.payload?.description || "Nenhuma descrição fornecida."}</p>
               </div>
             </div>
 
             {/* Notes / Activities */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
               <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <MessageSquare size={18} className="text-indigo-600" /> Histórico e Notas
+                <MessageSquare size={18} className="text-indigo-600" /> Histórico auditado
               </h2>
               
               <div className="flex flex-col gap-4">

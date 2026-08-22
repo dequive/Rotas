@@ -4,28 +4,13 @@ import { ClipboardList, Plus, AlertCircle, Clock, CheckCircle2, Wrench } from "l
 import Link from "next/link";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { DataSourceBadge } from "@/app/components/ui/DataSourceBadge";
+import { StatusBadge } from "@/app/components/ui/StatusBadge";
 
 export const dynamic = "force-dynamic";
 
-function getStatusBadge(status: string) {
-  switch (status) {
-    case "pending":
-      return <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-medium border border-amber-200">Pendente</span>;
-    case "in_progress":
-      return <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium border border-blue-200">Em Progresso</span>;
-    case "review":
-      return <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium border border-purple-200">Em Revisão</span>;
-    case "completed":
-      return <span className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-medium border border-emerald-200">Concluído</span>;
-    case "cancelled":
-      return <span className="px-2 py-1 bg-slate-100 text-slate-800 rounded-full text-xs font-medium border border-slate-200">Cancelado</span>;
-    default:
-      return <span className="px-2 py-1 bg-slate-100 text-slate-800 rounded-full text-xs font-medium border border-slate-200">{status}</span>;
-  }
-}
-
 export default async function TarefasPage() {
-  const tasks = await getUnifiedTasks();
+  const { tasks, unavailableSources } = await getUnifiedTasks();
 
   return (
     <SidebarLayout active="tarefas">
@@ -34,7 +19,7 @@ export default async function TarefasPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-              <ClipboardList className="text-indigo-600" /> Central de Tarefas
+              <ClipboardList className="text-amber" /> Central de Tarefas
             </h1>
             <p className="text-slate-500 mt-1">
               Gerencie todas as tarefas internas, desde ordens de manutenção da frota a pedidos de RH e TI.
@@ -42,11 +27,20 @@ export default async function TarefasPage() {
           </div>
           <Link
             href="/tarefas/nova"
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+            className="flex items-center gap-2 bg-amber text-ink px-4 py-2 rounded-lg font-semibold hover:bg-amber-dark transition-colors shadow-sm"
           >
             <Plus size={18} /> Nova Tarefa
           </Link>
         </div>
+
+        <DataSourceBadge
+          source={unavailableSources.length === 0 ? "api" : tasks.length > 0 ? "degraded" : "unavailable"}
+          message={
+            unavailableSources.length === 0
+              ? "Oficina e Governance em tempo real."
+              : `Fontes indisponíveis: ${unavailableSources.join(", ")}.`
+          }
+        />
 
         {/* Task List */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 overflow-hidden flex flex-col">
@@ -97,7 +91,7 @@ export default async function TarefasPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        {getStatusBadge(task.status)}
+                        <StatusBadge status={task.status} />
                       </td>
                       <td className="px-6 py-4 text-slate-500">
                         {format(new Date(task.createdAt), "dd MMM yyyy", { locale: ptBR })}
@@ -105,7 +99,7 @@ export default async function TarefasPage() {
                       <td className="px-6 py-4 text-right">
                         <Link
                           href={`/tarefas/${task.id}?source=${task.source}`}
-                          className="text-indigo-600 font-medium hover:text-indigo-800 text-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="text-blue font-medium hover:text-blue-dark text-sm opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           Ver detalhes &rarr;
                         </Link>

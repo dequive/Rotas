@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
-
-function getApiBase() {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("rotas_api_base_url") ?? (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "");
-}
+import { bffRequest } from "@/app/lib/bff";
 
 export default function TabFinance({ vehicleId }: { vehicleId: string }) {
   const [pl, setPl] = useState<any>(null);
@@ -15,7 +11,7 @@ export default function TabFinance({ vehicleId }: { vehicleId: string }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const res = await fetch(`${getApiBase()}/api/v1/accounting/profit-and-loss?vehicle_id=${vehicleId}`);
+        const res = await bffRequest(`/api/v1/accounting/profit-and-loss?vehicle_id=${vehicleId}`);
         if (res.ok) {
           const data = await res.json();
           setPl(data);

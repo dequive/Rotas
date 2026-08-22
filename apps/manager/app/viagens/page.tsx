@@ -15,6 +15,7 @@ import { PageHeader } from "../components/ui/PageHeader";
 // Map API trip status to StatusBadge status key
 const TRIP_STATUS_MAP: Record<string, string> = {
   planned: "planeada",
+  dispatch_pending: "aguarda",
   dispatched: "aguarda",
   in_progress: "em_viagem",
   completed: "concluida",
@@ -75,7 +76,12 @@ export default async function ViagensPage() {
       />
 
       <section className="bg-surface border border-border rounded-lg p-4">
-        <div className="table-wrap">
+        <div
+          className="table-wrap"
+          role="region"
+          aria-label="Tabela de viagens"
+          tabIndex={0}
+        >
           <table className="table">
             <thead>
               <tr>
@@ -96,12 +102,14 @@ export default async function ViagensPage() {
                 </tr>
               ) : (
                 trips.map((t) => {
+                  const vehicle = vehicles.find((item) => item.id === t.vehicle_id);
+                  const driver = drivers.find((item) => item.id === t.driver_id);
                   return (
                     <tr key={t.id}>
                       <td>
-                        <strong>{t.vehicle_plate ?? "-"}</strong>
+                        <strong>{vehicle?.plate ?? "-"}</strong>
                       </td>
-                      <td>{t.driver_name ?? "-"}</td>
+                      <td>{driver?.full_name ?? "-"}</td>
                       <td>
                         <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                           <Route size={14} />

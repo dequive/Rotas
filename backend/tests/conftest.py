@@ -7,6 +7,10 @@ import pytest
 
 os.environ.setdefault("DEV_TEST_TOKEN", "test-token")
 
+from scripts.test_database_guard import activate_test_database  # noqa: E402
+
+activate_test_database(os.environ)
+
 from app.database import AsyncSessionLocal, engine, import_all_models  # noqa: E402
 from app.main import app  # noqa: E402
 from app.modules.drivers.models import Driver  # noqa: E402

@@ -1,14 +1,16 @@
-import pytest
 import uuid
-from decimal import Decimal
 from datetime import date
-from unittest.mock import AsyncMock
+from decimal import Decimal
+
+import pytest
+
 from app.main import app
-from app.modules.vehicles.models import Vehicle
 from app.modules.drivers.models import Driver
-from app.modules.trips.models import Trip
-from app.modules.trip_orders.models import TripOrder
 from app.modules.operational_exceptions.models import OperationalException
+from app.modules.trip_orders.models import TripOrder
+from app.modules.trips.models import Trip
+from app.modules.vehicles.models import Vehicle
+
 
 @pytest.mark.asyncio
 async def test_trip_patch_and_cache_invalidation(async_client, db, tenant_id, auth_headers, mock_redis):

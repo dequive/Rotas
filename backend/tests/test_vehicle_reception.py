@@ -1,7 +1,6 @@
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 
 from app.core.limiter import limiter
 from app.database import AsyncSessionLocal

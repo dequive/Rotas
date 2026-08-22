@@ -1,3 +1,4 @@
+import asyncio
 from uuid import uuid4
 
 import httpx
@@ -7,6 +8,7 @@ from app.core.passwords import hash_password
 from app.core.totp import generate_totp_code
 from app.database import AsyncSessionLocal, engine, import_all_models
 from app.main import app
+from app.modules.auth import service as auth_service
 from app.modules.drivers.models import Driver
 from app.modules.tenants.models import Tenant
 from app.modules.users.models import User
@@ -101,6 +103,48 @@ async def test_login_refresh_logout_and_tenant_mismatch() -> None:
             json={"refresh_token": rotated_tokens["refresh_token"]},
         )
         assert revoked_response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_concurrent_refresh_rotates_a_token_only_once(monkeypatch) -> None:
+    _tenant, _other_tenant, user, _driver = await create_entities()
+    original_create_tokens = auth_service._create_user_tokens
+    first_refresh_entered = asyncio.Event()
+    release_first_refresh = asyncio.Event()
+    create_calls = 0
+
+    async def delayed_create_tokens(*args, **kwargs):
+        nonlocal create_calls
+        create_calls += 1
+        if create_calls == 1:
+            first_refresh_entered.set()
+            try:
+                await asyncio.wait_for(release_first_refresh.wait(), timeout=0.2)
+            except TimeoutError:
+                pass
+        else:
+            release_first_refresh.set()
+        return await original_create_tokens(*args, **kwargs)
+
+    async with await create_api_client() as client:
+        login_response = await client.post(
+            "/api/v1/auth/login",
+            json={"email": user.email, "password": "secure-password"},
+        )
+        refresh_token = login_response.json()["refresh_token"]
+        monkeypatch.setattr(auth_service, "_create_user_tokens", delayed_create_tokens)
+
+        first = asyncio.create_task(
+            client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+        )
+        await asyncio.wait_for(first_refresh_entered.wait(), timeout=1)
+        second = asyncio.create_task(
+            client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+        )
+        responses = await asyncio.gather(first, second)
+
+    assert sorted(response.status_code for response in responses) == [200, 401]
+    assert create_calls == 1
 
 
 @pytest.mark.asyncio

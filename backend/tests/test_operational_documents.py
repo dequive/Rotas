@@ -120,10 +120,12 @@ async def test_extra_fields_accepts_jsonb_dict(db, tenant_id):
     await db.flush()
     await db.refresh(doc)
 
-    assert doc.extra_fields["border_post"] == "Ressano Garcia"
-    assert doc.extra_fields["country_destination"] == "ZA"
-    assert doc.extra_fields["sadc_cpi_number"] == "CPI-2026-00123"
-    assert "frágil" in doc.extra_fields["notes_utf8"]
+    extra_fields = doc.extra_fields
+    assert extra_fields is not None
+    assert extra_fields["border_post"] == "Ressano Garcia"
+    assert extra_fields["country_destination"] == "ZA"
+    assert extra_fields["sadc_cpi_number"] == "CPI-2026-00123"
+    assert "frágil" in extra_fields["notes_utf8"]
 
 
 # ---------------------------------------------------------------------------

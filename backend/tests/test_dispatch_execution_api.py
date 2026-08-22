@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError
 
+from app.core.tokens import create_access_token
 from app.database import AsyncSessionLocal, engine, import_all_models
 from app.main import app
 from app.modules.audit.models import AuditLog
@@ -20,6 +21,7 @@ from app.modules.trips.models import (
     TripExecutionEvent,
     TripIncident,
 )
+from app.modules.users.models import User
 from app.modules.vehicles.models import Vehicle
 from app.modules.workshop.models import MaintenanceRequest
 
@@ -173,6 +175,12 @@ async def test_dispatch_requires_approved_clearance_and_load_permit() -> None:
             assert approved_clearance.status_code == 200
             assert approved_clearance.json()["clearance_status"] == "approved"
 
+            awaiting_dispatch = await client.get("/api/v1/control-tower", headers=headers)
+            assert awaiting_dispatch.status_code == 200
+            assert trip["id"] in {
+                item["trip_id"] for item in awaiting_dispatch.json()["queues"]["pending_dispatch"]
+            }
+
             dispatch_response = await client.post(
                 f"/api/v1/trips/{trip['id']}/dispatch",
                 headers=headers,
@@ -181,6 +189,12 @@ async def test_dispatch_requires_approved_clearance_and_load_permit() -> None:
             assert dispatch_response.status_code == 200
             assert dispatch_response.json()["trip"]["status"] == "dispatched"
             assert dispatch_response.json()["event"]["event_type"] == "dispatched"
+
+            dispatched_tower = await client.get("/api/v1/control-tower", headers=headers)
+            assert dispatched_tower.status_code == 200
+            assert trip["id"] not in {
+                item["trip_id"] for item in dispatched_tower.json()["queues"]["pending_dispatch"]
+            }
 
         async with AsyncSessionLocal() as db:
             clearance_count = await db.scalar(
@@ -196,6 +210,114 @@ async def test_dispatch_requires_approved_clearance_and_load_permit() -> None:
             )
             assert clearance_count == 1
             assert event_count == 1
+    except OperationalError as exc:
+        pytest.skip(f"Local Postgres is not available: {exc}")
+
+
+@pytest.mark.asyncio
+async def test_start_rejects_a_planned_trip_that_bypassed_dispatch_clearance() -> None:
+    try:
+        tenant_id, vehicle_id, driver_id = await create_seed_entities()
+        async with await create_api_client() as client:
+            headers = auth_headers(tenant_id)
+            trip = await create_assigned_trip(client, headers, vehicle_id, driver_id)
+
+            response = await client.post(
+                f"/api/v1/trips/{trip['id']}/start",
+                headers=headers,
+                json={"km_start": 1200},
+            )
+
+            assert response.status_code == 409
+            assert response.json()["error"]["code"] == "dispatch_required"
+
+        async with AsyncSessionLocal() as db:
+            trip_row = await db.get(Trip, trip["id"])
+            assert trip_row is not None
+            assert trip_row.status == "planned"
+            assert trip_row.km_start is None
+    except OperationalError as exc:
+        pytest.skip(f"Local Postgres is not available: {exc}")
+
+
+@pytest.mark.asyncio
+async def test_dispatch_clearance_is_tenant_scoped_and_requires_dispatch_permission() -> None:
+    try:
+        tenant_a, vehicle_id, driver_id = await create_seed_entities()
+        tenant_b, _, _ = await create_seed_entities()
+        async with await create_api_client() as client:
+            headers_a = auth_headers(tenant_a)
+            trip = await create_assigned_trip(client, headers_a, vehicle_id, driver_id)
+
+            cross_tenant = await client.post(
+                f"/api/v1/trips/{trip['id']}/dispatch-clearance/request",
+                headers=auth_headers(tenant_b),
+            )
+            assert cross_tenant.status_code == 404
+            assert cross_tenant.json()["error"]["code"] == "trip_not_found"
+
+            async with AsyncSessionLocal() as db:
+                viewer = User(
+                    tenant_id=tenant_a,
+                    email=f"viewer-{uuid4().hex[:8]}@dispatch.test",
+                    password_hash="$argon2id$test",
+                    full_name="Viewer Dispatch",
+                    role="viewer",
+                    is_active=True,
+                )
+                db.add(viewer)
+                await db.commit()
+                await db.refresh(viewer)
+
+            viewer_token, _ = create_access_token(
+                tenant_id=tenant_a,
+                user_id=viewer.id,
+                scope="dashboard",
+                role="viewer",
+                permissions=frozenset({"trips.read"}),
+            )
+            forbidden = await client.post(
+                f"/api/v1/trips/{trip['id']}/dispatch-clearance/request",
+                headers={
+                    "Authorization": f"Bearer {viewer_token}",
+                    "X-Tenant-Id": str(tenant_a),
+                },
+            )
+            assert forbidden.status_code == 403
+            assert forbidden.json()["error"]["code"] == "forbidden"
+    except OperationalError as exc:
+        pytest.skip(f"Local Postgres is not available: {exc}")
+
+
+@pytest.mark.asyncio
+async def test_dispatch_approval_rejects_idempotency_key_payload_reuse() -> None:
+    try:
+        tenant_id, vehicle_id, driver_id = await create_seed_entities()
+        async with await create_api_client() as client:
+            headers = auth_headers(tenant_id)
+            trip = await create_assigned_trip(client, headers, vehicle_id, driver_id)
+            requested = await client.post(
+                f"/api/v1/trips/{trip['id']}/dispatch-clearance/request",
+                headers=headers,
+            )
+            assert requested.status_code == 200
+
+            idempotency_headers = {**headers, "Idempotency-Key": f"approve:{trip['id']}"}
+            first = await client.post(
+                f"/api/v1/trips/{trip['id']}/dispatch-clearance/approve",
+                headers=idempotency_headers,
+                json={"vehicle_checked": False},
+            )
+            assert first.status_code == 200
+            assert first.json()["clearance_status"] == "blocked"
+
+            reused = await client.post(
+                f"/api/v1/trips/{trip['id']}/dispatch-clearance/approve",
+                headers=idempotency_headers,
+                json={"vehicle_checked": True},
+            )
+            assert reused.status_code == 409
+            assert reused.json()["error"]["code"] == "idempotency_key_reused"
     except OperationalError as exc:
         pytest.skip(f"Local Postgres is not available: {exc}")
 

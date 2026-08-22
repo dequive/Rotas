@@ -9,7 +9,9 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import func, select
 
+from app.modules.audit.models import AuditLog
 from app.modules.billing import service as billing_service
 from app.modules.billing.models import BillingDocument, BillingItem
 from app.modules.billing.schemas import IssueBillingDocumentRequest
@@ -304,6 +306,92 @@ async def test_credit_note_gets_sequential_invoice_number(db, tenant_id):
     assert n1["invoice_number"] is not None
     assert n2["invoice_number"] is not None
     assert n1["invoice_number"] != n2["invoice_number"]
+
+
+@pytest.mark.parametrize(
+    ("path_suffix", "document_type", "audit_action"),
+    [
+        ("debit-note", "debit_note", "billing.debit_note_created"),
+        ("credit-note", "credit_note", "billing.credit_note_created"),
+    ],
+)
+async def test_adjustment_note_endpoint_is_idempotent_with_audit(
+    async_client,
+    auth_headers,
+    db,
+    tenant_id,
+    path_suffix,
+    document_type,
+    audit_action,
+):
+    parent = await _make_issued_doc(db, tenant_id)
+    key = f"fiscal-adjustment:{uuid4()}"
+    payload = {"amount": "125.00", "reason": "Ajuste fiscal aprovado"}
+    headers = {**auth_headers, "Idempotency-Key": key}
+    url = f"/api/v1/billing/documents/{parent['id']}/{path_suffix}"
+
+    first = await async_client.post(url, json=payload, headers=headers)
+    replay = await async_client.post(url, json=payload, headers=headers)
+    conflict = await async_client.post(
+        url,
+        json={**payload, "amount": "126.00"},
+        headers=headers,
+    )
+
+    assert first.status_code == 201
+    assert replay.status_code == 201
+    assert replay.json()["id"] == first.json()["id"]
+    assert conflict.status_code == 409
+    assert (
+        await db.scalar(
+            select(func.count(BillingDocument.id)).where(
+                BillingDocument.tenant_id == tenant_id,
+                BillingDocument.parent_document_id == parent["id"],
+                BillingDocument.document_type == document_type,
+            )
+        )
+        == 1
+    )
+    assert (
+        await db.scalar(
+            select(func.count(AuditLog.id)).where(
+                AuditLog.tenant_id == tenant_id,
+                AuditLog.action == audit_action,
+                AuditLog.entity_id == first.json()["id"],
+            )
+        )
+        == 1
+    )
+
+
+async def test_debit_note_rolls_back_when_audit_fails(db, tenant_id, monkeypatch):
+    parent = await _make_issued_doc(db, tenant_id)
+
+    async def fail_audit(*_args, **_kwargs):
+        raise RuntimeError("simulated audit failure")
+
+    monkeypatch.setattr(billing_service, "record_audit_log", fail_audit)
+
+    with pytest.raises(RuntimeError, match="audit failure"):
+        await billing_service.create_debit_note(
+            db,
+            tenant_id=tenant_id,
+            parent_id=parent["id"],
+            amount=Decimal("175.00"),
+            reason="Ajuste que deve reverter",
+        )
+    await db.rollback()
+
+    assert (
+        await db.scalar(
+            select(func.count(BillingDocument.id)).where(
+                BillingDocument.tenant_id == tenant_id,
+                BillingDocument.parent_document_id == parent["id"],
+                BillingDocument.document_type == "debit_note",
+            )
+        )
+        == 0
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from uuid import uuid4
 
 import httpx
@@ -175,9 +176,9 @@ async def test_control_tower_exposes_operational_queues_and_counts() -> None:
                 trip_row = await db.get(Trip, trip["id"])
                 assert trip_row is not None
                 trip_row.status = "closed"
-                trip_row.total_transport_cost = 12000
-                trip_row.actual_revenue = 9000
-                trip_row.actual_margin = -3000
+                trip_row.total_transport_cost = Decimal("12000")
+                trip_row.actual_revenue = Decimal("9000")
+                trip_row.actual_margin = Decimal("-3000")
                 trip_row.costs_reconciled_at = datetime.now(UTC)
                 close_candidate = Trip(
                     tenant_id=tenant_id,

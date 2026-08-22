@@ -1,7 +1,7 @@
 """CT-01 / CT-03 regression tests. CT-02 cache tests implemented in Plan 03-03."""
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -178,7 +178,9 @@ async def test_control_tower_cache_hit(async_client, auth_headers):
     result = await get_ct_cached(mock_db, tenant_id, mock_redis)
 
     # Cache hit: redis.get was called with the correct key
-    mock_redis.get.assert_called_once_with(f"ct:kpis:{tenant_id}")
+    mock_redis.get.assert_called_once_with(
+        f"tenant:{tenant_id}:control-tower:date=default:page=1:page_size=50"
+    )
     # Cache hit: result matches cached payload
     assert result["summary"]["trips_in_execution"] == 7
     # Cache hit: no DB query was executed (no await on mock_db)
@@ -188,9 +190,9 @@ async def test_control_tower_cache_hit(async_client, auth_headers):
 # --- CT-02: Cache TTL respected ---
 @pytest.mark.asyncio
 async def test_control_tower_cache_ttl():
-    """CT-02: On a cache miss, setex is called with key ct:kpis:{tenant_id} and TTL=60."""
+    """CT-02: A cached tower view is tenant-invalidatable and parameter-specific."""
     tenant_id = uuid4()
-    expected_key = f"ct:kpis:{tenant_id}"
+    expected_key = f"tenant:{tenant_id}:control-tower:date=default:page=1:page_size=50"
 
     mock_redis = MagicMock()
     mock_redis.get = AsyncMock(return_value=None)  # cache miss
@@ -220,6 +222,28 @@ async def test_control_tower_cache_ttl():
     call_args = mock_redis.setex.call_args[0]
     assert call_args[0] == expected_key, f"Wrong key: {call_args[0]}"
     assert call_args[1] == CT_KPI_TTL, f"Wrong TTL: {call_args[1]} (expected {CT_KPI_TTL})"
+
+
+@pytest.mark.asyncio
+async def test_control_tower_cache_key_separates_date_and_pagination():
+    """Different tower representations must never share a cached response."""
+    tenant_id = uuid4()
+    selected_date = date(2026, 8, 21)
+    mock_redis = MagicMock()
+    mock_redis.get = AsyncMock(return_value=json.dumps({"date": "cached"}))
+
+    await get_ct_cached(
+        MagicMock(),
+        tenant_id,
+        mock_redis,
+        target_date=selected_date,
+        page=3,
+        page_size=25,
+    )
+
+    mock_redis.get.assert_awaited_once_with(
+        f"tenant:{tenant_id}:control-tower:date=2026-08-21:page=3:page_size=25"
+    )
 
 
 # --- CT-03: Pagination params respected ---

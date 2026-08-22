@@ -41,7 +41,32 @@ async def test_vehicles_list_cache_miss_and_hit(async_client, auth_headers, mock
     mock_app_redis.get.reset_mock()
     mock_app_redis.setex.reset_mock()
 
-    cached_data = [{"id": "some-id", "plate": "ABC-123-MC", "brand": "Toyota", "model": "Hino"}]
+    cached_data = [
+        {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "tenant_id": "22222222-2222-4222-8222-222222222222",
+            "plate": "ABC-123-MC",
+            "chassis": None,
+            "brand": "Toyota",
+            "model": "Hino",
+            "year": None,
+            "color": None,
+            "category": "pesado",
+            "status": "active",
+            "current_km": 42_000,
+            "fuel_type": "gasoleo",
+            "documents": None,
+            "qr_code_hash": None,
+            "photo_file_id": None,
+            "avg_consumption_target": None,
+            "fuel_limit_daily": None,
+            "max_payload_kg": None,
+            "ownership_type": "fleet",
+            "customer_client_id": None,
+            "created_at": "2026-08-20T08:00:00Z",
+            "updated_at": "2026-08-20T08:00:00Z",
+        }
+    ]
     mock_app_redis.get.return_value = json.dumps(cached_data)
 
     response2 = await async_client.get("/api/v1/vehicles", headers=auth_headers)

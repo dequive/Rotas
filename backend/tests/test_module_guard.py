@@ -4,7 +4,6 @@ import pytest
 from sqlalchemy import select
 
 from app.core.limiter import limiter
-from app.core.modules import MODULE_OFICINA, MODULE_TMS, require_module
 from app.database import AsyncSessionLocal
 from app.modules.tenants.models import Tenant
 
@@ -60,7 +59,7 @@ async def test_onboarding_default_and_custom_product_modules(async_client):
 
 
 @pytest.mark.asyncio
-async def test_patch_tenant_product_modules(async_client):
+async def test_tenant_cannot_self_upgrade_product_modules(async_client):
     suffix = uuid4().hex[:8]
     reg = await async_client.post(
         "/api/v1/onboarding/register",
@@ -74,16 +73,18 @@ async def test_patch_tenant_product_modules(async_client):
     token = reg.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Patch modules to add oficina
+    # Commercial entitlements are platform-managed; tenant owners cannot
+    # self-upgrade by calling the tenant-plane endpoint.
     patch_res = await async_client.patch(
         "/api/v1/tenants/me/modules",
         json={"product_modules": ["tms", "oficina"]},
         headers=headers,
     )
-    assert patch_res.status_code == 200
-    assert sorted(patch_res.json()["product_modules"]) == ["oficina", "tms"]
+    assert patch_res.status_code == 403
+    assert patch_res.json()["error"]["code"] == "entitlement_managed_by_platform"
 
     async with AsyncSessionLocal() as db:
-        tenant_id = patch_res.json()["id"]
+        tenant_id = reg.json()["tenant"]["id"]
         tenant = await db.scalar(select(Tenant).where(Tenant.id == tenant_id))
-        assert sorted(tenant.product_modules) == ["oficina", "tms"]
+        assert tenant is not None
+        assert tenant.product_modules == ["tms"]

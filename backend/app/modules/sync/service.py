@@ -28,6 +28,19 @@ from app.modules.sync.schemas import SyncBatchRequest, SyncOperation
 from app.modules.trips import schemas as trip_schemas
 from app.modules.trips import service as trip_service
 
+DRIVER_SYNC_POLICY: dict[str, frozenset[str]] = {
+    "create": frozenset(
+        {
+            "checklist",
+            "fuel_log",
+            "trip_stop",
+            "delivery_proof",
+            "trip_cost",
+        }
+    ),
+    "update": frozenset({"checklist", "fuel_log", "trip_stop", "delivery_proof"}),
+}
+
 
 def _snake_case(value: str) -> str:
     value = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", value)
@@ -334,6 +347,18 @@ async def _dispatch_failed_safe(
     result status as processed | conflict | failed and routes failures to the
     dead-letter queue.
     """
+    if (
+        principal.scope == "driver_app"
+        and operation.entity_type
+        not in DRIVER_SYNC_POLICY.get(operation.operation, frozenset())
+    ):
+        return _result(
+            operation,
+            status="failed",
+            error_code="driver_operation_forbidden",
+            message="This operation is managed by fleet dispatch.",
+        )
+
     savepoint = await db.begin_nested() if defer_commit else None
 
     try:
@@ -529,17 +554,15 @@ async def bootstrap(principal: DriverPrincipal) -> dict:
     return {
         "tenant_id": principal.tenant_id,
         "server_time": datetime.now(UTC),
-        "supported_entity_types": [
-            "trip",
-            "checklist",
-            "fuel_log",
-            "trip_stop",
-            "load_permit",
-            "cargo_manifest",
-            "transport_document",
-            "delivery_proof",
-            "trip_cost",
-        ],
+        "supported_entity_types": sorted(set().union(*DRIVER_SYNC_POLICY.values())),
         "supported_operations": ["create", "update"],
+        "supported_operations_by_entity": {
+            entity_type: sorted(
+                operation
+                for operation, entity_types in DRIVER_SYNC_POLICY.items()
+                if entity_type in entity_types
+            )
+            for entity_type in sorted(set().union(*DRIVER_SYNC_POLICY.values()))
+        },
         "idempotency_ttl_days": IDEMPOTENCY_TTL_DAYS,
     }

@@ -190,3 +190,68 @@ async def test_driver_sync_rejects_another_authenticated_device(
 
     assert response.status_code == 403, response.text
     assert response.json()["error"]["code"] == "driver_device_mismatch"
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_refuses_manager_owned_operations(
+    async_client, db, tenant_id, driver_app_context
+):
+    operations = [
+        (
+            "trip",
+            {
+                "vehicleId": str(driver_app_context["vehicle"].id),
+                "driverId": str(driver_app_context["driver"].id),
+                "origin": "Maputo",
+                "destination": "Matola",
+            },
+        ),
+        ("load_permit", {"tripId": str(uuid4()), "permitNumber": "LP-001"}),
+        ("cargo_manifest", {"tripId": str(uuid4()), "manifestNumber": "MAN-001"}),
+        (
+            "transport_document",
+            {"tripId": str(uuid4()), "documentType": "guia_remessa"},
+        ),
+    ]
+    response = await async_client.post(
+        "/api/v1/sync/batch",
+        headers=driver_app_context["headers"],
+        json={
+            "device_id": driver_app_context["device_id"],
+            "operations": [
+                {
+                    "local_id": f"forbidden-{entity_type}",
+                    "idempotency_key": str(uuid4()),
+                    "operation": "create",
+                    "entity_type": entity_type,
+                    "payload": payload,
+                }
+                for entity_type, payload in operations
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert [result["error_code"] for result in response.json()["results"]] == [
+        "driver_operation_forbidden",
+    ] * len(operations)
+    assert await db.scalar(select(func.count(Trip.id)).where(Trip.tenant_id == tenant_id)) == 0
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_bootstrap_only_advertises_driver_owned_operations(
+    async_client, driver_app_context
+):
+    response = await async_client.get(
+        "/api/v1/sync/bootstrap",
+        headers=driver_app_context["headers"],
+    )
+
+    assert response.status_code == 200, response.text
+    assert set(response.json()["supported_entity_types"]) == {
+        "checklist",
+        "fuel_log",
+        "trip_stop",
+        "delivery_proof",
+        "trip_cost",
+    }

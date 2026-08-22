@@ -128,6 +128,14 @@ O código de pairing é lido sem lock de linha; duas requisições concorrentes
 podem validá-lo antes do commit. Falta também unicidade explícita do dispositivo
 por tenant/motorista.
 
+Estado em 2026-08-23: **fechado localmente** por `9ae52b5`. O consumo usa lock
+de linha e a corrida real aceita uma resposta `200` e uma `401`, com um único
+dispositivo e uma única sessão. A migration `rec14` reconcilia duplicados
+históricos de forma determinística antes de criar a constraint única
+`(tenant_id, driver_id, device_id)`; o downgrade remove a constraint. No SHA do
+commit, as partições combinadas Driver/Sync/Auth passaram `74/74` numa base
+descartável migrada do zero até `rec14`; Ruff e Pyright focados ficaram verdes.
+
 ### P1-CI-01 — Gates Driver e supply chain ausentes
 
 A CI compila o Driver mas não executa os seus testes nem Playwright. Actions
@@ -187,8 +195,10 @@ baseline combinado de 938 passados/1 skip antecedem o isolamento e são apenas
 históricos. `5c7588e` repetiu a partição Driver isolada em `16/16` e fechou os
 updates operacionais residuais. `9698314` e `e1d69c4` fecharam localmente replay
 e corrida idempotente por owner/device; a partição isolada Driver/Sync passou
-`57/57`. Pairing concorrente continua P0 e a regressão backend integral isolada
-continua pendente.
+`57/57`. `9ae52b5` serializou o pairing e instalou a unicidade física do
+dispositivo; no mesmo SHA, as partições combinadas Driver/Sync/Auth passaram
+`74/74`. Permanecem bloqueantes os seis schemas públicos Driver/Sync e a
+regressão backend integral isolada.
 
 ### C2 — Jornadas Driver
 

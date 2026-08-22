@@ -136,18 +136,21 @@ falha sem `TEST_DATABASE_URL`; nenhum agente pode contornar o gate, reutilizar
 O runner atual é deliberadamente serial e rejeita `xdist -n`. Paralelismo só
 pode ser ativado depois de existir uma base efémera independente por worker.
 
-Os incrementos C1 até `e1d69c4` já produziram testes negativos com token Driver
+Os incrementos C1 até `9ae52b5` já produziram testes negativos com token Driver
 real que provam:
 
 - criar viagem, listar frota geral e emitir documentos retorna `403`;
 - dispositivo divergente é rejeitado;
 - viagem/viatura/documento de outro motorista do mesmo tenant é rejeitado;
 - replay entre motoristas/dispositivos é rejeitado, incluindo corrida entre
-  dois dispositivos com exatamente um efeito físico.
+  dois dispositivos com exatamente um efeito físico;
+- duas requisições de pairing concorrentes aceitam exatamente um consumidor e
+  a identidade física do dispositivo é única por tenant/motorista.
 
-O próximo incremento obrigatório é serializar o consumo do pairing e provar
-que duas requisições concorrentes aceitam exatamente um consumidor. Só depois
-se fecham os schemas OpenAPI não vazios dos endpoints Driver/Sync.
+O próximo incremento obrigatório é fechar os schemas OpenAPI não vazios dos
+endpoints Driver/Sync e repetir os contract tests e partições relevantes pelo
+runner isolado. A regressão backend integral vem depois, antes de qualquer
+promoção de C1/C3 ou retoma funcional.
 
 Sem essas provas restantes e sem repetir as partições relevantes pelo runner
 isolado, o estado permanece `NO-GO`.

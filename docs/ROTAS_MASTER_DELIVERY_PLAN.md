@@ -2867,3 +2867,26 @@ consumo concorrente do pairing com exatamente um vencedor; depois seguem os
 schemas OpenAPI Driver/Sync. Regressão backend integral isolada, CI, staging,
 Android no mesmo SHA e release candidate permanecem pendentes. Veredito global:
 **NO-GO**.
+
+### 16.15 C1 — Pairing concorrente e identidade do dispositivo — 2026-08-23
+
+- o RED com duas chamadas simultâneas ao mesmo código de pairing devolveu
+  `200/200`, criando dois consumidores válidos;
+- `9ae52b5` passou a selecionar o motorista com `FOR UPDATE`; a chamada perdedora
+  só reavalia o código depois do commit vencedor e recebe
+  `invalid_pairing_code` (`401`);
+- a corrida real passou a produzir `200/401`, exatamente um `DriverDevice` e
+  uma `DriverSession`;
+- um segundo RED provou que a base aceitava duas identidades iguais para o
+  mesmo `(tenant_id, driver_id, device_id)`;
+- `rec14` reconcilia duplicados históricos conservando deterministicamente o
+  registo ativo/mais recente, cria a constraint única física e possui downgrade
+  explícito da constraint;
+- uma base descartável migrou do zero até a única head `rec14`; a constraint
+  rejeitou o duplicado e a regressão combinada Driver/Sync/Auth passou `74/74`
+  no SHA `9ae52b5`. Ruff e Pyright focados passaram sem diagnósticos.
+
+P1-AUTH-01 fica **fechado localmente**. O próximo gate obrigatório são os seis
+schemas públicos Driver/Sync vazios e os contract tests correspondentes; depois
+vem a regressão backend integral isolada. CI, staging, Android físico e release
+candidate permanecem pendentes. Veredito global: **NO-GO**.

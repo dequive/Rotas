@@ -46,7 +46,11 @@ export function PairingView({ onPaired }: { onPaired: (auth: AuthState) => void 
         </div>
 
         <form onSubmit={handleSubmit} className="pairing-form">
+          <label htmlFor="pairing-code" className="visually-hidden">
+            Código de pareamento
+          </label>
           <input
+            id="pairing-code"
             className="pairing-input"
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -55,8 +59,17 @@ export function PairingView({ onPaired }: { onPaired: (auth: AuthState) => void 
             required
             autoComplete="off"
             autoCapitalize="characters"
+            aria-describedby={error ? "pairing-error" : "pairing-help"}
+            aria-invalid={error ? "true" : "false"}
           />
-          {error && <p className="pairing-error">{error}</p>}
+          <span id="pairing-help" className="visually-hidden">
+            Código fornecido pelo gestor, com pelo menos quatro caracteres.
+          </span>
+          {error && (
+            <p id="pairing-error" role="alert" className="pairing-error">
+              {error}
+            </p>
+          )}
           <button type="submit" className="pairing-btn" disabled={loading || code.trim().length < 4}>
             {loading ? "A parear..." : "Entrar"}
           </button>

@@ -9,8 +9,8 @@
 
 import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 import { registerRoute } from "workbox-routing";
-import { NetworkFirst, CacheFirst } from "workbox-strategies";
-import { BackgroundSyncPlugin } from "workbox-background-sync";
+import { NetworkFirst, NetworkOnly, CacheFirst } from "workbox-strategies";
+import { Queue } from "workbox-background-sync";
 import { clientsClaim } from "workbox-core";
 
 declare let self: ServiceWorkerGlobalScope;
@@ -21,6 +21,19 @@ declare let self: ServiceWorkerGlobalScope;
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
+  }
+  if (event.data?.type === "PURGE_IDENTITY_DATA") {
+    const port = event.ports[0];
+    event.waitUntil(
+      purgeIdentityData()
+        .then(() => port?.postMessage({ ok: true }))
+        .catch((error: unknown) =>
+          port?.postMessage({
+            ok: false,
+            error: error instanceof Error ? error.message : "identity_purge_failed",
+          }),
+        ),
+    );
   }
 });
 
@@ -38,18 +51,37 @@ precacheAndRoute(self.__WB_MANIFEST);
 // IMPORTANT: BackgroundSyncPlugin only retries on network exceptions (fetch throws).
 // It does NOT retry 4xx/5xx HTTP responses. The Dexie syncQueue is the primary retry
 // layer for those cases. This plugin handles the "device is fully offline" scenario.
-const bgSyncPlugin = new BackgroundSyncPlugin("rotas-sync-queue", {
+const bgSyncQueue = new Queue("rotas-sync-queue", {
   maxRetentionTime: 24 * 60, // 24 hours in minutes — covers extended offline scenarios
 });
+const bgSyncPlugin = {
+  fetchDidFail: async ({ request }: { request: Request }) => {
+    await bgSyncQueue.pushRequest({ request });
+  },
+};
 
-// Network-first for POST /api/v1/sync/batch with background sync fallback
+async function purgeIdentityData(): Promise<void> {
+  await Promise.all([caches.delete("api-cache"), caches.delete("sync-api")]);
+  while (await bgSyncQueue.shiftRequest()) {
+    // Drain every request because it may contain an old bearer token and tenant.
+  }
+}
+
+// Network-only for POST /api/v1/sync/batch with background sync fallback.
+// Mutations are never valid Cache Storage entries.
 registerRoute(
   ({ url }) => url.pathname === "/api/v1/sync/batch",
-  new NetworkFirst({
-    cacheName: "sync-api",
-    plugins: [bgSyncPlugin],
-  }),
+  new NetworkOnly({ plugins: [bgSyncPlugin] }),
   "POST"
+);
+
+// Authenticated bootstrap must never come from the shared HTTP cache. The app
+// persists an identity-scoped Dexie snapshot and validates tenant + driver
+// before using it during a cold start.
+registerRoute(
+  ({ url }) => url.pathname === "/api/v1/driver/bootstrap",
+  new NetworkOnly(),
+  "GET"
 );
 
 // Network-first for all GET /api/v1/* calls

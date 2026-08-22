@@ -1,20 +1,12 @@
+import {
+  ensureIdempotencyKey,
+  getHttpErrorCode,
+  requestWithPolicy,
+  responseToHttpError,
+  type HttpErrorBody,
+} from "@rotas/http-contract";
+
 const API_BASE = import.meta.env.VITE_ROTAS_API_BASE_URL ?? "";
-
-type ApiErrorBody = {
-  detail?: string;
-  error?: string | { code?: string; message?: string; details?: unknown };
-};
-
-function getApiErrorCode(body: ApiErrorBody): string | undefined {
-  if (typeof body.error === "string") return body.error;
-  if (body.error?.code) return body.error.code;
-  return body.detail;
-}
-
-function getApiErrorMessage(body: ApiErrorBody): string | undefined {
-  if (typeof body.error === "object" && body.error.message) return body.error.message;
-  return body.detail ?? getApiErrorCode(body);
-}
 
 export interface AuthState {
   accessToken: string;
@@ -22,6 +14,7 @@ export interface AuthState {
   driverId: string;
   deviceId: string;
   driverName: string;
+  sessionId: string;
 }
 
 export function getAuth(): AuthState | null {
@@ -31,7 +24,19 @@ export function getAuth(): AuthState | null {
   const deviceId = localStorage.getItem("rotas_device_id");
   const driverName = localStorage.getItem("rotas_driver_name") ?? "";
   if (!token || !tenantId || !driverId || !deviceId) return null;
-  return { accessToken: token, tenantId, driverId, deviceId, driverName };
+  let sessionId = localStorage.getItem("rotas_session_id");
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    localStorage.setItem("rotas_session_id", sessionId);
+  }
+  return {
+    accessToken: token,
+    tenantId,
+    driverId,
+    deviceId,
+    driverName,
+    sessionId,
+  };
 }
 
 function setAuth(auth: AuthState) {
@@ -40,15 +45,21 @@ function setAuth(auth: AuthState) {
   localStorage.setItem("rotas_driver_id", auth.driverId);
   localStorage.setItem("rotas_device_id", auth.deviceId);
   localStorage.setItem("rotas_driver_name", auth.driverName);
+  localStorage.setItem("rotas_session_id", auth.sessionId);
 }
 
+let _authGeneration = 0;
+
 export function clearAuth() {
+  _authGeneration += 1;
+  _refreshPromise = null;
   [
     "rotas_access_token",
     "rotas_tenant_id",
     "rotas_driver_id",
     "rotas_device_id",
     "rotas_driver_name",
+    "rotas_session_id",
     "rotas_refresh_token", // AUTH-02: clean up on logout/re-pair
   ].forEach((k) => localStorage.removeItem(k));
 }
@@ -59,8 +70,9 @@ export function clearAuth() {
 // This is required because token rotation invalidates the refresh_token on first use.
 let _refreshPromise: Promise<string | null> | null = null;
 
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshDriverAccessToken(): Promise<string | null> {
   if (_refreshPromise) return _refreshPromise;
+  const refreshGeneration = _authGeneration;
 
   const refreshToken = localStorage.getItem("rotas_refresh_token");
   if (!refreshToken) {
@@ -69,15 +81,19 @@ async function refreshAccessToken(): Promise<string | null> {
     return null;
   }
 
-  _refreshPromise = fetch(`${API_BASE}/api/v1/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  })
+  _refreshPromise = requestWithPolicy(
+    `${API_BASE}/api/v1/auth/refresh`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    },
+    { maxRetries: 0 },
+  )
     .then(async (res) => {
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
-        const code = getApiErrorCode(body);
+        const body = (await res.json().catch(() => ({}))) as HttpErrorBody;
+        const code = getHttpErrorCode(body);
         // Distinguish access revocation from token expiry (per D-08 / CONTEXT.md)
         if (code === "driver_access_revoked") {
           window.dispatchEvent(new CustomEvent("driver-access-revoked"));
@@ -88,6 +104,9 @@ async function refreshAccessToken(): Promise<string | null> {
         return null;
       }
       const data = (await res.json()) as { access_token: string; refresh_token?: string };
+      if (refreshGeneration !== _authGeneration || !getAuth()) {
+        return null;
+      }
       localStorage.setItem("rotas_access_token", data.access_token);
       if (data.refresh_token) {
         // Rotate: always store the new refresh_token, old one is now invalid
@@ -104,31 +123,40 @@ async function refreshAccessToken(): Promise<string | null> {
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const auth = getAuth();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(auth ? { Authorization: `Bearer ${auth.accessToken}`, "X-Tenant-Id": auth.tenantId } : {}),
-    ...((options?.headers as Record<string, string>) ?? {}),
-  };
+  let headers = new Headers(options?.headers);
+  if (!headers.has("Content-Type") && options?.body !== undefined) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (auth) {
+    headers.set("Authorization", `Bearer ${auth.accessToken}`);
+    headers.set("X-Tenant-Id", auth.tenantId);
+  }
+  const method = (options?.method ?? "GET").toUpperCase();
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+    headers = ensureIdempotencyKey(headers);
+  }
 
-  let res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  let res = await requestWithPolicy(`${API_BASE}${path}`, { ...options, headers });
 
   // AUTH-02: silent refresh on 401 — retry once with a fresh token
   if (res.status === 401) {
-    const newToken = await refreshAccessToken();
+    const newToken = await refreshDriverAccessToken();
     if (newToken) {
       const newAuth = getAuth();
-      const retryHeaders: Record<string, string> = {
-        "Content-Type": "application/json",
-        ...(newAuth ? { Authorization: `Bearer ${newToken}`, "X-Tenant-Id": newAuth.tenantId } : {}),
-        ...((options?.headers as Record<string, string>) ?? {}),
-      };
-      res = await fetch(`${API_BASE}${path}`, { ...options, headers: retryHeaders });
+      const retryHeaders = new Headers(headers);
+      if (newAuth) {
+        retryHeaders.set("Authorization", `Bearer ${newToken}`);
+        retryHeaders.set("X-Tenant-Id", newAuth.tenantId);
+      }
+      res = await requestWithPolicy(`${API_BASE}${path}`, {
+        ...options,
+        headers: retryHeaders,
+      });
     }
   }
 
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
-    throw new Error(getApiErrorMessage(body) ?? `HTTP ${res.status}`);
+    throw await responseToHttpError(res);
   }
   return res.json() as Promise<T>;
 }
@@ -148,6 +176,7 @@ export async function pairDevice(pairingCode: string, deviceId: string): Promise
     driverId: String(data.driver.id),
     deviceId,
     driverName: data.driver.full_name,
+    sessionId: crypto.randomUUID(),
   };
   setAuth(auth);
   // AUTH-02: store refresh_token for silent token refresh on reconnect

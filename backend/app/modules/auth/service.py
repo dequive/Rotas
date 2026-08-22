@@ -188,7 +188,11 @@ async def refresh(
 ) -> dict:
     now = datetime.now(UTC)
     token_hash = hash_token(payload.refresh_token)
-    user_token = await db.scalar(select(RefreshToken).where(RefreshToken.token_hash == token_hash))
+    user_token = await db.scalar(
+        select(RefreshToken)
+        .where(RefreshToken.token_hash == token_hash)
+        .with_for_update()
+    )
     if user_token:
         if user_token.revoked_at or user_token.expires_at <= now:
             raise ApiError("invalid_refresh_token", "Refresh token is invalid.", status_code=401)
@@ -201,7 +205,9 @@ async def refresh(
         await db.commit()
         return response
     driver_token = await db.scalar(
-        select(DriverSession).where(DriverSession.token_hash == token_hash)
+        select(DriverSession)
+        .where(DriverSession.token_hash == token_hash)
+        .with_for_update()
     )
     if driver_token:
         if driver_token.revoked_at or driver_token.expires_at <= now:
@@ -368,6 +374,10 @@ async def disable_mfa(
     return {"enabled": False, "confirmed_at": None}
 
 
+def _may_expose_password_reset_token(environment: str) -> bool:
+    return environment.strip().lower() in {"development", "test"}
+
+
 async def request_password_reset(
     db: AsyncSession,
     payload: PasswordResetRequest,
@@ -452,7 +462,7 @@ async def request_password_reset(
     )
     await db.commit()
 
-    if settings.environment != "production":
+    if _may_expose_password_reset_token(settings.environment):
         response["reset_token"] = reset_token_value
         response["reset_url"] = reset_url
     return response

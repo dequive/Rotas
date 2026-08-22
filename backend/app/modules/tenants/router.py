@@ -10,7 +10,7 @@ from app.core.auth import Principal
 from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.core.rbac import ADMIN_USERS, require_own_tenant_or_platform, require_permission
-from app.database import AsyncSessionLocal, set_rls_tenant
+from app.database import AdminSessionLocal, AsyncSessionLocal, set_rls_tenant
 from app.modules.tenants import schemas, service
 from app.modules.tenants.models import Tenant
 from app.modules.tenants.schemas import TenantDocumentProfileUpdate
@@ -37,7 +37,7 @@ async def _open_session_for_principal(principal: Principal) -> AsyncSession:
     receiving the principal from the shared _combined_guard dependency.
     """
     if principal.scope == "platform":
-        return AsyncSessionLocal()
+        return AdminSessionLocal()
     set_rls_tenant(str(principal.tenant_id))
     return AsyncSessionLocal()
 
@@ -59,7 +59,7 @@ def _resolve_tenant_id(principal: Principal, target_tenant_id: UUID | None) -> U
     return principal.tenant_id  # type: ignore[return-value]
 
 
-@router.get("/me")
+@router.get("/me", response_model=schemas.TenantRead)
 async def get_my_tenant(
     principal: Annotated[Principal, Depends(_combined_guard)],
     target_tenant_id: _TargetTenantId = None,
@@ -68,14 +68,17 @@ async def get_my_tenant(
     if principal.scope != "platform":
         set_rls_tenant(str(effective_tenant_id))
     try:
-        async with AsyncSessionLocal() as db:
+        session_factory = (
+            AdminSessionLocal if principal.scope == "platform" else AsyncSessionLocal
+        )
+        async with session_factory() as db:
             return await service.get_current_tenant(db, effective_tenant_id)
     finally:
         if principal.scope != "platform":
             set_rls_tenant(None)
 
 
-@router.patch("/me")
+@router.patch("/me", response_model=schemas.TenantRead)
 async def patch_my_tenant(
     payload: schemas.TenantPatch,
     principal: Annotated[Principal, Depends(_combined_guard)],
@@ -86,7 +89,10 @@ async def patch_my_tenant(
     if principal.scope != "platform":
         set_rls_tenant(str(effective_tenant_id))
     try:
-        async with AsyncSessionLocal() as db:
+        session_factory = (
+            AdminSessionLocal if principal.scope == "platform" else AsyncSessionLocal
+        )
+        async with session_factory() as db:
             return await service.patch_current_tenant(
                 db,
                 effective_tenant_id,
@@ -98,7 +104,10 @@ async def patch_my_tenant(
             set_rls_tenant(None)
 
 
-@router.get("/me/driver-despacho-table")
+@router.get(
+    "/me/driver-despacho-table",
+    response_model=schemas.DriverDespachoTableResponse,
+)
 async def get_my_driver_despacho_table(
     principal: Annotated[Principal, Depends(_combined_guard)],
     target_tenant_id: _TargetTenantId = None,
@@ -107,14 +116,20 @@ async def get_my_driver_despacho_table(
     if principal.scope != "platform":
         set_rls_tenant(str(effective_tenant_id))
     try:
-        async with AsyncSessionLocal() as db:
+        session_factory = (
+            AdminSessionLocal if principal.scope == "platform" else AsyncSessionLocal
+        )
+        async with session_factory() as db:
             return await service.get_driver_despacho_table(db, effective_tenant_id)
     finally:
         if principal.scope != "platform":
             set_rls_tenant(None)
 
 
-@router.put("/me/driver-despacho-table")
+@router.put(
+    "/me/driver-despacho-table",
+    response_model=schemas.DriverDespachoTableResponse,
+)
 async def put_my_driver_despacho_table(
     payload: schemas.DriverDespachoTableUpdate,
     principal: Annotated[Principal, Depends(_combined_guard)],
@@ -125,7 +140,10 @@ async def put_my_driver_despacho_table(
     if principal.scope != "platform":
         set_rls_tenant(str(effective_tenant_id))
     try:
-        async with AsyncSessionLocal() as db:
+        session_factory = (
+            AdminSessionLocal if principal.scope == "platform" else AsyncSessionLocal
+        )
+        async with session_factory() as db:
             return await service.put_driver_despacho_table(
                 db,
                 effective_tenant_id,
@@ -142,7 +160,8 @@ async def get_my_document_profile(
     principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
-    result = await service.get_document_profile(db, principal.tenant_id)
+    tenant_id = _resolve_tenant_id(principal, None)
+    result = await service.get_document_profile(db, tenant_id)
     return result or {}
 
 
@@ -152,9 +171,10 @@ async def put_my_document_profile(
     principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
+    tenant_id = _resolve_tenant_id(principal, None)
     data = payload.model_dump(exclude_unset=True)
     return await service.upsert_document_profile(
-        db, principal.tenant_id, data, actor_id=principal.user_id
+        db, tenant_id, data, actor_id=principal.user_id
     )
 
 
@@ -175,7 +195,7 @@ async def get_tenant_limits(
     from app.modules.vehicles.service import _get_cached_vehicle_count
 
     redis = getattr(request.app.state, "redis", None)
-    tenant_id = principal.tenant_id
+    tenant_id = _resolve_tenant_id(principal, None)
 
     result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
     tenant = result.scalar_one()
@@ -212,10 +232,21 @@ async def get_tenant_limits(
 @router.patch("/me/modules")
 async def update_my_product_modules(
     payload: schemas.ProductModulesUpdate,
-    principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    principal: Annotated[Principal, Depends(_combined_guard)],
+    target_tenant_id: _TargetTenantId = None,
 ) -> dict:
-    """PATCH /api/v1/tenants/me/modules — update active product modules (tms, oficina) for tenant."""
-    return await service.update_product_modules(
-        db, principal.tenant_id, payload.product_modules, actor_id=principal.user_id
-    )
+    """Change commercial entitlements as a platform administrator only."""
+    if principal.scope != "platform":
+        raise ApiError(
+            "entitlement_managed_by_platform",
+            "Product modules can only be changed by a platform administrator.",
+            status_code=403,
+        )
+    effective_tenant_id = _resolve_tenant_id(principal, target_tenant_id)
+    async with AdminSessionLocal() as db:
+        return await service.update_product_modules(
+            db,
+            effective_tenant_id,
+            payload.product_modules,
+            actor_id=principal.user_id,
+        )

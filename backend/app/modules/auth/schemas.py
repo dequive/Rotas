@@ -1,3 +1,5 @@
+from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, field_validator
@@ -67,16 +69,58 @@ class AuthTokenResponse(BaseModel):
     user: TokenUser
 
 
+class MfaChallengeResponse(BaseModel):
+    mfa_required: Literal[True]
+    mfa_challenge: str
+    expires_in: int
+
+
+class MfaStatusResponse(BaseModel):
+    enabled: bool
+    confirmed_at: datetime | None = None
+
+
+class MfaSetupResponse(MfaStatusResponse):
+    secret: str | None = None
+    otpauth_uri: str | None = None
+
+
+class PasswordResetResponse(BaseModel):
+    ok: bool
+    reset_token: str | None = None
+    reset_url: str | None = None
+
+
+class SessionResponse(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    user_id: UUID
+    expires_at: datetime
+    revoked_at: datetime | None = None
+    created_at: datetime
+    created_by_ip: str | None = None
+    user_agent: str | None = None
+    active: bool
+
+
 class DriverPairRequest(BaseModel):
     pairing_code: str
     device_id: str
     device_name: str | None = None
 
 
+class TokenDriver(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    full_name: str
+
+
 class DriverTokenResponse(BaseModel):
     access_token: str
     refresh_token: str
-    driver: dict
+    token_type: str = "bearer"
+    expires_in: int
+    driver: TokenDriver
 
 
 class SessionRevokeResponse(BaseModel):

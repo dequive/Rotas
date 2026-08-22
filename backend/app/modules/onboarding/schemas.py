@@ -86,6 +86,11 @@ class OnboardingRegisterResponse(BaseModel):
     verification_url: str | None = None
 
 
+class EmailVerificationResponse(BaseModel):
+    ok: bool
+    email_verified_at: str
+
+
 class EmailVerificationRequest(BaseModel):
     token: str
 

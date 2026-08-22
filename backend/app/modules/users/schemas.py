@@ -29,6 +29,9 @@ class UserRead(BaseModel):
     phone: str | None
     role: str
     is_active: bool
+    last_login_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
 
 
 _SLUG_RE = _re.compile(r"^[a-z0-9_-]{1,80}$")

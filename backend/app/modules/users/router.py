@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
@@ -15,7 +15,7 @@ from app.modules.users.models import TenantRole  # noqa: F401 — ensure ORM reg
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.get("")
+@router.get("", response_model=list[schemas.UserRead])
 async def list_users(
     principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -25,7 +25,7 @@ async def list_users(
     return await service.list_users(db, principal.tenant_id, limit=limit, offset=offset)
 
 
-@router.post("")
+@router.post("", response_model=schemas.UserRead)
 async def create_user(
     request: Request,
     payload: schemas.UserCreate,
@@ -50,7 +50,7 @@ async def create_user(
     return res
 
 
-@router.patch("/{user_id}")
+@router.patch("/{user_id}", response_model=schemas.UserRead)
 async def patch_user(
     request: Request,
     user_id: UUID,

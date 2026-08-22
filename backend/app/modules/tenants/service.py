@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
+from app.core.performance_diagnostics import measure_request_phase
 from app.modules.audit.service import record_audit_log
 from app.modules.tenants.models import Tenant, TenantDocumentProfile
 from app.modules.tenants.schemas import DriverDespachoTableUpdate, TenantPatch
@@ -57,7 +58,8 @@ def _validate_product_modules(modules: list[str]) -> list[str]:
 
 
 async def get_current_tenant(db: AsyncSession, tenant_id: UUID) -> dict:
-    tenant = await db.get(Tenant, tenant_id)
+    with measure_request_phase("tenant_lookup"):
+        tenant = await db.get(Tenant, tenant_id)
     if not tenant or not tenant.is_active:
         raise ApiError(
             "tenant_not_found",
@@ -188,7 +190,7 @@ async def put_driver_despacho_table(
     await db.refresh(tenant)
     return {
         "configured": True,
-        "table": tenant.compliance_policy[DRIVER_DESPACHO_TABLE_KEY],
+        "table": policy[DRIVER_DESPACHO_TABLE_KEY],
     }
 
 

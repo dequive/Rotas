@@ -360,7 +360,7 @@ o frontend está terminado ou perfeitamente integrado.
 | F7.1 | parcial | auditor com 208 referências/162 operações e 160 violações; 9/9 testes | schemas request/response e cobertura de referências dinâmicas |
 | F7.2 | contratos fechados, BFF pendente | Fuel/AP/Accounting reconciliados; compatibilidade PGC seed/runtime corrigida; `verify:api-contracts` a 0 violações em 208 referências/158 operações | contrato Governance dedicado |
 | F7.3 | parcial | F-05, F-08 e F-10 corrigidos; F-09 backend-real verde; respostas 2xx tipadas em todos os fluxos F-01 a F-14 | repetir F-05/F-09 pela UI e eliminar sete operações órfãs |
-| F7.4 | pendente | pagamento atómico e idempotente coberto no backend | matriz completa replay/conflito/RBAC/cross-tenant |
+| F7.4 | parcial | matriz replay/conflito/escopo por tenant em 10 mutacoes criticas (`test_idempotency_matrix.py`, 30 testes); conflito de payload passa de 2 para 12 das 54 operacoes idempotentes registadas | estender as 42 operacoes restantes e fechar a matriz de papeis RBAC |
 | F7.5 | pendente | erros de checklist agora fail-closed; ação inerte removida | estados e console limpo em todas as rotas |
 | F7.6 | pendente | duas mutações certificadas localmente pelo Chrome | F-01 a F-14, desktop/mobile/offline |
 | F7.7 | pendente | nenhuma evidência remota/staging/piloto nova | revisão independente e promoção do mesmo RC |

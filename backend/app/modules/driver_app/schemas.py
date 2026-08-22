@@ -50,6 +50,13 @@ class DriverTripRead(BaseModel):
     updated_at: datetime
 
 
+class DriverTripPageRead(BaseModel):
+    items: list[DriverTripRead]
+    total: int
+    limit: int
+    offset: int
+
+
 class DriverVehicleRead(BaseModel):
     id: UUID
     plate: str

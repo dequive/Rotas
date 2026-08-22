@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import DriverPrincipal, get_driver_principal
@@ -83,6 +83,40 @@ async def get_active_trip(
         db,
         principal.tenant_id,
         driver_id,
+    )
+
+
+@router.get("/trips/history", response_model=schemas.DriverTripPageRead)
+async def list_trip_history(
+    principal: DriverPrincipalDependency,
+    db: RlsSession,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    driver_id = _require_driver_id(principal)
+    return await service.list_driver_trip_history(
+        db,
+        tenant_id=principal.tenant_id,
+        driver_id=driver_id,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/trips", response_model=schemas.DriverTripPageRead)
+async def list_assigned_trips(
+    principal: DriverPrincipalDependency,
+    db: RlsSession,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    driver_id = _require_driver_id(principal)
+    return await service.list_assigned_driver_trips(
+        db,
+        tenant_id=principal.tenant_id,
+        driver_id=driver_id,
+        limit=limit,
+        offset=offset,
     )
 
 

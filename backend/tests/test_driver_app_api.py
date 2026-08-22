@@ -156,6 +156,159 @@ async def test_driver_trip_contract_omits_manager_financial_fields(
 
 
 @pytest.mark.asyncio
+async def test_driver_lists_only_own_assigned_non_draft_trips(
+    async_client, db, tenant_id, driver_app_context
+):
+    own_assigned = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Beira",
+        status="planned",
+        actual_revenue=9000,
+    )
+    own_delivered = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Beira",
+        destination="Nampula",
+        status="delivered",
+    )
+    own_draft = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Rascunho",
+        destination="Oculto",
+        status="draft",
+    )
+    own_closed = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Concluida",
+        destination="Historico",
+        status="closed",
+    )
+    foreign_assigned = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        origin="Outro",
+        destination="Motorista",
+        status="delivered",
+    )
+    db.add_all(
+        [own_assigned, own_delivered, own_draft, own_closed, foreign_assigned]
+    )
+    await db.commit()
+
+    first_page = await async_client.get(
+        "/api/v1/driver/trips?limit=1&offset=0",
+        headers=driver_app_context["headers"],
+    )
+    second_page = await async_client.get(
+        "/api/v1/driver/trips?limit=1&offset=1",
+        headers=driver_app_context["headers"],
+    )
+
+    assert first_page.status_code == 200, first_page.text
+    assert second_page.status_code == 200, second_page.text
+    assert first_page.json()["total"] == 2
+    assert second_page.json()["total"] == 2
+    listed_ids = {
+        first_page.json()["items"][0]["id"],
+        second_page.json()["items"][0]["id"],
+    }
+    assert listed_ids == {str(own_assigned.id), str(own_delivered.id)}
+    assert first_page.json()["limit"] == 1
+    assert second_page.json()["offset"] == 1
+    assert "actual_revenue" not in first_page.json()["items"][0]
+
+
+@pytest.mark.asyncio
+async def test_driver_history_only_contains_own_closed_or_cancelled_trips(
+    async_client, db, tenant_id, driver_app_context
+):
+    own_closed = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="closed",
+    )
+    own_cancelled = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Xai-Xai",
+        status="cancelled",
+    )
+    own_draft = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Rascunho",
+        destination="Oculto",
+        status="draft",
+    )
+    foreign_closed = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        origin="Outro",
+        destination="Motorista",
+        status="closed",
+    )
+    db.add_all([own_closed, own_cancelled, own_draft, foreign_closed])
+    await db.commit()
+
+    response = await async_client.get(
+        "/api/v1/driver/trips/history?limit=20&offset=0",
+        headers=driver_app_context["headers"],
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["total"] == 2
+    assert {item["id"] for item in body["items"]} == {
+        str(own_closed.id),
+        str(own_cancelled.id),
+    }
+    assert {item["status"] for item in body["items"]} == {"closed", "cancelled"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "path",
+    ["/api/v1/driver/trips", "/api/v1/driver/trips/history"],
+)
+async def test_dashboard_token_cannot_list_driver_trips(
+    async_client, viewer_headers, path
+):
+    response = await async_client.get(path, headers=viewer_headers)
+
+    assert response.status_code == 403, response.text
+    assert response.json()["error"]["code"] == "driver_scope_required"
+
+
+@pytest.mark.asyncio
+async def test_driver_trip_list_rejects_unbounded_page_size(
+    async_client, driver_app_context
+):
+    response = await async_client.get(
+        "/api/v1/driver/trips?limit=101",
+        headers=driver_app_context["headers"],
+    )
+
+    assert response.status_code == 422, response.text
+
+
+@pytest.mark.asyncio
 async def test_dashboard_token_cannot_use_driver_contract(async_client, viewer_headers):
     response = await async_client.get(
         "/api/v1/driver/bootstrap",

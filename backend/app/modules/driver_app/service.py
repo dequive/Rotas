@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.checklists import service as checklists_service
@@ -14,6 +14,14 @@ ACTIVE_DRIVER_TRIP_STATUSES = (
     "delayed",
     "incident",
 )
+
+ASSIGNED_DRIVER_TRIP_STATUSES = (
+    *ACTIVE_DRIVER_TRIP_STATUSES,
+    "arrived",
+    "delivered",
+)
+
+DRIVER_TRIP_HISTORY_STATUSES = ("closed", "cancelled")
 
 
 def _serialize_driver_trip(trip: Trip) -> dict:
@@ -88,6 +96,74 @@ async def get_active_driver_trip(
     if trip is None:
         return None
     return _serialize_driver_trip(trip)
+
+
+async def _list_driver_trips_by_status(
+    db: AsyncSession,
+    *,
+    tenant_id: UUID,
+    driver_id: UUID,
+    statuses: tuple[str, ...],
+    limit: int,
+    offset: int,
+) -> dict:
+    ownership_filter = (
+        Trip.tenant_id == tenant_id,
+        Trip.driver_id == driver_id,
+        Trip.status.in_(statuses),
+    )
+    total = await db.scalar(select(func.count(Trip.id)).where(*ownership_filter))
+    trips = (
+        await db.scalars(
+            select(Trip)
+            .where(*ownership_filter)
+            .order_by(Trip.updated_at.desc(), Trip.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+    ).all()
+    return {
+        "items": [_serialize_driver_trip(trip) for trip in trips],
+        "total": total or 0,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+async def list_assigned_driver_trips(
+    db: AsyncSession,
+    *,
+    tenant_id: UUID,
+    driver_id: UUID,
+    limit: int,
+    offset: int,
+) -> dict:
+    return await _list_driver_trips_by_status(
+        db,
+        tenant_id=tenant_id,
+        driver_id=driver_id,
+        statuses=ASSIGNED_DRIVER_TRIP_STATUSES,
+        limit=limit,
+        offset=offset,
+    )
+
+
+async def list_driver_trip_history(
+    db: AsyncSession,
+    *,
+    tenant_id: UUID,
+    driver_id: UUID,
+    limit: int,
+    offset: int,
+) -> dict:
+    return await _list_driver_trips_by_status(
+        db,
+        tenant_id=tenant_id,
+        driver_id=driver_id,
+        statuses=DRIVER_TRIP_HISTORY_STATUSES,
+        limit=limit,
+        offset=offset,
+    )
 
 
 async def get_bootstrap_payload(

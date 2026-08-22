@@ -16,12 +16,14 @@ Antes de planear ou alterar código, ler nesta ordem:
 1. `AGENTS.md` — instruções e precedência documental;
 2. `docs/CURRENT_STATE_AND_CONVERGENCE_PLAN_20260822.md` — baseline auditada e
    bloqueios atuais;
-3. `docs/ROTAS_MASTER_DELIVERY_PLAN.md` — escopo, dependências e sequência;
-4. `docs/ENGINEERING_STANDARDS.md` — padrões de arquitetura, segurança e
+3. `docs/BRANCH_PR_CONVERGENCE_MATRIX_20260822.md` — destino vinculativo de
+   cada linha Git/PR durante C0-C4;
+4. `docs/ROTAS_MASTER_DELIVERY_PLAN.md` — escopo, dependências e sequência;
+5. `docs/ENGINEERING_STANDARDS.md` — padrões de arquitetura, segurança e
    qualidade;
-5. `docs/MODULE_CLOSURE_MATRIX.md` — maturidade funcional por domínio;
-6. `docs/PRODUCTION_RELEASE_LEDGER.md` — única decisão GO/NO-GO;
-7. ADRs aplicáveis em `docs/adr/`.
+6. `docs/MODULE_CLOSURE_MATRIX.md` — maturidade funcional por domínio;
+7. `docs/PRODUCTION_RELEASE_LEDGER.md` — única decisão GO/NO-GO;
+8. ADRs aplicáveis em `docs/adr/`.
 
 `docs/evidence/`, commits, corpos de PR, `IMPLEMENTATION_STATUS.md` e logs são
 evidência ou histórico. Não substituem os documentos canónicos acima.

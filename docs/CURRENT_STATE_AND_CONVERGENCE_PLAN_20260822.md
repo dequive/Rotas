@@ -133,6 +133,10 @@ reprodução.
 - classificar PRs/branches como integrar, portar, substituir ou descartar;
 - preservar Billing salvo Issue aprovada/gate bloqueante.
 
+Estado em 2026-08-22: **concluído localmente** pela matriz vinculativa
+`docs/BRANCH_PR_CONVERGENCE_MATRIX_20260822.md`. O freeze continua ativo e não
+equivale a merge, CI remoto ou fecho da Issue #42.
+
 ### C1 — Driver e Sync fail-closed
 
 - testes RED com token Driver e dois motoristas do mesmo tenant;

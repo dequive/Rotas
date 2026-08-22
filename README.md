@@ -6,6 +6,7 @@ Plataforma de gestao total de frotas para operadores mocambicanos, com foco em o
 
 - Instruções canónicas para agentes: `AGENTS.md`
 - Estado atual e convergência: `docs/CURRENT_STATE_AND_CONVERGENCE_PLAN_20260822.md`
+- Destino de branches e PRs: `docs/BRANCH_PR_CONVERGENCE_MATRIX_20260822.md`
 - Normas de engenharia: `docs/ENGINEERING_STANDARDS.md`
 - Plano mestre integrado de implementacao: `docs/ROTAS_MASTER_DELIVERY_PLAN.md`
 - Matriz de fecho: `docs/MODULE_CLOSURE_MATRIX.md`

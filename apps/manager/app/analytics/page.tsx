@@ -106,7 +106,10 @@ export default function AnalyticsPage() {
       {/* Filter bar + Export buttons */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
-          <Select value={period} onValueChange={(v) => setPeriod(v as PeriodPreset)}>
+          <Select
+            value={period}
+            onValueChange={(v: string) => setPeriod(v as PeriodPreset)}
+          >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Período" />
             </SelectTrigger>
@@ -328,10 +331,10 @@ export default function AnalyticsPage() {
                     dashboard?.delivery_nps == null
                       ? "var(--muted)"
                       : dashboard.delivery_nps >= 70
-                        ? "var(--green, #16a34a)"
+                        ? "var(--success)"
                         : dashboard.delivery_nps < 50
-                          ? "var(--red, #dc2626)"
-                          : "var(--amber, #f59e0b)",
+                          ? "var(--error)"
+                          : "var(--warning)",
                 }}
               >
                 {dashboard?.delivery_nps !== null && dashboard?.delivery_nps !== undefined

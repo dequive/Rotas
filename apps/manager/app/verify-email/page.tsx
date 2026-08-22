@@ -6,14 +6,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { Button } from "@/app/components/ui/Button";
 
-function getApiBase(): string {
-  if (typeof window === "undefined") return "";
-  return (
-    localStorage.getItem("rotas_api_base_url") ??
-    (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "")
-  );
-}
-
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
@@ -30,21 +22,22 @@ function VerifyEmailContent() {
         return;
       }
       try {
-        const res = await fetch(`${getApiBase()}/api/v1/onboarding/verify-email`, {
+        const res = await fetch("/api/onboarding/verify-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ token }),
         });
-        const body = await res.json();
+        const body = (await res.json()) as { error?: string };
         if (cancelled) return;
         
         if (!res.ok) {
           setStatus("error");
-          setError(body.detail || "Não foi possível confirmar o email.");
+          setError(body.error || "Não foi possível confirmar o email.");
           return;
         }
         setStatus("success");
-      } catch (err) {
+      } catch {
         if (!cancelled) {
           setStatus("error");
           setError("Falha de rede ao tentar validar o token.");

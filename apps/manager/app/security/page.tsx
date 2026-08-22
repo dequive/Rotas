@@ -182,7 +182,7 @@ export default function SecurityPage() {
                 inputMode="numeric"
                 placeholder="Código MFA"
                 required
-                className="min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
+                className="min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
               />
               <Button variant="secondary" disabled={mfaBusy}>
                 Desativar MFA
@@ -205,7 +205,7 @@ export default function SecurityPage() {
                   inputMode="numeric"
                   placeholder="Código de 6 dígitos"
                   required
-                  className="min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
+                  className="min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                 />
                 <Button variant="primary" disabled={mfaBusy}>
                   Confirmar MFA
@@ -230,7 +230,12 @@ export default function SecurityPage() {
         {loading ? (
           <p className="py-2 text-muted text-sm">A carregar sessões...</p>
         ) : (
-          <div className="table-wrap">
+          <div
+            className="table-wrap"
+            role="region"
+            aria-label="Tabela de sessões activas"
+            tabIndex={0}
+          >
             <table className="table">
               <thead>
                 <tr>

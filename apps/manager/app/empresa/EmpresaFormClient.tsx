@@ -79,7 +79,7 @@ function initForm(p: DocumentProfile | null): FormState {
 }
 
 const inputClass =
-  "h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-amber w-full";
+  "h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft w-full";
 const labelClass = "text-[12px] font-semibold text-muted uppercase tracking-wide mb-1";
 
 export function EmpresaFormClient({ initialProfile }: { initialProfile: DocumentProfile | null }) {
@@ -401,7 +401,7 @@ export function EmpresaFormClient({ initialProfile }: { initialProfile: Document
           <div className="flex flex-col gap-1">
             <span className={labelClass}>Rodapé dos Documentos</span>
             <textarea
-              className="px-3 py-2 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-amber w-full resize-vertical"
+              className="px-3 py-2 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft w-full resize-vertical"
               rows={3}
               placeholder="Texto opcional que aparece no rodapé de cada documento emitido"
               value={form.invoice_footer}

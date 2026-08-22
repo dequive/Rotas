@@ -6,14 +6,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/app/components/ui/Button";
 
-function getApiBase(): string {
-  if (typeof window === "undefined") return "";
-  return (
-    localStorage.getItem("rotas_api_base_url") ??
-    (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "")
-  );
-}
-
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -25,9 +17,10 @@ export default function RegisterPage() {
     setLoading(true);
     const form = new FormData(e.currentTarget);
     try {
-      const res = await fetch(`${getApiBase()}/api/v1/onboarding/register`, {
+      const res = await fetch("/api/onboarding/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           company_name: form.get("company_name"),
           company_slug: form.get("company_slug") || undefined,
@@ -40,27 +33,23 @@ export default function RegisterPage() {
           currency: "MZN"
         }),
       });
-      const body = await res.json();
+      const body = (await res.json()) as {
+        error?: string;
+        verificationUrl?: string;
+      };
       if (!res.ok) {
-        setError(body.detail || "Não foi possível concluir o registo.");
+        setError(body.error || "Não foi possível concluir o registo.");
         return;
       }
-      
-      // Auto-login after registration
-      if (body.access_token) {
-        localStorage.setItem("rotas_access_token", body.access_token);
-        localStorage.setItem("rotas_tenant_id", body.tenant.id);
-      }
 
-      if (body.verification_url) {
-        // Redireciona para o link mágico de verificação gerado no backend (Apenas em ambiente não-produtivo para testes rápidos)
-        window.location.href = body.verification_url;
+      if (body.verificationUrl) {
+        router.push(body.verificationUrl);
         return;
       }
       
       router.push("/");
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("Erro de rede. Tente novamente.");
     } finally {
       setLoading(false);

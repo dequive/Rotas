@@ -94,8 +94,9 @@ E0 e só começa depois de C0-C4 e Cliente/Terceiro.
    `d3b24e1` reconciliou a checklist Manager com a política canónica;
    `443e217` + `22ae117` implementaram cache/recovery das novas leituras por
    identidade e ampliaram Playwright para `4/4`; `1513913` fechou pedido,
-   download e erro recuperável em `6/6`. Permanecem repetição integrada e
-   Android físico.
+   download e erro recuperável em `6/6`. `e0078c6` repetiu backend `980/980`,
+   Manager `128/128`/build e Driver `38/38`/build/E2E `6/6` no mesmo HEAD de
+   produto. Permanece Android físico contra esse artefacto.
 4. **C3:** portar #35/#40, fechar Pyright/OpenAPI e recuperar CI executável.
    A causa remota verificada do `startup_failure` inclui a política
    `sha_pinning_required=true` combinada com quatro Actions referidas por tags;

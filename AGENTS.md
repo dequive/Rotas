@@ -166,7 +166,8 @@ Minhas Viagens, histórico, detalhe, requisitos canónicos, documentos, download
 pedido em falta e terminal read-only, reconciliaram a checklist legada do
 Manager e recuperam listas/documentos offline por tenant, motorista e sessão.
 `1513913` fechou localmente pedido, download e erro recuperável em Playwright
-mobile `6/6`. O próximo gate obrigatório continua em C2: repetir backend e
-frontend no mesmo SHA integrado e validar a jornada no Android físico contra
-esse backend. Só então se retomam build reproduzível, Actions/supply chain e
-CI. Estado: `NO-GO`.
+mobile `6/6`. No HEAD de produto `e0078c6`, backend `980/980`, Ruff, Pyright,
+OpenAPI, Manager `128/128`/build de 74 páginas e Driver `38/38`/build/E2E `6/6`
+ficaram verdes. O próximo gate obrigatório continua em C2: validar a jornada no
+Android físico contra esse backend e artefacto. Só então se retomam Actions,
+supply chain e CI. Estado: `NO-GO`.

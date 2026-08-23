@@ -296,8 +296,12 @@ recuperação real via IndexedDB. `1513913` ampliou a suíte para `6/6`: pedido 
 gestor, download autorizado e erro persistente após retries automáticos com
 recuperação manual ficaram provados no artefacto compilado.
 
-Permanecem Android físico contra o backend integrado e repetição integral
-backend/frontend no mesmo SHA C2.
+No HEAD de produto `e0078c6`, a base efémera migrou até `rec14` e a regressão
+backend passou `980/980`; Ruff, Pyright e OpenAPI ficaram verdes. Manager passou
+`128/128`, typecheck, contratos/BFF e build de 74 páginas; Driver passou
+`38/38`, typecheck, build PWA e Playwright `6/6`. A base operacional permaneceu
+intocada. Permanece Android físico contra esse backend/artefacto; CI, revisão,
+staging e RC ainda não existem.
 
 ### C3 — Contratos e gates
 

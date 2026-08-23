@@ -3203,3 +3203,19 @@ A cobertura E2E residual de C2 fica **verde local**, não release-certified.
 Permanecem repetição backend/frontend no mesmo SHA integrado e validação no
 Redmi físico contra esse backend; CI, revisão, staging e RC estão ausentes.
 G0-G5: **NO-GO**.
+
+### 16.26 C2 — Repetição integrada backend/frontend — 2026-08-23
+
+- no HEAD de produto `e0078c6`, o runner canónico criou uma base efémera desde
+  `template0`, migrou até `rec14`, executou `980/980` testes e eliminou a base;
+  a base operacional online não foi reutilizada nem limpa;
+- Ruff `app tests`, Pyright `0/0/0` e drift OpenAPI SHA-256
+  `9910068b...684` ficaram verdes;
+- Manager passou `128/128`, typecheck, contratos API `208/158/0`, fronteira BFF
+  `99/40/0`, gate sem demo fallback e build de 74 páginas;
+- Driver passou `38/38`, typecheck, build PWA de 1.803 módulos/93 módulos SW/seis
+  precache e Playwright mobile `6/6` sobre o artefacto recompilado.
+
+C2 fica **integrado localmente**, não fechado nem certificado. O próximo gate é
+o Redmi físico contra este backend/artefacto. CI continua sem execução válida,
+não há revisão independente, staging, RC ou piloto. G0-G5: **NO-GO**.

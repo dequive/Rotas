@@ -3184,3 +3184,22 @@ certifica o Manager em runtime/RC. G0-G5: **NO-GO**.
 C2 permanece **em progresso**. Faltam E2E de pedido/download/erros, repetição
 backend/frontend no mesmo SHA integrado e jornada no Redmi físico contra esse
 artefacto. CI, revisão, staging e RC continuam ausentes. G0-G5: **NO-GO**.
+
+### 16.25 C2 — Pedido, download e erro recuperável em E2E — 2026-08-23
+
+- `1513913` ampliou Playwright mobile de `4/4` para `6/6` no mesmo artefacto
+  Driver compilado;
+- o pedido de guia envia `document_type` ao endpoint de pedidos e a UI troca a
+  ação por `Pedido enviado`, sem expor emissão administrativa;
+- um documento ownership-scoped com ficheiro associado gera download
+  `LP-001.pdf` pelo endpoint Driver dedicado;
+- três respostas `503` esgotam os dois retries automáticos do contrato HTTP,
+  tornam o erro e `Tentar novamente` visíveis e a tentativa manual seguinte
+  recupera o painel;
+- as provas de IndexedDB offline, purge de identidade e cold start continuaram
+  verdes na suíte integral.
+
+A cobertura E2E residual de C2 fica **verde local**, não release-certified.
+Permanecem repetição backend/frontend no mesmo SHA integrado e validação no
+Redmi físico contra esse backend; CI, revisão, staging e RC estão ausentes.
+G0-G5: **NO-GO**.

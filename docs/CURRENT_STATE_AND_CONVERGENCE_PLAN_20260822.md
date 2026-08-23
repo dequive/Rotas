@@ -292,10 +292,12 @@ verdes. `443e217` criou cache de leitura Dexie v5 isolado por
 documentos a esse cache, apresenta freshness explícita e remove pedidos quando
 os dados recuperados estão offline. Driver passou `38/38`, TypeScript e build
 PWA/service worker; Playwright mobile passou `4/4`, incluindo perda de rede e
-recuperação real via IndexedDB.
+recuperação real via IndexedDB. `1513913` ampliou a suíte para `6/6`: pedido ao
+gestor, download autorizado e erro persistente após retries automáticos com
+recuperação manual ficaram provados no artefacto compilado.
 
-Permanecem E2E de pedido/download/erros, Android físico contra o backend
-integrado e repetição integral backend/frontend no mesmo SHA C2.
+Permanecem Android físico contra o backend integrado e repetição integral
+backend/frontend no mesmo SHA C2.
 
 ### C3 — Contratos e gates
 

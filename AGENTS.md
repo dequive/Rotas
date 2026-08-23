@@ -165,7 +165,8 @@ Os slices C2 até `22ae117` removeram ações administrativas da PWA, publicaram
 Minhas Viagens, histórico, detalhe, requisitos canónicos, documentos, download,
 pedido em falta e terminal read-only, reconciliaram a checklist legada do
 Manager e recuperam listas/documentos offline por tenant, motorista e sessão.
-O próximo incremento obrigatório continua em C2: cobrir pedido, download e
-erros em E2E, repetir backend e frontend no mesmo SHA integrado e validar a
-jornada no Android físico contra esse backend. Só então se retomam build
-reproduzível, Actions/supply chain e CI. Estado: `NO-GO`.
+`1513913` fechou localmente pedido, download e erro recuperável em Playwright
+mobile `6/6`. O próximo gate obrigatório continua em C2: repetir backend e
+frontend no mesmo SHA integrado e validar a jornada no Android físico contra
+esse backend. Só então se retomam build reproduzível, Actions/supply chain e
+CI. Estado: `NO-GO`.

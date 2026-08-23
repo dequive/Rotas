@@ -12,9 +12,9 @@ até nova auditoria no SHA integrado. Ver
 | Área | Estado vinculativo | Razão bloqueante |
 | --- | --- | --- |
 | Frota e Pessoas | avançado local; não fechado | pairing e ownership Driver verdes localmente; faltam RC, revisão e Android |
-| Transporte e Carga | C2 parcial; não fechado | listas, requisitos, pedidos e terminal read-only verdes no backend; faltam download Driver, checklist Manager e UI Android |
+| Transporte e Carga | C2 parcial; não fechado | listas, requisitos, pedidos, download e terminal read-only verdes no backend; faltam checklist Manager e UI Android |
 | Sync/Offline | avançado local; não fechado | ownership e idempotência por motorista/dispositivo verdes localmente; faltam recovery/staging/Android no RC |
-| Contratos API Driver | avançado local; não fechado | DTOs/OpenAPI explícitos para listas, histórico, documentos e pedidos; faltam download, UI e CI/RC |
+| Contratos API Driver | avançado local; não fechado | DTOs/OpenAPI explícitos para listas, histórico, documentos, pedidos e download; faltam UI e CI/RC |
 | Segurança multi-tenant | avançado local; não certificado | ownership intra-tenant provado localmente; falta RLS restrita e pentest no RC |
 | ERP financeiro/inventário | parcial | fontes duplicadas, limiar de stock fixo e fecho ponta a ponta não certificado |
 | SaaS comercial | parcial | planos públicos, pagamento/subscrição, branding e operação comercial pendentes |
@@ -44,7 +44,7 @@ Um modulo so e considerado fechado quando:
 | --- | --- | --- | --- |
 | Centro de Comando | control_tower, alerts, operational_exceptions | avancado | dashboard executivo TMS coberto; faltam configuracao de filas por tenant, politicas adicionais de escalonamento e QA visual final em origem browser permitida |
 | Frota e Pessoas | vehicles, drivers, availability | avançado local; não fechado | pairing/ownership e remoção de frota geral verdes localmente; faltam revisão, RC e Android |
-| Transporte e Carga | trip_orders, trips, checklists, cargo, operations | C2 parcial; não fechado | listas/requisitos/pedidos e terminal read-only backend prontos; faltam download, checklist Manager, UI/E2E/Android |
+| Transporte e Carga | trip_orders, trips, checklists, cargo, operations | C2 parcial; não fechado | listas/requisitos/pedidos/download e terminal read-only backend prontos; faltam checklist Manager, UI/E2E/Android |
 | Custos e Margem | trips custos, workshop custos, billing margem | avancado | reconciliacao final e politicas adicionais de margem |
 | Combustivel | fuel | operacional MVP | politicas adicionais de stock, desvios e segregacao |
 | Oficina e Manutencao | workshop | operacional MVP | ampliar board visual e politicas enterprise |
@@ -63,7 +63,7 @@ Um modulo so e considerado fechado quando:
 | files | operacional MVP | storage adapter R2 |
 | checklists | avancado | politicas adicionais e visual hardening |
 | trip_orders | fechado MVP | evolucoes enterprise futuras |
-| trips | C2 parcial | criação proibida, listas e detalhe documental tenant+driver-scoped; faltam download, UI e certificação |
+| trips | C2 parcial | criação proibida, listas, detalhe e download documental tenant+driver-scoped; faltam UI e certificação |
 | cargo | C2 parcial / não fechado | emissão de gestor, pedido Driver e bloqueio após fecho separados localmente; falta reconciliar checklist legada e provar UI/RC |
 | billing | avancado | reconciliacao final e politicas adicionais |
 | fuel | operacional MVP | politicas adicionais |

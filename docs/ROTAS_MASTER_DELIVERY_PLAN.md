@@ -3008,3 +3008,29 @@ de ficheiro ownership-scoped para Driver, reconciliação da checklist documenta
 legada do Manager, UI/navegação, comportamento offline, E2E e Android físico no
 mesmo SHA. A regressão backend integral mais recente continua `968/968` em
 `97e365d`; não prova `710dc9f`. G0-G5: **NO-GO**.
+
+### 16.21 C2 — Download documental ownership-scoped — 2026-08-23
+
+- o teste RED confirmou `404` e contrato OpenAPI inexistente antes do endpoint;
+- `4d439ed` publicou
+  `GET /driver/trips/{trip_id}/documents/{file_id}/download` com autenticação
+  Driver e predicado `(tenant_id, driver_id, trip_id)`;
+- o ficheiro só é entregue se estiver associado a Load Permit, manifesto ou
+  documento de transporte não cancelado da viagem atribuída;
+- outro motorista do mesmo tenant e ficheiro não associado recebem `404`, e
+  token Manager recebe `403`; viagem `closed` mantém leitura documental;
+- storage local devolve bytes, MIME e nome original; R2 só gera redirect para
+  URL GET temporário depois das verificações de ownership e tenant do
+  `storage_key`;
+- a partição integrada Driver/Files/idempotência/OpenAPI/documentos/despacho/
+  cargo/máquinas de estado passou `87/87` numa base descartável até `rec14`;
+  Ruff e Pyright globais, OpenAPI SHA-256
+  `cd1cb174ebfa56b6a6d3275ed9721ea503c3af1e253f014c192809e1ea933dba`,
+  cliente TypeScript, typecheck Manager e auditor `208/158/0` ficaram verdes.
+
+O backend documental Driver fica **verde local focado**, mas C2 continua em
+progresso. O próximo incremento é a PWA: navegação Minhas Viagens/histórico,
+detalhe, requisitos reais, consulta/download e pedido de documento, incluindo
+loading/empty/error/forbidden/degraded/success e terminal read-only. Também
+permanecem checklist Manager, offline, E2E, Android, CI e regressão integral no
+novo SHA. G0-G5: **NO-GO**.

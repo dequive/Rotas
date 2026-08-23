@@ -243,9 +243,16 @@ integrada passou `82/82`; Ruff/Pyright globais, OpenAPI SHA-256
 `e58f28fb...b12`, cliente TypeScript, typecheck Manager e auditor `208/158/0`
 ficaram verdes.
 
-Permanecem o download de ficheiro com ownership Driver, a UI de Minhas
-Viagens/histórico/documentos/pedidos, reconciliação da checklist legada do
-Manager, offline, E2E/Android e repetição integral no SHA C2.
+`4d439ed` acrescentou download ownership-scoped: apenas ficheiro ligado a um
+documento não cancelado da viagem atribuída pode ser obtido. Storage local
+serve bytes; R2 recebe redirect para URL GET temporário apenas depois da
+autorização. Outro motorista, token Manager e ficheiro não associado falham
+fechados. A partição integrada com Files passou `87/87`; OpenAPI SHA-256
+`cd1cb174...3dba` e gates estáticos permaneceram verdes.
+
+Permanecem a UI de Minhas Viagens/histórico/documentos/pedidos, reconciliação
+da checklist legada do Manager, offline, E2E/Android e repetição integral no
+SHA C2.
 
 ### C3 — Contratos e gates
 

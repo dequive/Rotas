@@ -38,19 +38,39 @@ Um modulo so e considerado fechado quando:
 
 ## Estado por Modulo
 
-### Modulos de Produto
+### Módulos de negócio do tenant
 
-| Modulo de produto | Inclui | Estado | Lacunas para fechamento |
+Esta tabela segue a `ADR-011`. Existência de rota/página não torna a capacidade
+licenciável nem fechada; `tms/oficina` continuam bundles legados até E0.
+
+| Módulo de negócio | Inclui | Estado | Lacunas para fechamento |
 | --- | --- | --- | --- |
-| Centro de Comando | control_tower, alerts, operational_exceptions | avancado | dashboard executivo TMS coberto; faltam configuracao de filas por tenant, politicas adicionais de escalonamento e QA visual final em origem browser permitida |
-| Frota e Pessoas | vehicles, drivers, availability | avançado local; não fechado | pairing/ownership e remoção de frota geral verdes localmente; faltam revisão, RC e Android |
-| Transporte e Carga | trip_orders, trips, checklists, cargo, operations | C2 avançado local; não fechado | listas/requisitos/pedidos/download, terminal read-only e UI PWA prontos; faltam checklist Manager, offline/E2E/Android |
-| Custos e Margem | trips custos, workshop custos, billing margem | avancado | reconciliacao final e politicas adicionais de margem |
-| Combustivel | fuel | operacional MVP | politicas adicionais de stock, desvios e segregacao |
-| Oficina e Manutencao | workshop | operacional MVP | ampliar board visual e politicas enterprise |
-| Cobranca | contracts, billing | avancado | politicas adicionais de reajuste, renovacao e reconciliacao final |
-| Administracao Operacional | tenants, users, auth | operacional MVP | branding, planos publicos, pagamento/subscricao, recovery codes e politicas enterprise |
-| Suporte Tecnico-Operacional | files, sync, audit | operacional | storage R2, ampliar tipos de sync e cobertura transversal residual |
+| Centro de Comando | control_tower, alerts, operational_exceptions | avançado local; não fechado | configuração de filas por tenant, escalonamento, QA visual e RC |
+| Frota e Pessoas | vehicles, drivers, availability | avançado local; não fechado | pairing/ownership verdes localmente; faltam revisão, RC e Android |
+| Transporte e Carga | trip_orders, trips, checklists, cargo, operations | C2 avançado local; não fechado | faltam checklist Manager, offline/recovery, E2E ampliado e Android |
+| Custos e Margem | trip costs, custos de oficina, reconciliação e margem | parcial | separar estimado/realizado, certificar fontes e reconciliar receita sem ownership de billing |
+| Combustível | fuel | parcial | fechar API/movimentos, contagens, desvios, segregação, reconciliação e jornada E2E |
+| Oficina e Manutenção | workshop | avançado local; não fechado | provar lifecycle integral, stock/custos/billing reconciliados, board, exceções e gates enterprise no mesmo RC |
+| Clientes, Vendas e Cobrança | clients, contracts, billing, AR | avançado local; congelado | billing permanece congelado; faltam Cliente/Terceiro, O2C/AR, reconciliação e certificação E2 |
+| Compras e Fornecedores | suppliers, procurement, AP | parcial | requisição até pagamento, aprovações, three-way match, devoluções e reconciliação E1 |
+| Inventário e Ativos | inventory, warehouses, asset lifecycle | parcial | lote/série/validade, contagem, valorização e ciclo de vida de ativos ainda não fechados |
+| Finanças e Contabilidade | accounting, treasury, close | básico/parcial | entidade legal, filial, centro de custo, período, fecho, reconciliação e demonstrações certificadas |
+| Recursos Humanos | HR, payroll, people assets | parcial | lifecycle laboral, segregação salarial, payroll legal, contabilização, pagamentos e ativos E3 |
+| Business Intelligence | semantic layer, dashboards, alerts, workshop intelligence | parcial; não Trusted BI | catálogo KPI, lineage, freshness, reconciliação, drill-down, alertas e piloto E4/E5 |
+
+### Capacidades de governação
+
+| Capacidade | Estado | Lacunas para fechamento |
+| --- | --- | --- |
+| Administração do Tenant | parcial | entidades legais, filiais, centros de custo, sequências e governação intra-tenant E0 |
+| Administração SaaS | parcial | catálogo, subscrições, entitlements, limites/consumo, suporte JIT e offboarding E0 |
+
+### Fundação técnico-operacional
+
+Não é módulo vendável. `auth`, `files`, `sync`, `audit`, idempotência, outbox e
+integrações são controlos transversais. Estão **avançados localmente, não
+certificados**: faltam recovery offline completo, CI, staging multi-instância,
+observabilidade, Android físico, pentest e evidência no mesmo RC.
 
 ### Modulos Tecnicos Backend
 

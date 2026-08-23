@@ -56,7 +56,14 @@ canonicas vivem em `.github/ISSUE_TEMPLATE/task.yml` e
 
 ### Single Responsibility Principle
 
-- Cada modulo de produto tem uma responsabilidade operacional clara: Centro de Comando, Frota e Pessoas, Transporte e Carga, Custos e Margem, Combustivel, Oficina e Manutencao, Cobranca, Administracao Operacional e Suporte Tecnico-Operacional.
+- Cada módulo de negócio tem uma responsabilidade operacional clara conforme a
+  taxonomia da `ADR-011`; módulos do tenant, governação e fundações técnicas não
+  podem ser tratados como a mesma camada.
+- Clientes/Vendas/Cobrança owns contratos, documentos de cobrança e contas a
+  receber. Custos e Margem owns estimativas, custos reais, reconciliação e
+  margem, sem emitir documentos comerciais.
+- Identidade, autorização, auditoria, ficheiros, sync/offline, idempotência e
+  integrações são fundações transversais obrigatórias, não módulos vendáveis.
 - Pacotes tecnicos backend podem ser mais granulares que os modulos de produto quando isso reduz acoplamento ou protege regras de dominio.
 - Routers cuidam apenas de HTTP: entrada, dependencias e resposta.
 - Services coordenam casos de uso.

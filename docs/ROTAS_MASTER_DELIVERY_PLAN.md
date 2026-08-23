@@ -94,16 +94,20 @@ O ROTAS deve responder diariamente a estas perguntas:
 - Que entregas ja podem ser cobradas?
 - Quem autorizou cada decisao critica?
 
-## 3. Modulos de Produto por Responsabilidade
+## 3. Taxonomia de Capacidades por Responsabilidade
 
-Esta e a taxonomia de produto usada para fechar a aplicacao. Os pacotes tecnicos do backend podem continuar mais granulares, mas o utilizador e a gestao do produto devem pensar nestes modulos.
+Esta é a taxonomia funcional usada para fechar a aplicação. Conforme a
+`ADR-011`, ela possui três níveis: módulos de negócio do tenant, capacidades de
+governação e fundações técnicas transversais. Estes níveis não são
+intercambiáveis e não implicam que cada linha seja hoje um módulo licenciável.
+Os pacotes técnicos do backend podem continuar mais granulares.
 
-| Modulo | Responsabilidade principal |
+| Capacidade | Responsabilidade principal |
 | --- | --- |
 | Centro de Comando | Torre de Controlo, alertas, excepcoes operacionais e priorizacao diaria. |
 | Frota e Pessoas | Viaturas, motoristas, disponibilidade, compliance documental e historicos separados. |
 | Transporte e Carga | Ordem, viagem, autorizacao de saida, execucao, checklists, incidentes, documentos de carga, Load Permit, prova de descarga e disputas. |
-| Custos e Margem | Custos reais da viagem, despacho do motorista, reconciliacao, margem e risco financeiro operacional. |
+| Custos e Margem | Custos estimados e reais da viagem, despacho do motorista, reconciliação, margem e risco financeiro operacional; não emite documentos de cobrança. |
 | Combustivel | Compra, recepcao, stock por movimentos, abastecimentos, contagens, ajustes e desvios. |
 | Oficina e Manutencao | Pedidos, ordens de servico, tarefas, pecas, ferramentas e preventiva. |
 | Clientes, Vendas e Cobranca | CRM operacional, propostas, contratos, pedidos, viagens/servicos billable, facturas, cobrancas e recebimentos. |
@@ -114,12 +118,17 @@ Esta e a taxonomia de produto usada para fechar a aplicacao. Os pacotes tecnicos
 | Business Intelligence | Camada semantica de KPIs, dashboards, tendencias, drill-down, metas e alertas. |
 | Administracao do Tenant | Entidades legais, filiais, utilizadores, politicas, sequencias, configuracoes e responsabilidades. |
 | Administracao SaaS | Provisionamento de tenants, planos, subscricoes, entitlements, limites, suporte autorizado e saude da plataforma. |
-| Suporte Tecnico-Operacional | Ficheiros, sync offline, auditoria, autenticacao e integracoes tecnicas. |
+| Fundação Técnico-Operacional | Ficheiros, sync offline, auditoria, autenticação, idempotência e integrações técnicas transversais. |
 
-Os modulos de negocio sao apresentados ao tenant conforme o plano contratado e
-os entitlements definidos pelo operador SaaS. Administracao do Tenant,
-Administracao SaaS e Suporte Tecnico-Operacional formam a base de governanca,
-isolamento e operacao do sistema.
+Centro de Comando até Business Intelligence são módulos de negócio do tenant.
+Administração do Tenant e Administração SaaS são capacidades de governação
+distintas. A Fundação Técnico-Operacional não é vendável nem item de navegação:
+é obrigatória em todas as jornadas que dela dependem.
+
+Os valores atuais `tms` e `oficina` são bundles legados. Não constituem o
+catálogo final de ofertas ou entitlements. O alinhamento entre catálogo,
+navegação, API e limites será executado por `widen-migrate-narrow` em E0; até
+essa prova, o ROTAS não anuncia licenciamento granular por esta taxonomia.
 
 ## 4. Dominios Integrados
 
@@ -240,7 +249,7 @@ Work order activa torna a viatura indisponivel para nova viagem,
 salvo waiver operacional aprovado e auditado.
 ```
 
-### 4.5 Custos, Margem e Cobranca
+### 4.5 Custos e Margem
 
 Responsabilidade:
 
@@ -248,22 +257,20 @@ Responsabilidade:
 - receber custos reais;
 - aplicar tabela de despacho do transportador quando existir;
 - reconciliar margem;
-- preparar cobranca;
-- impedir cobranca indevida;
-- exportar documentos profissionais.
+- consumir receita certificada pelo domínio de Clientes, Vendas e Cobrança;
+- impedir que estimativa e realizado sejam apresentados como o mesmo facto.
 
 Entidades principais:
 
-- `contracts`;
-- `billing_items`;
-- `billing_documents`;
 - `trip_cost_estimates`;
 - `trip_cost_actuals`.
 
 Regra fundamental:
 
 ```text
-Cobranca segue a data de descarga validada, nao a data de partida.
+Custos e Margem não emite nem altera documentos de cobrança.
+Receita entra no cálculo apenas a partir da fonte certificada de
+Clientes, Vendas e Cobrança.
 ```
 
 Regra de despacho do motorista:
@@ -291,22 +298,37 @@ Entidades principais:
 - views ou services agregadores;
 - boards por dominio.
 
-### 4.7 Plataforma SaaS e Administracao do Tenant
+### 4.7A Administração do Tenant
 
 Responsabilidade:
 
-- provisionar, suspender e encerrar tenants sem apagar silenciosamente dados;
-- gerir planos, subscricoes, entitlements, limites e consumo SaaS;
 - configurar entidades legais, filiais, centros operacionais e centros de custo;
+- gerir utilizadores, funções, políticas e sequências dentro do tenant;
+- permitir configuração operacional sem forks de código;
+- impedir que administradores do tenant alterem planos, módulos pagos, limites
+  ou grants de suporte da plataforma.
+
+Entidades principais:
+
+- `legal_entities`, `branches` e `cost_centers`;
+- `tenant_users`, roles, políticas e sequências documentais.
+
+### 4.7B Administração SaaS
+
+Responsabilidade:
+
+- provisionar, suspender, reativar e encerrar tenants sem apagar dados
+  silenciosamente;
+- gerir catálogo, planos, subscrições, entitlements, limites e consumo SaaS;
 - isolar identidade, dados, ficheiros, cache, jobs, eventos e analytics;
-- autorizar e auditar acessos excepcionais de suporte;
-- permitir configuracao por tenant sem forks de codigo.
+- autorizar, limitar temporalmente e auditar acesso excecional de suporte;
+- manter a operação comercial e a saúde da plataforma separadas da operação
+  dos clientes de cada tenant.
 
 Entidades principais:
 
 - `tenants`, `tenant_subscriptions` e `tenant_entitlements`;
-- `legal_entities`, `branches` e `cost_centers`;
-- `tenant_users`, roles e politicas;
+- catálogo/ofertas, grants, limites e medição de consumo versionados;
 - `support_access_grants` e audit trail de plataforma.
 
 ### 4.8 Clientes, Vendas e Contas a Receber
@@ -318,6 +340,20 @@ Responsabilidade:
 - converter servicos executados em facturas e contas a receber;
 - controlar notas de credito, recebimentos, saldos e cobranca;
 - ligar receita, custo e margem a cliente, contrato, viagem e centro de custo.
+
+Entidades principais:
+
+- `clients`, `contracts` e pedidos/serviços faturáveis;
+- `billing_items` e `billing_documents`;
+- contas a receber, recebimentos, notas de crédito e reconciliações.
+
+Regra fundamental:
+
+```text
+Cobrança segue a data de descarga validada, não a data de partida.
+Clientes, Vendas e Cobrança é o único owner dos documentos comerciais;
+Custos e Margem consome a receita certificada sem a alterar.
+```
 
 O identificador de cliente nunca e global: a identidade efectiva e
 `tenant_id + customer_id`. A mesma organizacao pode existir em tenants
@@ -412,7 +448,8 @@ periodos e snapshots reconciliados; velocidade nunca substitui consistencia.
 
 ### 4.14 Oficina Intelligence Layer
 
-A inteligencia da oficina e uma camada de leitura derivada sobre o nucleo
+A Oficina Intelligence Layer pertence a Business Intelligence; não constitui
+um módulo comercial autónomo. É uma camada de leitura derivada sobre o núcleo
 transaccional imutavel. A sua funcao e transformar factos reconciliados em
 alertas, explicacoes, recomendacoes, previsoes e simulacoes sem reescrever OS,
 orcamentos, movimentos, facturas, pagamentos ou entregas.
@@ -562,6 +599,40 @@ controlo de inferencia e politica aprovada pelo operador SaaS.
 Nenhum tenant pode identificar outro tenant, cliente, colaborador, preco,
 fornecedor ou volume atraves de ranking, filtro, export ou assistente. Quando a
 coorte nao satisfaz o limiar de privacidade, o benchmark nao e publicado.
+
+### 4.15 Fundação Técnico-Operacional
+
+Responsabilidade:
+
+- autenticar identidades de plataforma, tenant, gestor, motorista e dispositivo;
+- aplicar autorização, ownership intra-tenant e segregação de personas;
+- persistir audit trail e correlação sem expor PII desnecessária;
+- gerir ficheiros com autorização antes de download ou URL temporária;
+- executar sync/offline com allowlist, idempotência, replay, conflito e recovery
+  isolados por tenant, utilizador, dispositivo e sessão;
+- publicar integrações por contratos versionados, outbox e consumidores
+  idempotentes;
+- expor telemetria, estado degradado e exceções operacionais acionáveis.
+
+Contratos e entidades principais:
+
+- principals, roles, sessions, pairing codes e devices;
+- audit logs, idempotency records e transactional outbox;
+- file metadata/storage adapters;
+- sync batches, operações, conflitos e dead letters;
+- contratos OpenAPI/eventos e adaptadores de integração.
+
+Regras fundamentais:
+
+```text
+Fundações técnicas não são módulos opcionais nem substituem ownership do
+domínio. Toda mutação valida tenant, persona, owner, device, lifecycle e
+idempotência antes de produzir efeito ou devolver cache.
+```
+
+Critério de aceite: testes positivos e negativos da jornada real, incluindo
+cross-tenant, cross-owner, cross-device, concorrência, replay, recovery offline,
+contratos públicos, observabilidade sem PII e evidência no mesmo SHA/RC.
 
 ## 5. Fluxos Principais
 
@@ -1092,6 +1163,12 @@ Segregacoes obrigatorias:
 
 ## 9. Roadmap Integrado
 
+As Waves abaixo preservam o inventário histórico e o agrupamento de escopo; não
+definem a ordem executável atual. Quando uma numeração de Wave divergir das
+dependências, prevalecem `AGENTS.md`, a secção 10 e a sequência C0-C4 ->
+Cliente/Terceiro -> E0-E5 da secção 16. Nenhum agente pode implementar uma Wave
+posterior apenas porque o seu número vem depois de uma capacidade já presente.
+
 ### Wave 0 - Base ja implementada
 
 Estado actual:
@@ -1509,7 +1586,7 @@ Aceite quando:
 
 ## 10. Dependencias de Implementacao
 
-Ordem recomendada:
+Ordem vinculativa de dependência:
 
 ```text
 Audit base
@@ -1769,12 +1846,15 @@ Actualizacao de engenharia em 2026-07-27:
   dois approvals, CODEOWNERS, checks, conversas resolvidas e histórico linear,
   inclusive para admins. Actions foi limitado a actions GitHub-owned fixadas
   por SHA e token read-only; Dependabot, vulnerability alerts, secret scanning,
-  push protection e reporte privado foram activados. A conta GitHub continua
-  locked por billing, impedindo runners; existe apenas um colaborador e a
+  push protection e reporte privado foram activados. A conta GitHub continuava
+  locked por billing, impedindo runners; existia apenas um colaborador e a
   estabilização passou a ser a default branch protegida após autorização
   explícita. O scan multi-ecossistema passou a expor 60 alerts abertos, 26
   high, 30 medium e 4 low, para tratamento no PR-18. Por isso PR-00/G0
-  continuam amarelos e o PR não pode ser mergeado;
+  continuam amarelos e o PR não pode ser mergeado. Esta é evidência histórica:
+  em 2026-08-23 Dependabot provou runners disponíveis e a baseline atual liga o
+  `startup_failure` à política `sha_pinning_required=true` combinada com quatro
+  Actions ainda referidas por tags;
 - PR-01 foi reconstruído sem copiar funcionalidades do worktree principal e
   publicado no commit `8c47623`, draft PR 5 empilhado sobre o PR 1. Ruff,
   compile/import, OpenAPI com 370 rotas/296 paths/363 operações e 14 testes
@@ -2441,8 +2521,10 @@ jobs efetivamente executados.
 
 ### 16.1 Mandato
 
-Este programa executa as Waves 9 a 13 depois da estabilizacao aplicavel da Wave
-8. E a continuacao do mesmo roadmap canonico, nao uma iniciativa paralela. O
+Este programa materializa o escopo das Waves 9 a 13 depois de C0-C4 e da
+convergência Cliente/Terceiro. A sua sequência E0-E5 é executável e prevalece
+sobre a numeração histórica das Waves. É a continuação do mesmo roadmap
+canónico, não uma iniciativa paralela. O
 ERP e a base transaccional obrigatoria; BI, dashboards e alertas sao promovidos
 apenas depois de as respectivas fontes de verdade estarem reconciliadas.
 
@@ -2470,7 +2552,7 @@ esta ordem.
 
 | ID | Entrega | Owner | Depende de | Evidencia de conclusao | Gate |
 | --- | --- | --- | --- | --- | --- |
-| ERP-00 | ADR de tenancy, entidades legais, ownership e dois billings | TL + BE + PO | G0-G2 | Modelo aprovado, threat model e contratos versionados | E0 |
+| ERP-00 | ADR de tenancy, entidades legais, ownership e dois billings | TL + BE + PO | G0-G2 | Modelo aprovado, threat model, contratos versionados e plano `widen-migrate-narrow` de `legal_entity`, filial, centro de custo, sequências, backfill, reconciliação e rollback | E0 |
 | ERP-01 | Lifecycle de tenant, subscricao, entitlement e limites | BE + FE-M + SEC | ERP-00 | Provision/suspend/reactivate/offboard E2E | E0 |
 | ERP-02 | Constraints, RLS, storage, cache e workers tenant-scoped | BE + SEC + QA | ERP-00 | Matriz cross-tenant real verde | E0 |
 | ERP-03 | Entidades legais, filiais, centros de custo e sequencias | BE + FE-M | ERP-01 | CRUD, RBAC, auditoria e isolamento verdes | E0 |

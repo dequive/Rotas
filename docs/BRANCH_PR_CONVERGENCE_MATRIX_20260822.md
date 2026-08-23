@@ -77,6 +77,10 @@ Nenhuma classificação equivale a autorização de merge ou release.
 
 ## 4. Ordem de execução C0-C4
 
+A taxonomia e as dependências foram reconciliadas pela `ADR-011`, mas não
+alteram esta fila. O alinhamento comercial de módulos/entitlements pertence a
+E0 e só começa depois de C0-C4 e Cliente/Terceiro.
+
 1. **C0:** manter freeze, publicar esta matriz e bloquear merges integrais.
 2. **C1:** fechar autorização/ownership Driver e Sync por testes de abuso.
 3. **C2:** portar de #41, uma vertical por vez, as jornadas mobile aprovadas.
@@ -89,6 +93,9 @@ Nenhuma classificação equivale a autorização de merge ou release.
    navegação, listas/histórico paginados, detalhe, documentos e pedidos na PWA.
    Checklist Manager, offline/recovery, E2E ampliado e Android permanecem.
 4. **C3:** portar #35/#40, fechar Pyright/OpenAPI e recuperar CI executável.
+   A causa remota verificada do `startup_failure` inclui a política
+   `sha_pinning_required=true` combinada com quatro Actions referidas por tags;
+   a correção por SHA imutável continua depois dos incrementos C2 pendentes.
 5. **C4:** criar um RC único, executar staging, Android físico, Sentry, segurança,
    observabilidade e piloto no mesmo SHA/artefactos.
 

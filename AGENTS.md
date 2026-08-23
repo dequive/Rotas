@@ -43,6 +43,13 @@ O produto só é vendável quando os fluxos transacionais, segurança, operaçã
 BI e piloto forem comprovados no mesmo release candidate. Presença de páginas,
 models, endpoints ou testes isolados não significa módulo fechado.
 
+Aplicar a taxonomia da `ADR-011`: módulos de negócio do tenant, capacidades de
+governação e fundações técnicas são níveis distintos. `tms` e `oficina` são
+bundles legados, não prova de catálogo/entitlements enterprise; identidade,
+auditoria, ficheiros e sync/offline são fundações obrigatórias, não módulos
+vendáveis. Cobrança pertence a Clientes/Vendas/Cobrança; Custos e Margem apenas
+consome receita certificada para reconciliar margem.
+
 ## 3. Estado vinculativo atual
 
 - A branch auditada `codex/issue42-convergencia-manager-driver-backend`, no SHA
@@ -154,9 +161,10 @@ A regressão backend integral no SHA `97e365d`, numa base descartável migrada d
 drift OpenAPI e gates Manager ficaram verdes localmente; isto não equivale a CI,
 staging, Android físico ou release candidate.
 
-O primeiro slice C2 `5286fe1` removeu da PWA Driver a criação de viagem, seleção
-de frota, emissão de Load Permit/manifesto e cobrança. O próximo incremento
-obrigatório continua em C2, contract-first: contratos backend de Minhas Viagens,
-histórico, documentos emitidos e pedido de documento em falta, com ownership e
-viagem fechada somente leitura; só depois se implementa a nova navegação. Depois
-retomam-se build reproduzível, Actions/supply chain e CI. Estado: `NO-GO`.
+Os slices C2 até `426e865` removeram ações administrativas da PWA e publicaram
+Minhas Viagens, histórico, detalhe, requisitos canónicos, documentos, download,
+pedido em falta e terminal read-only. O próximo incremento obrigatório continua
+em C2: reconciliar a checklist legada do Manager, implementar cache/recovery
+offline das novas leituras e ampliar E2E. Depois deve repetir-se backend e
+frontend no mesmo SHA integrado e validar Android físico. Só então se retomam
+build reproduzível, Actions/supply chain e CI. Estado: `NO-GO`.

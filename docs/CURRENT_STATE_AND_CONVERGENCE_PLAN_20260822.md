@@ -152,6 +152,16 @@ A CI compila o Driver mas não executa os seus testes nem Playwright. Actions
 voltaram a referências mutáveis, Node não usa o patch fixado e o validador de
 pins não está nesta branch.
 
+Estado verificado em 2026-08-23: a política remota está ativa com
+`allowed_actions=selected` e `sha_pinning_required=true`, enquanto `ci.yml` e
+`pr18-release-evidence.yml` usam `actions/checkout@v4`,
+`actions/setup-python@v5`, `actions/setup-node@v4` e
+`actions/upload-artifact@v4`. O run CI `32619996532` terminou
+`startup_failure` em zero segundos, enquanto Dependabot executou com sucesso no
+mesmo minuto. A correção é bloquear as quatro Actions por SHA imutável e alinhar
+os testes que hoje esperam tags, mas a execução continua subordinada à conclusão
+de C2; não se salta a sequência para obter um check verde.
+
 ### P1-ERP-01 — Fontes e fluxos ERP ainda parciais
 
 - stock mínimo no Manager usa limiar fixo `5`;
@@ -160,6 +170,22 @@ pins não está nesta branch.
 - Client, ThirdParty e ClientProfile ainda duplicam identidade e termos;
 - SaaS comercial, fecho financeiro, payroll legal e Trusted BI não estão
   certificados ponta a ponta.
+
+### P1-ARCH-01 — Taxonomia e roadmap não governavam a superfície real
+
+A revisão de 2026-08-23 confirmou ownership duplicado da cobrança, fusão entre
+Administração SaaS e Administração do Tenant, ausência de domínio explícito para
+as fundações Driver/Sync e duas ordens incompatíveis entre as secções 9 e 10 do
+plano mestre. No código atual, a superfície de módulos continua limitada aos
+bundles `tms` e `oficina`; isto não implementa o catálogo de entitlements
+enterprise descrito pelo plano.
+
+A `ADR-011` resolve a arquitetura documental: separa módulos de negócio,
+governação e fundações técnicas; atribui cobrança a Clientes/Vendas/Cobrança;
+coloca a Oficina Intelligence Layer sob BI; classifica `tms/oficina` como
+bundles legados; e torna C0-C4 -> Cliente/Terceiro -> E0-E5 a única sequência
+executável. O alinhamento do catálogo, navegação e entidades legais é trabalho
+de E0 e não pode interromper C2.
 
 ## 4. Achados reclassificados
 

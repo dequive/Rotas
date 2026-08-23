@@ -121,7 +121,7 @@ export async function refreshDriverAccessToken(): Promise<string | null> {
   return _refreshPromise;
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+async function authorizedRequest(path: string, options?: RequestInit): Promise<Response> {
   const auth = getAuth();
   let headers = new Headers(options?.headers);
   if (!headers.has("Content-Type") && options?.body !== undefined) {
@@ -158,6 +158,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (!res.ok) {
     throw await responseToHttpError(res);
   }
+  return res;
+}
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await authorizedRequest(path, options);
   return res.json() as Promise<T>;
 }
 
@@ -225,4 +230,91 @@ export async function bootstrap(): Promise<BootstrapData> {
   if (!auth) throw new Error("Não autenticado");
 
   return request<BootstrapData>("/api/v1/driver/bootstrap");
+}
+
+export interface DriverTrip extends ActiveTrip {
+  driver_id: string;
+  cargo_type: string | null;
+  cargo_class: string | null;
+  cargo_weight: number | null;
+  requires_load_permit: boolean;
+  requires_cargo_manifest: boolean;
+  waybill_number: string | null;
+  km_start: number | null;
+  km_end: number | null;
+  planned_departure: string | null;
+  actual_departure: string | null;
+  planned_arrival: string | null;
+  actual_arrival: string | null;
+  recipient_name: string | null;
+  cargo_status: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DriverTripPage {
+  items: DriverTrip[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface DriverTripDocuments {
+  trip_id: string;
+  complete: boolean;
+  can_request: boolean;
+  missing_required: string[];
+  requirements: Array<{ document_type: string; present: boolean }>;
+  documents: Array<{
+    id: string;
+    document_type: string;
+    document_number: string | null;
+    status: string;
+    file_id: string | null;
+    issued_at: string;
+  }>;
+  requests: DriverDocumentRequest[];
+}
+
+export interface DriverDocumentRequest {
+  id: string;
+  trip_id: string;
+  document_type: string;
+  status: string;
+  note: string | null;
+  created_at: string;
+}
+
+export function listDriverTrips(limit = 20, offset = 0): Promise<DriverTripPage> {
+  return request<DriverTripPage>(`/api/v1/driver/trips?limit=${limit}&offset=${offset}`);
+}
+
+export function listDriverTripHistory(limit = 20, offset = 0): Promise<DriverTripPage> {
+  return request<DriverTripPage>(
+    `/api/v1/driver/trips/history?limit=${limit}&offset=${offset}`,
+  );
+}
+
+export function getDriverTripDocuments(tripId: string): Promise<DriverTripDocuments> {
+  return request<DriverTripDocuments>(`/api/v1/driver/trips/${tripId}/documents`);
+}
+
+export function requestDriverTripDocument(
+  tripId: string,
+  documentType: string,
+): Promise<DriverDocumentRequest> {
+  return request<DriverDocumentRequest>(
+    `/api/v1/driver/trips/${tripId}/document-requests`,
+    { method: "POST", body: JSON.stringify({ document_type: documentType }) },
+  );
+}
+
+export async function downloadDriverTripDocument(
+  tripId: string,
+  fileId: string,
+): Promise<Blob> {
+  const response = await authorizedRequest(
+    `/api/v1/driver/trips/${tripId}/documents/${fileId}/download`,
+  );
+  return response.blob();
 }

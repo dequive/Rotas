@@ -1,6 +1,9 @@
 import {
   Camera,
   CheckCircle2,
+  ClipboardList,
+  History,
+  Home,
   LogOut,
   MapPin,
   ReceiptText,
@@ -30,6 +33,7 @@ import { processSyncQueue } from "./sync";
 import { PairingView } from "./views/PairingView";
 import { TripStopView } from "./views/TripStopView";
 import { DeliveryProofView } from "./views/DeliveryProofView";
+import { TripsView } from "./views/TripsView";
 import { useNetworkStatus } from "./hooks/useNetworkStatus";
 import { useSyncStatus } from "./hooks/useSyncStatus";
 import { SyncStatusBanner } from "./components/SyncStatusBanner";
@@ -41,7 +45,9 @@ type View =
   | "checklist"
   | "fuel"
   | "trip_stop"
-  | "delivery_proof";
+  | "delivery_proof"
+  | "trips"
+  | "history";
 
 type ChecklistResponseState = Record<string, { value: boolean; photo?: File }>;
 
@@ -356,7 +362,7 @@ export function App() {
         </div>
       </header>
 
-      {activeTrip ? (
+      {view !== "trips" && view !== "history" && (activeTrip ? (
         <section className="status-card">
           <div>
             <p>Viagem activa</p>
@@ -373,7 +379,7 @@ export function App() {
             <strong>As novas viagens são atribuídas pelo gestor de frota.</strong>
           </div>
         </section>
-      )}
+      ))}
 
       {view === "dashboard" && (
         <section className="actions" aria-label="Acções da viagem">
@@ -430,11 +436,48 @@ export function App() {
         />
       )}
 
+      {view === "trips" && (
+        <TripsView mode="assigned" onBack={() => setView("dashboard")} />
+      )}
+
+      {view === "history" && (
+        <TripsView mode="history" onBack={() => setView("dashboard")} />
+      )}
+
       {view === "dashboard" && syncStatus.errorCount > 0 && (
         <SyncIssuesPanel onChanged={() => void refreshPendingCount()} />
       )}
 
       <SyncStatusBanner status={syncStatus} />
+
+      {(view === "dashboard" || view === "trips" || view === "history") && (
+      <nav className="driver-nav" aria-label="Navegação principal">
+        <button
+          type="button"
+          className={view === "dashboard" ? "active" : ""}
+          onClick={() => setView("dashboard")}
+          aria-current={view === "dashboard" ? "page" : undefined}
+        >
+          <Home size={20} /> Hoje
+        </button>
+        <button
+          type="button"
+          className={view === "trips" ? "active" : ""}
+          onClick={() => setView("trips")}
+          aria-current={view === "trips" ? "page" : undefined}
+        >
+          <ClipboardList size={20} /> Viagens
+        </button>
+        <button
+          type="button"
+          className={view === "history" ? "active" : ""}
+          onClick={() => setView("history")}
+          aria-current={view === "history" ? "page" : undefined}
+        >
+          <History size={20} /> Histórico
+        </button>
+      </nav>
+      )}
     </main>
   );
 }

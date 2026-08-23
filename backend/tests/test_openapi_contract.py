@@ -218,6 +218,7 @@ def test_driver_and_sync_operations_have_explicit_public_contracts() -> None:
         ("get", "/api/v1/driver/trips"),
         ("get", "/api/v1/driver/trips/history"),
         ("get", "/api/v1/driver/trips/{trip_id}/documents"),
+        ("get", "/api/v1/driver/trips/{trip_id}/documents/{file_id}/download"),
         ("post", "/api/v1/driver/trips/{trip_id}/document-requests"),
         ("post", "/api/v1/sync/batch"),
         ("get", "/api/v1/sync/bootstrap"),
@@ -230,9 +231,10 @@ def test_driver_and_sync_operations_have_explicit_public_contracts() -> None:
     for method, path in successful_operations:
         operation = contract["paths"][path][method]
         success_schemas = [
-            response.get("content", {}).get("application/json", {}).get("schema")
+            media.get("schema")
             for status, response in operation["responses"].items()
             if str(status).startswith("2")
+            for media in response.get("content", {}).values()
         ]
         assert success_schemas, f"{method.upper()} {path} has no success response"
         assert all(schema not in ({}, None) for schema in success_schemas), (

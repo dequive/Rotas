@@ -9,6 +9,7 @@ from app.core.tokens import create_access_token
 from app.modules.cargo.models import CargoManifest, DeliveryProof, LoadPermit, TransportDocument
 from app.modules.checklists.models import Checklist, ChecklistTemplate
 from app.modules.drivers.models import Driver, DriverDevice
+from app.modules.files import service as files_service
 from app.modules.fuel.models import FuelLog
 from app.modules.operational_exceptions.models import OperationalException
 from app.modules.sync.models import IdempotencyKey, SyncEvent
@@ -628,6 +629,109 @@ async def test_driver_cannot_use_manager_document_issuance_endpoint(
             )
         )
         == 0
+    )
+
+
+@pytest.mark.asyncio
+async def test_driver_downloads_only_a_file_attached_to_an_own_trip_document(
+    async_client, db, tenant_id, driver_app_context, auth_headers, monkeypatch
+):
+    trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="closed",
+    )
+    db.add(trip)
+    await db.flush()
+    attached = await files_service.save_generated_file(
+        db,
+        tenant_id,
+        content=b"driver-owned-document",
+        filename="guia.pdf",
+        mime_type="application/pdf",
+        file_type="transport_document",
+        entity_type="transport_document",
+        entity_id=trip.id,
+    )
+    unrelated = await files_service.save_generated_file(
+        db,
+        tenant_id,
+        content=b"unrelated-document",
+        filename="unrelated.pdf",
+        mime_type="application/pdf",
+        file_type="transport_document",
+        entity_type="transport_document",
+        entity_id=uuid4(),
+    )
+    db.add(
+        TransportDocument(
+            tenant_id=tenant_id,
+            trip_id=trip.id,
+            document_type="guia_de_transporte",
+            document_number="GT-DOWNLOAD",
+            status="valid",
+            file_id=attached.id,
+        )
+    )
+    other_device_id = f"other-driver-download-{uuid4().hex[:8]}"
+    db.add(
+        DriverDevice(
+            tenant_id=tenant_id,
+            driver_id=driver_app_context["other_driver"].id,
+            device_id=other_device_id,
+            device_name="Other Driver Download App",
+            is_active=True,
+        )
+    )
+    await db.commit()
+    other_token, _ = create_access_token(
+        tenant_id=tenant_id,
+        driver_id=driver_app_context["other_driver"].id,
+        device_id=other_device_id,
+        scope="driver_app",
+    )
+    path = f"/api/v1/driver/trips/{trip.id}/documents/{attached.id}/download"
+
+    owned = await async_client.get(path, headers=driver_app_context["headers"])
+    unrelated_response = await async_client.get(
+        f"/api/v1/driver/trips/{trip.id}/documents/{unrelated.id}/download",
+        headers=driver_app_context["headers"],
+    )
+    foreign = await async_client.get(
+        path,
+        headers={
+            "Authorization": f"Bearer {other_token}",
+            "X-Tenant-Id": str(tenant_id),
+        },
+    )
+    manager = await async_client.get(path, headers=auth_headers)
+
+    assert owned.status_code == 200, owned.text
+    assert owned.content == b"driver-owned-document"
+    assert owned.headers["content-type"] == "application/pdf"
+    assert "guia.pdf" in owned.headers["content-disposition"]
+    assert unrelated_response.status_code == 404, unrelated_response.text
+    assert foreign.status_code == 404, foreign.text
+    assert manager.status_code == 403, manager.text
+
+    async def r2_download_url(storage_key: str) -> str:
+        assert storage_key == attached.storage_key
+        return "https://objects.example.test/driver-document?signature=temporary"
+
+    attached.storage_provider = "r2"
+    monkeypatch.setattr(files_service._storage, "get_file_url", r2_download_url)
+    await db.commit()
+    r2_response = await async_client.get(
+        path,
+        headers=driver_app_context["headers"],
+        follow_redirects=False,
+    )
+    assert r2_response.status_code == 307, r2_response.text
+    assert r2_response.headers["location"] == (
+        "https://objects.example.test/driver-document?signature=temporary"
     )
 
 

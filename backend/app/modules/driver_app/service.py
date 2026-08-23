@@ -7,6 +7,7 @@ from app.core.errors import ApiError
 from app.modules.cargo.models import CargoManifest, LoadPermit, TransportDocument
 from app.modules.checklists import service as checklists_service
 from app.modules.driver_app.schemas import DriverDocumentRequestCreate
+from app.modules.files import service as files_service
 from app.modules.operational_exceptions import service as exceptions_service
 from app.modules.operational_exceptions.models import OperationalException
 from app.modules.trips import service as trips_service
@@ -304,6 +305,42 @@ async def get_driver_trip_documents(
         "documents": documents,
         "requests": [_serialize_driver_document_request(item) for item in requests],
     }
+
+
+async def get_driver_trip_document_file(
+    db: AsyncSession,
+    *,
+    tenant_id: UUID,
+    driver_id: UUID,
+    trip_id: UUID,
+    file_id: UUID,
+):
+    trip = await _require_owned_driver_trip(
+        db,
+        tenant_id=tenant_id,
+        driver_id=driver_id,
+        trip_id=trip_id,
+    )
+    attached = False
+    for model in (LoadPermit, CargoManifest, TransportDocument):
+        document_id = await db.scalar(
+            select(model.id).where(
+                model.tenant_id == tenant_id,
+                model.trip_id == trip.id,
+                model.file_id == file_id,
+                model.status != "cancelled",
+            )
+        )
+        if document_id is not None:
+            attached = True
+            break
+    if not attached:
+        raise ApiError(
+            "driver_document_file_not_found",
+            "Ficheiro do documento não encontrado.",
+            status_code=404,
+        )
+    return await files_service.get_file_download_target(db, tenant_id, file_id)
 
 
 async def request_driver_trip_document(

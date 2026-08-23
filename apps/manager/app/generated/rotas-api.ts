@@ -1457,6 +1457,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/driver/trips/{trip_id}/documents/{file_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download Trip Document */
+        get: operations["download_trip_document_api_v1_driver_trips__trip_id__documents__file_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/driver/trips/history": {
         parameters: {
             query?: never;
@@ -16724,6 +16741,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DriverTripDocumentsRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_trip_document_api_v1_driver_trips__trip_id__documents__file_id__download_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-Id"?: string | null;
+            };
+            path: {
+                file_id: string;
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stored file bytes with its original media type. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
                 };
             };
             /** @description Validation Error */

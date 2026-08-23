@@ -1,13 +1,16 @@
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import DriverPrincipal, get_driver_principal
 from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.core.idempotency import execute_http_idempotent
+from app.core.openapi_responses import FILE_DOWNLOAD_RESPONSE
 from app.modules.driver_app import schemas, service
 
 router = APIRouter(prefix="/driver", tags=["driver-app"])
@@ -137,6 +140,30 @@ async def get_trip_documents(
         driver_id=driver_id,
         trip_id=trip_id,
     )
+
+
+@router.get(
+    "/trips/{trip_id}/documents/{file_id}/download",
+    responses=FILE_DOWNLOAD_RESPONSE,
+    response_class=FileResponse,
+)
+async def download_trip_document(
+    trip_id: UUID,
+    file_id: UUID,
+    principal: DriverPrincipalDependency,
+    db: RlsSession,
+):
+    driver_id = _require_driver_id(principal)
+    file, path = await service.get_driver_trip_document_file(
+        db,
+        tenant_id=principal.tenant_id,
+        driver_id=driver_id,
+        trip_id=trip_id,
+        file_id=file_id,
+    )
+    if isinstance(path, Path):
+        return FileResponse(path, media_type=file.mime_type, filename=file.original_name)
+    return RedirectResponse(path, status_code=307)
 
 
 @router.post(

@@ -3034,3 +3034,33 @@ detalhe, requisitos reais, consulta/download e pedido de documento, incluindo
 loading/empty/error/forbidden/degraded/success e terminal read-only. Também
 permanecem checklist Manager, offline, E2E, Android, CI e regressão integral no
 novo SHA. G0-G5: **NO-GO**.
+
+### 16.22 C2 — Minhas Viagens, histórico e documentos na PWA — 2026-08-23
+
+- testes RED fixaram que documentação completa não mostra alerta falso, requisito
+  real em falta permite pedido e viagem concluída não oferece mutação;
+- `426e865` criou navegação móvel Hoje/Viagens/Histórico, listas paginadas,
+  estados loading/empty/error/success, detalhe operacional e tradução dos
+  estados da viagem;
+- o detalhe consome exclusivamente `complete`, `requirements`, `documents`,
+  `requests` e `can_request` do contrato Driver; não replica a lista documental
+  no frontend;
+- o motorista consulta/download documentos e solicita requisito em falta, mas
+  não recebe ação de emissão; pedido ativo passa a mostrar `Pedido enviado`;
+- histórico mostra `closed/cancelled` e viagem fechada é somente leitura;
+- DAV é apresentado como `Declaração de Aprovação de Viagem`, eliminando a sigla
+  sem contexto observada no Android;
+- Vitest Driver passou `35/35`, TypeScript ficou verde e o build de produção
+  transformou 1.803 módulos, gerou PWA `injectManifest`, 93 módulos do service
+  worker e seis entradas de precache;
+- Playwright Chromium em viewport `390x844` passou `1/1`, confirmou requisitos
+  presentes, guia realmente em falta, ausência de Nova viagem/Emitir e console
+  do produto sem erros. O service worker foi bloqueado apenas neste teste de UI
+  mockada; os testes offline existentes continuam responsáveis por ele.
+
+C2 permanece **em progresso**. As novas leituras ainda precisam de cache/recovery
+offline por identidade, E2E de pedido/download/erros e validação no Redmi físico
+contra o backend integrado. A checklist legada Manager também precisa convergir
+para a regra canónica do despacho. A evidência backend `87/87` permanece em
+`4d439ed`; não foi reclassificada como prova do SHA frontend `426e865`.
+G0-G5: **NO-GO**.

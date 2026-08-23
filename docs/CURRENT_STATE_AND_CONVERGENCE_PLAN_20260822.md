@@ -250,9 +250,15 @@ autorização. Outro motorista, token Manager e ficheiro não associado falham
 fechados. A partição integrada com Files passou `87/87`; OpenAPI SHA-256
 `cd1cb174...3dba` e gates estáticos permaneceram verdes.
 
-Permanecem a UI de Minhas Viagens/histórico/documentos/pedidos, reconciliação
-da checklist legada do Manager, offline, E2E/Android e repetição integral no
-SHA C2.
+`426e865` publicou a PWA de Minhas Viagens, histórico paginado e detalhe com
+requisitos reais, documentos emitidos, download e pedido em falta. A navegação
+separa Hoje/Viagens/Histórico, traduz estados operacionais e mostra pedido já
+aberto sem permitir duplicação visual. Viagem fechada é somente leitura. Driver
+passou `35/35`, TypeScript, build PWA/service worker e Chromium E2E `1/1`.
+
+Permanecem reconciliação da checklist legada do Manager, cache/recovery offline
+das novas leituras, E2E ampliado, Android físico e repetição integral backend no
+SHA integrado C2.
 
 ### C3 — Contratos e gates
 

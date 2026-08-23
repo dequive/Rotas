@@ -85,8 +85,9 @@ Nenhuma classificação equivale a autorização de merge ou release.
    listas permanece. `710dc9f` publicou requisitos/documentos e pedidos
    idempotentes, reconciliou pedidos com emissão pelo gestor e bloqueou
    mutações documentais terminais. `4d439ed` fechou localmente o download
-   Driver ownership-scoped para storage local/R2. Checklist Manager, UI,
-   offline, E2E e Android permanecem.
+   Driver ownership-scoped para storage local/R2. `426e865` publicou a nova
+   navegação, listas/histórico paginados, detalhe, documentos e pedidos na PWA.
+   Checklist Manager, offline/recovery, E2E ampliado e Android permanecem.
 4. **C3:** portar #35/#40, fechar Pyright/OpenAPI e recuperar CI executável.
 5. **C4:** criar um RC único, executar staging, Android físico, Sentry, segurança,
    observabilidade e piloto no mesmo SHA/artefactos.

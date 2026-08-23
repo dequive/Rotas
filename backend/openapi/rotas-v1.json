@@ -6074,6 +6074,24 @@
         "title": "DocumentOut",
         "type": "object"
       },
+      "DocumentRequirementRead": {
+        "properties": {
+          "document_type": {
+            "title": "Document Type",
+            "type": "string"
+          },
+          "present": {
+            "title": "Present",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "document_type",
+          "present"
+        ],
+        "title": "DocumentRequirementRead",
+        "type": "object"
+      },
       "DocumentVerify": {
         "properties": {
           "notes": {
@@ -18891,6 +18909,59 @@
           "event"
         ],
         "title": "TripDispatchResponse",
+        "type": "object"
+      },
+      "TripDocumentChecklistRead": {
+        "properties": {
+          "checklist": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentRequirementRead"
+            },
+            "title": "Checklist",
+            "type": "array"
+          },
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "is_hazmat": {
+            "title": "Is Hazmat",
+            "type": "boolean"
+          },
+          "is_international": {
+            "title": "Is International",
+            "type": "boolean"
+          },
+          "missing_required": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Required",
+            "type": "array"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentRequirementRead"
+            },
+            "title": "Requirements",
+            "type": "array"
+          },
+          "trip_id": {
+            "format": "uuid",
+            "title": "Trip Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trip_id",
+          "is_international",
+          "is_hazmat",
+          "complete",
+          "missing_required",
+          "requirements",
+          "checklist"
+        ],
+        "title": "TripDocumentChecklistRead",
         "type": "object"
       },
       "TripDriverAllowanceRecordRequest": {
@@ -45100,7 +45171,7 @@
     },
     "/api/v1/trips/{trip_id}/document-checklist": {
       "get": {
-        "description": "OPDOC-05: Return required document checklist for the trip, with present/missing status.\nis_international and is_hazmat are read from the Trip record — set them on trip creation.",
+        "description": "Return the canonical dispatch requirements and their present/missing state.",
         "operationId": "get_document_checklist_api_v1_trips__trip_id__document_checklist_get",
         "parameters": [
           {
@@ -45151,7 +45222,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/TripDocumentChecklistRead"
+                }
               }
             },
             "description": "Successful Response"

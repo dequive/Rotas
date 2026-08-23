@@ -8,8 +8,9 @@ from uuid import uuid4
 
 import pytest
 
-from app.modules.cargo.models import TransportDocument
+from app.modules.cargo.models import LoadPermit, TransportDocument
 from app.modules.drivers.models import Driver
+from app.modules.tenants.models import Tenant
 from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
 
@@ -323,10 +324,18 @@ async def test_dav_has_no_pdf_generation(async_client, auth_headers, db, tenant_
 
 
 @pytest.mark.asyncio
-async def test_checklist_domestic_trip_requires_four_doc_types(
+async def test_manager_checklist_reflects_configured_domestic_requirements(
     async_client, auth_headers, db, tenant_id
 ):
-    """GET /cargo/trips/{id}/document-checklist for domestic trip returns 4 required types."""
+    tenant = await db.get(Tenant, tenant_id)
+    tenant.compliance_policy = {
+        "cargo_required_documents": [
+            "load_permit",
+            "cargo_manifest",
+            "transport_document:guia_remessa",
+            "transport_document:dav",
+        ]
+    }
     trip = await _make_committed_trip(db, tenant_id)
 
     resp = await async_client.get(
@@ -337,17 +346,81 @@ async def test_checklist_domestic_trip_requires_four_doc_types(
     data = resp.json()
 
     required_types = {item["document_type"] for item in data["checklist"]}
-    assert required_types == {"guia_remessa", "load_permit", "cargo_manifest", "dav"}
+    assert required_types == {
+        "load_permit",
+        "cargo_manifest",
+        "transport_document:guia_remessa",
+        "transport_document:dav",
+    }
     assert len(data["checklist"]) == 4
     assert data["is_international"] is False
     assert data["complete"] is False
 
 
 @pytest.mark.asyncio
-async def test_checklist_international_trip_requires_five_doc_types(
+async def test_manager_document_checklist_uses_canonical_tenant_requirements(
     async_client, auth_headers, db, tenant_id
 ):
-    """GET /cargo/trips/{id}/document-checklist for an international trip returns 5 types."""
+    tenant = await db.get(Tenant, tenant_id)
+    tenant.compliance_policy = {
+        "cargo_required_documents": [
+            "load_permit",
+            "transport_document:guia_de_transporte",
+        ]
+    }
+    trip = await _make_trip(db, tenant_id)
+    db.add_all(
+        [
+            LoadPermit(
+                tenant_id=tenant_id,
+                trip_id=trip.id,
+                permit_number="LP-CANONICAL-001",
+                status="valid",
+            ),
+            TransportDocument(
+                tenant_id=tenant_id,
+                trip_id=trip.id,
+                document_type="guia_de_transporte",
+                document_number="GT-CANONICAL-001",
+                status="valid",
+            ),
+        ]
+    )
+    await db.commit()
+
+    response = await async_client.get(
+        f"/api/v1/trips/{trip.id}/document-checklist",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["complete"] is True
+    assert payload["missing_required"] == []
+    assert payload["requirements"] == [
+        {"document_type": "load_permit", "present": True},
+        {
+            "document_type": "transport_document:guia_de_transporte",
+            "present": True,
+        },
+    ]
+    assert payload["checklist"] == payload["requirements"]
+
+
+@pytest.mark.asyncio
+async def test_manager_checklist_reflects_configured_international_requirements(
+    async_client, auth_headers, db, tenant_id
+):
+    tenant = await db.get(Tenant, tenant_id)
+    tenant.compliance_policy = {
+        "cargo_required_documents": [
+            "load_permit",
+            "cargo_manifest",
+            "transport_document:guia_remessa",
+            "transport_document:dav",
+            "transport_document:carta_porte_internacional",
+        ]
+    }
     trip = await _make_committed_trip(db, tenant_id, is_international=True)
 
     resp = await async_client.get(
@@ -358,18 +431,25 @@ async def test_checklist_international_trip_requires_five_doc_types(
     data = resp.json()
 
     required_types = {item["document_type"] for item in data["checklist"]}
-    assert "carta_porte_internacional" in required_types
+    assert "transport_document:carta_porte_internacional" in required_types
     assert len(data["checklist"]) == 5
     assert data["is_international"] is True
 
 
 @pytest.mark.asyncio
-async def test_checklist_hazmat_adds_declaracao_carga_perigosa(
+async def test_manager_checklist_reflects_configured_hazmat_requirements(
     async_client, auth_headers, db, tenant_id
 ):
-    """GET /cargo/trips/{id}/document-checklist for hazmat trip includes
-    declaracao_carga_perigosa.
-    """
+    tenant = await db.get(Tenant, tenant_id)
+    tenant.compliance_policy = {
+        "cargo_required_documents": [
+            "load_permit",
+            "cargo_manifest",
+            "transport_document:guia_remessa",
+            "transport_document:dav",
+            "transport_document:declaracao_carga_perigosa",
+        ]
+    }
     trip = await _make_committed_trip(db, tenant_id, is_hazmat=True)
 
     resp = await async_client.get(
@@ -380,7 +460,7 @@ async def test_checklist_hazmat_adds_declaracao_carga_perigosa(
     data = resp.json()
 
     required_types = {item["document_type"] for item in data["checklist"]}
-    assert "declaracao_carga_perigosa" in required_types
+    assert "transport_document:declaracao_carga_perigosa" in required_types
     assert data["is_hazmat"] is True
     assert len(data["checklist"]) == 5
 

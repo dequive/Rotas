@@ -365,14 +365,13 @@ async def create_declaracao_carga_perigosa(
     return res
 
 
-@router.get("/document-checklist")
+@router.get("/document-checklist", response_model=schemas.TripDocumentChecklistRead)
 async def get_document_checklist(
     trip_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(CARGO_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    """OPDOC-05: Return required document checklist for the trip, with present/missing status.
-    is_international and is_hazmat are read from the Trip record — set them on trip creation."""
+    """Return the canonical dispatch requirements and their present/missing state."""
     return await service.get_document_checklist(
         db,
         principal.tenant_id,

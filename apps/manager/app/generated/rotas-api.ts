@@ -3752,8 +3752,7 @@ export interface paths {
         };
         /**
          * Get Document Checklist
-         * @description OPDOC-05: Return required document checklist for the trip, with present/missing status.
-         *     is_international and is_hazmat are read from the Trip record — set them on trip creation.
+         * @description Return the canonical dispatch requirements and their present/missing state.
          */
         get: operations["get_document_checklist_api_v1_trips__trip_id__document_checklist_get"];
         put?: never;
@@ -7720,6 +7719,13 @@ export interface components {
             verified_at: string | null;
             /** Verified By */
             verified_by: string | null;
+        };
+        /** DocumentRequirementRead */
+        DocumentRequirementRead: {
+            /** Document Type */
+            document_type: string;
+            /** Present */
+            present: boolean;
         };
         /** DocumentVerify */
         DocumentVerify: {
@@ -12130,6 +12136,26 @@ export interface components {
         TripDispatchResponse: {
             event: components["schemas"]["TripExecutionEventResponse"];
             trip: components["schemas"]["TripResponse"];
+        };
+        /** TripDocumentChecklistRead */
+        TripDocumentChecklistRead: {
+            /** Checklist */
+            checklist: components["schemas"]["DocumentRequirementRead"][];
+            /** Complete */
+            complete: boolean;
+            /** Is Hazmat */
+            is_hazmat: boolean;
+            /** Is International */
+            is_international: boolean;
+            /** Missing Required */
+            missing_required: string[];
+            /** Requirements */
+            requirements: components["schemas"]["DocumentRequirementRead"][];
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
         };
         /** TripDriverAllowanceRecordRequest */
         TripDriverAllowanceRecordRequest: {
@@ -22467,7 +22493,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["TripDocumentChecklistRead"];
                 };
             };
             /** @description Validation Error */

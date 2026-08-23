@@ -161,3 +161,18 @@ class DeclaracaoCargaPerisgosaCreate(BaseModel):
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     notes: str | None = None
+
+
+class DocumentRequirementRead(BaseModel):
+    document_type: str
+    present: bool
+
+
+class TripDocumentChecklistRead(BaseModel):
+    trip_id: UUID
+    is_international: bool
+    is_hazmat: bool
+    complete: bool
+    missing_required: list[str]
+    requirements: list[DocumentRequirementRead]
+    checklist: list[DocumentRequirementRead]

@@ -2,7 +2,6 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
@@ -28,6 +27,7 @@ from app.modules.operational_exceptions.service import (
     ensure_exception,
     resolve_active_exceptions,
 )
+from app.modules.trips import service as trips_service
 from app.modules.trips.models import Trip
 
 _DELIVERY_PROOF_VALID_TRANSITIONS: dict[str, set[str]] = {
@@ -1123,11 +1123,7 @@ async def create_declaracao_carga_perigosa(
     return serialize_transport_document(doc)
 
 
-# ── OPDOC-05: Document checklist per trip type ────────────────────────────────
-
-_DOMESTIC_DOC_TYPES = frozenset({"guia_remessa", "load_permit", "cargo_manifest", "dav"})
-_INTERNATIONAL_DOC_TYPES = _DOMESTIC_DOC_TYPES | {"carta_porte_internacional"}
-_HAZMAT_EXTRA = frozenset({"declaracao_carga_perigosa"})
+# ── OPDOC-05: Canonical document checklist ────────────────────────────────────
 
 
 async def get_document_checklist(
@@ -1136,48 +1132,14 @@ async def get_document_checklist(
     trip_id: UUID,
 ) -> dict:
     trip = await _require_trip(db, tenant_id, trip_id)
-
-    is_international = trip.is_international
-    is_hazmat = trip.is_hazmat
-
-    required = set(_INTERNATIONAL_DOC_TYPES if is_international else _DOMESTIC_DOC_TYPES)
-    if is_hazmat:
-        required = required | _HAZMAT_EXTRA
-
-    # Count existing transport_documents by type
-    td_result = await db.execute(
-        select(TransportDocument.document_type).where(
-            TransportDocument.tenant_id == tenant_id,
-            TransportDocument.trip_id == trip_id,
-        )
-    )
-    present_types: set[str] = set(td_result.scalars().all())
-
-    # load_permit presence
-    lp_result = await db.execute(
-        select(LoadPermit.id).where(
-            LoadPermit.tenant_id == tenant_id,
-            LoadPermit.trip_id == trip_id,
-        )
-    )
-    if lp_result.first():
-        present_types.add("load_permit")
-
-    # cargo_manifest presence
-    cm_result = await db.execute(
-        select(CargoManifest.id).where(
-            CargoManifest.tenant_id == tenant_id,
-            CargoManifest.trip_id == trip_id,
-        )
-    )
-    if cm_result.first():
-        present_types.add("cargo_manifest")
-
-    checklist = [{"document_type": dt, "present": dt in present_types} for dt in sorted(required)]
+    canonical = await trips_service.get_trip_document_requirements(db, tenant_id, trip)
+    requirements = canonical["requirements"]
     return {
         "trip_id": trip_id,
-        "is_international": is_international,
-        "is_hazmat": is_hazmat,
-        "complete": all(item["present"] for item in checklist),
-        "checklist": checklist,
+        "is_international": trip.is_international,
+        "is_hazmat": trip.is_hazmat,
+        "complete": canonical["complete"],
+        "missing_required": canonical["missing_required"],
+        "requirements": requirements,
+        "checklist": requirements,
     }

@@ -233,8 +233,19 @@ motorista autenticado, excluem rascunhos e dados financeiros, e o histórico
 aceita apenas `closed/cancelled`. A partição Driver/OpenAPI passou `34/34`,
 Ruff/Pyright globais, drift OpenAPI, cliente TypeScript, typecheck Manager e o
 auditor `208/158/0` ficaram verdes; o OpenAPI tem SHA-256 `257276c7...7303`.
-Permanecem a UI de Minhas Viagens/histórico, documentos emitidos, pedidos de
-documento, read-only terminal, E2E/Android e repetição integral no SHA C2.
+`710dc9f` publicou a leitura dos documentos e requisitos canónicos usados pelo
+despacho, e o pedido idempotente de documento em falta. O motorista continua
+sem poder emitir; pedidos geram exceção operacional atribuída ao Driver e são
+resolvidos quando o gestor disponibiliza o documento. Viagens
+`closed/cancelled` rejeitam novas emissões e pedidos. Replay HTTP entre
+motoristas ou dispositivos agora falha antes de devolver cache. A partição
+integrada passou `82/82`; Ruff/Pyright globais, OpenAPI SHA-256
+`e58f28fb...b12`, cliente TypeScript, typecheck Manager e auditor `208/158/0`
+ficaram verdes.
+
+Permanecem o download de ficheiro com ownership Driver, a UI de Minhas
+Viagens/histórico/documentos/pedidos, reconciliação da checklist legada do
+Manager, offline, E2E/Android e repetição integral no SHA C2.
 
 ### C3 — Contratos e gates
 

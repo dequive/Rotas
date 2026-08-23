@@ -2979,3 +2979,32 @@ incluindo recusa de qualquer emissão pelo motorista e bloqueio total de mutaç�
 em viagem fechada. Depois seguem UI/navegação, offline, E2E e Android no mesmo
 SHA. A regressão backend integral mais recente continua `968/968` em `97e365d`;
 não foi reclassificada como prova do SHA atual. G0-G5: **NO-GO**.
+
+### 16.20 C2 — Documentos e pedidos do Driver no backend — 2026-08-23
+
+- um teste RED provou que o replay HTTP devolvia a resposta em cache a outro
+  motorista ou dispositivo antes de validar o owner;
+- `710dc9f` passou a comparar `(driver_id, device_id)` na reserva HTTP e rejeita
+  replay cross-owner com `idempotency_owner_mismatch`, preservando o replay do
+  mesmo owner;
+- `GET /driver/trips/{trip_id}/documents` lista apenas documentos da viagem
+  atribuída e calcula `requirements`, `missing_required` e `complete` com a
+  mesma regra canónica usada pelo despacho;
+- `POST /driver/trips/{trip_id}/document-requests` aceita apenas requisito em
+  falta, usa idempotência por motorista/dispositivo e materializa uma exceção
+  operacional auditada, sem permitir emissão pelo Driver;
+- a emissão pelo gestor resolve o pedido correspondente; emissão e pedido são
+  rejeitados quando a viagem está `closed/cancelled`;
+- token Driver recebe `403` na emissão administrativa e outro motorista do
+  mesmo tenant recebe `404` na leitura/pedido;
+- a base descartável até `rec14` passou `82/82` na partição
+  Driver/idempotência/OpenAPI/documentos/despacho/cargo/máquinas de estado;
+  Ruff e Pyright globais, drift OpenAPI SHA-256
+  `e58f28fbf81eb7003dc665281096bff4c992dfd5efab882e07c09fdf284c5b12`,
+  cliente TypeScript, typecheck Manager e auditor `208/158/0` ficaram verdes.
+
+Este vertical fica **verde local focado**, não fecha C2. Ainda faltam download
+de ficheiro ownership-scoped para Driver, reconciliação da checklist documental
+legada do Manager, UI/navegação, comportamento offline, E2E e Android físico no
+mesmo SHA. A regressão backend integral mais recente continua `968/968` em
+`97e365d`; não prova `710dc9f`. G0-G5: **NO-GO**.

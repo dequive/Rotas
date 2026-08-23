@@ -217,6 +217,8 @@ def test_driver_and_sync_operations_have_explicit_public_contracts() -> None:
         ("get", "/api/v1/driver/active-trip"),
         ("get", "/api/v1/driver/trips"),
         ("get", "/api/v1/driver/trips/history"),
+        ("get", "/api/v1/driver/trips/{trip_id}/documents"),
+        ("post", "/api/v1/driver/trips/{trip_id}/document-requests"),
         ("post", "/api/v1/sync/batch"),
         ("get", "/api/v1/sync/bootstrap"),
     }

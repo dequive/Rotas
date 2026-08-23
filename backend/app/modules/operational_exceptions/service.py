@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from hashlib import sha256
 from uuid import UUID
 
 from sqlalchemy import select
@@ -13,6 +14,12 @@ from app.modules.outbox.service import enqueue as enqueue_outbox
 
 ACTIVE_STATUSES = {"open", "acknowledged"}
 SEVERITIES = {"low", "medium", "high", "critical"}
+DRIVER_DOCUMENT_REQUEST_PREFIX = "driver_doc_request:"
+
+
+def driver_document_request_type(document_type: str) -> str:
+    digest = sha256(document_type.encode("utf-8")).hexdigest()[:24]
+    return f"{DRIVER_DOCUMENT_REQUEST_PREFIX}{digest}"
 
 
 def serialize_exception(item: OperationalException) -> dict:
@@ -50,6 +57,7 @@ async def ensure_exception(
     title: str,
     message: str,
     actor_id: UUID | None = None,
+    driver_id: UUID | None = None,
     context: dict | None = None,
     source_type: str | None = None,
     source_id: UUID | None = None,
@@ -89,6 +97,7 @@ async def ensure_exception(
         db,
         tenant_id=tenant_id,
         user_id=actor_id,
+        driver_id=driver_id,
         action="operational_exception.created",
         entity_type=entity_type,
         entity_id=entity_id,
@@ -116,6 +125,7 @@ async def ensure_exception(
         db,
         tenant_id=tenant_id,
         user_id=actor_id,
+        driver_id=driver_id,
         action="alert.created_from_exception",
         entity_type="alert",
         entity_id=alert.id,

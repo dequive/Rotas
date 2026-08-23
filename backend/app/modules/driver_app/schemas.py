@@ -57,6 +57,44 @@ class DriverTripPageRead(BaseModel):
     offset: int
 
 
+class DriverDocumentRequirementRead(BaseModel):
+    document_type: str
+    present: bool
+
+
+class DriverTripDocumentRead(BaseModel):
+    id: UUID
+    document_type: str
+    document_number: str | None = None
+    status: str
+    file_id: UUID | None = None
+    issued_at: datetime
+
+
+class DriverDocumentRequestCreate(BaseModel):
+    document_type: str = Field(min_length=1, max_length=120)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class DriverDocumentRequestRead(BaseModel):
+    id: UUID
+    trip_id: UUID
+    document_type: str
+    status: str
+    note: str | None = None
+    created_at: datetime
+
+
+class DriverTripDocumentsRead(BaseModel):
+    trip_id: UUID
+    complete: bool
+    can_request: bool
+    missing_required: list[str]
+    requirements: list[DriverDocumentRequirementRead]
+    documents: list[DriverTripDocumentRead]
+    requests: list[DriverDocumentRequestRead]
+
+
 class DriverVehicleRead(BaseModel):
     id: UUID
     plate: str

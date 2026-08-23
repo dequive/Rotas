@@ -44,13 +44,14 @@ async def execute_http_idempotent(
 ) -> dict:
     if not idempotency_key:
         return await handler()
+    owner_device_id = device_id or (f"user:{user_id}" if user_id else None)
     request_hash = canonical_request_hash(
         {"operation": operation, "entity_type": entity_type, "payload": payload}
     )
     reserved = IdempotencyKey(
         tenant_id=tenant_id,
         driver_id=driver_id,
-        device_id=device_id or (f"user:{user_id}" if user_id else None),
+        device_id=owner_device_id,
         idempotency_key=idempotency_key,
         operation=operation,
         entity_type=entity_type,
@@ -70,6 +71,14 @@ async def execute_http_idempotent(
                 IdempotencyKey.idempotency_key == idempotency_key,
             )
         )
+        if existing and (
+            existing.driver_id != driver_id or existing.device_id != owner_device_id
+        ):
+            raise ApiError(
+                "idempotency_owner_mismatch",
+                "Idempotency key belongs to another actor or device.",
+                status_code=409,
+            ) from exc
         if not existing or existing.request_hash != request_hash:
             raise ApiError(
                 "idempotency_key_reused",

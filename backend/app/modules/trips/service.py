@@ -836,6 +836,21 @@ async def _missing_required_cargo_documents(
     tenant_id: UUID,
     trip: Trip,
 ) -> list[str]:
+    status_payload = await get_trip_document_requirements(db, tenant_id, trip)
+    return [
+        item["document_type"]
+        for item in status_payload["requirements"]
+        if not item["present"]
+    ]
+
+
+async def get_trip_document_requirements(
+    db: AsyncSession,
+    tenant_id: UUID,
+    trip: Trip,
+) -> dict:
+    """Return the canonical dispatch document requirements for one trip."""
+
     policy = await _tenant_compliance_policy(db, tenant_id)
     required = _required_cargo_documents_for_trip(policy, trip)
     if trip.requires_load_permit:
@@ -843,44 +858,59 @@ async def _missing_required_cargo_documents(
     if trip.requires_cargo_manifest:
         required.add("cargo_manifest")
 
-    missing: list[str] = []
+    transport_document_types = set(
+        await db.scalars(
+            select(func.lower(TransportDocument.document_type)).where(
+                TransportDocument.tenant_id == tenant_id,
+                TransportDocument.trip_id == trip.id,
+                TransportDocument.status != "cancelled",
+            )
+        )
+    )
+    has_load_permit = (
+        await db.scalar(
+            select(LoadPermit.id).where(
+                LoadPermit.tenant_id == tenant_id,
+                LoadPermit.trip_id == trip.id,
+                LoadPermit.status != "cancelled",
+            )
+        )
+    ) is not None
+    has_cargo_manifest = (
+        await db.scalar(
+            select(CargoManifest.id).where(
+                CargoManifest.tenant_id == tenant_id,
+                CargoManifest.trip_id == trip.id,
+                CargoManifest.status != "cancelled",
+            )
+        )
+    ) is not None
+
+    requirements: list[dict] = []
     for document in sorted(required):
         if document == "load_permit":
-            exists = (
-                await db.scalar(
-                    select(LoadPermit.id).where(
-                        LoadPermit.tenant_id == tenant_id,
-                        LoadPermit.trip_id == trip.id,
-                        LoadPermit.status != "cancelled",
-                    )
-                )
-            ) is not None
+            present = has_load_permit
         elif document == "cargo_manifest":
-            exists = (
-                await db.scalar(
-                    select(CargoManifest.id).where(
-                        CargoManifest.tenant_id == tenant_id,
-                        CargoManifest.trip_id == trip.id,
-                        CargoManifest.status != "cancelled",
-                    )
-                )
-            ) is not None
+            present = has_cargo_manifest
         elif document == "transport_document":
-            exists = await _has_transport_document(db, tenant_id, trip.id)
+            present = bool(transport_document_types)
         elif document.startswith("transport_document:"):
             document_type = document.split(":", 1)[1].strip()
-            exists = bool(document_type) and await _has_transport_document(
-                db,
-                tenant_id,
-                trip.id,
-                document_type,
+            present = bool(document_type) and document_type.casefold() in (
+                transport_document_types
             )
         else:
-            exists = False
+            present = False
+        requirements.append({"document_type": document, "present": present})
 
-        if not exists:
-            missing.append(document)
-    return missing
+    missing_required = [
+        item["document_type"] for item in requirements if not item["present"]
+    ]
+    return {
+        "requirements": requirements,
+        "missing_required": missing_required,
+        "complete": not missing_required,
+    }
 
 
 async def _missing_required_trip_stops(

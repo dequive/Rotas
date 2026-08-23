@@ -23,7 +23,11 @@ from app.modules.cargo.schemas import (
     ValidateDeliveryProofRequest,
 )
 from app.modules.files.service import save_generated_file
-from app.modules.operational_exceptions.service import ensure_exception, resolve_active_exceptions
+from app.modules.operational_exceptions.service import (
+    driver_document_request_type,
+    ensure_exception,
+    resolve_active_exceptions,
+)
 from app.modules.trips.models import Trip
 
 _DELIVERY_PROOF_VALID_TRANSITIONS: dict[str, set[str]] = {
@@ -48,6 +52,41 @@ async def _require_trip(db: AsyncSession, tenant_id: UUID, trip_id: UUID) -> Tri
     if not trip or trip.tenant_id != tenant_id:
         raise ApiError("trip_not_found", "Trip not found.", status_code=status.HTTP_404_NOT_FOUND)
     return trip
+
+
+async def _require_mutable_trip(
+    db: AsyncSession,
+    tenant_id: UUID,
+    trip_id: UUID,
+) -> Trip:
+    trip = await _require_trip(db, tenant_id, trip_id)
+    if trip.status in {"closed", "cancelled"}:
+        raise ApiError(
+            "trip_read_only",
+            "Closed or cancelled trips are read-only.",
+            status_code=status.HTTP_409_CONFLICT,
+        )
+    return trip
+
+
+async def _resolve_driver_document_requests(
+    db: AsyncSession,
+    tenant_id: UUID,
+    *,
+    trip_id: UUID,
+    document_types: tuple[str, ...],
+    actor_id: UUID | None,
+) -> None:
+    for document_type in document_types:
+        await resolve_active_exceptions(
+            db,
+            tenant_id,
+            entity_type="trip",
+            entity_id=trip_id,
+            exception_type=driver_document_request_type(document_type),
+            resolution_notes=f"Documento disponibilizado: {document_type}.",
+            actor_id=actor_id,
+        )
 
 
 def _audit_load_permit(permit: LoadPermit) -> dict:
@@ -177,7 +216,7 @@ async def create_load_permit(
     *,
     actor_id: UUID | None = None,
 ) -> dict:
-    trip = await _require_trip(db, tenant_id, trip_id)
+    trip = await _require_mutable_trip(db, tenant_id, trip_id)
 
     # LOAD-02: Hazmat declaration guard
     if trip.is_hazmat and (not trip.hazmat_class or not trip.hazmat_class.strip()):
@@ -201,6 +240,13 @@ async def create_load_permit(
         entity_id=permit.id,
         new_values=_audit_load_permit(permit),
     )
+    await _resolve_driver_document_requests(
+        db,
+        tenant_id,
+        trip_id=trip_id,
+        document_types=("load_permit",),
+        actor_id=actor_id,
+    )
     await db.commit()
     await db.refresh(permit)
     return {
@@ -221,7 +267,7 @@ async def create_cargo_manifest(
     *,
     actor_id: UUID | None = None,
 ) -> dict:
-    await _require_trip(db, tenant_id, trip_id)
+    await _require_mutable_trip(db, tenant_id, trip_id)
     manifest = CargoManifest(tenant_id=tenant_id, trip_id=trip_id, **payload.model_dump())
     db.add(manifest)
     await db.flush()
@@ -233,6 +279,13 @@ async def create_cargo_manifest(
         entity_type="cargo_manifest",
         entity_id=manifest.id,
         new_values=_audit_cargo_manifest(manifest),
+    )
+    await _resolve_driver_document_requests(
+        db,
+        tenant_id,
+        trip_id=trip_id,
+        document_types=("cargo_manifest",),
+        actor_id=actor_id,
     )
     await db.commit()
     await db.refresh(manifest)
@@ -252,7 +305,7 @@ async def create_transport_document(
     *,
     actor_id: UUID | None = None,
 ) -> dict:
-    await _require_trip(db, tenant_id, trip_id)
+    await _require_mutable_trip(db, tenant_id, trip_id)
     document = TransportDocument(tenant_id=tenant_id, trip_id=trip_id, **payload.model_dump())
     db.add(document)
     await db.flush()
@@ -264,6 +317,16 @@ async def create_transport_document(
         entity_type="transport_document",
         entity_id=document.id,
         new_values=_audit_transport_document(document),
+    )
+    await _resolve_driver_document_requests(
+        db,
+        tenant_id,
+        trip_id=trip_id,
+        document_types=(
+            "transport_document",
+            f"transport_document:{document.document_type.casefold()}",
+        ),
+        actor_id=actor_id,
     )
     await db.commit()
     await db.refresh(document)
@@ -284,7 +347,7 @@ async def create_delivery_proof(
     *,
     actor_id: UUID | None = None,
 ) -> dict:
-    trip = await _require_trip(db, tenant_id, trip_id)
+    trip = await _require_mutable_trip(db, tenant_id, trip_id)
     old_trip_values = {
         "status": trip.status,
         "actual_arrival": trip.actual_arrival,
@@ -785,7 +848,7 @@ async def create_guia_remessa(
     payload: GuiaRemessaCreate,
     actor_id: UUID | None,
 ) -> dict:
-    await _require_trip(db, tenant_id, trip_id)
+    await _require_mutable_trip(db, tenant_id, trip_id)
 
     doc = TransportDocument(
         tenant_id=tenant_id,
@@ -840,6 +903,13 @@ async def create_guia_remessa(
         entity_id=doc.id,
         new_values={"document_type": "guia_remessa", "file_id": str(stored.id)},
     )
+    await _resolve_driver_document_requests(
+        db,
+        tenant_id,
+        trip_id=trip_id,
+        document_types=("transport_document", "transport_document:guia_remessa"),
+        actor_id=actor_id,
+    )
     await db.commit()
     await db.refresh(doc)
     return {**serialize_transport_document(doc), "pdf_url": f"/files/{stored.id}/download"}
@@ -855,7 +925,7 @@ async def create_carta_porte(
     payload: CartaPorteCreate,
     actor_id: UUID | None,
 ) -> dict:
-    await _require_trip(db, tenant_id, trip_id)
+    await _require_mutable_trip(db, tenant_id, trip_id)
 
     extra: dict = {
         k: v
@@ -912,6 +982,16 @@ async def create_carta_porte(
         entity_id=doc.id,
         new_values={"document_type": "carta_porte_internacional", "file_id": str(stored.id)},
     )
+    await _resolve_driver_document_requests(
+        db,
+        tenant_id,
+        trip_id=trip_id,
+        document_types=(
+            "transport_document",
+            "transport_document:carta_porte_internacional",
+        ),
+        actor_id=actor_id,
+    )
     await db.commit()
     await db.refresh(doc)
     return {**serialize_transport_document(doc), "pdf_url": f"/files/{stored.id}/download"}
@@ -927,7 +1007,7 @@ async def create_dav(
     payload: DAVCreate,
     actor_id: UUID | None,
 ) -> dict:
-    await _require_trip(db, tenant_id, trip_id)
+    await _require_mutable_trip(db, tenant_id, trip_id)
 
     doc = TransportDocument(
         tenant_id=tenant_id,
@@ -957,6 +1037,13 @@ async def create_dav(
         entity_id=doc.id,
         new_values={"document_type": "dav", "authorization_code": payload.authorization_code},
     )
+    await _resolve_driver_document_requests(
+        db,
+        tenant_id,
+        trip_id=trip_id,
+        document_types=("transport_document", "transport_document:dav"),
+        actor_id=actor_id,
+    )
     await db.commit()
     await db.refresh(doc)
     return serialize_transport_document(doc)
@@ -972,7 +1059,7 @@ async def create_declaracao_carga_perigosa(
     payload: DeclaracaoCargaPerisgosaCreate,
     actor_id: UUID | None,
 ) -> dict:
-    trip = await _require_trip(db, tenant_id, trip_id)
+    trip = await _require_mutable_trip(db, tenant_id, trip_id)
 
     if not trip.is_hazmat:
         raise ApiError(
@@ -1020,6 +1107,16 @@ async def create_declaracao_carga_perigosa(
             "document_type": "declaracao_carga_perigosa",
             "hazmat_class": payload.hazmat_class,
         },
+    )
+    await _resolve_driver_document_requests(
+        db,
+        tenant_id,
+        trip_id=trip_id,
+        document_types=(
+            "transport_document",
+            "transport_document:declaracao_carga_perigosa",
+        ),
+        actor_id=actor_id,
     )
     await db.commit()
     await db.refresh(doc)

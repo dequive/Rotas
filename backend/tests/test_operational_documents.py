@@ -454,3 +454,24 @@ async def test_trip_is_international_defaults_false(db, tenant_id):
     """Trip created without is_international defaults to False."""
     trip = await _make_committed_trip(db, tenant_id)
     assert trip.is_international is False
+
+
+@pytest.mark.asyncio
+async def test_closed_trip_rejects_new_transport_document(
+    async_client, auth_headers, db, tenant_id
+):
+    trip = await _make_committed_trip(db, tenant_id)
+    trip.status = "closed"
+    await db.commit()
+
+    response = await async_client.post(
+        f"/api/v1/trips/{trip.id}/transport-documents",
+        headers=auth_headers,
+        json={
+            "document_type": "guia_de_transporte",
+            "document_number": "GT-LATE",
+        },
+    )
+
+    assert response.status_code == 409, response.text
+    assert response.json()["error"]["code"] == "trip_read_only"

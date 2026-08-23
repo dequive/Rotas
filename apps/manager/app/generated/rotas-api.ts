@@ -1423,6 +1423,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/driver/trips/{trip_id}/document-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Trip Document */
+        post: operations["request_trip_document_api_v1_driver_trips__trip_id__document_requests_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/driver/trips/{trip_id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Trip Documents */
+        get: operations["get_trip_documents_api_v1_driver_trips__trip_id__documents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/driver/trips/history": {
         parameters: {
             query?: never;
@@ -7871,6 +7905,44 @@ export interface components {
              */
             valid_until: string;
         };
+        /** DriverDocumentRequestCreate */
+        DriverDocumentRequestCreate: {
+            /** Document Type */
+            document_type: string;
+            /** Note */
+            note?: string | null;
+        };
+        /** DriverDocumentRequestRead */
+        DriverDocumentRequestRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Document Type */
+            document_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Note */
+            note?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
+        };
+        /** DriverDocumentRequirementRead */
+        DriverDocumentRequirementRead: {
+            /** Document Type */
+            document_type: string;
+            /** Present */
+            present: boolean;
+        };
         /** DriverHistoryEventRead */
         DriverHistoryEventRead: {
             /** Details */
@@ -8095,6 +8167,47 @@ export interface components {
              * @default bearer
              */
             token_type: string;
+        };
+        /** DriverTripDocumentRead */
+        DriverTripDocumentRead: {
+            /** Document Number */
+            document_number?: string | null;
+            /** Document Type */
+            document_type: string;
+            /** File Id */
+            file_id?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Issued At
+             * Format: date-time
+             */
+            issued_at: string;
+            /** Status */
+            status: string;
+        };
+        /** DriverTripDocumentsRead */
+        DriverTripDocumentsRead: {
+            /** Can Request */
+            can_request: boolean;
+            /** Complete */
+            complete: boolean;
+            /** Documents */
+            documents: components["schemas"]["DriverTripDocumentRead"][];
+            /** Missing Required */
+            missing_required: string[];
+            /** Requests */
+            requests: components["schemas"]["DriverDocumentRequestRead"][];
+            /** Requirements */
+            requirements: components["schemas"]["DriverDocumentRequirementRead"][];
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
         };
         /** DriverTripPageRead */
         DriverTripPageRead: {
@@ -16538,6 +16651,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_trip_document_api_v1_driver_trips__trip_id__document_requests_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "Idempotency-Key"?: string | null;
+                "X-Tenant-Id"?: string | null;
+            };
+            path: {
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverDocumentRequestCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverDocumentRequestRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_trip_documents_api_v1_driver_trips__trip_id__documents_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-Id"?: string | null;
+            };
+            path: {
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverTripDocumentsRead"];
                 };
             };
             /** @description Validation Error */

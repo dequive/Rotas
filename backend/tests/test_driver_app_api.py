@@ -6,11 +6,13 @@ import pytest
 from sqlalchemy import func, select
 
 from app.core.tokens import create_access_token
-from app.modules.cargo.models import DeliveryProof
+from app.modules.cargo.models import CargoManifest, DeliveryProof, LoadPermit, TransportDocument
 from app.modules.checklists.models import Checklist, ChecklistTemplate
 from app.modules.drivers.models import Driver, DriverDevice
 from app.modules.fuel.models import FuelLog
+from app.modules.operational_exceptions.models import OperationalException
 from app.modules.sync.models import IdempotencyKey, SyncEvent
+from app.modules.tenants.models import Tenant
 from app.modules.trips.models import Trip, TripStop
 from app.modules.vehicles.models import Vehicle
 
@@ -306,6 +308,327 @@ async def test_driver_trip_list_rejects_unbounded_page_size(
     )
 
     assert response.status_code == 422, response.text
+
+
+@pytest.mark.asyncio
+async def test_driver_document_status_matches_tenant_requirements(
+    async_client, db, tenant_id, driver_app_context
+):
+    tenant = await db.get(Tenant, tenant_id)
+    tenant.compliance_policy = {
+        "cargo_required_documents": [
+            "load_permit",
+            "cargo_manifest",
+            "transport_document:guia_de_transporte",
+        ]
+    }
+    trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="planned",
+    )
+    db.add(trip)
+    await db.flush()
+    load_permit = LoadPermit(
+        tenant_id=tenant_id,
+        trip_id=trip.id,
+        permit_number="LP-001",
+        status="valid",
+    )
+    manifest = CargoManifest(
+        tenant_id=tenant_id,
+        trip_id=trip.id,
+        manifest_number="MAN-001",
+        status="issued",
+    )
+    db.add_all([load_permit, manifest])
+    await db.commit()
+
+    incomplete = await async_client.get(
+        f"/api/v1/driver/trips/{trip.id}/documents",
+        headers=driver_app_context["headers"],
+    )
+
+    assert incomplete.status_code == 200, incomplete.text
+    body = incomplete.json()
+    assert body["complete"] is False
+    assert body["missing_required"] == ["transport_document:guia_de_transporte"]
+    assert {item["document_type"] for item in body["requirements"]} == {
+        "load_permit",
+        "cargo_manifest",
+        "transport_document:guia_de_transporte",
+    }
+    assert {item["document_type"] for item in body["documents"]} == {
+        "load_permit",
+        "cargo_manifest",
+    }
+
+    guide = TransportDocument(
+        tenant_id=tenant_id,
+        trip_id=trip.id,
+        document_type="guia_de_transporte",
+        document_number="GT-001",
+        status="valid",
+    )
+    db.add(guide)
+    await db.commit()
+
+    complete = await async_client.get(
+        f"/api/v1/driver/trips/{trip.id}/documents",
+        headers=driver_app_context["headers"],
+    )
+
+    assert complete.status_code == 200, complete.text
+    assert complete.json()["complete"] is True
+    assert complete.json()["missing_required"] == []
+
+    already_available = await async_client.post(
+        f"/api/v1/driver/trips/{trip.id}/document-requests",
+        headers=driver_app_context["headers"],
+        json={"document_type": "transport_document:guia_de_transporte"},
+    )
+    not_required = await async_client.post(
+        f"/api/v1/driver/trips/{trip.id}/document-requests",
+        headers=driver_app_context["headers"],
+        json={"document_type": "transport_document:dav"},
+    )
+    assert already_available.status_code == 409, already_available.text
+    assert already_available.json()["error"]["code"] == (
+        "driver_document_already_available"
+    )
+    assert not_required.status_code == 422, not_required.text
+    assert not_required.json()["error"]["code"] == "driver_document_not_required"
+
+
+@pytest.mark.asyncio
+async def test_driver_can_request_only_an_own_missing_document_idempotently(
+    async_client, db, tenant_id, driver_app_context, auth_headers
+):
+    tenant = await db.get(Tenant, tenant_id)
+    tenant.compliance_policy = {
+        "cargo_required_documents": ["transport_document:guia_de_transporte"]
+    }
+    trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="planned",
+    )
+    db.add(trip)
+    await db.commit()
+    headers = {
+        **driver_app_context["headers"],
+        "Idempotency-Key": str(uuid4()),
+    }
+    payload = {
+        "document_type": "transport_document:guia_de_transporte",
+        "note": "Necessário antes da saída.",
+    }
+
+    async def post_request(key: str):
+        return await async_client.post(
+            f"/api/v1/driver/trips/{trip.id}/document-requests",
+            headers={**driver_app_context["headers"], "Idempotency-Key": key},
+            json=payload,
+        )
+
+    created, concurrent = await asyncio.gather(
+        post_request(headers["Idempotency-Key"]),
+        post_request(str(uuid4())),
+    )
+    replay = await async_client.post(
+        f"/api/v1/driver/trips/{trip.id}/document-requests",
+        headers=headers,
+        json=payload,
+    )
+
+    assert created.status_code == 201, created.text
+    assert concurrent.status_code == 201, concurrent.text
+    assert replay.status_code == 201, replay.text
+    assert concurrent.json() == created.json()
+    assert replay.json() == created.json()
+    assert created.json()["document_type"] == payload["document_type"]
+    assert created.json()["status"] == "open"
+
+    other_device_id = f"other-driver-doc-device-{uuid4().hex[:8]}"
+    same_driver_device_id = f"same-driver-doc-device-{uuid4().hex[:8]}"
+    db.add_all(
+        [
+            DriverDevice(
+                tenant_id=tenant_id,
+                driver_id=driver_app_context["other_driver"].id,
+                device_id=other_device_id,
+                device_name="Other Driver Document App",
+                is_active=True,
+            ),
+            DriverDevice(
+                tenant_id=tenant_id,
+                driver_id=driver_app_context["driver"].id,
+                device_id=same_driver_device_id,
+                device_name="Second Driver Document App",
+                is_active=True,
+            ),
+        ]
+    )
+    await db.commit()
+    other_token, _ = create_access_token(
+        tenant_id=tenant_id,
+        driver_id=driver_app_context["other_driver"].id,
+        device_id=other_device_id,
+        scope="driver_app",
+    )
+    same_driver_token, _ = create_access_token(
+        tenant_id=tenant_id,
+        driver_id=driver_app_context["driver"].id,
+        device_id=same_driver_device_id,
+        scope="driver_app",
+    )
+    for token in (other_token, same_driver_token):
+        cross_owner_replay = await async_client.post(
+            f"/api/v1/driver/trips/{trip.id}/document-requests",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "X-Tenant-Id": str(tenant_id),
+                "Idempotency-Key": headers["Idempotency-Key"],
+            },
+            json=payload,
+        )
+        assert cross_owner_replay.status_code == 409, cross_owner_replay.text
+        assert cross_owner_replay.json()["error"]["code"] == (
+            "idempotency_owner_mismatch"
+        )
+
+    assert (
+        await db.scalar(
+            select(func.count(OperationalException.id)).where(
+                OperationalException.tenant_id == tenant_id,
+                OperationalException.entity_id == trip.id,
+                OperationalException.exception_type.like("driver_doc_request:%"),
+            )
+        )
+        == 1
+    )
+    request_item = await db.scalar(
+        select(OperationalException).where(
+            OperationalException.tenant_id == tenant_id,
+            OperationalException.entity_id == trip.id,
+            OperationalException.exception_type.like("driver_doc_request:%"),
+        )
+    )
+    issued = await async_client.post(
+        f"/api/v1/trips/{trip.id}/transport-documents",
+        headers=auth_headers,
+        json={
+            "document_type": "guia_de_transporte",
+            "document_number": "GT-001",
+        },
+    )
+    assert issued.status_code == 200, issued.text
+    await db.refresh(request_item)
+    assert request_item.status == "resolved"
+
+    refreshed = await async_client.get(
+        f"/api/v1/driver/trips/{trip.id}/documents",
+        headers=driver_app_context["headers"],
+    )
+    assert refreshed.status_code == 200, refreshed.text
+    assert refreshed.json()["complete"] is True
+    assert refreshed.json()["requests"][0]["status"] == "resolved"
+
+
+@pytest.mark.asyncio
+async def test_driver_cannot_request_document_for_closed_or_foreign_trip(
+    async_client, db, tenant_id, driver_app_context
+):
+    tenant = await db.get(Tenant, tenant_id)
+    tenant.compliance_policy = {"cargo_required_documents": ["load_permit"]}
+    closed_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="closed",
+    )
+    foreign_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="closed",
+    )
+    db.add_all([closed_trip, foreign_trip])
+    await db.commit()
+    payload = {"document_type": "load_permit"}
+
+    closed_response = await async_client.post(
+        f"/api/v1/driver/trips/{closed_trip.id}/document-requests",
+        headers=driver_app_context["headers"],
+        json=payload,
+    )
+    foreign_response = await async_client.post(
+        f"/api/v1/driver/trips/{foreign_trip.id}/document-requests",
+        headers=driver_app_context["headers"],
+        json=payload,
+    )
+    foreign_read = await async_client.get(
+        f"/api/v1/driver/trips/{foreign_trip.id}/documents",
+        headers=driver_app_context["headers"],
+    )
+
+    assert closed_response.status_code == 409, closed_response.text
+    assert closed_response.json()["error"]["code"] == "driver_trip_read_only"
+    assert foreign_response.status_code == 404, foreign_response.text
+    assert foreign_read.status_code == 404, foreign_read.text
+    assert (
+        await db.scalar(
+            select(func.count(OperationalException.id)).where(
+                OperationalException.tenant_id == tenant_id,
+            )
+        )
+        == 0
+    )
+
+
+@pytest.mark.asyncio
+async def test_driver_cannot_use_manager_document_issuance_endpoint(
+    async_client, db, tenant_id, driver_app_context
+):
+    trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="planned",
+    )
+    db.add(trip)
+    await db.commit()
+
+    response = await async_client.post(
+        f"/api/v1/trips/{trip.id}/transport-documents",
+        headers=driver_app_context["headers"],
+        json={
+            "document_type": "guia_de_transporte",
+            "document_number": "GT-FORBIDDEN",
+        },
+    )
+
+    assert response.status_code == 403, response.text
+    assert (
+        await db.scalar(
+            select(func.count(TransportDocument.id)).where(
+                TransportDocument.trip_id == trip.id
+            )
+        )
+        == 0
+    )
 
 
 @pytest.mark.asyncio

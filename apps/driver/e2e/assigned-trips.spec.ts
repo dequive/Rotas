@@ -160,3 +160,142 @@ test("recupera viagens e documentos offline sem permitir pedidos", async ({ page
   await expect(page.getByText(/Documentos guardados — somente leitura offline/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Solicitar Guia de transporte" })).toHaveCount(0);
 });
+
+test("solicita ao gestor e descarrega documento autorizado", async ({ page }) => {
+  let requestedDocumentType: string | null = null;
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    localStorage.setItem("rotas_access_token", "test-token");
+    localStorage.setItem("rotas_tenant_id", "tenant-1");
+    localStorage.setItem("rotas_driver_id", "driver-1");
+    localStorage.setItem("rotas_device_id", "device-1");
+    localStorage.setItem("rotas_driver_name", "Motorista QA");
+    localStorage.setItem("rotas_session_id", "session-1");
+  });
+  await page.route("**/api/v1/**", async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path === "/api/v1/driver/bootstrap") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          profile: { tenant_id: "tenant-1", driver_id: "driver-1", device_id: "device-1" },
+          checklistTemplates: [], activeTrip: trip, vehicles: [],
+        }),
+      });
+      return;
+    }
+    if (path === "/api/v1/driver/trips") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ items: [trip], total: 1, limit: 20, offset: 0 }),
+      });
+      return;
+    }
+    if (path.endsWith("/document-requests") && request.method() === "POST") {
+      requestedDocumentType = request.postDataJSON().document_type;
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "request-1", trip_id: trip.id, document_type: requestedDocumentType,
+          status: "open", note: null, created_at: "2026-08-23T09:00:00Z",
+        }),
+      });
+      return;
+    }
+    if (path.endsWith("/documents/file-1/download")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/pdf",
+        body: "%PDF-1.4 ROTAS QA",
+      });
+      return;
+    }
+    const documents = {
+      ...tripDocuments,
+      documents: tripDocuments.documents.map((document) =>
+        document.id === "doc-1" ? { ...document, file_id: "file-1" } : document),
+      requests: requestedDocumentType ? [{
+        id: "request-1", trip_id: trip.id, document_type: requestedDocumentType,
+        status: "open", note: null, created_at: "2026-08-23T09:00:00Z",
+      }] : [],
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(documents),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Viagens" }).click();
+  await page.getByRole("button", { name: "Maputo para Matola" }).click();
+  await page.getByRole("button", { name: "Solicitar Guia de transporte" }).click();
+  await expect(page.getByText("Pedido enviado", { exact: true })).toBeVisible();
+  expect(requestedDocumentType).toBe("transport_document:guia_de_transporte");
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Abrir Load Permit" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("LP-001.pdf");
+});
+
+test("recupera de erro ao consultar documentos", async ({ page }) => {
+  let documentAttempts = 0;
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    localStorage.setItem("rotas_access_token", "test-token");
+    localStorage.setItem("rotas_tenant_id", "tenant-1");
+    localStorage.setItem("rotas_driver_id", "driver-1");
+    localStorage.setItem("rotas_device_id", "device-1");
+    localStorage.setItem("rotas_driver_name", "Motorista QA");
+    localStorage.setItem("rotas_session_id", "session-1");
+  });
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/v1/driver/bootstrap") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          profile: { tenant_id: "tenant-1", driver_id: "driver-1", device_id: "device-1" },
+          checklistTemplates: [], activeTrip: trip, vehicles: [],
+        }),
+      });
+      return;
+    }
+    if (path === "/api/v1/driver/trips") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ items: [trip], total: 1, limit: 20, offset: 0 }),
+      });
+      return;
+    }
+    documentAttempts += 1;
+    if (documentAttempts <= 3) {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "temporarily_unavailable" }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(tripDocuments),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Viagens" }).click();
+  await page.getByRole("button", { name: "Maputo para Matola" }).click();
+  await expect(page.getByText("Não foi possível carregar os documentos.")).toBeVisible();
+  await page.getByRole("button", { name: "Tentar novamente" }).click();
+  await expect(page.getByText("Documentação incompleta")).toBeVisible();
+  expect(documentAttempts).toBe(4);
+});

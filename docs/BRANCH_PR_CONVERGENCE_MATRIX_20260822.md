@@ -91,7 +91,10 @@ E0 e só começa depois de C0-C4 e Cliente/Terceiro.
    mutações documentais terminais. `4d439ed` fechou localmente o download
    Driver ownership-scoped para storage local/R2. `426e865` publicou a nova
    navegação, listas/histórico paginados, detalhe, documentos e pedidos na PWA.
-   Checklist Manager, offline/recovery, E2E ampliado e Android permanecem.
+   `d3b24e1` reconciliou a checklist Manager com a política canónica;
+   `443e217` + `22ae117` implementaram cache/recovery das novas leituras por
+   identidade e ampliaram Playwright para `4/4`. Permanecem E2E de
+   pedido/download/erros, repetição integrada e Android físico.
 4. **C3:** portar #35/#40, fechar Pyright/OpenAPI e recuperar CI executável.
    A causa remota verificada do `startup_failure` inclui a política
    `sha_pinning_required=true` combinada com quatro Actions referidas por tags;

@@ -282,9 +282,20 @@ separa Hoje/Viagens/Histórico, traduz estados operacionais e mostra pedido já
 aberto sem permitir duplicação visual. Viagem fechada é somente leitura. Driver
 passou `35/35`, TypeScript, build PWA/service worker e Chromium E2E `1/1`.
 
-Permanecem reconciliação da checklist legada do Manager, cache/recovery offline
-das novas leituras, E2E ampliado, Android físico e repetição integral backend no
-SHA integrado C2.
+`d3b24e1` eliminou a checklist documental paralela do Manager: o endpoint legado
+agora delega na mesma política canónica usada por Driver e despacho, expõe DTO
+OpenAPI tipado e não sinaliza incompleto quando os requisitos configurados estão
+presentes. A partição combinada de documentos operacionais, Driver e despacho
+passou `57/57` na base descartável; OpenAPI, cliente e gates estáticos ficaram
+verdes. `443e217` criou cache de leitura Dexie v5 isolado por
+`(tenant_id, driver_id, session_id)` e purge no logout. `22ae117` ligou listas e
+documentos a esse cache, apresenta freshness explícita e remove pedidos quando
+os dados recuperados estão offline. Driver passou `38/38`, TypeScript e build
+PWA/service worker; Playwright mobile passou `4/4`, incluindo perda de rede e
+recuperação real via IndexedDB.
+
+Permanecem E2E de pedido/download/erros, Android físico contra o backend
+integrado e repetição integral backend/frontend no mesmo SHA C2.
 
 ### C3 — Contratos e gates
 

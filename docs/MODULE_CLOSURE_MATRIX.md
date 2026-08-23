@@ -12,9 +12,9 @@ até nova auditoria no SHA integrado. Ver
 | Área | Estado vinculativo | Razão bloqueante |
 | --- | --- | --- |
 | Frota e Pessoas | avançado local; não fechado | pairing e ownership Driver verdes localmente; faltam RC, revisão e Android |
-| Transporte e Carga | C2 avançado local; não fechado | listas, requisitos, pedidos, download, terminal read-only e PWA verdes; faltam checklist Manager, offline e Android |
-| Sync/Offline | avançado local; não fechado | ownership e idempotência por motorista/dispositivo verdes localmente; faltam recovery/staging/Android no RC |
-| Contratos API Driver | avançado local; não fechado | DTOs/OpenAPI e consumidor PWA alinhados para listas, histórico, documentos, pedidos e download; faltam offline e CI/RC |
+| Transporte e Carga | C2 avançado local; não fechado | listas, requisitos, pedidos, download, checklist Manager canónica, terminal read-only e recovery offline verdes; faltam E2E residual, integração e Android |
+| Sync/Offline | avançado local; não fechado | ownership, idempotência e recovery de leituras por identidade verdes localmente; faltam staging/Android no RC |
+| Contratos API Driver | avançado local; não fechado | DTOs/OpenAPI e consumidor PWA alinhados para listas, histórico, documentos, pedidos, download e cache; faltam CI/RC |
 | Segurança multi-tenant | avançado local; não certificado | ownership intra-tenant provado localmente; falta RLS restrita e pentest no RC |
 | ERP financeiro/inventário | parcial | fontes duplicadas, limiar de stock fixo e fecho ponta a ponta não certificado |
 | SaaS comercial | parcial | planos públicos, pagamento/subscrição, branding e operação comercial pendentes |
@@ -47,7 +47,7 @@ licenciável nem fechada; `tms/oficina` continuam bundles legados até E0.
 | --- | --- | --- | --- |
 | Centro de Comando | control_tower, alerts, operational_exceptions | avançado local; não fechado | configuração de filas por tenant, escalonamento, QA visual e RC |
 | Frota e Pessoas | vehicles, drivers, availability | avançado local; não fechado | pairing/ownership verdes localmente; faltam revisão, RC e Android |
-| Transporte e Carga | trip_orders, trips, checklists, cargo, operations | C2 avançado local; não fechado | faltam checklist Manager, offline/recovery, E2E ampliado e Android |
+| Transporte e Carga | trip_orders, trips, checklists, cargo, operations | C2 avançado local; não fechado | faltam E2E de pedido/download/erros, repetição integrada e Android |
 | Custos e Margem | trip costs, custos de oficina, reconciliação e margem | parcial | separar estimado/realizado, certificar fontes e reconciliar receita sem ownership de billing |
 | Combustível | fuel | parcial | fechar API/movimentos, contagens, desvios, segregação, reconciliação e jornada E2E |
 | Oficina e Manutenção | workshop | avançado local; não fechado | provar lifecycle integral, stock/custos/billing reconciliados, board, exceções e gates enterprise no mesmo RC |
@@ -69,7 +69,7 @@ licenciável nem fechada; `tms/oficina` continuam bundles legados até E0.
 
 Não é módulo vendável. `auth`, `files`, `sync`, `audit`, idempotência, outbox e
 integrações são controlos transversais. Estão **avançados localmente, não
-certificados**: faltam recovery offline completo, CI, staging multi-instância,
+certificados**: faltam CI, staging multi-instância,
 observabilidade, Android físico, pentest e evidência no mesmo RC.
 
 ### Modulos Tecnicos Backend
@@ -83,8 +83,8 @@ observabilidade, Android físico, pentest e evidência no mesmo RC.
 | files | operacional MVP | storage adapter R2 |
 | checklists | avancado | politicas adicionais e visual hardening |
 | trip_orders | fechado MVP | evolucoes enterprise futuras |
-| trips | C2 avançado local | criação proibida, listas, detalhe, download e UI tenant+driver-scoped; faltam offline e certificação |
-| cargo | C2 parcial / não fechado | emissão de gestor, pedido Driver e bloqueio após fecho separados localmente; falta reconciliar checklist legada e provar UI/RC |
+| trips | C2 avançado local | criação proibida, listas, detalhe, download, UI e cache tenant+driver+session-scoped; faltam E2E residual e certificação |
+| cargo | C2 avançado local / não fechado | emissão de gestor, pedido Driver, checklist canónica e bloqueio após fecho reconciliados localmente; falta prova integrada/RC |
 | billing | avancado | reconciliacao final e politicas adicionais |
 | fuel | operacional MVP | politicas adicionais |
 | workshop | operacional MVP | ampliar board visual e politicas enterprise |
@@ -94,7 +94,7 @@ observabilidade, Android físico, pentest e evidência no mesmo RC.
 | tenants | avancado | branding e politicas administrativas adicionais |
 | users | operacional MVP | politicas enterprise |
 | auth | operacional MVP | recovery codes e gates adicionais por email verificado |
-| sync | avançado local; não fechado | ownership/idempotência verdes localmente; faltam E2E, staging e Android no RC |
+| sync | avançado local; não fechado | ownership/idempotência e recovery de leituras verdes localmente; faltam staging e Android no RC |
 
 ## Ordem de Fechamento
 

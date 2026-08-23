@@ -161,10 +161,11 @@ A regressão backend integral no SHA `97e365d`, numa base descartável migrada d
 drift OpenAPI e gates Manager ficaram verdes localmente; isto não equivale a CI,
 staging, Android físico ou release candidate.
 
-Os slices C2 até `426e865` removeram ações administrativas da PWA e publicaram
+Os slices C2 até `22ae117` removeram ações administrativas da PWA, publicaram
 Minhas Viagens, histórico, detalhe, requisitos canónicos, documentos, download,
-pedido em falta e terminal read-only. O próximo incremento obrigatório continua
-em C2: reconciliar a checklist legada do Manager, implementar cache/recovery
-offline das novas leituras e ampliar E2E. Depois deve repetir-se backend e
-frontend no mesmo SHA integrado e validar Android físico. Só então se retomam
-build reproduzível, Actions/supply chain e CI. Estado: `NO-GO`.
+pedido em falta e terminal read-only, reconciliaram a checklist legada do
+Manager e recuperam listas/documentos offline por tenant, motorista e sessão.
+O próximo incremento obrigatório continua em C2: cobrir pedido, download e
+erros em E2E, repetir backend e frontend no mesmo SHA integrado e validar a
+jornada no Android físico contra esse backend. Só então se retomam build
+reproduzível, Actions/supply chain e CI. Estado: `NO-GO`.

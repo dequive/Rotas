@@ -3146,3 +3146,41 @@ contra o backend integrado. A checklist legada Manager também precisa convergir
 para a regra canónica do despacho. A evidência backend `87/87` permanece em
 `4d439ed`; não foi reclassificada como prova do SHA frontend `426e865`.
 G0-G5: **NO-GO**.
+
+### 16.23 C2 — Checklist documental canónica no Manager — 2026-08-23
+
+- um teste RED configurou exatamente dois requisitos presentes e demonstrou que
+  `GET /cargo/trips/{id}/documents/checklist` ainda devolvia falso incompleto por
+  usar uma lista doméstica hardcoded;
+- `d3b24e1` removeu essa segunda fonte de verdade: o endpoint legado delega em
+  `get_trip_document_requirements`, preserva `checklist` como alias compatível e
+  publica `requirements`, `missing_required` e `complete` num DTO OpenAPI;
+- documentos domésticos, internacionais e carga perigosa são agora derivados da
+  política de compliance do tenant e dos flags da viagem, como no Driver e no
+  despacho;
+- a base descartável passou documentos operacionais/Driver/despacho `57/57`;
+  Ruff/Pyright, OpenAPI SHA-256 `9910068b...684`, cliente TypeScript, typecheck
+  Manager e auditor `208/158/0` ficaram verdes.
+
+Este slice fecha a divergência da checklist **localmente**, não fecha C2 nem
+certifica o Manager em runtime/RC. G0-G5: **NO-GO**.
+
+### 16.24 C2 — Recovery offline de viagens e documentos — 2026-08-23
+
+- testes RED provaram que a perda de rede descartava a lista e os documentos já
+  consultados;
+- `443e217` criou `driverReadCache` em Dexie v5, com chave física que inclui
+  tenant, motorista, sessão e chave lógica; o logout purga também esta tabela;
+- `22ae117` grava páginas atribuídas/históricas e documentos após resposta da
+  API, recupera apenas a identidade corrente e mostra timestamp de freshness;
+- snapshot documental offline é sempre somente leitura: mesmo que o servidor
+  anterior anunciasse `can_request=true`, a PWA não oferece `Solicitar`;
+- Driver passou `38/38`, TypeScript e build de produção com 1.803 módulos, 93
+  módulos do service worker e seis entradas de precache;
+- Playwright mobile passou `4/4`; a nova jornada verificou dois registos reais
+  no IndexedDB, simulou perda de rede, recuperou lista/detalhe e confirmou a
+  ausência de mutação documental.
+
+C2 permanece **em progresso**. Faltam E2E de pedido/download/erros, repetição
+backend/frontend no mesmo SHA integrado e jornada no Redmi físico contra esse
+artefacto. CI, revisão, staging e RC continuam ausentes. G0-G5: **NO-GO**.

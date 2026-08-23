@@ -18,6 +18,12 @@ import {
   type DriverTrip,
   type DriverTripDocuments,
 } from "../api";
+import {
+  getCurrentIdentityScope,
+  getDriverReadCache,
+  saveDriverReadCache,
+  type DriverIdentityScope,
+} from "../db";
 
 type TripsViewProps = {
   mode: "assigned" | "history";
@@ -62,6 +68,26 @@ function statusLabel(value: string) {
   return labels[value] ?? value.replaceAll("_", " ");
 }
 
+async function saveReadCache<T>(
+  identity: DriverIdentityScope,
+  key: string,
+  data: T,
+) {
+  try {
+    await saveDriverReadCache(identity, key, data);
+  } catch {
+    // A falha do cache nunca transforma uma resposta válida da API em erro.
+  }
+}
+
+async function readCache<T>(identity: DriverIdentityScope, key: string) {
+  try {
+    return await getDriverReadCache<T>(identity, key);
+  } catch {
+    return undefined;
+  }
+}
+
 export function TripsView({ mode, onBack }: TripsViewProps) {
   const [trips, setTrips] = useState<DriverTrip[]>([]);
   const [total, setTotal] = useState(0);
@@ -75,12 +101,18 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
   const [requesting, setRequesting] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [listCachedAt, setListCachedAt] = useState<string | null>(null);
+  const [documentsCachedAt, setDocumentsCachedAt] = useState<string | null>(null);
 
   const loadTrips = useCallback(async (offset = 0) => {
+    const cacheKey = `trips:${mode}:${offset}`;
+    const identity = getCurrentIdentityScope();
     if (offset === 0) {
       setState("loading");
       setSelectedTrip(null);
       setDocuments(null);
+      setListCachedAt(null);
+      setDocumentsCachedAt(null);
     } else {
       setLoadingMore(true);
     }
@@ -91,8 +123,27 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
       setTrips((current) => offset === 0 ? page.items : [...current, ...page.items]);
       setTotal(page.total);
       setState("success");
+      if (offset === 0) setListCachedAt(null);
+      if (identity) {
+        await saveReadCache(identity, cacheKey, page);
+      }
     } catch {
-      if (offset === 0) {
+      const cachedPage = identity
+        ? await readCache<{
+          items: DriverTrip[];
+          total: number;
+          limit: number;
+          offset: number;
+        }>(identity, cacheKey)
+        : undefined;
+      if (cachedPage) {
+        setTrips((current) => offset === 0
+          ? cachedPage.data.items
+          : [...current, ...cachedPage.data.items]);
+        setTotal(cachedPage.data.total);
+        setListCachedAt(cachedPage.cachedAt);
+        setState("success");
+      } else if (offset === 0) {
         setTrips([]);
         setTotal(0);
         setState("error");
@@ -107,15 +158,31 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
   }, [loadTrips]);
 
   async function openTrip(trip: DriverTrip) {
+    const cacheKey = `trip:${trip.id}:documents`;
+    const identity = getCurrentIdentityScope();
     setSelectedTrip(trip);
     setDocuments(null);
+    setDocumentsCachedAt(null);
     setDocumentState("loading");
     setActionMessage("");
     try {
-      setDocuments(await getDriverTripDocuments(trip.id));
+      const nextDocuments = await getDriverTripDocuments(trip.id);
+      setDocuments(nextDocuments);
+      if (identity) {
+        await saveReadCache(identity, cacheKey, nextDocuments);
+      }
       setDocumentState("success");
     } catch {
-      setDocumentState("error");
+      const cachedDocuments = identity
+        ? await readCache<DriverTripDocuments>(identity, cacheKey)
+        : undefined;
+      if (cachedDocuments) {
+        setDocuments(cachedDocuments.data);
+        setDocumentsCachedAt(cachedDocuments.cachedAt);
+        setDocumentState("success");
+      } else {
+        setDocumentState("error");
+      }
     }
   }
 
@@ -125,7 +192,16 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
     setActionMessage("");
     try {
       await requestDriverTripDocument(selectedTrip.id, documentType);
-      setDocuments(await getDriverTripDocuments(selectedTrip.id));
+      const nextDocuments = await getDriverTripDocuments(selectedTrip.id);
+      setDocuments(nextDocuments);
+      const identity = getCurrentIdentityScope();
+      if (identity) {
+        await saveReadCache(
+          identity,
+          `trip:${selectedTrip.id}:documents`,
+          nextDocuments,
+        );
+      }
       setActionMessage("Pedido enviado ao gestor de frota.");
     } catch {
       setActionMessage("Não foi possível enviar o pedido. Tente novamente.");
@@ -154,6 +230,7 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
   }
 
   if (selectedTrip) {
+    const canRequestDocuments = Boolean(documents?.can_request && !documentsCachedAt);
     const activeRequestTypes = new Set(
       documents?.requests
         .filter((request) => request.status === "open" || request.status === "acknowledged")
@@ -207,6 +284,11 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
               {!documents.can_request && (
                 <p className="read-only-note"><LockKeyhole size={17} /> Viagem fechada — somente leitura.</p>
               )}
+              {documentsCachedAt && (
+                <p className="read-only-note" role="status">
+                  <LockKeyhole size={17} /> Documentos guardados — somente leitura offline.
+                </p>
+              )}
 
               <div className="requirements-list" aria-label="Requisitos documentais">
                 {documents.requirements.map((requirement) => (
@@ -216,10 +298,10 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
                       <strong>{documentLabel(requirement.document_type)}</strong>
                       <small>{requirement.present ? "Disponível" : "Em falta"}</small>
                     </div>
-                    {!requirement.present && documents.can_request && activeRequestTypes.has(requirement.document_type) && (
+                    {!requirement.present && canRequestDocuments && activeRequestTypes.has(requirement.document_type) && (
                       <span className="request-pending">Pedido enviado</span>
                     )}
-                    {!requirement.present && documents.can_request && !activeRequestTypes.has(requirement.document_type) && (
+                    {!requirement.present && canRequestDocuments && !activeRequestTypes.has(requirement.document_type) && (
                       <button
                         type="button"
                         disabled={requesting !== null}
@@ -278,6 +360,13 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
         <h2 id="trip-list-title">{mode === "history" ? "Histórico" : "Minhas viagens"}</h2>
         <p>{mode === "history" ? "Viagens concluídas e canceladas." : "Viagens planeadas para si pelo gestor de frota."}</p>
       </header>
+
+      {listCachedAt && (
+        <div className="panel inline-state" role="status">
+          <LockKeyhole size={18} />
+          <span>Modo offline — viagens guardadas em {dateLabel(listCachedAt)}.</span>
+        </div>
+      )}
 
       {state === "loading" && <div className="panel inline-state" role="status">A carregar viagens…</div>}
       {state === "error" && (

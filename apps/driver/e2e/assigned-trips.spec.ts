@@ -28,6 +28,29 @@ const trip = {
   updated_at: "2026-08-23T07:00:00Z",
 };
 
+const tripDocuments = {
+  trip_id: trip.id,
+  complete: false,
+  can_request: true,
+  missing_required: ["transport_document:guia_de_transporte"],
+  requirements: [
+    { document_type: "load_permit", present: true },
+    { document_type: "cargo_manifest", present: true },
+    { document_type: "transport_document:guia_de_transporte", present: false },
+  ],
+  documents: [
+    {
+      id: "doc-1", document_type: "load_permit", document_number: "LP-001",
+      status: "valid", file_id: null, issued_at: "2026-08-23T07:30:00Z",
+    },
+    {
+      id: "doc-2", document_type: "cargo_manifest", document_number: "MAN-001",
+      status: "issued", file_id: null, issued_at: "2026-08-23T07:35:00Z",
+    },
+  ],
+  requests: [],
+};
+
 test("motorista navega da lista atribuída ao requisito documental real", async ({ page }, testInfo) => {
   const consoleErrors: string[] = [];
   page.on("console", (message) => {
@@ -58,28 +81,7 @@ test("motorista navega da lista atribuída ao requisito documental real", async 
     } else if (path === "/api/v1/driver/trips") {
       body = { items: [trip], total: 1, limit: 20, offset: 0 };
     } else if (path === "/api/v1/driver/trips/trip-1/documents") {
-      body = {
-        trip_id: trip.id,
-        complete: false,
-        can_request: true,
-        missing_required: ["transport_document:guia_de_transporte"],
-        requirements: [
-          { document_type: "load_permit", present: true },
-          { document_type: "cargo_manifest", present: true },
-          { document_type: "transport_document:guia_de_transporte", present: false },
-        ],
-        documents: [
-          {
-            id: "doc-1", document_type: "load_permit", document_number: "LP-001",
-            status: "valid", file_id: null, issued_at: "2026-08-23T07:30:00Z",
-          },
-          {
-            id: "doc-2", document_type: "cargo_manifest", document_number: "MAN-001",
-            status: "issued", file_id: null, issued_at: "2026-08-23T07:35:00Z",
-          },
-        ],
-        requests: [],
-      };
+      body = tripDocuments;
     }
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
   });
@@ -97,4 +99,64 @@ test("motorista navega da lista atribuída ao requisito documental real", async 
   await expect(page.getByRole("button", { name: /Emitir/i })).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("assigned-trip-detail.png"), fullPage: true });
   expect(consoleErrors).toEqual([]);
+});
+
+test("recupera viagens e documentos offline sem permitir pedidos", async ({ page }) => {
+  let offline = false;
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    localStorage.setItem("rotas_access_token", "test-token");
+    localStorage.setItem("rotas_tenant_id", "tenant-1");
+    localStorage.setItem("rotas_driver_id", "driver-1");
+    localStorage.setItem("rotas_device_id", "device-1");
+    localStorage.setItem("rotas_driver_name", "Motorista QA");
+    localStorage.setItem("rotas_session_id", "session-1");
+  });
+  await page.route("**/api/v1/**", async (route) => {
+    if (offline) {
+      await route.abort("internetdisconnected");
+      return;
+    }
+    const path = new URL(route.request().url()).pathname;
+    const body = path === "/api/v1/driver/bootstrap"
+      ? {
+        profile: { tenant_id: "tenant-1", driver_id: "driver-1", device_id: "device-1" },
+        checklistTemplates: [], activeTrip: trip, vehicles: [],
+      }
+      : path === "/api/v1/driver/trips"
+        ? { items: [trip], total: 1, limit: 20, offset: 0 }
+        : tripDocuments;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Viagens" }).click();
+  await page.getByRole("button", { name: "Maputo para Matola" }).click();
+  await expect(page.getByText("Documentação incompleta")).toBeVisible();
+  await expect.poll(() => page.evaluate(async () => {
+    const request = indexedDB.open("RotasMotoristaDB");
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const count = await new Promise<number>((resolve, reject) => {
+      const countRequest = database
+        .transaction("driverReadCache", "readonly")
+        .objectStore("driverReadCache")
+        .count();
+      countRequest.onsuccess = () => resolve(countRequest.result);
+      countRequest.onerror = () => reject(countRequest.error);
+    });
+    database.close();
+    return count;
+  })).toBe(2);
+  await page.getByRole("button", { name: "Minhas viagens" }).click();
+  await page.locator(".trip-back").click();
+
+  offline = true;
+  await page.getByRole("button", { name: "Viagens" }).click();
+  await expect(page.getByText(/Modo offline — viagens guardadas/)).toBeVisible();
+  await page.getByRole("button", { name: "Maputo para Matola" }).click();
+  await expect(page.getByText(/Documentos guardados — somente leitura offline/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Solicitar Guia de transporte" })).toHaveCount(0);
 });

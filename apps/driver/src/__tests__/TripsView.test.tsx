@@ -6,6 +6,11 @@ import {
   listDriverTrips,
   requestDriverTripDocument,
 } from "../api";
+import {
+  getCurrentIdentityScope,
+  getDriverReadCache,
+  saveDriverReadCache,
+} from "../db";
 import { TripsView } from "../views/TripsView";
 
 vi.mock("../api", () => ({
@@ -14,6 +19,16 @@ vi.mock("../api", () => ({
   getDriverTripDocuments: vi.fn(),
   requestDriverTripDocument: vi.fn(),
   downloadDriverTripDocument: vi.fn(),
+}));
+
+vi.mock("../db", () => ({
+  getCurrentIdentityScope: vi.fn(() => ({
+    tenantId: "tenant-1",
+    driverId: "driver-1",
+    sessionId: "session-1",
+  })),
+  getDriverReadCache: vi.fn(),
+  saveDriverReadCache: vi.fn(),
 }));
 
 const trip = {
@@ -45,6 +60,13 @@ const trip = {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.mocked(getCurrentIdentityScope).mockReturnValue({
+    tenantId: "tenant-1",
+    driverId: "driver-1",
+    sessionId: "session-1",
+  });
+  vi.mocked(getDriverReadCache).mockResolvedValue(undefined);
+  vi.mocked(saveDriverReadCache).mockResolvedValue(undefined);
 });
 
 describe("Minhas Viagens", () => {
@@ -146,5 +168,59 @@ describe("Minhas Viagens", () => {
 
     expect(await screen.findByText(/Viagem fechada — somente leitura/i)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Solicitar/i })).toBeNull();
+  });
+
+  it("recupera a lista guardada apenas para a identidade corrente", async () => {
+    vi.mocked(listDriverTrips).mockRejectedValue(new Error("offline"));
+    vi.mocked(getDriverReadCache).mockResolvedValue({
+      id: "tenant-1:driver-1:session-1:trips:assigned:0",
+      key: "trips:assigned:0",
+      tenantId: "tenant-1",
+      driverId: "driver-1",
+      sessionId: "session-1",
+      cachedAt: "2026-08-23T08:00:00Z",
+      data: { items: [trip], total: 1, limit: 20, offset: 0 },
+    });
+
+    render(<TripsView mode="assigned" onBack={() => undefined} />);
+
+    expect(await screen.findByRole("button", { name: /Maputo para Matola/i })).toBeTruthy();
+    expect(screen.getByText(/Modo offline — viagens guardadas/i)).toBeTruthy();
+    expect(getDriverReadCache).toHaveBeenCalledWith(
+      expect.objectContaining({ driverId: "driver-1", sessionId: "session-1" }),
+      "trips:assigned:0",
+    );
+  });
+
+  it("mostra documentos guardados como somente leitura offline", async () => {
+    vi.mocked(listDriverTrips).mockResolvedValue({
+      items: [trip], total: 1, limit: 20, offset: 0,
+    });
+    vi.mocked(getDriverTripDocuments).mockRejectedValue(new Error("offline"));
+    vi.mocked(getDriverReadCache).mockResolvedValue({
+      id: "tenant-1:driver-1:session-1:trip:trip-1:documents",
+      key: "trip:trip-1:documents",
+      tenantId: "tenant-1",
+      driverId: "driver-1",
+      sessionId: "session-1",
+      cachedAt: "2026-08-23T08:00:00Z",
+      data: {
+        trip_id: trip.id,
+        complete: false,
+        can_request: true,
+        missing_required: ["transport_document:guia_de_transporte"],
+        requirements: [
+          { document_type: "transport_document:guia_de_transporte", present: false },
+        ],
+        documents: [],
+        requests: [],
+      },
+    });
+
+    render(<TripsView mode="assigned" onBack={() => undefined} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Maputo para Matola/i }));
+
+    expect(await screen.findByText(/Documentos guardados — somente leitura offline/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Solicitar Guia de transporte/i })).toBeNull();
   });
 });

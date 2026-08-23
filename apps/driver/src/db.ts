@@ -111,6 +111,13 @@ export interface BootstrapCacheItem<T = unknown> {
   cachedAt: string;
 }
 
+export interface DriverReadCacheItem<T = unknown> extends DriverIdentityScope {
+  id: string;
+  key: string;
+  data: T;
+  cachedAt: string;
+}
+
 class RotasDriverDb extends Dexie {
   syncQueue!: Table<SyncQueueItem, number>;
   photoQueue!: Table<PhotoQueueItem, number>;
@@ -119,6 +126,7 @@ class RotasDriverDb extends Dexie {
   cargoManifests!: Table<CargoManifestItem, number>;
   deliveryProofs!: Table<DeliveryProofItem, number>;
   bootstrapCache!: Table<BootstrapCacheItem, string>;
+  driverReadCache!: Table<DriverReadCacheItem, string>;
 
   constructor() {
     super("RotasMotoristaDB");
@@ -157,6 +165,9 @@ class RotasDriverDb extends Dexie {
       pendingFuelLogs:
         "++id, [tenantId+driverId+sessionId], localId, vehicleId, timestamp, status",
       bootstrapCache: "id, [tenantId+driverId+sessionId], cachedAt"
+    });
+    this.version(5).stores({
+      driverReadCache: "id, [tenantId+driverId+sessionId], key, cachedAt"
     });
   }
 }
@@ -284,6 +295,34 @@ export async function getBootstrapCache<T>(
   ) as Promise<
     BootstrapCacheItem<T> | undefined
   >;
+}
+
+function driverReadCacheId(scope: DriverIdentityScope, key: string): string {
+  return `${scope.tenantId}:${scope.driverId}:${scope.sessionId}:${key}`;
+}
+
+export async function saveDriverReadCache<T>(
+  scope: DriverIdentityScope,
+  key: string,
+  data: T,
+): Promise<void> {
+  await db.driverReadCache.put({
+    id: driverReadCacheId(scope, key),
+    ...scope,
+    key,
+    data,
+    cachedAt: new Date().toISOString(),
+  });
+}
+
+export async function getDriverReadCache<T>(
+  scope: DriverIdentityScope,
+  key: string,
+): Promise<DriverReadCacheItem<T> | undefined> {
+  const item = await db.driverReadCache.get(driverReadCacheId(scope, key)) as
+    | DriverReadCacheItem<T>
+    | undefined;
+  return item && belongsToIdentity(item, scope) ? item : undefined;
 }
 
 export const db = new RotasDriverDb();

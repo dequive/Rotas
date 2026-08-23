@@ -5,8 +5,10 @@ import { getAuth } from "../api";
 import {
   db,
   getBootstrapCache,
+  getDriverReadCache,
   queueOperation,
   saveBootstrapCache,
+  saveDriverReadCache,
 } from "../db";
 import { purgeDriverIdentity } from "../identity";
 import { processSyncQueue } from "../sync";
@@ -47,6 +49,36 @@ describe("isolamento da identidade offline", () => {
         currentScope.sessionId,
       ),
     ).toBeUndefined();
+  });
+
+  it("isola listas e documentos guardados por tenant, motorista e sessão", async () => {
+    await saveDriverReadCache(
+      { ...currentScope, sessionId: "session-old" },
+      "trips:assigned:0",
+      { items: [{ id: "trip-old" }] },
+    );
+
+    expect(
+      await getDriverReadCache(
+        currentScope,
+        "trips:assigned:0",
+      ),
+    ).toBeUndefined();
+
+    await saveDriverReadCache(
+      currentScope,
+      "trip:trip-current:documents",
+      { trip_id: "trip-current", complete: true },
+    );
+
+    expect(
+      (
+        await getDriverReadCache<{ trip_id: string; complete: boolean }>(
+          currentScope,
+          "trip:trip-current:documents",
+        )
+      )?.data,
+    ).toEqual({ trip_id: "trip-current", complete: true });
   });
 
   it("sincroniza apenas operações da identidade corrente", async () => {
@@ -119,6 +151,7 @@ describe("isolamento da identidade offline", () => {
     expect(localStorage.getItem("rotas_refresh_token")).toBeNull();
     expect(await db.syncQueue.count()).toBe(0);
     expect(await db.bootstrapCache.count()).toBe(0);
+    expect(await db.driverReadCache.count()).toBe(0);
     await Promise.all(
       db.tables.map(async (table) => {
         expect(await table.count()).toBe(0);

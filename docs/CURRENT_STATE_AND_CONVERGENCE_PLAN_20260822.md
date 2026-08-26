@@ -162,6 +162,16 @@ mesmo minuto. A correção é bloquear as quatro Actions por SHA imutável e ali
 os testes que hoje esperam tags, mas a execução continua subordinada à conclusão
 de C2; não se salta a sequência para obter um check verde.
 
+Estado local em 2026-08-26: `9cb2abe` fixou as 12 utilizações atuais das quatro
+Actions por SHA, limitou o allowlist a GitHub-owned, fixou Node `20.20.2` nos
+jobs e acrescentou Vitest/build/Playwright Driver à CI. Os contratos ficaram
+verdes localmente (validador 6/6, 12/12 referências e testes CI/PR18/governance
+8/8). A auditoria limpa no runtime canónico encontrou 6 high em produção e 9
+na árvore completa, zero critical, além de `@emnapi/runtime` extraneous; o
+agregador PR18 também apresentou contagens contraditórias e deve falhar fechado.
+Logo P1-CI-01 e C3 permanecem abertos até remediação, CI com jobs executados e
+revisão. Ver `docs/evidence/C3_CI_SUPPLY_CHAIN_BASELINE_20260826.md`.
+
 ### P1-ERP-01 — Fontes e fluxos ERP ainda parciais
 
 - stock mínimo no Manager usa limiar fixo `5`;
@@ -476,6 +486,11 @@ RC permanecem pendentes. Ver
 - testes Driver e Playwright em CI;
 - Node patch fixado e Actions por SHA;
 - base vazia, snapshot e dois tenants/dois motoristas.
+
+Estado em 2026-08-26: contratos, Pyright/OpenAPI, Node, pins e comandos Driver
+da CI estão verdes localmente em `9cb2abe`. Supply chain está vermelha por 6
+high de produção, 9 high totais, árvore extraneous e agregador PR18
+contraditório. CI remota não executada. C3 continua **em progresso/NO-GO**.
 
 ### C4 — Certificação da Issue #42
 

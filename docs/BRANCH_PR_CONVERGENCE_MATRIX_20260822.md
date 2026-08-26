@@ -50,7 +50,7 @@ Nenhuma classificação equivale a autorização de merge ou release.
 | #40 | CODEOWNERS | **PORTAR** | contrato CODEOWNERS de `09764a0` | regra presente e validada na #44; depois substituir #40 |
 | #39 | pinning de Actions empilhado | **SUBSTITUIR** | nenhum merge da pilha; comparar apenas o pinning final | #35 portado e gate de pins verde na #44 |
 | #38 | remoção de demo runtime | **SUBSTITUIR** | ausência de fallback demo | gate `no-demo-runtime` e jornadas reais verdes na #44 |
-| #37 | Dependabot nanoid | **DEFERIR** | advisory, lockfile e alcance runtime | depois de C0-C4, PR próprio, CI completo e revisão supply-chain |
+| #37 | Dependabot nanoid e advisories atuais | **PORTAR EM C3** | slice próprio, advisory, lockfile, alcance runtime e regressão; sem `audit fix --force` | depois do pinning `9cb2abe`, antes de fechar C3, com CI completa e revisão supply-chain |
 | #36 | identidade offline Driver | **SUBSTITUIR** | isolamento tenant/driver/sessão e purge | ownership/device/replay provados na #44 e vertical #41 portada |
 | #35 | pinning isolado de Actions | **PORTAR** | commit isolado `9ad9355` ou patch mínimo equivalente | todas as Actions por SHA imutável e validador verde na #44 |
 | #32 | padrão Issue->PR->Deploy | **SUBSTITUIR** | regra já ancestral + instruções canónicas atuais | confirmar paridade do contrato remoto e fechar #32 sem novo merge |
@@ -166,7 +166,11 @@ E0 e só começa depois de C0-C4 e Cliente/Terceiro.
    C3, não merge, staging ou release.
    A causa remota verificada do `startup_failure` inclui a política
    `sha_pinning_required=true` combinada com quatro Actions referidas por tags;
-   a correção por SHA imutável continua depois dos incrementos C2 pendentes.
+   `9cb2abe` corrigiu localmente 12 usos, Node e gates Driver, mas a execução
+   remota ainda não ocorreu. A auditoria Node `20.20.2` revelou 6 high em
+   produção, 9 high totais e uma árvore extraneous. Isto invalida o deferimento
+   antigo de #37: a remediação passa a slice próprio dentro de C3, antes do seu
+   fecho. Ver `docs/evidence/C3_CI_SUPPLY_CHAIN_BASELINE_20260826.md`.
 5. **C4:** criar um RC único, executar staging, Android físico, Sentry, segurança,
    observabilidade e piloto no mesmo SHA/artefactos.
 

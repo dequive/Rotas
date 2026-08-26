@@ -3515,3 +3515,23 @@ C2 fica fechado local+físico para o conteúdo do produto `a978229`. O próximo
 gate é C3: Actions imutáveis, supply chain e CI executada. Sem CI, revisão,
 staging, piloto e RC integrado, G0-G5 e a release permanecem **NO-GO**. Evidência:
 `docs/evidence/C2_DRIVER_ANDROID_FIXED_SHA_20260826.md`.
+
+### 16.38 C3 — CI imutável e baseline supply chain — 2026-08-26
+
+- `9cb2abe` portou o pinning mínimo de #35 para todos os workflows atuais:
+  12 referências por SHA completo, allowlist apenas `actions` e gate fail-closed;
+- Node `20.20.2`, Vitest Driver, build Driver e Playwright Driver estão agora
+  declarados como gates blocking da CI;
+- validação local: pin validator 6/6, 12/12 referências, contratos
+  CI/PR18/governance 8/8, Ruff/YAML/diff verdes;
+- auditoria reprodutível no Node `20.20.2` encontrou 6 high em produção, 9 high
+  totais, zero critical e `@emnapi/runtime@1.11.1` extraneous;
+- o agregador PR18 devolveu contagens contraditórias numa execução e será
+  endurecido antes de aceitar evidência zero;
+- a decisão antiga de adiar #37 foi revogada pelo gate mais restritivo: a
+  remediação de dependências será um slice separado ainda em C3.
+
+C3 permanece **em progresso/NO-GO**. Faltam supply chain verde, CI remota com
+passos executados, revisão e SHA integrado. Billing e base online permaneceram
+intactos. Evidência:
+`docs/evidence/C3_CI_SUPPLY_CHAIN_BASELINE_20260826.md`.

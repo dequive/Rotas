@@ -27,6 +27,7 @@ def _audit(*, high: int = 0, critical: int = 0) -> dict:
             "via": [{"source": 456 + index}],
         }
     return {
+        "auditReportVersion": 2,
         "metadata": {
             "vulnerabilities": {
                 "info": 0,
@@ -45,6 +46,8 @@ def test_dependency_security_gate_passes_only_clean_node20_release_fragment():
     result = evaluate_dependency_security(
         production_audit=_audit(),
         complete_audit=_audit(),
+        production_audit_exit_code=0,
+        complete_audit_exit_code=0,
         tree_exit_code=0,
         tree={},
         sbom={"bomFormat": "CycloneDX", "specVersion": "1.5", "components": [{}]},
@@ -65,6 +68,8 @@ def test_dependency_security_gate_reports_audit_tree_runtime_and_sha_blockers():
     result = evaluate_dependency_security(
         production_audit=_audit(high=3),
         complete_audit=_audit(high=17),
+        production_audit_exit_code=1,
+        complete_audit_exit_code=1,
         tree_exit_code=1,
         tree={"problems": ["invalid: esbuild"]},
         sbom={"bomFormat": "CycloneDX", "specVersion": "1.5", "components": [{}]},
@@ -138,6 +143,8 @@ def _evaluate_with_waiver(waiver: dict, *, critical: int = 0) -> dict:
     return evaluate_dependency_security(
         production_audit=_audit(high=1, critical=critical),
         complete_audit=_audit(high=1, critical=critical),
+        production_audit_exit_code=1,
+        complete_audit_exit_code=1,
         tree_exit_code=0,
         tree={},
         sbom={"bomFormat": "CycloneDX", "specVersion": "1.5", "components": [{}]},
@@ -197,6 +204,8 @@ def test_dependency_security_gate_rejects_audit_count_without_matching_findings(
     result = evaluate_dependency_security(
         production_audit=audit,
         complete_audit=audit,
+        production_audit_exit_code=1,
+        complete_audit_exit_code=1,
         tree_exit_code=0,
         tree={},
         sbom={"bomFormat": "CycloneDX", "specVersion": "1.5", "components": [{}]},
@@ -209,3 +218,24 @@ def test_dependency_security_gate_rejects_audit_count_without_matching_findings(
 
     assert result["passed"] is False
     assert result["checks"]["audit_findings_consistent"] is False
+
+
+def test_dependency_security_gate_rejects_exit_one_with_empty_audit_payload():
+    result = evaluate_dependency_security(
+        production_audit=_audit(),
+        complete_audit=_audit(),
+        production_audit_exit_code=1,
+        complete_audit_exit_code=0,
+        tree_exit_code=0,
+        tree={},
+        sbom={"bomFormat": "CycloneDX", "specVersion": "1.5", "components": [{}]},
+        node_version="v20.20.2",
+        npm_version="10.8.2",
+        profile="local",
+        release_sha=None,
+        sbom_sha256="e" * 64,
+    )
+
+    assert result["passed"] is False
+    assert result["checks"]["audit_commands_valid"] is False
+    assert "audit_commands_valid" in result["blockers"]

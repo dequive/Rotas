@@ -31,6 +31,35 @@ def _audit_counts(payload: dict[str, Any]) -> dict[str, int]:
     }
 
 
+def _audit_payload_valid(payload: dict[str, Any]) -> bool:
+    metadata = payload.get("metadata")
+    vulnerabilities = payload.get("vulnerabilities")
+    if (
+        payload.get("auditReportVersion") != 2
+        or not isinstance(metadata, dict)
+        or not isinstance(vulnerabilities, dict)
+    ):
+        return False
+    counts = metadata.get("vulnerabilities")
+    if not isinstance(counts, dict):
+        return False
+    severities = ("info", "low", "moderate", "high", "critical")
+    if any(
+        not isinstance(counts.get(severity), int) or counts[severity] < 0
+        for severity in severities
+    ):
+        return False
+    total = counts.get("total")
+    return isinstance(total, int) and total == sum(counts[item] for item in severities)
+
+
+def _audit_command_valid(exit_code: int, payload: dict[str, Any]) -> bool:
+    if not _audit_payload_valid(payload):
+        return False
+    expected_exit_code = 0 if _audit_counts(payload)["total"] == 0 else 1
+    return exit_code == expected_exit_code
+
+
 def _security_findings(payload: dict[str, Any]) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     vulnerabilities = payload.get("vulnerabilities", {})
@@ -300,6 +329,8 @@ def evaluate_dependency_security(
     *,
     production_audit: dict[str, Any],
     complete_audit: dict[str, Any],
+    production_audit_exit_code: int,
+    complete_audit_exit_code: int,
     tree_exit_code: int,
     tree: dict[str, Any],
     sbom: dict[str, Any],
@@ -351,6 +382,14 @@ def evaluate_dependency_security(
             len(production_findings) == production["high"] + production["critical"]
             and len(complete_findings) == complete["high"] + complete["critical"]
         ),
+        "audit_payloads_valid": (
+            _audit_payload_valid(production_audit)
+            and _audit_payload_valid(complete_audit)
+        ),
+        "audit_commands_valid": (
+            _audit_command_valid(production_audit_exit_code, production_audit)
+            and _audit_command_valid(complete_audit_exit_code, complete_audit)
+        ),
         "waiver_manifest_valid": waiver_result["valid"],
         "dependency_tree_valid": tree_exit_code == 0 and not problems,
         "cyclonedx_sbom_generated": sbom_valid,
@@ -378,6 +417,10 @@ def evaluate_dependency_security(
         },
         "production_audit": production,
         "complete_audit": complete,
+        "audit_commands": {
+            "production_exit_code": production_audit_exit_code,
+            "complete_exit_code": complete_audit_exit_code,
+        },
         "production_findings": production_findings,
         "complete_findings": complete_findings,
         "security_waivers": waiver_result,
@@ -441,13 +484,13 @@ def generate_evidence(
     if not npm or not node:
         raise DependencySecurityError("node and npm are required.")
 
-    _, production_audit = _run_json(
+    production_audit_exit, production_audit = _run_json(
         npm,
         ["audit", "--omit=dev", "--json"],
         cwd=repo_root,
         allowed_exit_codes={0, 1},
     )
-    _, complete_audit = _run_json(
+    complete_audit_exit, complete_audit = _run_json(
         npm,
         ["audit", "--json"],
         cwd=repo_root,
@@ -483,6 +526,8 @@ def generate_evidence(
     report = evaluate_dependency_security(
         production_audit=production_audit,
         complete_audit=complete_audit,
+        production_audit_exit_code=production_audit_exit,
+        complete_audit_exit_code=complete_audit_exit,
         tree_exit_code=tree_exit,
         tree=tree,
         sbom=sbom,

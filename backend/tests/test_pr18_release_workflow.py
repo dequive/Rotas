@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -23,7 +24,11 @@ def test_pr18_release_workflow_is_sha_bound_and_fail_closed():
     assert "^infra/release/waivers/" in content
     assert '--waiver-manifest "../$WAIVER_MANIFEST_PATH"' in content
     assert "if: always()" in content
-    assert "actions/upload-artifact@v4" in content
+    upload_artifact_refs = re.findall(
+        r"uses:\s+actions/upload-artifact@([^\s#]+)", content
+    )
+    assert upload_artifact_refs
+    assert all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in upload_artifact_refs)
     assert "continue-on-error" not in content
     assert "npm audit fix --force" not in content
 

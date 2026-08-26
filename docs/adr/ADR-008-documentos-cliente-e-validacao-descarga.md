@@ -19,6 +19,10 @@ Na descarga, o cliente pode:
 
 O ROTAS nao emite o Load Permit no MVP. O ROTAS rastreia, valida e liga o documento ao fluxo operacional e financeiro.
 
+A apresentação e as permissões desse documento na PWA Driver seguem a
+`ADR-012`: nome principal “Autorização de carregamento”, origem no cliente/dono
+da carga e apenas consulta ou pedido em falta pelo motorista.
+
 Para descarga, o MVP usa validacao manual pelo gestor:
 
 1. Motorista submete prova de descarga.

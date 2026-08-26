@@ -247,7 +247,9 @@ staging e Android no mesmo SHA permanecem bloqueantes.
 - detalhe, histórico e documentos;
 - pedidos de documento sem emissão pelo motorista;
 - viagem fechada somente leitura;
-- cache offline e sync reconciliado.
+- cache offline e sync reconciliado;
+- diário imutável de checklist, combustível, despesas e despacho de viagem;
+- navegação canónica Hoje/Viagens/Registos/Mais conforme a `ADR-012`.
 
 Estado em 2026-08-23: **em progresso**. `5286fe1` fechou o primeiro slice da
 fronteira de persona na PWA: removeu criação de viagem, seleção de frota,
@@ -300,8 +302,163 @@ No HEAD de produto `e0078c6`, a base efémera migrou até `rec14` e a regressão
 backend passou `980/980`; Ruff, Pyright e OpenAPI ficaram verdes. Manager passou
 `128/128`, typecheck, contratos/BFF e build de 74 páginas; Driver passou
 `38/38`, typecheck, build PWA e Playwright `6/6`. A base operacional permaneceu
-intocada. Permanece Android físico contra esse backend/artefacto; CI, revisão,
-staging e RC ainda não existem.
+intocada.
+
+Em 2026-08-24, a jornada foi exercitada exploratoriamente num Redmi físico
+contra os processos locais e confirmou autenticação, viagem atribuída,
+documentação completa e fronteira negativa de emissão. A prova ocorreu sobre
+working tree com alterações não consolidadas e, portanto, **não fecha o gate
+Android nem promove C2**.
+
+A revisão de domínio e UX identificou o próximo bloqueio C2: a PWA ainda não
+possui o diário operacional imutável nem a arquitetura de informação definida
+na `ADR-012`. Checklist concluída já bloqueia edição no backend, mas não possui
+contrato Driver de histórico; abastecimentos ainda aceitam atualização
+destrutiva de factos via Sync; custos não possuem leitura Driver pública nem
+ator Driver completo; despacho/allowance não possui contrato Driver próprio.
+Permanece obrigatória esta ordem:
+
+1. contratos e máquina append-only, com testes RED de mutação destrutiva;
+2. DTOs Driver paginados, ownership e cache por identidade;
+3. primitives/tokens canónicos e navegação Hoje/Viagens/Registos/Mais;
+4. histórico e detalhe de checklist, combustível, despesas e despacho;
+5. regressão integral, Playwright e Android físico no mesmo SHA/artefacto.
+
+O primeiro incremento da etapa 1 ficou **verde local em working tree** em
+2026-08-24: `fuel_log` deixou de aceitar update no Driver/Sync, o mutator e o
+schema de patch foram removidos e testes com token Driver real provam que nem o
+próprio motorista reescreve litros, custo ou posto. A partição Driver/Sync
+passou `66/66`; a base descartável `template0 -> rec14` passou `983/983`; Ruff
+`app tests` e Pyright `0/0/0` ficaram verdes. Ainda faltam o modelo de
+ajuste/estorno e os contratos Driver paginados; C2 continua aberto.
+
+O segundo incremento aplicou o `widen` do vínculo à viagem. A migration `rec15`
+adiciona `trip_id` nullable, FK composta `(tenant_id, trip_id)` e índice a
+`checklists` e `fuel_logs`; schemas e
+serializers propagam o campo e o Sync valida que o `tripId` pertence ao mesmo
+tenant, motorista e viagem ativa. Testes RED mostraram que a identidade era
+descartada; GREEN prova persistência e rejeição de viagem de outro motorista.
+Históricos antigos continuam nulos: não foi usado emparelhamento heurístico por
+veículo/hora. Em base descartável `template0 -> rec15`, a partição
+Driver/Sync/OpenAPI/checklist/fuel passou `85/85` e a regressão integral
+`987/987`; dois RED adicionais provaram e fecharam criação cross-tenant tanto
+no service como na constraint física. Ruff,
+Pyright, OpenAPI/cliente e Manager typecheck ficaram verdes. Falta a fase
+`migrate` com política explícita e os DTOs de leitura antes de qualquer `narrow`.
+
+O terceiro incremento publicou DTOs próprios e paginação `1..100` em quatro
+coleções Driver: checklist, combustível, despesas pagas pelo motorista e
+despachos emitidos em `DriverAdvance`. Todas aceitam `trip_id` opcional e
+revalidam `(tenant_id, driver_id, trip_id)`; token Manager recebe `403`, viagem
+de outro motorista recebe `404` e páginas acima do limite recebem `422`.
+Serializers não expõem tenant, outro motorista, respostas brutas, preço interno,
+reconciliação, referências internas, notas de gestor ou UUID de comprovativo sem
+download ownership-scoped. OpenAPI/Driver passou `58/58`; regressão descartável
+`template0 -> rec15` passou `1003/1003`; Ruff, Pyright `0/0/0`, OpenAPI
+`00305475b9625a65ad53d0f8162e63ba0e738c4f35269e242be7254b39690f0c`,
+cliente gerado e Manager typecheck ficaram verdes. Working tree não é RC.
+
+O quarto incremento fechou localmente a máquina de despesas. `rec16` guarda
+`driver_id`, `driver_visibility`, `recorded_by_type`, `entry_type`,
+`corrects_id` e motivo; o backfill usa a atribuição da viagem e classifica ator
+Driver apenas quando `source_type=driver_app` e `source_id=trip.driver_id`.
+Custos pagos pelo motorista ficam visíveis; os restantes ficam ocultos. A base
+rejeita `UPDATE/DELETE`, ajuste e estorno são novos movimentos assinados com
+lock, idempotência, auditoria e reconciliação. A partição integrada passou
+`81/81`; `template0 -> rec16` e regressão integral passaram `1009/1009`; Ruff,
+Pyright `0/0/0`, OpenAPI/cliente `be1f22e87fdaae8925d0a03afaa6f013d124235a1e07bb8c4be60a1340e2049d`
+e Manager `128/128`, contratos `208/158/0` e build 74 páginas ficaram verdes.
+
+O quinto incremento publicou o consumidor PWA das quatro coleções. O diário usa
+cache Dexie segregado por tenant, motorista e sessão, apresenta ajuste/estorno
+sem códigos internos e possui estados loading, vazio, 403, erro, snapshot
+degradado e somente leitura. A navegação passou a
+Hoje/Viagens/Registos/Mais; histórico permanece dentro de Viagens. O artefacto
+offline deixou de depender de Google Fonts. Driver passou `55/55`, typecheck,
+build `1805/93/6` e Playwright mobile `7/7`, incluindo recovery offline do
+diário. Isto é verde local em working tree, sem promoção.
+
+O próximo incremento é exclusivamente a repetição da jornada no Android físico
+contra um SHA/artefacto fixado. Nenhum `narrow` de checklist/combustível está
+autorizado.
+
+A primeira passagem deste artefacto pelo Redmi confirmou atualização do service
+worker, navegação canónica e tradução do estado da carga. Também revelou
+`network_error` exposto no painel e preflight `400` para o origin real
+`http://localhost:4174`. O frontend passou a ocultar detalhes técnicos, corrigiu
+linguagem/contagens e mantém refresh do painel; a allowlist development inclui
+4174 sem alterar a regra production HTTPS. CORS isolado `5/5`, Ruff focado,
+Driver `55/55`, build e Playwright `7/7` ficaram verdes. O dispositivo desligou
+antes da repetição pós-correção, logo Android permanece pendente.
+
+Em 2026-08-25, a repetição física pós-CORS confirmou quatro respostas backend
+`401`, em vez de falha de rede, e ausência de `network_error`/`loaded_empty` na
+UI. A sessão instalada era legada: access token expirado em 2026-08-21 e nenhum
+refresh token, portanto o bloqueio é novo pairing, não CORS. Teste RED/GREEN
+adicionou `Voltar a emparelhar`; revisão posterior bloqueou purge imediato e
+exige a confirmação explícita `Limpar e emparelhar` antes da limpeza fail-closed.
+Driver passou `56/56`, typecheck, build `1805/93/6` e Playwright `7/7`; o Redmi
+mostrou a primeira ação no bundle intermédio.
+
+Com autorização explícita do utilizador, o segundo passo removeu os três
+registos QA e a identidade legada. Access/refresh/tenant/driver/session ficaram
+ausentes e todos os stores operacionais/Workbox foram contados a zero. A revisão
+de UI seguinte reproduziu `position: sticky` e shell limitado a 390 px. RED/GREEN
+fixou a barra ao fundo do viewport, safe areas, `100dvh`, scroll invariável e
+largura integral em 390/412 px. O pairing passou a aceitar exatamente os seis
+dígitos numéricos emitidos pelo backend, informa validade de 15 minutos e não
+expõe `invalid_pairing_code`. Driver `60/60`, build `1806/93/6` e Playwright
+`7/7` ficaram verdes. Em 2026-08-25 o bundle foi carregado e a ativação autónoma
+foi inspecionada no Redmi. A PWA instalada usa origem `4173`, distinta do Chrome
+`4174`, e reteve cliente/precache antigo; a saída real eliminou a identidade e
+provou 18 stores `RotasMotoristaDB` e Workbox a zero. O bundle atual só assumiu
+após ativar o worker em espera, remover o precache antigo e executar navegação
+real. RED/GREEN preserva agora o worker em espera antes do mount e publica
+`Atualizar aplicação` mesmo sem sessão. Isto mantém C2 aberto: falta provar a
+transição física entre dois bundles, fazer novo pairing e repetir a jornada
+online/degradada no mesmo SHA/artefacto.
+
+O slice de origem/atualização eliminou a separação corrente entre 4173/4174:
+`http://localhost:4173` é agora a única origem instalável, de preview e E2E;
+`4174` é rejeitada por CORS e `5174` é exclusivamente desenvolvimento. O bind
+interno usa `0.0.0.0` para o reverse ADB IPv4, mas nenhum consumidor navega
+nesse endereço.
+Preview e build usam porta/configuração explícita e `configLoader native`; existe uma única configuração
+Vite e um único manifesto gerado. Em instalação já controlada, o worker procura
+update antes do render, ativa a versão em espera e recarrega após `controlling`;
+em primeira instalação, o render não espera o registo. RED/GREEN e trace
+fecharam a regressão de bootstrap/CORS. A primeira tentativa física revelou
+que bind `localhost` escutava apenas em `::1` e o reverse ADB não conseguia
+buscar `sw.js`; RED/GREEN fixou bind IPv4 sem alterar a origem consumidora.
+O Redmi manteve somente os reverses 4173/8000, migrou o WebAPK autónomo de
+`index-tVgRH7eW.js` para `index-GP13naLz.js` e provou uma atualização seguinte
+a partir do lifecycle novo. A ativação limpa bundles hashed runtime que já não
+pertencem ao precache; `static-assets` reteve apenas o CSS atual. Um único alvo
+standalone 4173 ficou ativo, controlado e sem worker waiting/installing. Driver
+`67/67`, typecheck, build `1806/94/6`, E2E `7/7` e CORS descartável `5/5` estão
+verdes localmente. Pairing e jornada online/degradada no mesmo SHA/artefacto
+permanecem pendentes; isto não promove C2.
+
+Uma nova passagem física, ainda no working tree baseado em `b00962e`, emitiu
+pairing administrativo real para o único motorista da base piloto e recebeu
+`200` no WebAPK, sem expor código, tokens ou device id. O Redmi apresentou
+Joao Manuel, histórico atribuído `Maputo -> Beira` entregue e detalhe fechado
+somente leitura com documentação completa, incluindo Load Permit, manifesto e
+guia de transporte. Rede degradada, emulada apenas no alvo, mostrou
+`navigator.onLine=false`, aviso operacional e preservou o detalhe/documentos;
+a restauração confirmou `navigator.onLine=true`. A continuação retirou ambos os
+reverses e comprovou as portas 4173/8000 recusadas no Redmi; após `force-stop`,
+o WebAPK arrancou pelo Service Worker, preservou a sessão e navegou por lista e
+detalhe do Dexie, com avisos explícitos de dados guardados/somente leitura.
+Restaurados os dois reverses, viagens e documentos responderam `200`, os avisos
+stale desapareceram e a sessão continuou válida. Depois da expiração natural
+do access token, abrir Viagens produziu duas leituras `401`, refresh `200` e
+repetições `200`; access e refresh mudaram sem exposição dos valores, a sessão
+permaneceu emparelhada e a viagem continuou visível. O percurso funcional C2
+está fisicamente provado no working tree. Persiste a repetição num
+SHA/artefacto fixo. C2 continua aberto.
+
+CI, revisão, staging e RC ainda não existem.
 
 ### C3 — Contratos e gates
 

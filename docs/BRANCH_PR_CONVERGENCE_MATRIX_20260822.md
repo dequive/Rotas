@@ -96,7 +96,69 @@ E0 e só começa depois de C0-C4 e Cliente/Terceiro.
    identidade e ampliaram Playwright para `4/4`; `1513913` fechou pedido,
    download e erro recuperável em `6/6`. `e0078c6` repetiu backend `980/980`,
    Manager `128/128`/build e Driver `38/38`/build/E2E `6/6` no mesmo HEAD de
-   produto. Permanece Android físico contra esse artefacto.
+   produto. A execução exploratória de 2026-08-24 num Redmi confirmou a jornada
+   principal, mas ocorreu sobre working tree sem SHA e não fecha o gate. A
+   `ADR-012` acrescenta ao mesmo C2, antes da certificação Android, o diário
+   imutável de checklist/combustível/despesas/despacho, contratos Driver de
+   leitura e a navegação Hoje/Viagens/Registos/Mais. O primeiro slice da
+   ADR-012 removeu localmente o update de combustível no Driver/Sync e passou
+   `66/66` focados. `rec15` fez o widen nullable de `trip_id` para checklist e
+   combustível, com ownership, FK composta e sem backfill heurístico;
+   Driver/Sync/OpenAPI/checklist/fuel `85/85`, backend `987/987`, Ruff, Pyright,
+   OpenAPI/cliente e Manager typecheck ficaram verdes. O slice seguinte publicou
+   as quatro coleções Driver paginadas e ownership-scoped; despesas mostram
+   apenas movimentos pagos pelo motorista e despacho usa `DriverAdvance`, sem
+   notas/IDs internos. Driver/OpenAPI `58/58`, backend `1003/1003`, Ruff,
+   Pyright, OpenAPI `003054...90f0c`, cliente e Manager typecheck ficaram verdes.
+   O slice `rec16` fechou localmente ator/visibilidade e correção de despesas:
+   snapshot do motorista, backfill determinístico, trigger append-only, ajuste/
+   estorno com lock, idempotência, auditoria e DTOs tipados. Partição `81/81`,
+   backend `1009/1009`, Ruff/Pyright, OpenAPI `be1f22...2049d`, Manager
+   `128/128`, auditor `208/158/0` e build 74 páginas verdes. O slice PWA seguinte
+   publicou cliente/cache segregado, Hoje/Viagens/Registos/Mais e estados
+   operacionais completos; Driver `55/55`, build `1805/93/6` e Playwright
+   mobile `7/7` ficaram verdes. Sem SHA/PR não há promoção; Android físico no
+   mesmo artefacto continua em C2. A passagem física parcial encontrou e fechou
+   localmente exposição de `network_error` e CORS ausente para o preview 4174;
+   CORS `5/5`, Ruff, Driver `55/55`, build e E2E `7/7` verdes. O Redmi desligou
+   antes da repetição pós-correção, portanto o gate físico não foi promovido.
+   A segunda passagem, em 2026-08-25, confirmou o CORS e quatro `401` reais:
+   a instalação tinha token expirado e nenhum refresh token. A PWA passou a
+   oferecer recovery explícito com confirmação antes do purge fail-closed;
+   Driver `56/56`, typecheck, build e E2E `7/7` verdes. O Redmi confirmou a
+   primeira ação no bundle intermédio. Com autorização, purge físico deixou
+   identidade ausente e stores/Workbox a zero. O slice seguinte fixou barra ao
+   viewport, safe areas/largura 390–412 e pairing numérico de seis dígitos;
+   Driver `60/60`, build e E2E `7/7`. O bundle novo foi carregado e inspecionado
+   na PWA autónoma. A origem instalada `4173` reteve cliente/precache antigo;
+   após saída real, 18 stores e Workbox ficaram a zero, mas a atualização exigiu
+   ativação/limpeza/navegação manual. RED/GREEN preserva o evento pré-mount e
+   mostra `Atualizar aplicação` sem sessão. Prova física de dois bundles, pairing
+   e jornada online/degradada continuam pendentes; sem promoção de C2.
+   O slice seguinte unificou a origem instalável/preview/E2E em
+   `http://localhost:4173`, retirou `4174` do CORS, reservou `5174` para dev,
+   fixou `strictPort`/loader Vite nativo em preview/build e removeu config/manifesto duplicados.
+   O lifecycle atualiza antes do render apenas quando a PWA já tem controlador;
+   primeira instalação não bloqueia o bootstrap. A prova Redmi corrigiu bind
+   IPv6-only para `0.0.0.0` técnico, preservando `localhost:4173` como origem,
+   e manteve somente reverses 4173/8000. O WebAPK autónomo migrou de
+   `index-tVgRH7eW.js` para `index-GP13naLz.js`; uma segunda ativação a partir
+   do lifecycle novo removeu o JS antigo de `static-assets`. Ficou um alvo
+   standalone, worker ativo/controlador e sem waiting/installing. Driver
+   `67/67`, build `1806/94/6`, E2E `7/7` e CORS `5/5` verdes localmente.
+   Pairing e jornada online/degradada no mesmo SHA continuam pendentes; C2 não
+   foi promovido. A passagem física seguinte consumiu pairing real com
+   `HTTP 200`, carregou o histórico entregue `Maputo -> Beira` e confirmou o
+   detalhe fechado com Load Permit, manifesto e guia, sem ações mutáveis.
+   Emulação offline limitada ao WebAPK preservou detalhe/documentos e mostrou
+   o aviso operacional; a rede foi restaurada. A continuação removeu os dois
+   reverses, confirmou 4173/8000 inacessíveis e reabriu o WebAPK por Service
+   Worker. Sessão, lista e detalhe vieram do cache/Dexie com indicação stale e
+   somente leitura; após restaurar os túneis, viagens/documentos responderam
+   `200` e os avisos desapareceram. Após expiração natural do access, abrir
+   Viagens produziu `401 -> refresh 200 -> retry 200`; access/refresh rodaram e
+   sessão/viagem permaneceram válidas. O percurso físico funcional está verde
+   no working tree baseado em `b00962e`; falta repeti-lo no artefacto fixo.
 4. **C3:** portar #35/#40, fechar Pyright/OpenAPI e recuperar CI executável.
    A causa remota verificada do `startup_failure` inclui a política
    `sha_pinning_required=true` combinada com quatro Actions referidas por tags;
@@ -113,7 +175,7 @@ autoriza encerrar PRs antes da paridade, nem apagar branches/worktrees.
 |---|---|---|---|
 | decisão e freeze C0 | TL + PO | nenhuma | matriz versionada, PR #44 sem merge |
 | Driver/Sync C1 | BE + SEC + QA | C0 | testes negativos com JWT Driver real e base de dados |
-| jornadas Driver C2 | FE-D + BE + PO | C1 | unit/integration/E2E + Android físico |
+| jornadas Driver C2 | FE-D + BE + PO | C1 | ADR-012; contratos append-only; unit/integration/E2E + Android físico no mesmo SHA |
 | contratos/CI C3 | TL + BE + FE + QA | C2 | Pyright, OpenAPI, builds, Actions por SHA e CI com passos executados |
 | certificação C4 | SRE + SEC + QA + PO | C3 | mesmo SHA/RepoDigest em staging, observabilidade, dispositivo e piloto |
 

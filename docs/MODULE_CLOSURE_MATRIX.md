@@ -1,7 +1,7 @@
 # ROTAS Module Closure Matrix
 
 Estado: activo
-Data: 2026-08-23
+Data: 2026-08-25
 
 ## Override de auditoria — Issue #42
 
@@ -11,10 +11,10 @@ até nova auditoria no SHA integrado. Ver
 
 | Área | Estado vinculativo | Razão bloqueante |
 | --- | --- | --- |
-| Frota e Pessoas | avançado local; não fechado | pairing e ownership Driver verdes localmente; faltam RC, revisão e Android |
-| Transporte e Carga | C2 integrado local; não fechado | listas, requisitos, pedidos, download, checklist Manager canónica, terminal read-only, recovery e E2E verdes no mesmo HEAD; falta Android/RC |
-| Sync/Offline | avançado local; não fechado | ownership, idempotência e recovery de leituras por identidade verdes localmente; faltam staging/Android no RC |
-| Contratos API Driver | avançado local; não fechado | DTOs/OpenAPI e consumidor PWA alinhados para listas, histórico, documentos, pedidos, download e cache; faltam CI/RC |
+| Frota e Pessoas | avançado local; não fechado | pairing e ownership Driver verdes localmente; validação Android foi exploratória e sem SHA; faltam RC e revisão |
+| Transporte e Carga | C2 em progresso; não fechado | pairing, histórico e detalhe fechado com documentos foram provados no Redmi; faltam repetição no artefacto fixo e RC |
+| Sync/Offline | avançado local; não fechado | atualização, pairing, cold start, navegação Dexie, reconciliação e refresh rotation foram provados no Redmi; falta repetição no mesmo SHA |
+| Contratos API Driver | avançado local; não fechado | rec16, DTOs, consumidor PWA e correção Manager estão alinhados localmente; faltam CI, revisão e RC |
 | Segurança multi-tenant | avançado local; não certificado | ownership intra-tenant provado localmente; falta RLS restrita e pentest no RC |
 | ERP financeiro/inventário | parcial | fontes duplicadas, limiar de stock fixo e fecho ponta a ponta não certificado |
 | SaaS comercial | parcial | planos públicos, pagamento/subscrição, branding e operação comercial pendentes |
@@ -46,8 +46,8 @@ licenciável nem fechada; `tms/oficina` continuam bundles legados até E0.
 | Módulo de negócio | Inclui | Estado | Lacunas para fechamento |
 | --- | --- | --- | --- |
 | Centro de Comando | control_tower, alerts, operational_exceptions | avançado local; não fechado | configuração de filas por tenant, escalonamento, QA visual e RC |
-| Frota e Pessoas | vehicles, drivers, availability | avançado local; não fechado | pairing/ownership verdes localmente; faltam revisão, RC e Android |
-| Transporte e Carga | trip_orders, trips, checklists, cargo, operations | C2 integrado local; não fechado | falta Android físico e certificação RC |
+| Frota e Pessoas | vehicles, drivers, availability | avançado local; não fechado | pairing/ownership e pairing físico estão verdes; faltam revisão, SHA fixo e RC |
+| Transporte e Carga | trip_orders, trips, checklists, cargo, operations | C2 integrado local; não fechado | Android físico parcial; faltam degradado completo e certificação RC |
 | Custos e Margem | trip costs, custos de oficina, reconciliação e margem | parcial | separar estimado/realizado, certificar fontes e reconciliar receita sem ownership de billing |
 | Combustível | fuel | parcial | fechar API/movimentos, contagens, desvios, segregação, reconciliação e jornada E2E |
 | Oficina e Manutenção | workshop | avançado local; não fechado | provar lifecycle integral, stock/custos/billing reconciliados, board, exceções e gates enterprise no mesmo RC |
@@ -83,7 +83,7 @@ observabilidade, Android físico, pentest e evidência no mesmo RC.
 | files | operacional MVP | storage adapter R2 |
 | checklists | avancado | politicas adicionais e visual hardening |
 | trip_orders | fechado MVP | evolucoes enterprise futuras |
-| trips | C2 integrado local | criação proibida, listas, detalhe, download, UI, cache tenant+driver+session-scoped e E2E verdes; falta Android/RC |
+| trips | C2 integrado local | criação proibida, listas, detalhe, documentos, diário, cache por identidade, origem/update físico e E2E 7/7 verdes; falta jornada Android completa/RC |
 | cargo | C2 avançado local / não fechado | emissão de gestor, pedido Driver, checklist canónica e bloqueio após fecho reconciliados localmente; falta prova integrada/RC |
 | billing | avancado | reconciliacao final e politicas adicionais |
 | fuel | operacional MVP | politicas adicionais |

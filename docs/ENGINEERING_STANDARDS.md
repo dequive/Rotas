@@ -156,12 +156,48 @@ canonicas vivem em `.github/ISSUE_TEMPLATE/task.yml` e
 - UX deve funcionar em Android barato, ecras pequenos e rede instavel.
 - Skeletons, lazy loading e movimento devem ser testados num perfil de dispositivo de
   baixo desempenho. O feedback offline/sync tem prioridade sobre animacao decorativa.
+- A navegacao principal segue `Hoje`, `Viagens`, `Registos` e `Mais`; o detalhe
+  da viagem separa `Resumo`, `Documentos`, `Registos` e `Ocorrencias`.
+- Checklist, combustivel, despesas e despacho de viagem devem ter historico
+  Driver paginado, ownership-scoped e disponivel offline por identidade.
+- Despesas Driver publicas incluem apenas factos pagos pelo motorista; custos
+  internos da empresa, margem, reconciliacao e referencias contabilisticas nao
+  atravessam o contrato. Despacho monetario le o agregado `DriverAdvance`.
+- UUID de comprovativo so pode ser publicado juntamente com download dedicado
+  que volte a provar tenant, motorista, viagem e registo; ate la expor apenas a
+  existencia da evidencia, nunca o identificador bruto.
+- Factos operacionais submetidos sao append-only. Correcao, rejeicao, ajuste ou
+  estorno cria evento referenciado e auditado; nao reescreve o original.
+- Depois de `delivered`, `closed` ou `cancelled`, o diario operacional e somente
+  leitura. Tarefas administrativas do gestor nunca aparecem como accoes Driver.
+- A origem local instalavel, de preview e E2E do Driver e exclusivamente
+  `http://localhost:4173`. A porta `5174` e somente desenvolvimento e nunca deve
+  ser instalada; `4174` e `127.0.0.1:4173` nao sao origens consumidoras.
+- O preview faz bind tecnico em `0.0.0.0` para que `adb reverse` alcance o
+  servidor IPv4; isto nao autoriza navegar por IP nem acrescentar esse endereco
+  ao CORS. Em Android fisico, manter apenas reverses 4173 e 8000.
+- Preview deve usar porta estrita, sem fallback automatico. Configuracao Vite e
+  manifesto PWA possuem uma unica fonte versionada; nao manter copias `.mjs` ou
+  manifestos estaticos concorrentes.
+- Preview e build devem carregar `vite.config.ts` com `configLoader native`;
+  isto evita compilacao transitória da configuracao e travessia indevida da raiz
+  em workspaces Windows/OneDrive.
+- Uma PWA ja controlada verifica update antes do primeiro render, envia
+  `SKIP_WAITING` a versao em espera e recarrega apenas depois de `controlling`.
+  Primeira instalacao nao bloqueia o render. Regressar ao foreground ou recuperar
+  rede dispara nova verificacao; cold start offline preserva o cache certificado.
+- Na ativacao, remover de `static-assets` somente bundles content-hashed que nao
+  pertencem ao precache atual. Nunca eliminar fotos, dados offline, URLs de API
+  ou recursos sem hash por esta rotina.
 
 ## Dominio de Carga e Cobranca
 
 - Contrato de prestacao de servicos e entidade de primeira classe.
 - O MVP usa viagem primeiro com contrato opcional como fluxo principal, preservando suporte a contrato primeiro para clientes maduros.
 - Load Permit/Autorizacao de Carregamento e documento emitido pelo cliente, nao pelo transportador; o ROTAS rastreia e valida o registo.
+- Na PWA, usar `Autorizacao de carregamento` como nome principal, identificar o
+  cliente/dono da carga como emissor e permitir ao Driver apenas consulta ou
+  pedido em falta.
 - Manifesto de Carga e obrigatorio quando o transportador emite documento para produtos manufaturados.
 - Documento de descarga/prova de entrega valida a cobranca apenas apos validacao do gestor no MVP.
 - Para cliente empresa, prova preferencial e guia carimbada/assinada ou documento de descarga emitido pelo cliente.
@@ -187,6 +223,25 @@ canonicas vivem em `.github/ISSUE_TEMPLATE/task.yml` e
 - Divergencia entre stock fisico e teorico acima da tolerancia deve gerar exception.
 - Todo ajuste de stock deve exigir permissao, motivo e auditoria.
 - Quem regista abastecimento nao deve aprovar ajuste de stock.
+- Litros, custo, posto, odometro, metodo de pagamento e evidencias de um
+  abastecimento submetido nao podem ser alterados no mesmo registo. Ajustes e
+  estornos sao novos movimentos ligados ao original.
+- Verificacao do gestor e um evento separado do facto capturado pelo motorista;
+  ambos permanecem visiveis no historico auditavel.
+
+## Despesas e despacho de viagem
+
+- Despesa de viagem e um lancamento append-only com viagem, motorista,
+  categoria, valor, moeda, instante, comprovativo e origem.
+- O motorista pode registar despesas apenas na viagem que lhe foi atribuida e
+  no estado permitido pela politica; aprovacao, rejeicao e ajuste pertencem aos
+  papeis administrativos configurados.
+- `Despacho de viagem` designa o allowance entregue ao motorista. E emitido por
+  gestor, sistema ou tesouraria; o motorista apenas consulta e acusa rececao.
+- `Autorizacao de saida` designa o gate operacional para iniciar a viagem e nao
+  pode ser usada como sinonimo de despacho monetario.
+- Correcao ou anulacao de despesa/despacho cria ajuste ou estorno referenciado,
+  preservando o lancamento original e o ator.
 
 ## Dominio de Oficina, Pecas e Ferramentas
 

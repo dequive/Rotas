@@ -11,6 +11,7 @@ from app.modules.audit.models import AuditLog
 from app.modules.drivers.models import Driver
 from app.modules.fuel.models import FuelLog
 from app.modules.tenants.models import Tenant
+from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
 
 import_all_models()
@@ -84,6 +85,43 @@ def fuel_payload(vehicle_id, driver_id, *, fuel_date: str, km: int, liters: floa
         "payment_method": "mpesa",
         "payment_reference": f"MP-{uuid4().hex[:8]}",
     }
+
+
+@pytest.mark.asyncio
+async def test_fuel_log_rejects_trip_from_another_tenant() -> None:
+    tenant, vehicle, driver = await seed_fuel_entities()
+    foreign_tenant, foreign_vehicle, foreign_driver = await seed_fuel_entities()
+    async with AsyncSessionLocal() as db:
+        foreign_trip = Trip(
+            tenant_id=foreign_tenant.id,
+            vehicle_id=foreign_vehicle.id,
+            driver_id=foreign_driver.id,
+            origin="Beira",
+            destination="Tete",
+            status="in_progress",
+        )
+        db.add(foreign_trip)
+        await db.commit()
+        foreign_trip_id = foreign_trip.id
+
+    payload = fuel_payload(
+        vehicle.id,
+        driver.id,
+        fuel_date="2026-08-01T08:00:00+00:00",
+        km=1000,
+        liters=30,
+        cost=3000,
+    )
+    payload["trip_id"] = str(foreign_trip_id)
+    async with await create_api_client() as client:
+        response = await client.post(
+            "/api/v1/fuel",
+            headers=auth_headers(tenant.id),
+            json=payload,
+        )
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "trip_not_found"
 
 
 @pytest.mark.asyncio

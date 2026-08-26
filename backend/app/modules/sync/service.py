@@ -25,7 +25,6 @@ from app.modules.checklists import service as checklist_service
 from app.modules.checklists.models import Checklist
 from app.modules.fuel import schemas as fuel_schemas
 from app.modules.fuel import service as fuel_service
-from app.modules.fuel.models import FuelLog
 from app.modules.sync.models import IdempotencyKey, SyncEvent
 from app.modules.sync.schemas import SyncBatchRequest, SyncOperation
 from app.modules.trips import schemas as trip_schemas
@@ -42,7 +41,7 @@ DRIVER_SYNC_POLICY: dict[str, frozenset[str]] = {
             "trip_cost",
         }
     ),
-    "update": frozenset({"checklist", "fuel_log", "trip_stop", "delivery_proof"}),
+    "update": frozenset({"checklist", "trip_stop", "delivery_proof"}),
 }
 ACTIVE_ASSIGNED_TRIP_STATUSES = frozenset(
     {"planned", "dispatch_pending", "dispatched", "in_progress", "delayed", "incident"}
@@ -142,14 +141,26 @@ async def _authorize_driver_asset_create(
         )
 
     vehicle_id = _payload_uuid(payload, "vehicle_id")
+    requested_trip_value = payload.get("trip_id")
+    requested_trip_id = _payload_uuid(payload, "trip_id")
+    if requested_trip_value is not None and requested_trip_id is None:
+        return _result(
+            operation,
+            status="failed",
+            error_code="driver_trip_forbidden",
+            message="Trip is not assigned to the authenticated driver.",
+        )
+    trip_filters = [
+        Trip.tenant_id == principal.tenant_id,
+        Trip.driver_id == principal.driver_id,
+        Trip.vehicle_id == vehicle_id,
+        Trip.status.in_(ACTIVE_ASSIGNED_TRIP_STATUSES),
+    ]
+    if requested_trip_id is not None:
+        trip_filters.append(Trip.id == requested_trip_id)
     assigned_trip_id = (
         await db.scalar(
-            select(Trip.id).where(
-                Trip.tenant_id == principal.tenant_id,
-                Trip.driver_id == principal.driver_id,
-                Trip.vehicle_id == vehicle_id,
-                Trip.status.in_(ACTIVE_ASSIGNED_TRIP_STATUSES),
-            )
+            select(Trip.id).where(*trip_filters)
         )
         if vehicle_id is not None
         else None
@@ -158,38 +169,16 @@ async def _authorize_driver_asset_create(
         return _result(
             operation,
             status="failed",
-            error_code="driver_vehicle_forbidden",
-            message="Vehicle is not assigned to the authenticated driver.",
-        )
-    return None
-
-
-async def _authorize_driver_fuel_update(
-    db: AsyncSession,
-    principal: DriverPrincipal,
-    operation: SyncOperation,
-) -> dict | None:
-    if operation.operation != "update" or operation.entity_type != "fuel_log":
-        return None
-
-    server_id = _payload_uuid(_normalize_payload(operation.payload), "server_id", "id")
-    owned_record = (
-        await db.scalar(
-            select(FuelLog.id).where(
-                FuelLog.id == server_id,
-                FuelLog.tenant_id == principal.tenant_id,
-                FuelLog.driver_id == principal.driver_id,
-            )
-        )
-        if server_id is not None
-        else None
-    )
-    if owned_record is None:
-        return _result(
-            operation,
-            status="failed",
-            error_code="driver_record_forbidden",
-            message="Record does not belong to the authenticated driver.",
+            error_code=(
+                "driver_trip_forbidden"
+                if requested_trip_id is not None
+                else "driver_vehicle_forbidden"
+            ),
+            message=(
+                "Trip is not assigned to the authenticated driver."
+                if requested_trip_id is not None
+                else "Vehicle is not assigned to the authenticated driver."
+            ),
         )
     return None
 
@@ -450,13 +439,6 @@ async def _dispatch_update(
             updated = await trip_service.patch_trip(db, tenant_id, entity_uuid, patch)
             return _result(operation, status="processed", server_id=updated["id"])
 
-        if entity_type == "fuel_log":
-            patch = fuel_schemas.FuelLogPatch(
-                **{k: v for k, v in payload.items() if k in fuel_schemas.FuelLogPatch.model_fields}
-            )
-            updated = await fuel_service.patch_fuel_log(db, tenant_id, entity_uuid, patch)
-            return _result(operation, status="processed", server_id=updated["id"])
-
         if entity_type == "trip_stop":
             patch = trip_schemas.TripStopPatch(
                 **{k: v for k, v in payload.items() if k in trip_schemas.TripStopPatch.model_fields}
@@ -578,9 +560,6 @@ async def _dispatch_failed_safe(
         if authorization_error is not None:
             return authorization_error
         authorization_error = await _authorize_driver_asset_create(db, principal, operation)
-        if authorization_error is not None:
-            return authorization_error
-        authorization_error = await _authorize_driver_fuel_update(db, principal, operation)
         if authorization_error is not None:
             return authorization_error
         authorization_error = await _authorize_driver_owned_update(db, principal, operation)

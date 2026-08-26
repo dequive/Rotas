@@ -12,6 +12,7 @@ class ChecklistTemplateCreate(BaseModel):
 
 
 class ChecklistCreate(BaseModel):
+    trip_id: UUID | None = None
     vehicle_id: UUID
     driver_id: UUID
     template_id: UUID
@@ -50,6 +51,7 @@ class ChecklistRead(BaseModel):
 
     id: UUID
     tenant_id: UUID
+    trip_id: UUID | None = None
     vehicle_id: UUID
     driver_id: UUID | None = None
     template_id: UUID

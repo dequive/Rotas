@@ -572,36 +572,44 @@ async def _liters_of(tenant_id, fuel_log_id: str) -> float:
         return float(value)
 
 
-async def test_replayed_update_applies_once() -> None:
+async def test_replayed_forbidden_fuel_update_stays_forbidden() -> None:
     ids = await _seed()
     device_id = f"phone-{uuid4().hex[:8]}"
     fuel_log_id = await _create_fuel_log(ids, device_id)
     key = str(uuid4())
 
+    original_liters = await _liters_of(ids["tenant_id"], fuel_log_id)
     first = await _post_batch(ids["tenant_id"], device_id, [_update_operation(fuel_log_id, key, 91.0)])
-    assert first.json()["results"][0]["status"] == "processed", first.text
-    assert await _liters_of(ids["tenant_id"], fuel_log_id) == 91.0
+    assert first.json()["results"][0]["status"] == "failed", first.text
+    assert first.json()["results"][0]["error_code"] == "unsupported_entity_type_for_update"
+    assert await _liters_of(ids["tenant_id"], fuel_log_id) == original_liters
 
     replay = await _post_batch(ids["tenant_id"], device_id, [_update_operation(fuel_log_id, key, 91.0)])
     assert replay.status_code == 200, replay.text
-    assert await _liters_of(ids["tenant_id"], fuel_log_id) == 91.0
+    assert replay.json()["results"][0]["status"] == "failed"
+    assert replay.json()["results"][0]["error_code"] == "unsupported_entity_type_for_update"
+    assert await _liters_of(ids["tenant_id"], fuel_log_id) == original_liters
 
 
-async def test_corrected_update_under_a_burnt_key_is_refused() -> None:
-    """The driver fixes the litres twice; the second correction must not vanish."""
+async def test_changed_forbidden_fuel_update_under_burnt_key_conflicts() -> None:
+    """A changed replay still conflicts, while the submitted fact stays intact."""
     ids = await _seed()
     device_id = f"phone-{uuid4().hex[:8]}"
     fuel_log_id = await _create_fuel_log(ids, device_id)
     key = str(uuid4())
 
-    await _post_batch(ids["tenant_id"], device_id, [_update_operation(fuel_log_id, key, 91.0)])
+    original_liters = await _liters_of(ids["tenant_id"], fuel_log_id)
+    first = await _post_batch(ids["tenant_id"], device_id, [_update_operation(fuel_log_id, key, 91.0)])
+    assert first.json()["results"][0]["error_code"] == "unsupported_entity_type_for_update"
 
     conflict = await _post_batch(ids["tenant_id"], device_id, [_update_operation(fuel_log_id, key, 99.0)])
     result = conflict.json()["results"][0]
 
     assert result["status"] == "conflict", f"a segunda correccao foi engolida: {result}"
     assert result["error_code"] == "idempotency_key_reused", result
-    assert await _liters_of(ids["tenant_id"], fuel_log_id) == 91.0, "o conflito alterou o registo na mesma"
+    assert await _liters_of(ids["tenant_id"], fuel_log_id) == original_liters, (
+        "o conflito alterou o registo na mesma"
+    )
 
 
 async def test_update_without_server_id_fails_alone() -> None:

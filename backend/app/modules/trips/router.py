@@ -403,7 +403,7 @@ async def associate_contract(
     return res
 
 
-@router.post("/{trip_id}/costs")
+@router.post("/{trip_id}/costs", response_model=schemas.TripCostRead)
 async def create_cost(
     request: Request,
     trip_id: UUID,
@@ -413,6 +413,41 @@ async def create_cost(
 ):
     res = await service.create_cost(
         db, principal.tenant_id, trip_id, payload, actor_id=principal.user_id
+    )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
+
+
+@router.post(
+    "/{trip_id}/costs/{cost_id}/corrections",
+    response_model=schemas.TripCostRead,
+    status_code=201,
+)
+async def correct_cost(
+    request: Request,
+    trip_id: UUID,
+    cost_id: UUID,
+    payload: schemas.TripCostCorrectionCreate,
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+):
+    res = await execute_http_idempotent(
+        db,
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        idempotency_key=idempotency_key,
+        operation="trips.cost.correction.create",
+        entity_type="trip_cost",
+        payload={"trip_id": trip_id, "cost_id": cost_id, **payload.model_dump()},
+        handler=lambda: service.correct_cost(
+            db,
+            principal.tenant_id,
+            trip_id,
+            cost_id,
+            payload,
+            actor_id=principal.user_id,
+        ),
     )
     await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
     return res
@@ -450,7 +485,7 @@ async def record_driver_travel_allowance(
     return res
 
 
-@router.get("/{trip_id}/costs")
+@router.get("/{trip_id}/costs", response_model=list[schemas.TripCostRead])
 async def list_costs(
     trip_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],

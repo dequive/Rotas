@@ -1,17 +1,20 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
 from app.modules.cargo.models import CargoManifest, LoadPermit, TransportDocument
 from app.modules.checklists import service as checklists_service
+from app.modules.checklists.models import Checklist
 from app.modules.driver_app.schemas import DriverDocumentRequestCreate
+from app.modules.drivers.models import DriverAdvance
 from app.modules.files import service as files_service
+from app.modules.fuel.models import FuelLog
 from app.modules.operational_exceptions import service as exceptions_service
 from app.modules.operational_exceptions.models import OperationalException
 from app.modules.trips import service as trips_service
-from app.modules.trips.models import Trip
+from app.modules.trips.models import Trip, TripCost
 
 ACTIVE_DRIVER_TRIP_STATUSES = (
     "planned",
@@ -173,6 +176,283 @@ async def list_driver_trip_history(
         limit=limit,
         offset=offset,
     )
+
+
+def _serialize_driver_checklist_record(record: Checklist) -> dict:
+    return {
+        "id": record.id,
+        "trip_id": record.trip_id,
+        "vehicle_id": record.vehicle_id,
+        "checklist_type": record.type,
+        "status": record.status,
+        "started_at": record.started_at,
+        "completed_at": record.completed_at,
+        "created_at": record.created_at,
+    }
+
+
+async def list_driver_checklist_records(
+    db: AsyncSession,
+    *,
+    tenant_id: UUID,
+    driver_id: UUID,
+    trip_id: UUID | None,
+    limit: int,
+    offset: int,
+) -> dict:
+    if trip_id is not None:
+        await _require_owned_driver_trip(
+            db,
+            tenant_id=tenant_id,
+            driver_id=driver_id,
+            trip_id=trip_id,
+        )
+
+    trip_join = and_(
+        Trip.tenant_id == Checklist.tenant_id,
+        Trip.id == Checklist.trip_id,
+    )
+    ownership_filter = [
+        Checklist.tenant_id == tenant_id,
+        Checklist.driver_id == driver_id,
+        or_(Checklist.trip_id.is_(None), Trip.driver_id == driver_id),
+    ]
+    if trip_id is not None:
+        ownership_filter.append(Checklist.trip_id == trip_id)
+
+    total = await db.scalar(
+        select(func.count(Checklist.id))
+        .select_from(Checklist)
+        .outerjoin(Trip, trip_join)
+        .where(*ownership_filter)
+    )
+    records = (
+        await db.scalars(
+            select(Checklist)
+            .outerjoin(Trip, trip_join)
+            .where(*ownership_filter)
+            .order_by(
+                func.coalesce(
+                    Checklist.completed_at,
+                    Checklist.started_at,
+                    Checklist.created_at,
+                ).desc(),
+                Checklist.id.desc(),
+            )
+            .limit(limit)
+            .offset(offset)
+        )
+    ).all()
+    return {
+        "items": [_serialize_driver_checklist_record(record) for record in records],
+        "total": total or 0,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+def _serialize_driver_fuel_record(record: FuelLog) -> dict:
+    return {
+        "id": record.id,
+        "trip_id": record.trip_id,
+        "vehicle_id": record.vehicle_id,
+        "fuel_date": record.fuel_date,
+        "station_name": record.station_name,
+        "fuel_type": record.fuel_type,
+        "liters": record.liters,
+        "total_cost": record.total_cost,
+        "km_at_refuel": record.km_at_refuel,
+        "has_receipt": record.receipt_file_id is not None,
+        "is_verified": record.is_verified,
+        "is_flagged": record.flagged,
+        "created_at": record.created_at,
+    }
+
+
+async def list_driver_fuel_records(
+    db: AsyncSession,
+    *,
+    tenant_id: UUID,
+    driver_id: UUID,
+    trip_id: UUID | None,
+    limit: int,
+    offset: int,
+) -> dict:
+    if trip_id is not None:
+        await _require_owned_driver_trip(
+            db,
+            tenant_id=tenant_id,
+            driver_id=driver_id,
+            trip_id=trip_id,
+        )
+
+    trip_join = and_(
+        Trip.tenant_id == FuelLog.tenant_id,
+        Trip.id == FuelLog.trip_id,
+    )
+    ownership_filter = [
+        FuelLog.tenant_id == tenant_id,
+        FuelLog.driver_id == driver_id,
+        or_(FuelLog.trip_id.is_(None), Trip.driver_id == driver_id),
+    ]
+    if trip_id is not None:
+        ownership_filter.append(FuelLog.trip_id == trip_id)
+
+    total = await db.scalar(
+        select(func.count(FuelLog.id))
+        .select_from(FuelLog)
+        .outerjoin(Trip, trip_join)
+        .where(*ownership_filter)
+    )
+    records = (
+        await db.scalars(
+            select(FuelLog)
+            .outerjoin(Trip, trip_join)
+            .where(*ownership_filter)
+            .order_by(FuelLog.fuel_date.desc(), FuelLog.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+    ).all()
+    return {
+        "items": [_serialize_driver_fuel_record(record) for record in records],
+        "total": total or 0,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+def _serialize_driver_expense_record(record: TripCost) -> dict:
+    return {
+        "id": record.id,
+        "trip_id": record.trip_id,
+        "expense_type": record.cost_type,
+        "description": record.description,
+        "amount": record.amount,
+        "currency": record.currency,
+        "payment_method": record.payment_method,
+        "has_receipt": record.receipt_file_id is not None,
+        "entry_type": record.entry_type,
+        "corrects_id": record.corrects_id,
+        "correction_reason": record.correction_reason,
+        "recorded_by_type": record.recorded_by_type,
+        "incurred_at": record.incurred_at,
+        "created_at": record.created_at,
+    }
+
+
+async def list_driver_expense_records(
+    db: AsyncSession,
+    *,
+    tenant_id: UUID,
+    driver_id: UUID,
+    trip_id: UUID | None,
+    limit: int,
+    offset: int,
+) -> dict:
+    if trip_id is not None:
+        await _require_owned_driver_trip(
+            db,
+            tenant_id=tenant_id,
+            driver_id=driver_id,
+            trip_id=trip_id,
+        )
+
+    ownership_filter = [
+        TripCost.tenant_id == tenant_id,
+        Trip.tenant_id == tenant_id,
+        Trip.driver_id == driver_id,
+        TripCost.driver_id == driver_id,
+        TripCost.driver_visibility == "visible",
+    ]
+    if trip_id is not None:
+        ownership_filter.append(TripCost.trip_id == trip_id)
+
+    total = await db.scalar(
+        select(func.count(TripCost.id))
+        .select_from(TripCost)
+        .join(Trip, Trip.id == TripCost.trip_id)
+        .where(*ownership_filter)
+    )
+    records = (
+        await db.scalars(
+            select(TripCost)
+            .join(Trip, Trip.id == TripCost.trip_id)
+            .where(*ownership_filter)
+            .order_by(TripCost.incurred_at.desc(), TripCost.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+    ).all()
+    return {
+        "items": [_serialize_driver_expense_record(record) for record in records],
+        "total": total or 0,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+def _serialize_driver_advance_record(record: DriverAdvance) -> dict:
+    return {
+        "id": record.id,
+        "trip_id": record.trip_id,
+        "total_amount": record.amount_mzn,
+        "allowance_amount": record.allowance_mzn,
+        "expense_amount": record.expenses_mzn,
+        "currency": record.currency,
+        "status": record.status,
+        "issued_at": record.issued_at,
+    }
+
+
+async def list_driver_advance_records(
+    db: AsyncSession,
+    *,
+    tenant_id: UUID,
+    driver_id: UUID,
+    trip_id: UUID | None,
+    limit: int,
+    offset: int,
+) -> dict:
+    if trip_id is not None:
+        await _require_owned_driver_trip(
+            db,
+            tenant_id=tenant_id,
+            driver_id=driver_id,
+            trip_id=trip_id,
+        )
+
+    ownership_filter = [
+        DriverAdvance.tenant_id == tenant_id,
+        DriverAdvance.driver_id == driver_id,
+        Trip.tenant_id == tenant_id,
+        Trip.driver_id == driver_id,
+    ]
+    if trip_id is not None:
+        ownership_filter.append(DriverAdvance.trip_id == trip_id)
+
+    total = await db.scalar(
+        select(func.count(DriverAdvance.id))
+        .select_from(DriverAdvance)
+        .join(Trip, Trip.id == DriverAdvance.trip_id)
+        .where(*ownership_filter)
+    )
+    records = (
+        await db.scalars(
+            select(DriverAdvance)
+            .join(Trip, Trip.id == DriverAdvance.trip_id)
+            .where(*ownership_filter)
+            .order_by(DriverAdvance.issued_at.desc(), DriverAdvance.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+    ).all()
+    return {
+        "items": [_serialize_driver_advance_record(record) for record in records],
+        "total": total or 0,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 async def _require_owned_driver_trip(

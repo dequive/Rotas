@@ -1,6 +1,6 @@
 """
-Failing test stubs for AUTH-04: sync update operations for trip, fuel_log, trip_stop,
-and delivery_proof entity types. Also covers client_timestamp schema field and
+Contract tests for AUTH-04 sync updates of trip, checklist, trip_stop and
+delivery_proof. Fuel facts are append-only under ADR-012. Also covers client_timestamp schema field and
 bootstrap supported_operations reporting.
 
 These tests are intentionally RED against the current codebase:
@@ -132,11 +132,8 @@ async def test_sync_update_trip_returns_processed():
     )
 
 
-async def test_sync_update_fuel_log_returns_processed():
-    """AUTH-04: sync update for fuel_log must return processed status.
-
-    Current behavior: _dispatch_update returns "unsupported_entity_type_for_update" — MUST FAIL.
-    """
+async def test_sync_update_fuel_log_is_not_supported():
+    """ADR-012: submitted fuel facts cannot be rewritten through Sync."""
     tenant, vehicle, driver = await create_driver_tenant()
 
     async with await create_api_client() as client:
@@ -172,10 +169,8 @@ async def test_sync_update_fuel_log_returns_processed():
         update_result = await sync_batch(client, tenant.id, [update_op])
         result = update_result["results"][0]
 
-    # WILL FAIL: current code returns "unsupported_entity_type_for_update"
-    assert result["status"] == "processed", (
-        f"Expected 'processed' but got '{result['status']}' with error '{result.get('error_code')}'"
-    )
+    assert result["status"] == "failed"
+    assert result["error_code"] == "unsupported_entity_type_for_update"
 
 
 async def test_sync_update_trip_stop_returns_processed():

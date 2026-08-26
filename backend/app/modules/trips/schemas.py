@@ -1,9 +1,9 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class TripCreate(BaseModel):
@@ -138,6 +138,46 @@ class TripCostCreate(BaseModel):
     receipt_file_id: UUID | None = None
     request_reference: str
     incurred_at: datetime
+
+
+class TripCostCorrectionCreate(BaseModel):
+    correction_type: Literal["adjustment", "reversal"]
+    adjustment_amount: Decimal | None = None
+    reason: str = Field(min_length=3, max_length=500)
+    request_reference: str = Field(min_length=1, max_length=120)
+    incurred_at: datetime
+
+    @model_validator(mode="after")
+    def validate_correction_amount(self) -> Self:
+        if self.correction_type == "adjustment":
+            if self.adjustment_amount is None or self.adjustment_amount == 0:
+                raise ValueError("adjustment_amount must be non-zero for an adjustment")
+        elif self.adjustment_amount is not None:
+            raise ValueError("adjustment_amount is not accepted for a reversal")
+        return self
+
+
+class TripCostRead(BaseModel):
+    id: UUID
+    trip_id: UUID
+    cost_type: str
+    description: str | None = None
+    amount: Decimal
+    currency: str
+    paid_by: str
+    payment_method: str | None = None
+    receipt_file_id: UUID | None = None
+    request_reference: str
+    source_type: str
+    source_id: UUID | None = None
+    entry_type: Literal["original", "adjustment", "reversal"]
+    corrects_id: UUID | None = None
+    correction_reason: str | None = None
+    driver_id: UUID | None = None
+    driver_visibility: Literal["hidden", "visible"]
+    recorded_by_type: Literal["driver", "manager", "system"]
+    incurred_at: datetime
+    created_at: datetime
 
 
 class TripDriverAllowanceRecordRequest(BaseModel):

@@ -12,7 +12,8 @@ from app.core.errors import ApiError
 from app.modules.audit.service import record_audit_log
 from app.modules.drivers.models import Driver
 from app.modules.fuel.models import FuelLog
-from app.modules.fuel.schemas import FuelLogCreate, FuelLogPatch, VerifyFuelLogRequest
+from app.modules.fuel.schemas import FuelLogCreate, VerifyFuelLogRequest
+from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ def serialize_fuel_log(log: FuelLog) -> dict:
     return {
         "id": log.id,
         "tenant_id": log.tenant_id,
+        "trip_id": log.trip_id,
         "vehicle_id": log.vehicle_id,
         "driver_id": log.driver_id,
         "fuel_date": log.fuel_date,
@@ -167,6 +169,18 @@ async def create_fuel_log(
     if not driver or driver.tenant_id != tenant_id or driver.status != "active":
         raise ApiError("driver_not_found", "Driver not found or inactive.", status_code=404)
 
+    if payload.trip_id is not None:
+        trip_id = await db.scalar(
+            select(Trip.id).where(
+                Trip.id == payload.trip_id,
+                Trip.tenant_id == tenant_id,
+                Trip.vehicle_id == payload.vehicle_id,
+                Trip.driver_id == payload.driver_id,
+            )
+        )
+        if trip_id is None:
+            raise ApiError("trip_not_found", "Trip not found for these assets.", status_code=404)
+
     if payload.liters <= 0:
         raise ApiError(
             "invalid_fuel_liters",
@@ -263,7 +277,6 @@ async def create_fuel_log(
     await db.refresh(log)
     return serialize_fuel_log(log)
 
-
 async def get_fuel_stats(
     db: AsyncSession,
     tenant_id: UUID,
@@ -346,20 +359,6 @@ async def verify_fuel_log(
         old_values=old_values,
         new_values=serialize_fuel_log(log),
     )
-    await db.commit()
-    await db.refresh(log)
-    return serialize_fuel_log(log)
-
-
-async def patch_fuel_log(
-    db: AsyncSession,
-    tenant_id: UUID,
-    fuel_log_id: UUID,
-    patch: FuelLogPatch,
-) -> dict:
-    log = await _require_fuel_log(db, tenant_id, fuel_log_id)
-    for field, value in patch.model_dump(exclude_none=True).items():
-        setattr(log, field, value)
     await db.commit()
     await db.refresh(log)
     return serialize_fuel_log(log)

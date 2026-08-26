@@ -1,6 +1,6 @@
 import asyncio
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import func, select
@@ -8,13 +8,13 @@ from sqlalchemy import func, select
 from app.core.tokens import create_access_token
 from app.modules.cargo.models import CargoManifest, DeliveryProof, LoadPermit, TransportDocument
 from app.modules.checklists.models import Checklist, ChecklistTemplate
-from app.modules.drivers.models import Driver, DriverDevice
+from app.modules.drivers.models import Driver, DriverAdvance, DriverDevice
 from app.modules.files import service as files_service
 from app.modules.fuel.models import FuelLog
 from app.modules.operational_exceptions.models import OperationalException
 from app.modules.sync.models import IdempotencyKey, SyncEvent
 from app.modules.tenants.models import Tenant
-from app.modules.trips.models import Trip, TripStop
+from app.modules.trips.models import Trip, TripCost, TripStop
 from app.modules.vehicles.models import Vehicle
 
 
@@ -288,9 +288,16 @@ async def test_driver_history_only_contains_own_closed_or_cancelled_trips(
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "path",
-    ["/api/v1/driver/trips", "/api/v1/driver/trips/history"],
+    [
+        "/api/v1/driver/trips",
+        "/api/v1/driver/trips/history",
+        "/api/v1/driver/records/checklists",
+        "/api/v1/driver/records/fuel",
+        "/api/v1/driver/records/expenses",
+        "/api/v1/driver/records/advances",
+    ],
 )
-async def test_dashboard_token_cannot_list_driver_trips(
+async def test_dashboard_token_cannot_list_driver_resources(
     async_client, viewer_headers, path
 ):
     response = await async_client.get(path, headers=viewer_headers)
@@ -300,15 +307,438 @@ async def test_dashboard_token_cannot_list_driver_trips(
 
 
 @pytest.mark.asyncio
-async def test_driver_trip_list_rejects_unbounded_page_size(
-    async_client, driver_app_context
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/v1/driver/trips",
+        "/api/v1/driver/records/checklists",
+        "/api/v1/driver/records/fuel",
+        "/api/v1/driver/records/expenses",
+        "/api/v1/driver/records/advances",
+    ],
+)
+async def test_driver_lists_reject_unbounded_page_size(
+    async_client, driver_app_context, path
 ):
     response = await async_client.get(
-        "/api/v1/driver/trips?limit=101",
+        f"{path}?limit=101",
         headers=driver_app_context["headers"],
     )
 
     assert response.status_code == 422, response.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/v1/driver/records/checklists",
+        "/api/v1/driver/records/fuel",
+        "/api/v1/driver/records/expenses",
+        "/api/v1/driver/records/advances",
+    ],
+)
+async def test_driver_record_lists_reject_another_drivers_trip_filter(
+    async_client, db, tenant_id, driver_app_context, path
+):
+    foreign_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        origin="Outro",
+        destination="Motorista",
+        status="closed",
+    )
+    db.add(foreign_trip)
+    await db.commit()
+
+    response = await async_client.get(
+        f"{path}?trip_id={foreign_trip.id}",
+        headers=driver_app_context["headers"],
+    )
+
+    assert response.status_code == 404, response.text
+    assert response.json()["error"]["code"] == "driver_trip_not_found"
+
+
+@pytest.mark.asyncio
+async def test_driver_lists_only_own_checklist_records_with_public_contract(
+    async_client, db, tenant_id, driver_app_context
+):
+    own_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="closed",
+    )
+    foreign_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        origin="Maputo",
+        destination="Boane",
+        status="closed",
+    )
+    db.add_all([own_trip, foreign_trip])
+    await db.flush()
+    own_record = Checklist(
+        tenant_id=tenant_id,
+        trip_id=own_trip.id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        template_id=driver_app_context["template"].id,
+        type="pre_partida",
+        status="completed",
+        responses={"oil": True},
+        started_at=datetime(2026, 8, 20, 6, tzinfo=UTC),
+        completed_at=datetime(2026, 8, 20, 6, 5, tzinfo=UTC),
+    )
+    foreign_record = Checklist(
+        tenant_id=tenant_id,
+        trip_id=foreign_trip.id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        template_id=driver_app_context["template"].id,
+        type="pre_partida",
+        status="completed",
+        responses={"oil": False},
+    )
+    db.add_all([own_record, foreign_record])
+    await db.commit()
+
+    response = await async_client.get(
+        f"/api/v1/driver/records/checklists?trip_id={own_trip.id}&limit=1&offset=0",
+        headers=driver_app_context["headers"],
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body == {
+        "items": [
+            {
+                "id": str(own_record.id),
+                "trip_id": str(own_trip.id),
+                "vehicle_id": str(driver_app_context["vehicle"].id),
+                "checklist_type": "pre_partida",
+                "status": "completed",
+                "started_at": "2026-08-20T06:00:00Z",
+                "completed_at": "2026-08-20T06:05:00Z",
+                "created_at": own_record.created_at.isoformat().replace("+00:00", "Z"),
+            }
+        ],
+        "total": 1,
+        "limit": 1,
+        "offset": 0,
+    }
+    assert "tenant_id" not in body["items"][0]
+    assert "driver_id" not in body["items"][0]
+    assert "responses" not in body["items"][0]
+
+
+@pytest.mark.asyncio
+async def test_driver_lists_only_own_fuel_records_with_public_contract(
+    async_client, db, tenant_id, driver_app_context
+):
+    own_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Xai-Xai",
+        status="closed",
+    )
+    foreign_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        origin="Maputo",
+        destination="Namaacha",
+        status="closed",
+    )
+    db.add_all([own_trip, foreign_trip])
+    await db.flush()
+    own_record = FuelLog(
+        tenant_id=tenant_id,
+        trip_id=own_trip.id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        fuel_date=datetime(2026, 8, 20, 7, tzinfo=UTC),
+        station_name="Posto Maputo",
+        fuel_type="gasoleo",
+        liters=50,
+        price_per_liter=90,
+        total_cost=4500,
+        km_at_refuel=1250,
+        payment_reference="internal-reference",
+        is_verified=True,
+    )
+    foreign_record = FuelLog(
+        tenant_id=tenant_id,
+        trip_id=foreign_trip.id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        fuel_date=datetime(2026, 8, 20, 8, tzinfo=UTC),
+        fuel_type="gasoleo",
+        liters=40,
+        total_cost=3600,
+        km_at_refuel=1300,
+    )
+    db.add_all([own_record, foreign_record])
+    await db.commit()
+
+    response = await async_client.get(
+        f"/api/v1/driver/records/fuel?trip_id={own_trip.id}&limit=1&offset=0",
+        headers=driver_app_context["headers"],
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["total"] == 1
+    assert body["limit"] == 1
+    assert body["offset"] == 0
+    assert body["items"] == [
+        {
+            "id": str(own_record.id),
+            "trip_id": str(own_trip.id),
+            "vehicle_id": str(driver_app_context["vehicle"].id),
+            "fuel_date": "2026-08-20T07:00:00Z",
+            "station_name": "Posto Maputo",
+            "fuel_type": "gasoleo",
+            "liters": "50.00",
+            "total_cost": "4500.00",
+            "km_at_refuel": 1250,
+            "has_receipt": False,
+            "is_verified": True,
+            "is_flagged": False,
+            "created_at": own_record.created_at.isoformat().replace("+00:00", "Z"),
+        }
+    ]
+    assert "price_per_liter" not in body["items"][0]
+    assert "payment_reference" not in body["items"][0]
+    assert "verified_by_user_id" not in body["items"][0]
+
+
+@pytest.mark.asyncio
+async def test_driver_record_history_keeps_unlinked_legacy_facts_visible(
+    async_client, db, tenant_id, driver_app_context
+):
+    checklist = Checklist(
+        tenant_id=tenant_id,
+        trip_id=None,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        template_id=driver_app_context["template"].id,
+        type="pre_partida",
+        status="completed",
+        responses={"oil": True},
+    )
+    fuel = FuelLog(
+        tenant_id=tenant_id,
+        trip_id=None,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        fuel_date=datetime(2026, 8, 18, 7, tzinfo=UTC),
+        fuel_type="gasoleo",
+        liters=20,
+        total_cost=1800,
+        km_at_refuel=1100,
+    )
+    db.add_all([checklist, fuel])
+    await db.commit()
+
+    checklist_response = await async_client.get(
+        "/api/v1/driver/records/checklists",
+        headers=driver_app_context["headers"],
+    )
+    fuel_response = await async_client.get(
+        "/api/v1/driver/records/fuel",
+        headers=driver_app_context["headers"],
+    )
+
+    assert checklist_response.status_code == 200, checklist_response.text
+    assert fuel_response.status_code == 200, fuel_response.text
+    assert checklist_response.json()["total"] == 1
+    assert fuel_response.json()["total"] == 1
+    assert checklist_response.json()["items"][0]["trip_id"] is None
+    assert fuel_response.json()["items"][0]["trip_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_driver_lists_only_own_driver_paid_expenses(
+    async_client, db, tenant_id, driver_app_context
+):
+    own_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Chokwe",
+        status="closed",
+    )
+    foreign_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        origin="Maputo",
+        destination="Marracuene",
+        status="closed",
+    )
+    db.add_all([own_trip, foreign_trip])
+    await db.flush()
+    own_expense = TripCost(
+        tenant_id=tenant_id,
+        trip_id=own_trip.id,
+        cost_type="toll",
+        description="Portagem",
+        amount=250,
+        currency="MZN",
+        paid_by="driver",
+        payment_method="cash",
+        request_reference=f"driver-expense:{uuid4()}",
+        source_type="driver_app",
+        source_id=driver_app_context["driver"].id,
+        driver_id=driver_app_context["driver"].id,
+        driver_visibility="visible",
+        recorded_by_type="driver",
+        incurred_at=datetime(2026, 8, 20, 9, tzinfo=UTC),
+    )
+    internal_cost = TripCost(
+        tenant_id=tenant_id,
+        trip_id=own_trip.id,
+        cost_type="insurance",
+        description="Custo interno",
+        amount=1000,
+        currency="MZN",
+        paid_by="company",
+        request_reference=f"internal:{uuid4()}",
+        source_type="manual",
+        driver_id=driver_app_context["driver"].id,
+        driver_visibility="hidden",
+        recorded_by_type="manager",
+        incurred_at=datetime(2026, 8, 20, 8, tzinfo=UTC),
+    )
+    foreign_expense = TripCost(
+        tenant_id=tenant_id,
+        trip_id=foreign_trip.id,
+        cost_type="toll",
+        amount=300,
+        currency="MZN",
+        paid_by="driver",
+        request_reference=f"driver-expense:{uuid4()}",
+        source_type="driver_app",
+        source_id=driver_app_context["other_driver"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        driver_visibility="visible",
+        recorded_by_type="driver",
+        incurred_at=datetime(2026, 8, 20, 10, tzinfo=UTC),
+    )
+    db.add_all([own_expense, internal_cost, foreign_expense])
+    await db.commit()
+
+    response = await async_client.get(
+        f"/api/v1/driver/records/expenses?trip_id={own_trip.id}&limit=20&offset=0",
+        headers=driver_app_context["headers"],
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"] == [
+        {
+            "id": str(own_expense.id),
+            "trip_id": str(own_trip.id),
+            "expense_type": "toll",
+            "description": "Portagem",
+            "amount": "250.00",
+            "currency": "MZN",
+            "payment_method": "cash",
+            "has_receipt": False,
+            "entry_type": "original",
+            "corrects_id": None,
+            "correction_reason": None,
+            "recorded_by_type": "driver",
+            "incurred_at": "2026-08-20T09:00:00Z",
+            "created_at": own_expense.created_at.isoformat().replace("+00:00", "Z"),
+        }
+    ]
+    assert "request_reference" not in body["items"][0]
+    assert "source_type" not in body["items"][0]
+
+
+@pytest.mark.asyncio
+async def test_driver_lists_only_own_dispatch_advances_with_public_contract(
+    async_client, db, tenant_id, driver_app_context
+):
+    own_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Inhambane",
+        status="closed",
+    )
+    foreign_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        origin="Maputo",
+        destination="Bilene",
+        status="closed",
+    )
+    db.add_all([own_trip, foreign_trip])
+    await db.flush()
+    own_advance = DriverAdvance(
+        tenant_id=tenant_id,
+        trip_id=own_trip.id,
+        driver_id=driver_app_context["driver"].id,
+        amount_mzn=5000,
+        allowance_mzn=2000,
+        expenses_mzn=3000,
+        currency="MZN",
+        status="settled",
+        notes="Despacho da viagem",
+        request_reference=f"advance:{uuid4()}",
+        issued_at=datetime(2026, 8, 19, 16, tzinfo=UTC),
+    )
+    foreign_advance = DriverAdvance(
+        tenant_id=tenant_id,
+        trip_id=foreign_trip.id,
+        driver_id=driver_app_context["other_driver"].id,
+        amount_mzn=4000,
+        allowance_mzn=1500,
+        expenses_mzn=2500,
+        currency="MZN",
+        status="issued",
+        request_reference=f"advance:{uuid4()}",
+    )
+    db.add_all([own_advance, foreign_advance])
+    await db.commit()
+
+    response = await async_client.get(
+        f"/api/v1/driver/records/advances?trip_id={own_trip.id}&limit=20&offset=0",
+        headers=driver_app_context["headers"],
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"] == [
+        {
+            "id": str(own_advance.id),
+            "trip_id": str(own_trip.id),
+            "total_amount": "5000.00",
+            "allowance_amount": "2000.00",
+            "expense_amount": "3000.00",
+            "currency": "MZN",
+            "status": "settled",
+            "issued_at": "2026-08-19T16:00:00Z",
+        }
+    ]
+    assert "notes" not in body["items"][0]
+    assert "issued_by" not in body["items"][0]
+    assert "request_reference" not in body["items"][0]
 
 
 @pytest.mark.asyncio
@@ -1101,6 +1531,7 @@ async def test_driver_sync_accepts_own_assigned_vehicle(
                     "payload": {
                         "driverId": str(driver_app_context["driver"].id),
                         "vehicleId": str(driver_app_context["vehicle"].id),
+                        "tripId": str(assigned_trip.id),
                         "fuelDate": "2026-08-22T12:00:00+00:00",
                         "liters": 30,
                         "totalCost": 3000,
@@ -1116,9 +1547,112 @@ async def test_driver_sync_accepts_own_assigned_vehicle(
     result = response.json()["results"][0]
     assert result["status"] == "processed"
     assert result["error_code"] is None
+    persisted_log = await db.scalar(
+        select(FuelLog).where(FuelLog.payment_reference == reference)
+    )
+    assert persisted_log is not None
+    assert persisted_log.trip_id == assigned_trip.id
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_links_checklist_to_the_assigned_trip(
+    async_client, db, tenant_id, driver_app_context
+):
+    assigned_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="in_progress",
+        billing_status="pending_delivery_proof",
+    )
+    db.add(assigned_trip)
+    await db.commit()
+
+    response = await async_client.post(
+        "/api/v1/sync/batch",
+        headers=driver_app_context["headers"],
+        json={
+            "device_id": driver_app_context["device_id"],
+            "operations": [
+                {
+                    "local_id": "assigned-checklist",
+                    "idempotency_key": str(uuid4()),
+                    "operation": "create",
+                    "entity_type": "checklist",
+                    "payload": {
+                        "driverId": str(driver_app_context["driver"].id),
+                        "vehicleId": str(driver_app_context["vehicle"].id),
+                        "tripId": str(assigned_trip.id),
+                        "templateId": str(driver_app_context["template"].id),
+                        "type": driver_app_context["template"].type,
+                        "responses": {"oil": True},
+                        "complete": True,
+                    },
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    result = response.json()["results"][0]
+    assert result["status"] == "processed"
+    checklist = await db.get(Checklist, UUID(result["server_id"]))
+    assert checklist is not None
+    assert checklist.trip_id == assigned_trip.id
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_cannot_attach_fuel_to_another_drivers_trip(
+    async_client, db, tenant_id, driver_app_context
+):
+    foreign_trip = Trip(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["other_driver"].id,
+        origin="Maputo",
+        destination="Matola",
+        status="in_progress",
+        billing_status="pending_delivery_proof",
+    )
+    db.add(foreign_trip)
+    await db.commit()
+    reference = f"foreign-trip-fuel-{uuid4()}"
+
+    response = await async_client.post(
+        "/api/v1/sync/batch",
+        headers=driver_app_context["headers"],
+        json={
+            "device_id": driver_app_context["device_id"],
+            "operations": [
+                {
+                    "local_id": "foreign-trip-fuel",
+                    "idempotency_key": str(uuid4()),
+                    "operation": "create",
+                    "entity_type": "fuel_log",
+                    "payload": {
+                        "driverId": str(driver_app_context["driver"].id),
+                        "vehicleId": str(driver_app_context["vehicle"].id),
+                        "tripId": str(foreign_trip.id),
+                        "fuelDate": "2026-08-22T12:00:00+00:00",
+                        "liters": 30,
+                        "totalCost": 3000,
+                        "kmAtRefuel": 1300,
+                        "paymentReference": reference,
+                    },
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    result = response.json()["results"][0]
+    assert result["status"] == "failed"
+    assert result["error_code"] == "driver_trip_forbidden"
     assert await db.scalar(
         select(func.count(FuelLog.id)).where(FuelLog.payment_reference == reference)
-    ) == 1
+    ) == 0
 
 
 @pytest.mark.asyncio
@@ -1162,10 +1696,60 @@ async def test_driver_sync_cannot_update_another_drivers_fuel_log(
     assert response.status_code == 200, response.text
     result = response.json()["results"][0]
     assert result["status"] == "failed"
-    assert result["error_code"] == "driver_record_forbidden"
+    assert result["error_code"] == "driver_operation_forbidden"
     await db.refresh(foreign_log)
     assert float(foreign_log.liters) == 30
     assert float(foreign_log.total_cost) == 3000
+
+
+@pytest.mark.asyncio
+async def test_driver_sync_cannot_rewrite_own_submitted_fuel_facts(
+    async_client, db, tenant_id, driver_app_context
+):
+    own_log = FuelLog(
+        tenant_id=tenant_id,
+        vehicle_id=driver_app_context["vehicle"].id,
+        driver_id=driver_app_context["driver"].id,
+        fuel_date=datetime.now(UTC),
+        liters=30,
+        total_cost=3000,
+        km_at_refuel=1300,
+        station_name="Posto original",
+        payment_reference=f"immutable-fuel-{uuid4()}",
+    )
+    db.add(own_log)
+    await db.commit()
+
+    response = await async_client.post(
+        "/api/v1/sync/batch",
+        headers=driver_app_context["headers"],
+        json={
+            "device_id": driver_app_context["device_id"],
+            "operations": [
+                {
+                    "local_id": "rewrite-own-fuel",
+                    "idempotency_key": str(uuid4()),
+                    "operation": "update",
+                    "entity_type": "fuel_log",
+                    "payload": {
+                        "serverId": str(own_log.id),
+                        "liters": 99,
+                        "totalCost": 9900,
+                        "stationName": "Posto reescrito",
+                    },
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    result = response.json()["results"][0]
+    assert result["status"] == "failed"
+    assert result["error_code"] == "driver_operation_forbidden"
+    await db.refresh(own_log)
+    assert float(own_log.liters) == 30
+    assert float(own_log.total_cost) == 3000
+    assert own_log.station_name == "Posto original"
 
 
 @pytest.mark.asyncio

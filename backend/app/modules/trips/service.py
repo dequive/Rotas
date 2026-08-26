@@ -18,7 +18,12 @@ from app.modules.operational_exceptions.service import ensure_exception
 from app.modules.operations.service import has_active_waiver
 from app.modules.tenants.models import Tenant
 from app.modules.trip_orders.models import TripOrder
-from app.modules.trips.costs import reconcile_trip_costs, record_trip_cost, serialize_trip_cost
+from app.modules.trips.costs import (
+    correct_trip_cost,
+    reconcile_trip_costs,
+    record_trip_cost,
+    serialize_trip_cost,
+)
 from app.modules.trips.models import (
     DispatchClearance,
     Trip,
@@ -33,6 +38,7 @@ from app.modules.trips.schemas import (
     DispatchClearanceApproveRequest,
     OperationalCloseTripRequest,
     StartTripRequest,
+    TripCostCorrectionCreate,
     TripCostCreate,
     TripCreate,
     TripDispatchRequest,
@@ -1520,6 +1526,28 @@ async def create_cost(
         db,
         tenant_id,
         trip_id=trip_id,
+        actor_id=actor_id,
+        **payload.model_dump(),
+    )
+    await db.commit()
+    await db.refresh(cost)
+    return serialize_trip_cost(cost)
+
+
+async def correct_cost(
+    db: AsyncSession,
+    tenant_id: UUID,
+    trip_id: UUID,
+    cost_id: UUID,
+    payload: TripCostCorrectionCreate,
+    *,
+    actor_id: UUID | None = None,
+) -> dict:
+    cost = await correct_trip_cost(
+        db,
+        tenant_id,
+        trip_id=trip_id,
+        cost_id=cost_id,
         actor_id=actor_id,
         **payload.model_dump(),
     )

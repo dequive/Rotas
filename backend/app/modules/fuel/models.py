@@ -8,6 +8,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
@@ -37,10 +38,16 @@ class FuelLog(Base):
             "consumption_l_per_100km IS NULL OR consumption_l_per_100km >= 0",
             name="chk_fuel_logs_consumption_non_negative",
         ),
+        ForeignKeyConstraint(
+            ["tenant_id", "trip_id"],
+            ["trips.tenant_id", "trips.id"],
+            name="fk_fuel_logs_tenant_trip_trips",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    trip_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
     vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"), index=True)
     driver_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("drivers.id"), index=True)
     fuel_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)

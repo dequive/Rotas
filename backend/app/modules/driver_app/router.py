@@ -125,6 +125,94 @@ async def list_assigned_trips(
 
 
 @router.get(
+    "/records/checklists",
+    response_model=schemas.DriverChecklistRecordPageRead,
+)
+async def list_checklist_records(
+    principal: DriverPrincipalDependency,
+    db: RlsSession,
+    trip_id: Annotated[UUID | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    driver_id = _require_driver_id(principal)
+    return await service.list_driver_checklist_records(
+        db,
+        tenant_id=principal.tenant_id,
+        driver_id=driver_id,
+        trip_id=trip_id,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(
+    "/records/fuel",
+    response_model=schemas.DriverFuelRecordPageRead,
+)
+async def list_fuel_records(
+    principal: DriverPrincipalDependency,
+    db: RlsSession,
+    trip_id: Annotated[UUID | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    driver_id = _require_driver_id(principal)
+    return await service.list_driver_fuel_records(
+        db,
+        tenant_id=principal.tenant_id,
+        driver_id=driver_id,
+        trip_id=trip_id,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(
+    "/records/expenses",
+    response_model=schemas.DriverExpenseRecordPageRead,
+)
+async def list_expense_records(
+    principal: DriverPrincipalDependency,
+    db: RlsSession,
+    trip_id: Annotated[UUID | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    driver_id = _require_driver_id(principal)
+    return await service.list_driver_expense_records(
+        db,
+        tenant_id=principal.tenant_id,
+        driver_id=driver_id,
+        trip_id=trip_id,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(
+    "/records/advances",
+    response_model=schemas.DriverAdvanceRecordPageRead,
+)
+async def list_advance_records(
+    principal: DriverPrincipalDependency,
+    db: RlsSession,
+    trip_id: Annotated[UUID | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    driver_id = _require_driver_id(principal)
+    return await service.list_driver_advance_records(
+        db,
+        tenant_id=principal.tenant_id,
+        driver_id=driver_id,
+        trip_id=trip_id,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(
     "/trips/{trip_id}/documents",
     response_model=schemas.DriverTripDocumentsRead,
 )

@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Any
+from decimal import Decimal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -52,6 +53,97 @@ class DriverTripRead(BaseModel):
 
 class DriverTripPageRead(BaseModel):
     items: list[DriverTripRead]
+    total: int
+    limit: int
+    offset: int
+
+
+class DriverChecklistRecordRead(BaseModel):
+    """Submitted checklist facts visible to the owning driver."""
+
+    id: UUID
+    trip_id: UUID | None = None
+    vehicle_id: UUID
+    checklist_type: str
+    status: str
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    created_at: datetime
+
+
+class DriverChecklistRecordPageRead(BaseModel):
+    items: list[DriverChecklistRecordRead]
+    total: int
+    limit: int
+    offset: int
+
+
+class DriverFuelRecordRead(BaseModel):
+    """Immutable refuelling facts visible to the owning driver."""
+
+    id: UUID
+    trip_id: UUID | None = None
+    vehicle_id: UUID
+    fuel_date: datetime
+    station_name: str | None = None
+    fuel_type: str
+    liters: Decimal
+    total_cost: Decimal
+    km_at_refuel: int
+    has_receipt: bool
+    is_verified: bool
+    is_flagged: bool
+    created_at: datetime
+
+
+class DriverFuelRecordPageRead(BaseModel):
+    items: list[DriverFuelRecordRead]
+    total: int
+    limit: int
+    offset: int
+
+
+class DriverExpenseRecordRead(BaseModel):
+    """Driver-paid trip expense without reconciliation or accounting fields."""
+
+    id: UUID
+    trip_id: UUID
+    expense_type: str
+    description: str | None = None
+    amount: Decimal
+    currency: str
+    payment_method: str | None = None
+    has_receipt: bool
+    entry_type: Literal["original", "adjustment", "reversal"]
+    corrects_id: UUID | None = None
+    correction_reason: str | None = None
+    recorded_by_type: Literal["driver", "manager", "system"]
+    incurred_at: datetime
+    created_at: datetime
+
+
+class DriverExpenseRecordPageRead(BaseModel):
+    items: list[DriverExpenseRecordRead]
+    total: int
+    limit: int
+    offset: int
+
+
+class DriverAdvanceRecordRead(BaseModel):
+    """Travel dispatch amount issued to the owning driver."""
+
+    id: UUID
+    trip_id: UUID
+    total_amount: Decimal
+    allowance_amount: Decimal
+    expense_amount: Decimal
+    currency: str
+    status: str
+    issued_at: datetime
+
+
+class DriverAdvanceRecordPageRead(BaseModel):
+    items: list[DriverAdvanceRecordRead]
     total: int
     limit: int
     offset: int

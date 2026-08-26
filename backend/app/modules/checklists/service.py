@@ -17,6 +17,7 @@ from app.modules.checklists.schemas import (
 )
 from app.modules.drivers.models import Driver
 from app.modules.operational_exceptions.service import ensure_exception, resolve_active_exceptions
+from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
 
 
@@ -38,6 +39,7 @@ def serialize_checklist(checklist: Checklist, blocking_failures: list[dict] | No
     return {
         "id": checklist.id,
         "tenant_id": checklist.tenant_id,
+        "trip_id": checklist.trip_id,
         "vehicle_id": checklist.vehicle_id,
         "driver_id": checklist.driver_id,
         "template_id": checklist.template_id,
@@ -246,6 +248,18 @@ async def create_checklist(
     driver = await db.get(Driver, payload.driver_id)
     if not driver or driver.tenant_id != tenant_id or driver.status != "active":
         raise ApiError("driver_not_found", "Driver not found or inactive.", status_code=404)
+
+    if payload.trip_id is not None:
+        trip_id = await db.scalar(
+            select(Trip.id).where(
+                Trip.id == payload.trip_id,
+                Trip.tenant_id == tenant_id,
+                Trip.vehicle_id == payload.vehicle_id,
+                Trip.driver_id == payload.driver_id,
+            )
+        )
+        if trip_id is None:
+            raise ApiError("trip_not_found", "Trip not found for these assets.", status_code=404)
 
     checklist = Checklist(
         tenant_id=tenant_id,

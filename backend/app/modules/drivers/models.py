@@ -25,6 +25,7 @@ from app.database import Base
 class Driver(Base):
     __tablename__ = "drivers"
     __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_drivers_tenant_id_id"),
         CheckConstraint("score >= 0 AND score <= 100", name="chk_drivers_score_range"),
     )
 

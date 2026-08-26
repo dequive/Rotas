@@ -1402,6 +1402,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/driver/records/advances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Advance Records */
+        get: operations["list_advance_records_api_v1_driver_records_advances_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/driver/records/checklists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Checklist Records */
+        get: operations["list_checklist_records_api_v1_driver_records_checklists_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/driver/records/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Expense Records */
+        get: operations["list_expense_records_api_v1_driver_records_expenses_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/driver/records/fuel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Fuel Records */
+        get: operations["list_fuel_records_api_v1_driver_records_fuel_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/driver/trips": {
         parameters: {
             query?: never;
@@ -3544,6 +3612,23 @@ export interface paths {
         put?: never;
         /** Create Cost */
         post: operations["create_cost_api_v1_trips__trip_id__costs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trips/{trip_id}/costs/{cost_id}/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Correct Cost */
+        post: operations["correct_cost_api_v1_trips__trip_id__costs__cost_id__corrections_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6546,6 +6631,8 @@ export interface components {
              * Format: uuid
              */
             template_id: string;
+            /** Trip Id */
+            trip_id?: string | null;
             /** Type */
             type: string;
             /**
@@ -6630,6 +6717,8 @@ export interface components {
              * Format: uuid
              */
             tenant_id: string;
+            /** Trip Id */
+            trip_id?: string | null;
             /** Type */
             type: string;
             /**
@@ -7734,6 +7823,48 @@ export interface components {
             /** Verification Status */
             verification_status: string;
         };
+        /** DriverAdvanceRecordPageRead */
+        DriverAdvanceRecordPageRead: {
+            /** Items */
+            items: components["schemas"]["DriverAdvanceRecordRead"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * DriverAdvanceRecordRead
+         * @description Travel dispatch amount issued to the owning driver.
+         */
+        DriverAdvanceRecordRead: {
+            /** Allowance Amount */
+            allowance_amount: string;
+            /** Currency */
+            currency: string;
+            /** Expense Amount */
+            expense_amount: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Issued At
+             * Format: date-time
+             */
+            issued_at: string;
+            /** Status */
+            status: string;
+            /** Total Amount */
+            total_amount: string;
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
+        };
         /** DriverBootstrapRead */
         DriverBootstrapRead: {
             activeTrip: components["schemas"]["DriverTripRead"] | null;
@@ -7742,6 +7873,48 @@ export interface components {
             profile: components["schemas"]["DriverProfileRead"];
             /** Vehicles */
             vehicles?: components["schemas"]["DriverVehicleRead"][];
+        };
+        /** DriverChecklistRecordPageRead */
+        DriverChecklistRecordPageRead: {
+            /** Items */
+            items: components["schemas"]["DriverChecklistRecordRead"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * DriverChecklistRecordRead
+         * @description Submitted checklist facts visible to the owning driver.
+         */
+        DriverChecklistRecordRead: {
+            /** Checklist Type */
+            checklist_type: string;
+            /** Completed At */
+            completed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Started At */
+            started_at?: string | null;
+            /** Status */
+            status: string;
+            /** Trip Id */
+            trip_id?: string | null;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
         };
         /** DriverChecklistTemplateRead */
         DriverChecklistTemplateRead: {
@@ -7965,6 +8138,124 @@ export interface components {
             document_type: string;
             /** Present */
             present: boolean;
+        };
+        /** DriverExpenseRecordPageRead */
+        DriverExpenseRecordPageRead: {
+            /** Items */
+            items: components["schemas"]["DriverExpenseRecordRead"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * DriverExpenseRecordRead
+         * @description Driver-paid trip expense without reconciliation or accounting fields.
+         */
+        DriverExpenseRecordRead: {
+            /** Amount */
+            amount: string;
+            /** Correction Reason */
+            correction_reason?: string | null;
+            /** Corrects Id */
+            corrects_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Entry Type
+             * @enum {string}
+             */
+            entry_type: "original" | "adjustment" | "reversal";
+            /** Expense Type */
+            expense_type: string;
+            /** Has Receipt */
+            has_receipt: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Incurred At
+             * Format: date-time
+             */
+            incurred_at: string;
+            /** Payment Method */
+            payment_method?: string | null;
+            /**
+             * Recorded By Type
+             * @enum {string}
+             */
+            recorded_by_type: "driver" | "manager" | "system";
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
+        };
+        /** DriverFuelRecordPageRead */
+        DriverFuelRecordPageRead: {
+            /** Items */
+            items: components["schemas"]["DriverFuelRecordRead"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * DriverFuelRecordRead
+         * @description Immutable refuelling facts visible to the owning driver.
+         */
+        DriverFuelRecordRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Fuel Date
+             * Format: date-time
+             */
+            fuel_date: string;
+            /** Fuel Type */
+            fuel_type: string;
+            /** Has Receipt */
+            has_receipt: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Flagged */
+            is_flagged: boolean;
+            /** Is Verified */
+            is_verified: boolean;
+            /** Km At Refuel */
+            km_at_refuel: number;
+            /** Liters */
+            liters: string;
+            /** Station Name */
+            station_name?: string | null;
+            /** Total Cost */
+            total_cost: string;
+            /** Trip Id */
+            trip_id?: string | null;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
         };
         /** DriverHistoryEventRead */
         DriverHistoryEventRead: {
@@ -8722,6 +9013,8 @@ export interface components {
             station_name?: string | null;
             /** Total Cost */
             total_cost: number;
+            /** Trip Id */
+            trip_id?: string | null;
             /**
              * Vehicle Id
              * Format: uuid
@@ -12032,6 +12325,25 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** TripCostCorrectionCreate */
+        TripCostCorrectionCreate: {
+            /** Adjustment Amount */
+            adjustment_amount?: number | string | null;
+            /**
+             * Correction Type
+             * @enum {string}
+             */
+            correction_type: "adjustment" | "reversal";
+            /**
+             * Incurred At
+             * Format: date-time
+             */
+            incurred_at: string;
+            /** Reason */
+            reason: string;
+            /** Request Reference */
+            request_reference: string;
+        };
         /** TripCostCreate */
         TripCostCreate: {
             /** Amount */
@@ -12061,6 +12373,70 @@ export interface components {
             receipt_file_id?: string | null;
             /** Request Reference */
             request_reference: string;
+        };
+        /** TripCostRead */
+        TripCostRead: {
+            /** Amount */
+            amount: string;
+            /** Correction Reason */
+            correction_reason?: string | null;
+            /** Corrects Id */
+            corrects_id?: string | null;
+            /** Cost Type */
+            cost_type: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Description */
+            description?: string | null;
+            /** Driver Id */
+            driver_id?: string | null;
+            /**
+             * Driver Visibility
+             * @enum {string}
+             */
+            driver_visibility: "hidden" | "visible";
+            /**
+             * Entry Type
+             * @enum {string}
+             */
+            entry_type: "original" | "adjustment" | "reversal";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Incurred At
+             * Format: date-time
+             */
+            incurred_at: string;
+            /** Paid By */
+            paid_by: string;
+            /** Payment Method */
+            payment_method?: string | null;
+            /** Receipt File Id */
+            receipt_file_id?: string | null;
+            /**
+             * Recorded By Type
+             * @enum {string}
+             */
+            recorded_by_type: "driver" | "manager" | "system";
+            /** Request Reference */
+            request_reference: string;
+            /** Source Id */
+            source_id?: string | null;
+            /** Source Type */
+            source_type: string;
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
         };
         /** TripCreate */
         TripCreate: {
@@ -16627,6 +17003,150 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DriverChecklistTemplateRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_advance_records_api_v1_driver_records_advances_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                trip_id?: string | null;
+            };
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverAdvanceRecordPageRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_checklist_records_api_v1_driver_records_checklists_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                trip_id?: string | null;
+            };
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverChecklistRecordPageRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_expense_records_api_v1_driver_records_expenses_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                trip_id?: string | null;
+            };
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverExpenseRecordPageRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_fuel_records_api_v1_driver_records_fuel_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                trip_id?: string | null;
+            };
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverFuelRecordPageRead"];
                 };
             };
             /** @description Validation Error */
@@ -22000,7 +22520,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["TripCostRead"][];
                 };
             };
             /** @description Validation Error */
@@ -22038,7 +22558,47 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["TripCostRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    correct_cost_api_v1_trips__trip_id__costs__cost_id__corrections_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "Idempotency-Key"?: string | null;
+                "X-Tenant-Id"?: string | null;
+            };
+            path: {
+                cost_id: string;
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TripCostCorrectionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TripCostRead"];
                 };
             };
             /** @description Validation Error */

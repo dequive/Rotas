@@ -2,7 +2,7 @@
 
 - Classe: evidência de engenharia local; não é CI remota nem certificação de release.
 - Branch: `codex/issue42-convergencia-manager-driver-backend`.
-- Commit dos controlos C3: `9cb2abe`.
+- Commits dos controlos C3: `9cb2abe` e `4f7251c`.
 - Produto Driver previamente certificado no Android: `a978229`.
 - Decisão: `NO-GO`.
 
@@ -49,13 +49,20 @@ as duas consultas diretas devolverem high. Essa inconsistência é tratada de
 forma fail-closed: o resumo zero não é aceite como prova de segurança. Os JSON
 brutos permanecem em `.release-evidence/c3-node20-clean/`, fora do Git.
 
+O commit `4f7251c` fechou esse defeito: valida o schema npm audit v2, totais por
+severidade e a relação entre exit code e findings, e inclui os dois exit codes
+no relatório. O ciclo RED falhou por argumento ausente; o GREEN passou 9/9 em
+base descartável, com Ruff verde. Uma repetição no ambiente Windows anómalo
+passou a bloquear explicitamente `audit_payloads_valid` e
+`audit_commands_valid`, em vez de produzir falso verde.
+
 ## Bloqueios
 
 1. Remediar as dependências high e o pacote extraneous num slice dedicado C3,
    com lockfile reproduzível e regressão completa; não usar `npm audit fix
    --force`.
-2. Endurecer o agregador PR18 para rejeitar respostas incompletas/contraditórias
-   e preservar a proveniência dos resultados brutos.
+2. Reexecutar o agregador endurecido no grafo corrigido e runtime canónico,
+   preservando o relatório e SBOM vinculados ao SHA.
 3. Executar os jobs remotos com passos reais no SHA integrado. A conta GitHub
    continua indisponível, portanto não existe prova remota.
 4. Revisão independente, merge, RC, staging e C4 continuam pendentes.

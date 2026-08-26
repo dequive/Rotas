@@ -168,9 +168,11 @@ jobs e acrescentou Vitest/build/Playwright Driver à CI. Os contratos ficaram
 verdes localmente (validador 6/6, 12/12 referências e testes CI/PR18/governance
 8/8). A auditoria limpa no runtime canónico encontrou 6 high em produção e 9
 na árvore completa, zero critical, além de `@emnapi/runtime` extraneous; o
-agregador PR18 também apresentou contagens contraditórias e deve falhar fechado.
-Logo P1-CI-01 e C3 permanecem abertos até remediação, CI com jobs executados e
-revisão. Ver `docs/evidence/C3_CI_SUPPLY_CHAIN_BASELINE_20260826.md`.
+agregador PR18 também apresentou contagens contraditórias. `4f7251c` passou a
+validar schema, totais e exit codes e rejeitou essa resposta de forma
+fail-closed. P1-CI-01 e C3 permanecem abertos até remediação, nova prova no
+runtime canónico, CI com jobs executados e revisão. Ver
+`docs/evidence/C3_CI_SUPPLY_CHAIN_BASELINE_20260826.md`.
 
 ### P1-ERP-01 — Fontes e fluxos ERP ainda parciais
 
@@ -488,9 +490,10 @@ RC permanecem pendentes. Ver
 - base vazia, snapshot e dois tenants/dois motoristas.
 
 Estado em 2026-08-26: contratos, Pyright/OpenAPI, Node, pins e comandos Driver
-da CI estão verdes localmente em `9cb2abe`. Supply chain está vermelha por 6
-high de produção, 9 high totais, árvore extraneous e agregador PR18
-contraditório. CI remota não executada. C3 continua **em progresso/NO-GO**.
+da CI estão verdes localmente em `9cb2abe`; `4f7251c` tornou a auditoria
+fail-closed contra payload/exit code contraditório. Supply chain está vermelha
+por 6 high de produção, 9 high totais e árvore extraneous. CI remota não
+executada. C3 continua **em progresso/NO-GO**.
 
 ### C4 — Certificação da Issue #42
 

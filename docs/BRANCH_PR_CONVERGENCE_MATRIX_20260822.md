@@ -170,7 +170,9 @@ E0 e só começa depois de C0-C4 e Cliente/Terceiro.
    remota ainda não ocorreu. A auditoria Node `20.20.2` revelou 6 high em
    produção, 9 high totais e uma árvore extraneous. Isto invalida o deferimento
    antigo de #37: a remediação passa a slice próprio dentro de C3, antes do seu
-   fecho. Ver `docs/evidence/C3_CI_SUPPLY_CHAIN_BASELINE_20260826.md`.
+   fecho. `4f7251c` já endureceu o agregador para rejeitar schema, totais ou
+   exit codes contraditórios. Ver
+   `docs/evidence/C3_CI_SUPPLY_CHAIN_BASELINE_20260826.md`.
 5. **C4:** criar um RC único, executar staging, Android físico, Sentry, segurança,
    observabilidade e piloto no mesmo SHA/artefactos.
 

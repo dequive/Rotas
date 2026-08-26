@@ -3526,8 +3526,8 @@ staging, piloto e RC integrado, G0-G5 e a release permanecem **NO-GO**. Evidênc
   CI/PR18/governance 8/8, Ruff/YAML/diff verdes;
 - auditoria reprodutível no Node `20.20.2` encontrou 6 high em produção, 9 high
   totais, zero critical e `@emnapi/runtime@1.11.1` extraneous;
-- o agregador PR18 devolveu contagens contraditórias numa execução e será
-  endurecido antes de aceitar evidência zero;
+- o agregador PR18 devolveu contagens contraditórias; `4f7251c` passou a validar
+  schema, totais e exit codes e a rejeitar essa resposta fail-closed;
 - a decisão antiga de adiar #37 foi revogada pelo gate mais restritivo: a
   remediação de dependências será um slice separado ainda em C3.
 

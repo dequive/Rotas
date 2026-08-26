@@ -50,10 +50,10 @@ describe("SyncIssuesPanel", () => {
     render(<SyncIssuesPanel />);
 
     expect(
-      await screen.findByText("1 registo(s) não sincronizado(s)"),
+      await screen.findByText("1 registo não sincronizado"),
     ).toBeDefined();
-    expect(screen.getByText("dead letter")).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: "Reenfileirar" }));
+    expect(screen.getByText("Bloqueado — precisa de revisão")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
 
     await waitFor(async () => {
       const item = await db.syncQueue.get(id);
@@ -102,7 +102,7 @@ describe("SyncIssuesPanel", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(<SyncIssuesPanel />);
-    await screen.findByText("fuel log");
+    await screen.findByText("Abastecimento");
     fireEvent.click(screen.getByRole("button", { name: "Descartar" }));
 
     await waitFor(async () => {
@@ -152,13 +152,14 @@ describe("SyncIssuesPanel — mensagens accionáveis", () => {
         screen.getByText(/Este registo está incompleto e o servidor não o aceita/i),
       ).toBeTruthy();
     });
+    expect(screen.queryByText("request_reference: Field required")).toBeNull();
   });
 
   it("desactiva o reenvio quando reenviar daria o mesmo resultado", async () => {
     await seedFailure("payload_validation_failed", "request_reference: Field required");
     render(<SyncIssuesPanel />);
 
-    const button = await screen.findByRole("button", { name: /Reenfileirar/i });
+    const button = await screen.findByRole("button", { name: /Tentar novamente/i });
     expect((button as HTMLButtonElement).disabled).toBe(true);
     expect(button.getAttribute("title")).toMatch(/mesmo resultado/i);
   });
@@ -167,7 +168,7 @@ describe("SyncIssuesPanel — mensagens accionáveis", () => {
     await seedFailure("sync_operation_failed", "The server could not process this operation.");
     render(<SyncIssuesPanel />);
 
-    const button = await screen.findByRole("button", { name: /Reenfileirar/i });
+    const button = await screen.findByRole("button", { name: /Tentar novamente/i });
     expect((button as HTMLButtonElement).disabled).toBe(false);
   });
 

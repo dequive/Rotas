@@ -1,7 +1,15 @@
+import { useState } from "react";
 import { BannerState, SyncStatusState } from "../hooks/useSyncStatus";
+import {
+  activateWaitingServiceWorker,
+  type WaitingServiceWorkerController,
+} from "../pwaUpdate";
+
+export { activateWaitingServiceWorker } from "../pwaUpdate";
 
 interface SyncStatusBannerProps {
   status: SyncStatusState;
+  onRePair?: () => void;
 }
 
 /**
@@ -19,8 +27,9 @@ interface SyncStatusBannerProps {
  * Always mounted at the bottom of .phone-shell (margin-top: auto in CSS).
  * Never unmounts — only visually hidden via display:none in idle state.
  */
-export function SyncStatusBanner({ status }: SyncStatusBannerProps) {
+export function SyncStatusBanner({ status, onRePair }: SyncStatusBannerProps) {
   const { bannerState, pendingCount, errorCount, workboxInstance } = status;
+  const [confirmRePair, setConfirmRePair] = useState(false);
 
   function getModifierClass(state: BannerState): string {
     switch (state) {
@@ -37,15 +46,17 @@ export function SyncStatusBanner({ status }: SyncStatusBannerProps) {
   function getMessage(): string {
     switch (bannerState) {
       case "offline":
-        return `Sem ligação — a gravar localmente${pendingCount > 0 ? ` · ${pendingCount} registos pendentes` : ""}`;
+        return `Sem ligação — a gravar localmente${pendingCount > 0 ? ` · ${pendingCount === 1 ? "1 registo pendente" : `${pendingCount} registos pendentes`}` : ""}`;
       case "syncing":
-        return `A sincronizar...${pendingCount > 0 ? ` · ${pendingCount} registos pendentes` : ""}`;
+        return `A sincronizar...${pendingCount > 0 ? ` · ${pendingCount === 1 ? "1 registo pendente" : `${pendingCount} registos pendentes`}` : ""}`;
       case "error":
-        return `${errorCount} registos com erro — contacta o gestor`;
+        return errorCount === 1
+          ? "1 registo precisa de revisão — contacte o gestor"
+          : `${errorCount} registos precisam de revisão — contacte o gestor`;
       case "session_expired":
-        return "Sessão expirada — contacta o teu gestor para re-parear o dispositivo";
+        return "Sessão expirada — contacte o gestor para voltar a emparelhar o dispositivo";
       case "access_revoked":
-        return "Acesso revogado. Os teus registos locais foram preservados — contacta o teu gestor.";
+        return "Acesso revogado. Os registos locais foram preservados — contacte o gestor.";
       case "update_available":
         return "Nova versão disponível";
       default:
@@ -54,12 +65,7 @@ export function SyncStatusBanner({ status }: SyncStatusBannerProps) {
   }
 
   function handleUpdate() {
-    if (workboxInstance?.waiting) {
-      workboxInstance.waiting.postMessage({ type: "SKIP_WAITING" });
-    } else if (workboxInstance) {
-      workboxInstance.messageSW({ type: "SKIP_WAITING" });
-    }
-    window.location.reload();
+    if (workboxInstance) activateWaitingServiceWorker(workboxInstance);
   }
 
   const modifierClass = getModifierClass(bannerState);
@@ -73,6 +79,29 @@ export function SyncStatusBanner({ status }: SyncStatusBannerProps) {
       aria-label="Estado de sincronização"
     >
       <span className="sync-banner__message">{getMessage()}</span>
+      {bannerState === "session_expired" && onRePair && !confirmRePair && (
+        <span className="sync-banner__action">
+          <button className="small-btn" onClick={() => setConfirmRePair(true)} type="button">
+            Voltar a emparelhar
+          </button>
+        </span>
+      )}
+      {bannerState === "session_expired" && onRePair && confirmRePair && (
+        <div className="sync-banner__confirm" role="alert">
+          <span>
+            Confirme com o gestor que os registos pendentes foram tratados. Os
+            dados locais desta sessão serão removidos.
+          </span>
+          <span className="sync-banner__confirm-actions">
+            <button className="small-btn" onClick={() => setConfirmRePair(false)} type="button">
+              Cancelar
+            </button>
+            <button className="small-btn" onClick={onRePair} type="button">
+              Limpar e emparelhar
+            </button>
+          </span>
+        </div>
+      )}
       {bannerState === "update_available" && (
         <span className="sync-banner__action">
           <button className="small-btn" onClick={handleUpdate} type="button">

@@ -4,7 +4,7 @@
 // PWA-01: Handles background sync queue for POST /api/v1/sync/batch
 // PWA-03: Network-first for all API calls, cache-first for static assets
 //
-// CRITICAL: SW is served with Cache-Control: no-store (enforced in vite.config.mjs dev server
+// CRITICAL: SW is served with Cache-Control: no-store (enforced in vite.config.ts dev server
 // and vercel.json production headers). A cached broken SW is unrecoverable on low-cost Android.
 
 import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
@@ -12,6 +12,7 @@ import { registerRoute } from "workbox-routing";
 import { NetworkFirst, NetworkOnly, CacheFirst } from "workbox-strategies";
 import { Queue } from "workbox-background-sync";
 import { clientsClaim } from "workbox-core";
+import { obsoleteRuntimeAssetPaths } from "./serviceWorkerCachePolicy";
 
 declare let self: ServiceWorkerGlobalScope;
 
@@ -45,7 +46,30 @@ cleanupOutdatedCaches();
 
 // Precache all static assets (manifest injected by vite-plugin-pwa at build time)
 // The __WB_MANIFEST placeholder is replaced with the actual hashed asset list during build
-precacheAndRoute(self.__WB_MANIFEST);
+const precacheManifest = self.__WB_MANIFEST;
+precacheAndRoute(precacheManifest);
+
+async function cleanupRuntimeStaticAssets(): Promise<void> {
+  const cache = await caches.open("static-assets");
+  const requests = await cache.keys();
+  const cachedPaths = requests.map((request) => new URL(request.url).pathname);
+  const currentPaths = precacheManifest.map((entry) =>
+    new URL(typeof entry === "string" ? entry : entry.url, self.location.origin)
+      .pathname,
+  );
+  const obsolete = new Set(
+    obsoleteRuntimeAssetPaths(cachedPaths, currentPaths),
+  );
+  await Promise.all(
+    requests
+      .filter((request) => obsolete.has(new URL(request.url).pathname))
+      .map((request) => cache.delete(request)),
+  );
+}
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(cleanupRuntimeStaticAssets());
+});
 
 // Background sync plugin for POST /api/v1/sync/batch
 // IMPORTANT: BackgroundSyncPlugin only retries on network exceptions (fetch throws).
@@ -80,6 +104,17 @@ registerRoute(
 // before using it during a cold start.
 registerRoute(
   ({ url }) => url.pathname === "/api/v1/driver/bootstrap",
+  new NetworkOnly(),
+  "GET"
+);
+
+// Leituras do motorista nunca podem vir do cache HTTP partilhado: o Workbox
+// devolveria uma resposta antiga com 200 e a aplicação apresentaria documentos
+// e requisitos desactualizados como se fossem actuais. A degradação é servida
+// pelo cache Dexie scoped por tenant/motorista/sessão, que marca a data da
+// leitura e é apresentada ao motorista.
+registerRoute(
+  ({ url }) => url.pathname.startsWith("/api/v1/driver/"),
   new NetworkOnly(),
   "GET"
 );

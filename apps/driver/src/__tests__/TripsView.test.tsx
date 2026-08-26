@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  downloadDriverTripDocument,
   getDriverTripDocuments,
   listDriverTripHistory,
   listDriverTrips,
@@ -101,7 +102,9 @@ describe("Minhas Viagens", () => {
 
     expect(await screen.findByText("Documentação completa")).toBeTruthy();
     expect(screen.queryByText(/Documentação incompleta/i)).toBeNull();
-    expect(screen.getAllByText("Load Permit").length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText("Autorização de carregamento (Load Permit)").length,
+    ).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Manifesto de carga").length).toBeGreaterThanOrEqual(1);
   });
 
@@ -185,7 +188,9 @@ describe("Minhas Viagens", () => {
     render(<TripsView mode="assigned" onBack={() => undefined} />);
 
     expect(await screen.findByRole("button", { name: /Maputo para Matola/i })).toBeTruthy();
-    expect(screen.getByText(/Modo offline — viagens guardadas/i)).toBeTruthy();
+    expect(
+      screen.getByText(/Não foi possível actualizar — a mostrar viagens guardadas/i),
+    ).toBeTruthy();
     expect(getDriverReadCache).toHaveBeenCalledWith(
       expect.objectContaining({ driverId: "driver-1", sessionId: "session-1" }),
       "trips:assigned:0",
@@ -220,7 +225,137 @@ describe("Minhas Viagens", () => {
     render(<TripsView mode="assigned" onBack={() => undefined} />);
     fireEvent.click(await screen.findByRole("button", { name: /Maputo para Matola/i }));
 
-    expect(await screen.findByText(/Documentos guardados — somente leitura offline/i)).toBeTruthy();
+    expect(
+      await screen.findByText(/Não foi possível actualizar — documentos guardados em/i),
+    ).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Solicitar Guia de transporte/i })).toBeNull();
+  });
+
+  it("nunca apresenta códigos internos de estado ou de documento ao motorista", async () => {
+    vi.mocked(listDriverTrips).mockResolvedValue({
+      items: [{ ...trip, status: "dispatch_pending" }],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+    vi.mocked(getDriverTripDocuments).mockResolvedValue({
+      trip_id: trip.id,
+      complete: true,
+      can_request: true,
+      missing_required: [],
+      requirements: [{ document_type: "transport_document:guia_remessa", present: true }],
+      documents: [
+        {
+          id: "doc-1",
+          document_type: "transport_guide",
+          document_number: "GT-9",
+          status: "issued",
+          file_id: null,
+          issued_at: "2026-08-23T07:30:00Z",
+        },
+      ],
+      requests: [],
+    });
+
+    render(<TripsView mode="assigned" onBack={() => undefined} />);
+
+    expect(await screen.findByText("A aguardar despacho")).toBeTruthy();
+    expect(screen.queryByText(/dispatch[ _]pending/i)).toBeNull();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Maputo para Matola/i }));
+
+    expect(await screen.findByText("Guia de remessa")).toBeTruthy();
+    expect(await screen.findByText("Guia de transporte")).toBeTruthy();
+    expect(screen.queryByText(/transport[ _]guide/i)).toBeNull();
+    expect(screen.queryByText(/guia_remessa/i)).toBeNull();
+  });
+
+  it("relê os documentos da viagem aberta quando o motorista sincroniza", async () => {
+    vi.mocked(listDriverTrips).mockResolvedValue({
+      items: [trip], total: 1, limit: 20, offset: 0,
+    });
+    const missing: Awaited<ReturnType<typeof getDriverTripDocuments>> = {
+      trip_id: trip.id,
+      complete: false,
+      can_request: true,
+      missing_required: ["load_permit"],
+      requirements: [{ document_type: "load_permit", present: false }],
+      documents: [],
+      requests: [],
+    };
+    const issued: Awaited<ReturnType<typeof getDriverTripDocuments>> = {
+      ...missing,
+      complete: true,
+      missing_required: [],
+      requirements: [{ document_type: "load_permit", present: true }],
+      documents: [
+        {
+          id: "doc-1",
+          document_type: "load_permit",
+          document_number: "LP-1",
+          status: "valid",
+          file_id: null,
+          issued_at: "2026-08-23T07:30:00Z",
+        },
+      ],
+    };
+    vi.mocked(getDriverTripDocuments)
+      .mockResolvedValueOnce(missing)
+      .mockResolvedValue(issued);
+
+    const { rerender } = render(
+      <TripsView mode="assigned" refreshToken={0} onBack={() => undefined} />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /Maputo para Matola/i }));
+    expect(await screen.findByText("Documentação incompleta")).toBeTruthy();
+
+    // O gestor emitiu o documento; sincronizar tem de reflectir isso sem obrigar
+    // o motorista a sair e voltar a entrar na viagem.
+    rerender(<TripsView mode="assigned" refreshToken={1} onBack={() => undefined} />);
+
+    expect(await screen.findByText("Documentação completa")).toBeTruthy();
+    await waitFor(() => {
+      expect(vi.mocked(getDriverTripDocuments).mock.calls.length).toBeGreaterThan(1);
+    });
+  });
+
+  it("explica ao motorista que o documento não abre sem rede", async () => {
+    const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    try {
+      vi.mocked(listDriverTrips).mockResolvedValue({
+        items: [trip], total: 1, limit: 20, offset: 0,
+      });
+      vi.mocked(getDriverTripDocuments).mockResolvedValue({
+        trip_id: trip.id,
+        complete: true,
+        can_request: true,
+        missing_required: [],
+        requirements: [{ document_type: "load_permit", present: true }],
+        documents: [
+          {
+            id: "doc-1",
+            document_type: "load_permit",
+            document_number: "LP-1",
+            status: "valid",
+            file_id: "file-1",
+            issued_at: "2026-08-23T07:30:00Z",
+          },
+        ],
+        requests: [],
+      });
+
+      render(<TripsView mode="assigned" onBack={() => undefined} />);
+      fireEvent.click(await screen.findByRole("button", { name: /Maputo para Matola/i }));
+      fireEvent.click(
+        await screen.findByRole("button", {
+          name: /Abrir Autorização de carregamento \(Load Permit\)/i,
+        }),
+      );
+
+      expect(await screen.findByText(/Sem ligação — o documento só pode ser aberto/i)).toBeTruthy();
+      expect(vi.mocked(downloadDriverTripDocument)).not.toHaveBeenCalled();
+    } finally {
+      onLine.mockRestore();
+    }
   });
 });

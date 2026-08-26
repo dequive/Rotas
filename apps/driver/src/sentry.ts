@@ -4,7 +4,7 @@
  * Silent when env var is absent — dev environment is never tracked (D-02).
  *
  * NOTE: VITE_ prefix is required for Vite to inline the value at build time.
- * The build-time guard in vite.config.mjs uses SENTRY_AUTH_TOKEN (no VITE_ prefix)
+ * The build-time guard in vite.config.ts uses SENTRY_AUTH_TOKEN (no VITE_ prefix)
  * to control source map upload separately from runtime error capture.
  */
 import * as Sentry from "@sentry/browser";

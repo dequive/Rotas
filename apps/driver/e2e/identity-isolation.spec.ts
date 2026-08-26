@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("logout limpa a identidade anterior antes de permitir novo pareamento", async ({
+test("logout limpa a identidade anterior antes de permitir novo emparelhamento", async ({
   context,
   page,
 }) => {
@@ -68,7 +68,7 @@ test("logout limpa a identidade anterior antes de permitir novo pareamento", asy
   });
 
   await page.getByRole("button", { name: "Sair" }).click();
-  await expect(page.getByPlaceholder("ABC123")).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Código de emparelhamento" })).toBeVisible();
 
   const purgeState = await page.evaluate(async () => {
     const databaseState = await new Promise<Record<string, number>>(
@@ -113,8 +113,8 @@ test("logout limpa a identidade anterior antes de permitir novo pareamento", asy
   expect(purgeState.hasApiCache).toBe(false);
   expect(Object.values(purgeState.counts).every((count) => count === 0)).toBe(true);
 
-  await page.getByPlaceholder("ABC123").fill("NEW123");
-  await page.getByRole("button", { name: "Entrar" }).click();
+  await page.getByRole("textbox", { name: "Código de emparelhamento" }).fill("123456");
+  await page.getByRole("button", { name: "Emparelhar dispositivo" }).click();
   await expect(page.getByRole("heading", { name: "Motorista Novo" })).toBeVisible();
 
   const newIdentity = await page.evaluate(() => ({

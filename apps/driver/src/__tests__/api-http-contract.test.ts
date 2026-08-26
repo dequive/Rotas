@@ -1,7 +1,13 @@
 import { HttpContractError } from "@rotas/http-contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { bootstrap } from "../api";
+import {
+  bootstrap,
+  listDriverAdvanceRecords,
+  listDriverChecklistRecords,
+  listDriverExpenseRecords,
+  listDriverFuelRecords,
+} from "../api";
 
 beforeEach(() => {
   localStorage.clear();
@@ -73,5 +79,29 @@ describe("Driver HTTP contract", () => {
         retryable: false,
       }),
     );
+  });
+
+  it("consulta as quatro coleções paginadas do diário com filtro de viagem", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () =>
+      Response.json({ items: [], total: 0, limit: 20, offset: 0 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await Promise.all([
+      listDriverChecklistRecords(20, 0, "trip-1"),
+      listDriverFuelRecords(20, 0, "trip-1"),
+      listDriverExpenseRecords(20, 0, "trip-1"),
+      listDriverAdvanceRecords(20, 0, "trip-1"),
+    ]);
+
+    expect(fetchMock.mock.calls.map(([url]) => {
+      const parsed = new URL(String(url), "http://localhost");
+      return `${parsed.pathname}${parsed.search}`;
+    })).toEqual([
+      "/api/v1/driver/records/checklists?limit=20&offset=0&trip_id=trip-1",
+      "/api/v1/driver/records/fuel?limit=20&offset=0&trip_id=trip-1",
+      "/api/v1/driver/records/expenses?limit=20&offset=0&trip_id=trip-1",
+      "/api/v1/driver/records/advances?limit=20&offset=0&trip_id=trip-1",
+    ]);
   });
 });

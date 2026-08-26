@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { syncStatusLabel, syncEntityLabel } from "../labels";
 import { explainSyncFailure } from "../syncErrors";
 import {
   db,
@@ -13,9 +14,10 @@ type SyncIssue = SyncQueueItem & { id: number };
 
 interface SyncIssuesPanelProps {
   onChanged?: () => void;
+  refreshToken?: number;
 }
 
-export function SyncIssuesPanel({ onChanged }: SyncIssuesPanelProps) {
+export function SyncIssuesPanel({ onChanged, refreshToken = 0 }: SyncIssuesPanelProps) {
   const [issues, setIssues] = useState<SyncIssue[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -40,7 +42,9 @@ export function SyncIssuesPanel({ onChanged }: SyncIssuesPanelProps) {
 
   useEffect(() => {
     void loadIssues();
-  }, [loadIssues]);
+    const interval = window.setInterval(() => void loadIssues(), 5_000);
+    return () => window.clearInterval(interval);
+  }, [loadIssues, refreshToken]);
 
   async function retry(issue: SyncIssue) {
     setBusyId(issue.id);
@@ -81,7 +85,11 @@ export function SyncIssuesPanel({ onChanged }: SyncIssuesPanelProps) {
       <div className="sync-issues__header">
         <div>
           <p>Revisão necessária</p>
-          <strong>{issues.length} registo(s) não sincronizado(s)</strong>
+          <strong>
+            {issues.length === 1
+              ? "1 registo não sincronizado"
+              : `${issues.length} registos não sincronizados`}
+          </strong>
         </div>
       </div>
       {message && <p className="sync-issues__message" role="alert">{message}</p>}
@@ -89,16 +97,11 @@ export function SyncIssuesPanel({ onChanged }: SyncIssuesPanelProps) {
         {issues.map((issue) => (
           <article className="sync-issue" key={issue.id}>
             <div>
-              <strong>{issue.entityType.replaceAll("_", " ")}</strong>
-              <span>{issue.status.replace("_", " ")}</span>
+              <strong>
+                {syncEntityLabel(issue.entityType)}
+              </strong>
+              <span>{syncStatusLabel(issue.status)}</span>
               <small>{explainSyncFailure(issue.lastErrorCode).message}</small>
-              {/* The server's technical wording stays available for support,
-                  but it is never the first thing the driver reads. */}
-              {issue.lastError && (
-                <small className="sync-issue__detail" title={issue.lastError}>
-                  {issue.lastError}
-                </small>
-              )}
               <small>Tentativas: {issue.retryCount}/{5}</small>
             </div>
             <div className="sync-issue__actions">
@@ -113,7 +116,7 @@ export function SyncIssuesPanel({ onChanged }: SyncIssuesPanelProps) {
                 }
                 type="button"
               >
-                Reenfileirar
+                Tentar novamente
               </button>
               <button
                 className="small-btn sync-issue__discard"

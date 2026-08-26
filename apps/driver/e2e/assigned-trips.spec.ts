@@ -155,9 +155,9 @@ test("recupera viagens e documentos offline sem permitir pedidos", async ({ page
 
   offline = true;
   await page.getByRole("button", { name: "Viagens" }).click();
-  await expect(page.getByText(/Modo offline — viagens guardadas/)).toBeVisible();
+  await expect(page.getByText(/Não foi possível actualizar — a mostrar viagens guardadas/)).toBeVisible();
   await page.getByRole("button", { name: "Maputo para Matola" }).click();
-  await expect(page.getByText(/Documentos guardados — somente leitura offline/)).toBeVisible();
+  await expect(page.getByText(/Não foi possível actualizar — documentos guardados.*somente leitura/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Solicitar Guia de transporte" })).toHaveCount(0);
 });
 
@@ -238,7 +238,7 @@ test("solicita ao gestor e descarrega documento autorizado", async ({ page }) =>
   expect(requestedDocumentType).toBe("transport_document:guia_de_transporte");
 
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Abrir Load Permit" }).click();
+  await page.getByRole("button", { name: "Abrir Autorização de carregamento (Load Permit)" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe("LP-001.pdf");
 });

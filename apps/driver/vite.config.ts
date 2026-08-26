@@ -62,7 +62,16 @@ export default defineConfig({
   },
   server: {
     port: 5174,
-    strictPort: false,
+    strictPort: true,
+    headers: {
+      "Cache-Control": "no-store",
+    },
+  },
+  preview: {
+    // Bind IPv4 for adb reverse; the browser origin remains localhost:4173.
+    host: "0.0.0.0",
+    port: 4173,
+    strictPort: true,
     headers: {
       "Cache-Control": "no-store",
     },

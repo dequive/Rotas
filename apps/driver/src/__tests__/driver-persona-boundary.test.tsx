@@ -94,4 +94,14 @@ describe("fronteira da persona Motorista", () => {
     expect(screen.getByText(/As novas viagens são atribuídas pelo gestor/i)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Nova viagem/i })).toBeNull();
   });
+
+  it("usa a navegação canónica Hoje, Viagens, Registos e Mais", async () => {
+    render(<App />);
+
+    expect(await screen.findByRole("button", { name: "Hoje" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Viagens" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Registos" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Mais" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Histórico" })).toBeNull();
+  });
 });

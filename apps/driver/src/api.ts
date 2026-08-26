@@ -285,6 +285,106 @@ export interface DriverDocumentRequest {
   created_at: string;
 }
 
+export interface DriverRecordPage<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface DriverChecklistRecord {
+  id: string;
+  trip_id: string | null;
+  vehicle_id: string;
+  checklist_type: string;
+  status: string;
+  started_at: string;
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface DriverFuelRecord {
+  id: string;
+  trip_id: string | null;
+  vehicle_id: string;
+  fuel_date: string;
+  station_name: string | null;
+  fuel_type: string;
+  liters: string;
+  total_cost: string;
+  km_at_refuel: number;
+  has_receipt: boolean;
+  is_verified: boolean;
+  is_flagged: boolean;
+  created_at: string;
+}
+
+export interface DriverExpenseRecord {
+  id: string;
+  trip_id: string;
+  expense_type: string;
+  description: string | null;
+  amount: string;
+  currency: string;
+  payment_method: string | null;
+  has_receipt: boolean;
+  entry_type: "original" | "adjustment" | "reversal";
+  corrects_id: string | null;
+  correction_reason: string | null;
+  recorded_by_type: "driver" | "manager" | "system";
+  incurred_at: string;
+  created_at: string;
+}
+
+export interface DriverAdvanceRecord {
+  id: string;
+  trip_id: string;
+  total_amount: string;
+  allowance_amount: string;
+  expense_amount: string;
+  currency: string;
+  status: string;
+  issued_at: string;
+}
+
+function driverRecordQuery(limit: number, offset: number, tripId?: string): string {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (tripId) params.set("trip_id", tripId);
+  return params.toString();
+}
+
+export function listDriverChecklistRecords(
+  limit = 20,
+  offset = 0,
+  tripId?: string,
+): Promise<DriverRecordPage<DriverChecklistRecord>> {
+  return request(`/api/v1/driver/records/checklists?${driverRecordQuery(limit, offset, tripId)}`);
+}
+
+export function listDriverFuelRecords(
+  limit = 20,
+  offset = 0,
+  tripId?: string,
+): Promise<DriverRecordPage<DriverFuelRecord>> {
+  return request(`/api/v1/driver/records/fuel?${driverRecordQuery(limit, offset, tripId)}`);
+}
+
+export function listDriverExpenseRecords(
+  limit = 20,
+  offset = 0,
+  tripId?: string,
+): Promise<DriverRecordPage<DriverExpenseRecord>> {
+  return request(`/api/v1/driver/records/expenses?${driverRecordQuery(limit, offset, tripId)}`);
+}
+
+export function listDriverAdvanceRecords(
+  limit = 20,
+  offset = 0,
+  tripId?: string,
+): Promise<DriverRecordPage<DriverAdvanceRecord>> {
+  return request(`/api/v1/driver/records/advances?${driverRecordQuery(limit, offset, tripId)}`);
+}
+
 export function listDriverTrips(limit = 20, offset = 0): Promise<DriverTripPage> {
   return request<DriverTripPage>(`/api/v1/driver/trips?limit=${limit}&offset=${offset}`);
 }

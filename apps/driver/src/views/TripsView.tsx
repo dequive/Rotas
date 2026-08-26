@@ -8,7 +8,7 @@ import {
   MapPinned,
   Send,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   downloadDriverTripDocument,
   getDriverTripDocuments,
@@ -18,6 +18,7 @@ import {
   type DriverTrip,
   type DriverTripDocuments,
 } from "../api";
+import { documentLabel, tripStatusLabel } from "../labels";
 import {
   getCurrentIdentityScope,
   getDriverReadCache,
@@ -28,22 +29,13 @@ import {
 type TripsViewProps = {
   mode: "assigned" | "history";
   onBack: () => void;
+  /**
+   * Incrementado pelo ecrã principal a cada sincronização manual. As leituras
+   * do motorista têm de acompanhar o que o gestor acabou de emitir; sem isto,
+   * um documento já disponibilizado continuaria a aparecer como "Em falta".
+   */
+  refreshToken?: number;
 };
-
-const DOCUMENT_LABELS: Record<string, string> = {
-  load_permit: "Load Permit",
-  cargo_manifest: "Manifesto de carga",
-  transport_document: "Documento de transporte",
-  "transport_document:guia_de_transporte": "Guia de transporte",
-  "transport_document:guia_remessa": "Guia de remessa",
-  "transport_document:carta_porte_internacional": "Carta de porte internacional",
-  "transport_document:dav": "DAV — Declaração de Aprovação de Viagem",
-  "transport_document:declaracao_carga_perigosa": "Declaração de carga perigosa",
-};
-
-function documentLabel(value: string) {
-  return DOCUMENT_LABELS[value] ?? value.replaceAll("_", " ");
-}
 
 function dateLabel(value: string | null) {
   if (!value) return "Horário por confirmar";
@@ -51,21 +43,6 @@ function dateLabel(value: string | null) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
-}
-
-function statusLabel(value: string) {
-  const labels: Record<string, string> = {
-    approved: "Aprovada",
-    assigned: "Atribuída",
-    planned: "Planeada",
-    dispatched: "Despachada",
-    in_progress: "Em curso",
-    pending_delivery_proof: "A aguardar prova de descarga",
-    pending_delivery_validation: "A aguardar validação",
-    closed: "Concluída",
-    cancelled: "Cancelada",
-  };
-  return labels[value] ?? value.replaceAll("_", " ");
 }
 
 async function saveReadCache<T>(
@@ -88,7 +65,7 @@ async function readCache<T>(identity: DriverIdentityScope, key: string) {
   }
 }
 
-export function TripsView({ mode, onBack }: TripsViewProps) {
+export function TripsView({ mode, onBack, refreshToken = 0 }: TripsViewProps) {
   const [trips, setTrips] = useState<DriverTrip[]>([]);
   const [total, setTotal] = useState(0);
   const [selectedTrip, setSelectedTrip] = useState<DriverTrip | null>(null);
@@ -157,6 +134,20 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
     void loadTrips();
   }, [loadTrips]);
 
+  const openTripRef = useRef<((trip: DriverTrip) => Promise<void>) | null>(null);
+  const selectedTripRef = useRef<DriverTrip | null>(null);
+  selectedTripRef.current = selectedTrip;
+
+  useEffect(() => {
+    if (refreshToken === 0) return;
+    const current = selectedTripRef.current;
+    if (current) {
+      void openTripRef.current?.(current);
+    } else {
+      void loadTrips();
+    }
+  }, [refreshToken, loadTrips]);
+
   async function openTrip(trip: DriverTrip) {
     const cacheKey = `trip:${trip.id}:documents`;
     const identity = getCurrentIdentityScope();
@@ -186,6 +177,8 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
     }
   }
 
+  openTripRef.current = openTrip;
+
   async function requestDocument(documentType: string) {
     if (!selectedTrip) return;
     setRequesting(documentType);
@@ -212,8 +205,16 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
 
   async function downloadDocument(fileId: string, filename: string) {
     if (!selectedTrip) return;
+    // O ficheiro só existe no servidor. Sem rede, falhar de imediato e dizê-lo,
+    // em vez de deixar o motorista sem resposta durante os retries.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setActionMessage(
+        "Sem ligação — o documento só pode ser aberto quando houver rede.",
+      );
+      return;
+    }
     setDownloading(fileId);
-    setActionMessage("");
+    setActionMessage("A abrir o documento…");
     try {
       const blob = await downloadDriverTripDocument(selectedTrip.id, fileId);
       const url = URL.createObjectURL(blob);
@@ -222,6 +223,7 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
       link.download = filename;
       link.click();
       URL.revokeObjectURL(url);
+      setActionMessage("");
     } catch {
       setActionMessage("Não foi possível abrir o documento. Tente novamente.");
     } finally {
@@ -248,7 +250,7 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
         </header>
 
         <dl className="trip-facts">
-          <div><dt>Estado</dt><dd>{statusLabel(selectedTrip.status)}</dd></div>
+          <div><dt>Estado</dt><dd>{tripStatusLabel(selectedTrip.status)}</dd></div>
           <div><dt>Carga</dt><dd>{selectedTrip.cargo_type ?? "Não informada"}</dd></div>
           <div><dt>Peso</dt><dd>{selectedTrip.cargo_weight ? `${selectedTrip.cargo_weight} kg` : "—"}</dd></div>
           <div><dt>Destinatário</dt><dd>{selectedTrip.recipient_name ?? "—"}</dd></div>
@@ -286,7 +288,8 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
               )}
               {documentsCachedAt && (
                 <p className="read-only-note" role="status">
-                  <LockKeyhole size={17} /> Documentos guardados — somente leitura offline.
+                  <LockKeyhole size={17} /> Não foi possível actualizar — documentos guardados em{" "}
+                  {dateLabel(documentsCachedAt)}; somente leitura.
                 </p>
               )}
 
@@ -364,7 +367,7 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
       {listCachedAt && (
         <div className="panel inline-state" role="status">
           <LockKeyhole size={18} />
-          <span>Modo offline — viagens guardadas em {dateLabel(listCachedAt)}.</span>
+          <span>Não foi possível actualizar — a mostrar viagens guardadas em {dateLabel(listCachedAt)}.</span>
         </div>
       )}
 
@@ -395,7 +398,7 @@ export function TripsView({ mode, onBack }: TripsViewProps) {
             >
               <span className="trip-list-card__route">{trip.origin} → {trip.destination}</span>
               <span className="trip-list-card__meta">{dateLabel(trip.planned_departure)}</span>
-              <span className="trip-list-card__status">{statusLabel(trip.status)}</span>
+              <span className="trip-list-card__status">{tripStatusLabel(trip.status)}</span>
             </button>
           ))}
           {trips.length < total && (

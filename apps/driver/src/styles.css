@@ -45,6 +45,11 @@
   box-sizing: border-box;
 }
 
+html,
+#root {
+  min-height: 100%;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -60,10 +65,13 @@
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--rotas-100);
   color: var(--ink);
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
   text-rendering: optimizeLegibility;
 }
 
@@ -96,19 +104,25 @@ button {
 
 .phone-shell {
   min-height: 100vh;
-  width: 100vw;
-  max-width: min(390px, 100vw);
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 480px;
   margin: 0;
+  position: relative;
   background: var(--soft);
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
 }
 
+.phone-shell:has(> .driver-nav) {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+
 .top {
   background: var(--nav);
   color: white;
-  padding: 20px 18px;
+  padding: max(20px, calc(12px + env(safe-area-inset-top))) 18px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -425,35 +439,81 @@ button {
 /* ── Pairing screen ─────────────────────── */
 .pairing-shell {
   min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--soft);
+  background: var(--panel);
 }
 
 .pairing-card {
-  width: 340px;
-  max-width: 96vw;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 32px 24px;
+  padding: max(24px, calc(16px + env(safe-area-inset-top))) 24px max(24px, calc(16px + env(safe-area-inset-bottom)));
+  display: flex;
+  flex-direction: column;
 }
 
 .pairing-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 26px;
-  font-weight: 800;
+  gap: 12px;
   color: var(--nav);
-  margin-bottom: 4px;
 }
 
-.pairing-subtitle {
+.pairing-brand__mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--nav);
+  color: var(--panel);
+  display: grid;
+  place-items: center;
+}
+
+.pairing-brand strong,
+.pairing-brand small {
+  display: block;
+}
+
+.pairing-brand strong {
+  font-size: 18px;
+  letter-spacing: 0.03em;
+}
+
+.pairing-brand small {
+  margin-top: 2px;
   color: var(--muted);
-  font-size: 13px;
-  margin: 0 0 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pairing-heading {
+  margin-top: clamp(40px, 9vh, 72px);
+}
+
+.pairing-heading > span {
+  color: var(--rotas-600);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.pairing-heading h1 {
+  margin: 8px 0 0;
+  color: var(--ink);
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.pairing-heading p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 .pairing-instructions {
@@ -464,7 +524,7 @@ button {
   border: 1px solid var(--info-border);
   border-radius: 8px;
   padding: 12px;
-  margin-bottom: 20px;
+  margin: 24px 0 20px;
   color: var(--info);
   font-size: 13px;
 }
@@ -473,9 +533,26 @@ button {
   margin: 0;
 }
 
+.pairing-instructions strong,
+.pairing-instructions span {
+  display: block;
+}
+
+.pairing-instructions span {
+  margin-top: 3px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .pairing-form {
   display: grid;
-  gap: 12px;
+  gap: 10px;
+}
+
+.pairing-label {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .pairing-input {
@@ -485,17 +562,24 @@ button {
   border-radius: 8px;
   font-size: 28px;
   font-weight: 800;
-  letter-spacing: 6px;
+  letter-spacing: 0.34em;
   text-align: center;
   text-transform: uppercase;
   color: var(--ink);
-  background: white;
+  background: var(--panel);
   width: 100%;
 }
 
 .pairing-input:focus {
   outline: none;
   border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--rotas-100);
+}
+
+.pairing-help {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .pairing-btn {
@@ -516,6 +600,10 @@ button {
   opacity: 0.5;
 }
 
+.pairing-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
 .pairing-error {
   color: var(--red);
   font-size: 13px;
@@ -524,6 +612,62 @@ button {
   border-radius: 6px;
   padding: 8px 12px;
   margin: 0;
+}
+
+.pairing-update {
+  margin-top: 20px;
+  padding: 12px;
+  border: 1px solid var(--info-border);
+  border-radius: 8px;
+  background: var(--info-soft);
+  color: var(--info);
+  display: grid;
+  gap: 10px;
+}
+
+.pairing-update strong,
+.pairing-update small {
+  display: block;
+}
+
+.pairing-update small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pairing-update button {
+  min-height: 44px;
+  border: 1px solid var(--info-border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--info);
+  font: inherit;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pairing-update button:active {
+  transform: scale(0.98);
+}
+
+.pairing-security {
+  margin-top: auto;
+  padding-top: 28px;
+  color: var(--muted);
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pairing-security svg {
+  flex: 0 0 auto;
+  color: var(--green);
 }
 
 /* ── Header actions ─────────────────────── */
@@ -760,6 +904,31 @@ button {
   padding: 4px 10px;
 }
 
+.sync-banner:has(.sync-banner__confirm) {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sync-banner__confirm {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  line-height: 1.35;
+}
+
+.sync-banner__confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sync-banner__confirm-actions .small-btn {
+  min-height: 40px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 /* ── Local sync issue recovery ─────────── */
 .sync-issues {
   margin: 0 16px 12px;
@@ -819,7 +988,6 @@ button {
 .sync-issue strong {
   color: var(--ink);
   font-size: 13px;
-  text-transform: capitalize;
 }
 
 .sync-issue span {
@@ -841,7 +1009,7 @@ button {
 .sync-issue__detail {
   overflow: hidden;
   color: var(--muted);
-  font-family: "IBM Plex Mono", monospace;
+  font-family: ui-monospace, "Cascadia Code", "Roboto Mono", monospace;
   font-size: 10px;
   opacity: 0.7;
   text-overflow: ellipsis;
@@ -861,17 +1029,202 @@ button {
 
 /* ── Driver navigation and assigned trips ──────────────────── */
 .driver-nav {
-  position: sticky;
+  position: fixed;
+  left: 50%;
   bottom: 0;
-  z-index: 10;
+  z-index: 50;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
-  margin-top: auto;
+  width: min(480px, 100vw);
+  min-height: calc(68px + env(safe-area-inset-bottom));
+  margin: 0;
   padding: 8px 10px max(8px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(12px);
+  box-shadow: 0 -8px 24px rgba(10, 22, 40, 0.08);
+  transform: translateX(-50%);
+}
+
+.journeys-workspace,
+.records-workspace,
+.more-workspace {
+  display: grid;
+  gap: 14px;
+  padding: 14px 14px 92px;
+}
+
+.journey-switcher {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.journey-switcher button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.journey-switcher button.selected {
+  background: var(--rotas-50);
+  color: var(--rotas-700);
+}
+
+.records-degraded,
+.records-state {
+  min-height: 96px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  text-align: center;
+}
+
+.record-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.record-filters button {
+  min-height: 44px;
+  min-width: 0;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.record-filters button.selected {
+  border-color: var(--rotas-300);
+  background: var(--rotas-50);
+  color: var(--rotas-700);
+}
+
+.records-degraded {
+  min-height: 0;
+  justify-content: flex-start;
+  border-color: var(--orange-border);
+  background: var(--orange-soft);
+  color: var(--orange);
+  font-size: 13px;
+  text-align: left;
+}
+
+.records-state {
+  flex-direction: column;
+}
+
+.records-state--error {
+  border-color: var(--orange-border);
+  background: var(--orange-soft);
+  color: var(--orange);
+}
+
+.records-state button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--rotas-300);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--rotas-700);
+  font-weight: 800;
+}
+
+.records-list {
+  display: grid;
+  gap: 9px;
+}
+
+.record-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: var(--shadow-card);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+.record-card > svg {
+  color: var(--rotas-500);
+}
+
+.record-card strong,
+.record-card span,
+.record-card small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.record-card span {
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.record-card small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.more-card {
+  min-height: 70px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  display: grid;
+  gap: 4px;
+}
+
+.more-card span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.more-card strong {
+  overflow-wrap: anywhere;
+}
+
+.more-action {
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid var(--rotas-300);
+  border-radius: 11px;
+  background: var(--rotas-50);
+  color: var(--rotas-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-weight: 900;
+}
+
+.more-action--danger {
+  border-color: var(--red-border);
+  background: var(--red-soft);
+  color: var(--red);
 }
 
 .driver-nav button {
@@ -892,6 +1245,10 @@ button {
 .driver-nav button.active {
   background: var(--rotas-100);
   color: var(--rotas-700);
+}
+
+.driver-nav button:active {
+  transform: scale(0.97);
 }
 
 .trip-workspace {
@@ -978,7 +1335,6 @@ button {
   font-weight: 900;
   overflow-wrap: anywhere;
   text-align: center;
-  text-transform: capitalize;
 }
 
 .load-more {

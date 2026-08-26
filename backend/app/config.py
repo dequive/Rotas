@@ -3,7 +3,12 @@ from functools import lru_cache
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-DEV_CORS_ORIGINS = ["http://localhost:3000", "http://localhost:5173"]
+DEV_CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:4173",
+    "http://localhost:5173",
+    "http://localhost:5174",
+]
 
 
 class Settings(BaseSettings):

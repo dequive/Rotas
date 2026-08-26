@@ -2,10 +2,11 @@ import {
   Camera,
   CheckCircle2,
   ClipboardList,
-  History,
   Home,
   LogOut,
   MapPin,
+  MoreHorizontal,
+  NotebookTabs,
   ReceiptText,
   RefreshCw,
   Save,
@@ -29,14 +30,19 @@ import {
   getCurrentIdentityScope,
   type SyncStatus,
 } from "./db";
+import { loadStateLabel, tripStatusLabel } from "./labels";
 import { processSyncQueue } from "./sync";
 import { PairingView } from "./views/PairingView";
 import { TripStopView } from "./views/TripStopView";
 import { DeliveryProofView } from "./views/DeliveryProofView";
 import { TripsView } from "./views/TripsView";
+import { RecordsView } from "./views/RecordsView";
 import { useNetworkStatus } from "./hooks/useNetworkStatus";
 import { useSyncStatus } from "./hooks/useSyncStatus";
-import { SyncStatusBanner } from "./components/SyncStatusBanner";
+import {
+  activateWaitingServiceWorker,
+  SyncStatusBanner,
+} from "./components/SyncStatusBanner";
 import { SyncIssuesPanel } from "./components/SyncIssuesPanel";
 import { purgeDriverIdentity } from "./identity";
 
@@ -47,7 +53,8 @@ type View =
   | "trip_stop"
   | "delivery_proof"
   | "trips"
-  | "history";
+  | "records"
+  | "more";
 
 type ChecklistResponseState = Record<string, { value: boolean; photo?: File }>;
 
@@ -76,6 +83,8 @@ function initialChecklistResponses(template: ChecklistTemplate): ChecklistRespon
 export function App() {
   const [auth, setAuth] = useState<AuthState | null>(getAuth);
   const [view, setView] = useState<View>("dashboard");
+  const [tripMode, setTripMode] = useState<"assigned" | "history">("assigned");
+  const [readRefresh, setReadRefresh] = useState(0);
   const [activeTrip, setActiveTrip] = useState<ActiveTrip | null>(null);
   const [checklistTemplate, setChecklistTemplate] = useState<ChecklistTemplate | null>(null);
   const [checklistResponses, setChecklistResponses] = useState<ChecklistResponseState>({});
@@ -89,7 +98,7 @@ export function App() {
   const syncLock = useRef(false);
 
   const { isOnline } = useNetworkStatus();
-  const syncStatus = useSyncStatus(isOnline, syncing);
+  const syncStatus = useSyncStatus(isOnline, syncing, auth?.sessionId);
 
   useEffect(() => {
     if (!auth) return;
@@ -286,6 +295,9 @@ export function App() {
     try {
       await processSyncQueue(auth.accessToken);
       await refreshPendingCount();
+      // Sincronizar também tem de reler o que o gestor publicou entretanto:
+      // documentos emitidos, requisitos e estado das viagens atribuídas.
+      setReadRefresh((token) => token + 1);
       setLastMessage("Sincronização concluída.");
     } catch {
       setLastMessage("Sincronização interrompida; os registos locais foram preservados.");
@@ -340,7 +352,20 @@ export function App() {
   }
 
   if (!auth) {
-    return <PairingView onPaired={(a) => setAuth(a)} />;
+    const waitingUpdate =
+      syncStatus.bannerState === "update_available"
+        ? syncStatus.workboxInstance
+        : null;
+    return (
+      <PairingView
+        onPaired={(a) => setAuth(a)}
+        onUpdate={
+          waitingUpdate
+            ? () => activateWaitingServiceWorker(waitingUpdate)
+            : undefined
+        }
+      />
+    );
   }
 
   const tripId = activeTrip?.id ?? "local_trip";
@@ -362,14 +387,16 @@ export function App() {
         </div>
       </header>
 
-      {view !== "trips" && view !== "history" && (activeTrip ? (
+      {view !== "trips" && view !== "records" && view !== "more" && (activeTrip ? (
         <section className="status-card">
           <div>
             <p>Viagem activa</p>
             <strong>{activeTrip.origin} → {activeTrip.destination}</strong>
           </div>
           <span className={`status-badge ${activeTrip.status}`}>
-            {activeTrip.load_state ?? activeTrip.status}
+            {activeTrip.load_state
+              ? loadStateLabel(activeTrip.load_state)
+              : tripStatusLabel(activeTrip.status)}
           </span>
         </section>
       ) : (
@@ -437,20 +464,51 @@ export function App() {
       )}
 
       {view === "trips" && (
-        <TripsView mode="assigned" onBack={() => setView("dashboard")} />
+        <section className="journeys-workspace">
+          <div className="journey-switcher" aria-label="Tipo de viagens">
+            <button type="button" className={tripMode === "assigned" ? "selected" : ""} onClick={() => setTripMode("assigned")}>Atribuídas</button>
+            <button type="button" className={tripMode === "history" ? "selected" : ""} onClick={() => setTripMode("history")}>Histórico</button>
+          </div>
+          <TripsView mode={tripMode} refreshToken={readRefresh} onBack={() => setView("dashboard")} />
+        </section>
       )}
 
-      {view === "history" && (
-        <TripsView mode="history" onBack={() => setView("dashboard")} />
+      {view === "records" && (
+        <RecordsView refreshToken={readRefresh} />
+      )}
+
+      {view === "more" && (
+        <section className="more-workspace" aria-labelledby="more-title">
+          <div className="workspace-heading">
+            <span>Conta e aplicação</span>
+            <h2 id="more-title">Mais</h2>
+            <p>Sincronização, dispositivo e sessão deste motorista.</p>
+          </div>
+          <div className="more-card">
+            <span>Dispositivo emparelhado</span>
+            <strong>{auth.deviceId}</strong>
+          </div>
+          <div className="more-card">
+            <span>Operações por sincronizar</span>
+            <strong>{pendingCount}</strong>
+          </div>
+          <button className="more-action" type="button" onClick={() => void syncNow()} disabled={syncing || !isOnline}>
+            <RefreshCw size={20} className={syncing ? "spin" : ""} />
+            {syncing ? "A sincronizar…" : "Sincronizar agora"}
+          </button>
+          <button className="more-action more-action--danger" type="button" onClick={() => void handleLogout()}>
+            <LogOut size={20} /> Terminar sessão
+          </button>
+        </section>
       )}
 
       {view === "dashboard" && syncStatus.errorCount > 0 && (
-        <SyncIssuesPanel onChanged={() => void refreshPendingCount()} />
+        <SyncIssuesPanel refreshToken={readRefresh} onChanged={() => void refreshPendingCount()} />
       )}
 
-      <SyncStatusBanner status={syncStatus} />
+      <SyncStatusBanner status={syncStatus} onRePair={() => void handleLogout()} />
 
-      {(view === "dashboard" || view === "trips" || view === "history") && (
+      {(view === "dashboard" || view === "trips" || view === "records" || view === "more") && (
       <nav className="driver-nav" aria-label="Navegação principal">
         <button
           type="button"
@@ -470,11 +528,19 @@ export function App() {
         </button>
         <button
           type="button"
-          className={view === "history" ? "active" : ""}
-          onClick={() => setView("history")}
-          aria-current={view === "history" ? "page" : undefined}
+          className={view === "records" ? "active" : ""}
+          onClick={() => setView("records")}
+          aria-current={view === "records" ? "page" : undefined}
         >
-          <History size={20} /> Histórico
+          <NotebookTabs size={20} /> Registos
+        </button>
+        <button
+          type="button"
+          className={view === "more" ? "active" : ""}
+          onClick={() => setView("more")}
+          aria-current={view === "more" ? "page" : undefined}
+        >
+          <MoreHorizontal size={20} /> Mais
         </button>
       </nav>
       )}

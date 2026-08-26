@@ -3500,3 +3500,18 @@ O gate de congelamento reproduziu `Access is denied` quando `npm run build`
 deixava o Vite compilar a configuração dentro do OneDrive. Um teste RED passou
 a exigir loader nativo também no build; `package.json` foi alinhado e o teste
 GREEN/build produziram novamente `1806/94/6` com `index-GP13naLz.js`.
+
+### 16.37 C2 — Congelamento local e repetição física — 2026-08-26
+
+- backend/contratos: `ae1ede2`;
+- PWA Driver: `a978229`;
+- backend efémero `1010/1010`, Ruff/Pyright, Driver `67/67`, build, E2E `7/7`,
+  Manager `128/128`/build e OpenAPI verdes;
+- backend e preview reiniciados a partir do produto fixo;
+- Redmi repetiu cold start com API bloqueada, preservou sessão/cache e executou
+  `401 -> refresh 200 -> retry 200` com `index-GP13naLz.js`.
+
+C2 fica fechado local+físico para o conteúdo do produto `a978229`. O próximo
+gate é C3: Actions imutáveis, supply chain e CI executada. Sem CI, revisão,
+staging, piloto e RC integrado, G0-G5 e a release permanecem **NO-GO**. Evidência:
+`docs/evidence/C2_DRIVER_ANDROID_FIXED_SHA_20260826.md`.

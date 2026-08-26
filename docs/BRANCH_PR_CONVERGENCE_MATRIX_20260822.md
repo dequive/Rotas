@@ -160,6 +160,10 @@ E0 e só começa depois de C0-C4 e Cliente/Terceiro.
    sessão/viagem permaneceram válidas. O percurso físico funcional está verde
    no working tree baseado em `b00962e`; falta repeti-lo no artefacto fixo.
 4. **C3:** portar #35/#40, fechar Pyright/OpenAPI e recuperar CI executável.
+   C2 foi congelado em `ae1ede2`/`a978229` e repetido no Redmi com cold start,
+   cache, reconciliação e refresh. Os gates locais ficaram verdes, conforme
+   `docs/evidence/C2_DRIVER_ANDROID_FIXED_SHA_20260826.md`; isto autoriza iniciar
+   C3, não merge, staging ou release.
    A causa remota verificada do `startup_failure` inclui a política
    `sha_pinning_required=true` combinada com quatro Actions referidas por tags;
    a correção por SHA imutável continua depois dos incrementos C2 pendentes.

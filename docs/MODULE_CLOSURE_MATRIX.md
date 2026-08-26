@@ -13,7 +13,7 @@ até nova auditoria no SHA integrado. Ver
 | --- | --- | --- |
 | Frota e Pessoas | avançado local; não fechado | pairing e ownership Driver verdes localmente; validação Android foi exploratória e sem SHA; faltam RC e revisão |
 | Transporte e Carga | C2 em progresso; não fechado | pairing, histórico e detalhe fechado com documentos foram provados no Redmi; faltam repetição no artefacto fixo e RC |
-| Sync/Offline | avançado local; não fechado | atualização, pairing, cold start, navegação Dexie, reconciliação e refresh rotation foram provados no Redmi; falta repetição no mesmo SHA |
+| Sync/Offline | C2 fechado local+físico; não release-certified | atualização, pairing, cold start, Dexie, reconciliação e refresh foram repetidos no produto `a978229`; faltam CI, staging e RC integrado |
 | Contratos API Driver | avançado local; não fechado | rec16, DTOs, consumidor PWA e correção Manager estão alinhados localmente; faltam CI, revisão e RC |
 | Segurança multi-tenant | avançado local; não certificado | ownership intra-tenant provado localmente; falta RLS restrita e pentest no RC |
 | ERP financeiro/inventário | parcial | fontes duplicadas, limiar de stock fixo e fecho ponta a ponta não certificado |

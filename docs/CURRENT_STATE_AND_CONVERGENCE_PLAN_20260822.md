@@ -460,6 +460,15 @@ SHA/artefacto fixo. C2 continua aberto.
 
 CI, revisão, staging e RC ainda não existem.
 
+Em 2026-08-26 o produto foi congelado em `ae1ede2`/`a978229` e os gates locais
+passaram backend `1010/1010`, Ruff/Pyright, Driver `67/67`/build/E2E `7/7`,
+Manager `128/128`/build e OpenAPI. Serviços reiniciados a partir desse conteúdo
+repetiram no Redmi cold start com API bloqueada e
+`GET 401 -> POST refresh 200 -> GET 200`, preservando sessão, viagem e bundle
+`index-GP13naLz.js`. C2 fica fechado local+físico no produto; C3, CI, staging e
+RC permanecem pendentes. Ver
+`docs/evidence/C2_DRIVER_ANDROID_FIXED_SHA_20260826.md`.
+
 ### C3 — Contratos e gates
 
 - DTOs Driver/Sync e OpenAPI não vazio;

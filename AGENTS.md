@@ -281,5 +281,14 @@ produziu `GET 401 -> POST /auth/refresh 200 -> GET 200`; access e refresh foram
 ambos substituídos, sem expor valores, e sessão/viagem permaneceram visíveis.
 O percurso físico funcional C2 está provado no working tree. Falta congelar e
 repetir o conjunto no mesmo SHA/artefacto fixo; C2 ainda não é promovido.
+O congelamento seguinte criou `ae1ede2` para backend e `a978229` para a PWA;
+backend `1010/1010`, Ruff/Pyright, Driver `67/67`/build/E2E `7/7`, Manager
+`128/128`/build e OpenAPI ficaram verdes. Backend e preview foram reiniciados a
+partir desse produto; o Redmi repetiu cold start com API bloqueada e o backend
+registou `GET 401 -> POST refresh 200 -> GET 200`, mantendo bundle
+`index-GP13naLz.js`, sessão e viagem. C2 fica fechado local+físico para o
+conteúdo de `a978229`; CI, staging e release continuam `NO-GO`. O próximo gate
+obrigatório passa a C3: Actions por SHA, supply chain e CI efetivamente
+executada. Ver `docs/evidence/C2_DRIVER_ANDROID_FIXED_SHA_20260826.md`.
 O `narrow` de checklist/combustível continua proibido até política/backfill
 próprios. Só depois seguem Actions, supply chain e CI. Estado: `NO-GO`.

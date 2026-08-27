@@ -27,11 +27,8 @@ describe("origem canónica da PWA instalada", () => {
     expect(viteConfig).toMatch(/preview:\s*\{[\s\S]*port:\s*4173/);
     expect(viteConfig).toMatch(/preview:\s*\{[\s\S]*host:\s*"0\.0\.0\.0"/);
     expect(viteConfig).toMatch(/preview:\s*\{[\s\S]*strictPort:\s*true/);
-    expect(packageConfig).toContain(
-      "vite preview --config vite.config.ts --configLoader native",
-    );
-    expect(packageConfig).toContain(
-      "vite build --config vite.config.ts --configLoader native",
-    );
+    expect(packageConfig).toContain("vite preview --config vite.config.ts");
+    expect(packageConfig).toContain("vite build --config vite.config.ts");
+    expect(packageConfig).not.toContain("--configLoader native");
   });
 });

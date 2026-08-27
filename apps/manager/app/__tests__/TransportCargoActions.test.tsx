@@ -88,6 +88,11 @@ describe("TransportCargoActions dispatch approval", () => {
       }
       fireEvent.click(screen.getByRole("button", { name: "Confirmar aprovação" }));
       await waitFor(() => expect(state.bffRequest).toHaveBeenCalledTimes(attempt + 1));
+      await screen.findByRole(
+        "button",
+        { name: "Reavaliar saída" },
+        { timeout: 5_000 },
+      );
     }
 
     const firstHeaders = new Headers(state.bffRequest.mock.calls[0]?.[1]?.headers);

@@ -95,6 +95,95 @@ def test_dependency_security_gate_reports_audit_tree_runtime_and_sha_blockers():
     ]
 
 
+def test_dependency_security_gate_accepts_pinned_sharp_platform_artifacts():
+    wasm_problem = (
+        "extraneous: @img/sharp-wasm32@0.35.4 "
+        "/workspace/node_modules/@img/sharp-wasm32"
+    )
+    runtime_problem = (
+        "extraneous: @emnapi/runtime@1.11.3 "
+        "/workspace/node_modules/@emnapi/runtime"
+    )
+    result = evaluate_dependency_security(
+        production_audit=_audit(),
+        complete_audit=_audit(),
+        production_audit_exit_code=0,
+        complete_audit_exit_code=0,
+        tree_exit_code=0,
+        tree={
+            "problems": [runtime_problem, wasm_problem],
+            "dependencies": {
+                "@img/sharp-wasm32": {
+                    "version": "0.35.4",
+                    "resolved": (
+                        "https://registry.npmjs.org/@img/sharp-wasm32/"
+                        "-/sharp-wasm32-0.35.4.tgz"
+                    ),
+                    "extraneous": True,
+                    "problems": [wasm_problem],
+                    "dependencies": {
+                        "@emnapi/runtime": {"version": "1.11.3"},
+                    },
+                },
+                "@emnapi/runtime": {
+                    "version": "1.11.3",
+                    "resolved": (
+                        "https://registry.npmjs.org/@emnapi/runtime/"
+                        "-/runtime-1.11.3.tgz"
+                    ),
+                    "extraneous": True,
+                    "problems": [runtime_problem],
+                },
+            },
+        },
+        sbom={"bomFormat": "CycloneDX", "specVersion": "1.5", "components": [{}]},
+        node_version="v20.20.2",
+        npm_version="10.8.2",
+        profile="local",
+        release_sha=None,
+        sbom_sha256="f" * 64,
+    )
+
+    assert result["passed"] is True
+    assert result["dependency_tree"]["accepted_platform_artifacts"] == [
+        "@emnapi/runtime@1.11.3",
+        "@img/sharp-wasm32@0.35.4",
+    ]
+
+
+def test_dependency_security_gate_rejects_unpinned_sharp_platform_artifact():
+    problem = (
+        "extraneous: @img/sharp-wasm32@0.35.5 "
+        "/workspace/node_modules/@img/sharp-wasm32"
+    )
+    result = evaluate_dependency_security(
+        production_audit=_audit(),
+        complete_audit=_audit(),
+        production_audit_exit_code=0,
+        complete_audit_exit_code=0,
+        tree_exit_code=0,
+        tree={
+            "problems": [problem],
+            "dependencies": {
+                "@img/sharp-wasm32": {
+                    "version": "0.35.5",
+                    "extraneous": True,
+                    "problems": [problem],
+                },
+            },
+        },
+        sbom={"bomFormat": "CycloneDX", "specVersion": "1.5", "components": [{}]},
+        node_version="v20.20.2",
+        npm_version="10.8.2",
+        profile="local",
+        release_sha=None,
+        sbom_sha256="f" * 64,
+    )
+
+    assert result["passed"] is False
+    assert result["dependency_tree"]["unexpected_problems"] == [problem]
+
+
 def _waiver(*, release_sha: str = RELEASE_SHA, approved: bool = True) -> dict:
     return {
         "schema_version": 1,

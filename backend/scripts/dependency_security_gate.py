@@ -17,6 +17,22 @@ RELEASE_SHA = re.compile(r"^[0-9a-f]{40}$")
 WAIVER_ID = re.compile(r"^[A-Z0-9][A-Z0-9_-]{5,63}$")
 REQUIRED_WAIVER_APPROVERS = {"SEC", "TL"}
 MAX_WAIVER_LIFETIME = timedelta(days=30)
+PINNED_SHARP_PLATFORM_ARTIFACTS = {
+    "@img/sharp-wasm32": {
+        "version": "0.35.4",
+        "resolved": (
+            "https://registry.npmjs.org/@img/sharp-wasm32/"
+            "-/sharp-wasm32-0.35.4.tgz"
+        ),
+    },
+    "@emnapi/runtime": {
+        "version": "1.11.3",
+        "resolved": (
+            "https://registry.npmjs.org/@emnapi/runtime/"
+            "-/runtime-1.11.3.tgz"
+        ),
+    },
+}
 
 
 class DependencySecurityError(ValueError):
@@ -325,6 +341,57 @@ def evaluate_security_waivers(
     }
 
 
+def _partition_dependency_tree_problems(
+    tree: dict[str, Any],
+    problems: list[str],
+) -> tuple[list[str], list[str]]:
+    """Recognize only the pinned Sharp WASM pair emitted by npm on non-WASM hosts."""
+    dependencies = tree.get("dependencies")
+    if not isinstance(dependencies, dict):
+        return [], problems
+
+    matched_problems: dict[str, str] = {}
+    for package, expected in PINNED_SHARP_PLATFORM_ARTIFACTS.items():
+        node = dependencies.get(package)
+        if not isinstance(node, dict):
+            return [], problems
+        prefix = f"extraneous: {package}@{expected['version']} "
+        candidates = [problem for problem in problems if problem.startswith(prefix)]
+        if len(candidates) != 1:
+            return [], problems
+        problem = candidates[0]
+        normalized_path = problem.removeprefix(prefix).replace("\\", "/")
+        if not normalized_path.endswith(f"/node_modules/{package}"):
+            return [], problems
+        if (
+            node.get("version") != expected["version"]
+            or node.get("resolved") != expected["resolved"]
+            or node.get("extraneous") is not True
+            or node.get("problems") != [problem]
+        ):
+            return [], problems
+        matched_problems[package] = problem
+
+    wasm_dependencies = dependencies["@img/sharp-wasm32"].get("dependencies")
+    if not isinstance(wasm_dependencies, dict):
+        return [], problems
+    runtime = wasm_dependencies.get("@emnapi/runtime")
+    if (
+        not isinstance(runtime, dict)
+        or runtime.get("version")
+        != PINNED_SHARP_PLATFORM_ARTIFACTS["@emnapi/runtime"]["version"]
+    ):
+        return [], problems
+
+    accepted = sorted(
+        f"{package}@{expected['version']}"
+        for package, expected in PINNED_SHARP_PLATFORM_ARTIFACTS.items()
+    )
+    matched = set(matched_problems.values())
+    unexpected = [problem for problem in problems if problem not in matched]
+    return accepted, unexpected
+
+
 def evaluate_dependency_security(
     *,
     production_audit: dict[str, Any],
@@ -354,6 +421,9 @@ def evaluate_dependency_security(
         evaluated_at=evaluated_at,
     )
     problems = [str(item) for item in tree.get("problems", []) if item]
+    accepted_platform_artifacts, unexpected_problems = (
+        _partition_dependency_tree_problems(tree, problems)
+    )
     components = sbom.get("components")
     sbom_valid = (
         sbom.get("bomFormat") == "CycloneDX"
@@ -391,7 +461,7 @@ def evaluate_dependency_security(
             and _audit_command_valid(complete_audit_exit_code, complete_audit)
         ),
         "waiver_manifest_valid": waiver_result["valid"],
-        "dependency_tree_valid": tree_exit_code == 0 and not problems,
+        "dependency_tree_valid": tree_exit_code == 0 and not unexpected_problems,
         "cyclonedx_sbom_generated": sbom_valid,
         "node_20": node_20,
         "release_sha_bound": release_bound,
@@ -428,6 +498,8 @@ def evaluate_dependency_security(
         "dependency_tree": {
             "exit_code": tree_exit_code,
             "problems": problems,
+            "accepted_platform_artifacts": accepted_platform_artifacts,
+            "unexpected_problems": unexpected_problems,
         },
         "sbom": {
             "format": sbom.get("bomFormat"),

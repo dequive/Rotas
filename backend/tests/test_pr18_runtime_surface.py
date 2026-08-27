@@ -1,3 +1,4 @@
+import json
 import re
 from pathlib import Path
 
@@ -59,8 +60,20 @@ def test_manager_runtime_image_uses_standalone_output_only():
 
 
 def test_manager_declares_linux_swc_as_locked_optional_dependency():
-    package = (MANAGER / "package.json").read_text(encoding="utf-8")
-    lock = (REPO_ROOT / "package-lock.json").read_text(encoding="utf-8")
+    package = json.loads((MANAGER / "package.json").read_text(encoding="utf-8"))
+    lock = json.loads((REPO_ROOT / "package-lock.json").read_text(encoding="utf-8"))
+    next_version = package["dependencies"]["next"]
+    swc_version = package["optionalDependencies"]["@next/swc-linux-x64-gnu"]
 
-    assert '"@next/swc-linux-x64-gnu": "16.2.12"' in package
-    assert '"@next/swc-linux-x64-gnu": "16.2.12"' in lock
+    assert swc_version == next_version
+    assert lock["packages"]["apps/manager"]["dependencies"]["next"] == next_version
+    assert (
+        lock["packages"]["apps/manager"]["optionalDependencies"]
+        ["@next/swc-linux-x64-gnu"]
+        == next_version
+    )
+    assert lock["packages"]["node_modules/next"]["version"] == next_version
+    assert (
+        lock["packages"]["node_modules/@next/swc-linux-x64-gnu"]["version"]
+        == next_version
+    )

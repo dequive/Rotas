@@ -50,7 +50,7 @@ Nenhuma classificação equivale a autorização de merge ou release.
 | #40 | CODEOWNERS | **PORTAR** | contrato CODEOWNERS de `09764a0` | regra presente e validada na #44; depois substituir #40 |
 | #39 | pinning de Actions empilhado | **SUBSTITUIR** | nenhum merge da pilha; comparar apenas o pinning final | #35 portado e gate de pins verde na #44 |
 | #38 | remoção de demo runtime | **SUBSTITUIR** | ausência de fallback demo | gate `no-demo-runtime` e jornadas reais verdes na #44 |
-| #37 | Dependabot nanoid e advisories atuais | **PORTAR EM C3** | slice próprio, advisory, lockfile, alcance runtime e regressão; sem `audit fix --force` | depois do pinning `9cb2abe`, antes de fechar C3, com CI completa e revisão supply-chain |
+| #37 | Dependabot nanoid e advisories atuais | **PORTADO LOCALMENTE EM C3** | slice próprio `0271ae0`, lockfile regenerado, alcance runtime e regressão; sem `audit fix --force` | auditorias e gate PR18 verdes localmente; falta CI completa e revisão supply-chain independente |
 | #36 | identidade offline Driver | **SUBSTITUIR** | isolamento tenant/driver/sessão e purge | ownership/device/replay provados na #44 e vertical #41 portada |
 | #35 | pinning isolado de Actions | **PORTAR** | commit isolado `9ad9355` ou patch mínimo equivalente | todas as Actions por SHA imutável e validador verde na #44 |
 | #32 | padrão Issue->PR->Deploy | **SUBSTITUIR** | regra já ancestral + instruções canónicas atuais | confirmar paridade do contrato remoto e fechar #32 sem novo merge |
@@ -69,9 +69,9 @@ Nenhuma classificação equivale a autorização de merge ou release.
 | #11 | snapshot/upgrade | **SUBSTITUIR** | restore, fingerprint, locks e forward-fix | snapshot autorizado, rollback e upgrade histórico provados no RC |
 | #10 | base vazia Alembic | **SUBSTITUIR** | zero-to-head e drift check | `upgrade head` + `check` em PostgreSQL vazio na #44 |
 | #9 | Pyright | **SUBSTITUIR** | gate tipado bloqueante | zero erros Pyright na #44 |
-| #8 | Dependabot Next/Sentry/PostCSS | **DEFERIR** | advisories e alcance runtime | depois de C0-C4; separar upgrades e provar build/runtime |
-| #7 | Dependabot fast-uri | **DEFERIR** | advisory e grafo transitivo | depois de C0-C4; PR isolado e CI completo |
-| #6 | Dependabot undici | **DEFERIR** | advisory e alcance runtime | depois de C0-C4; PR isolado e CI completo |
+| #8 | Dependabot Next/Sentry/PostCSS | **ABSORVIDO LOCALMENTE EM C3** | advisories, Next/SWC `16.3.3`, lockfile e alcance runtime validados em `0271ae0`; sem merge cego do PR antigo | auditorias zero, testes e builds locais verdes; falta CI completa e revisão supply-chain independente |
+| #7 | Dependabot fast-uri | **ABSORVIDO LOCALMENTE EM C3** | advisory e grafo transitivo reconciliados pelo lockfile limpo de `0271ae0`; sem merge cego do PR antigo | auditorias zero e árvore aceite localmente; falta CI completa e revisão supply-chain independente |
+| #6 | Dependabot undici | **ABSORVIDO LOCALMENTE EM C3** | advisory e alcance runtime reconciliados pelo lockfile limpo de `0271ae0`; sem merge cego do PR antigo | auditorias zero e árvore aceite localmente; falta CI completa e revisão supply-chain independente |
 | #5 | Ruff histórico | **SUBSTITUIR** | baseline Ruff zero | Ruff global verde na #44 |
 | #1 | governação GitHub inicial | **SUBSTITUIR** | proteções, checks e política de release | C0/C3 e controlos remotos provados na #44 |
 
@@ -167,12 +167,14 @@ E0 e só começa depois de C0-C4 e Cliente/Terceiro.
    A causa remota verificada do `startup_failure` inclui a política
    `sha_pinning_required=true` combinada com quatro Actions referidas por tags;
    `9cb2abe` corrigiu localmente 12 usos, Node e gates Driver, mas a execução
-   remota ainda não ocorreu. A auditoria Node `20.20.2` revelou 6 high em
-   produção, 9 high totais e uma árvore extraneous. Isto invalida o deferimento
-   antigo de #37: a remediação passa a slice próprio dentro de C3, antes do seu
-   fecho. `4f7251c` já endureceu o agregador para rejeitar schema, totais ou
-   exit codes contraditórios. Ver
-   `docs/evidence/C3_CI_SUPPLY_CHAIN_BASELINE_20260826.md`.
+   remota ainda não ocorreu. A baseline Node `20.20.2` revelou 6 high em
+   produção, 9 high totais e uma árvore extraneous, invalidando o deferimento
+   antigo de #37. `4f7251c` endureceu o agregador contra schema, totais ou exit
+   codes contraditórios; `0271ae0` executou o slice: auditorias zero, gate PR18
+   verde, SBOM de 759 componentes, suites e builds Manager/Driver verdes. Os
+   PRs #6/#7/#8/#37 ficam absorvidos localmente pela linha canónica, sem merge
+   cego. Ainda faltam CI remota e revisão supply-chain independente. Ver
+   `docs/evidence/C3_DEPENDENCY_REMEDIATION_20260827.md`.
 5. **C4:** criar um RC único, executar staging, Android físico, Sentry, segurança,
    observabilidade e piloto no mesmo SHA/artefactos.
 

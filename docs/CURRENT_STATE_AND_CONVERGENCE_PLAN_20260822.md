@@ -174,6 +174,19 @@ fail-closed. P1-CI-01 e C3 permanecem abertos até remediação, nova prova no
 runtime canónico, CI com jobs executados e revisão. Ver
 `docs/evidence/C3_CI_SUPPLY_CHAIN_BASELINE_20260826.md`.
 
+Estado local em 2026-08-27: `0271ae0` executou o slice de remediação sem
+`audit fix --force`. Next/SWC foram alinhados em `16.3.3`, Vitest foi fixado em
+`4.1.11` e o lockfile foi regenerado no Node `20.20.2`/npm `10.8.2`. As
+auditorias de produção e da árvore completa passaram com zero vulnerabilidades;
+o gate PR18 passou fail-closed, com SBOM CycloneDX 1.5 de 759 componentes. O par
+opcional Sharp WASM aceite pelo gate é exato, restrito a versões, origem,
+estrutura e relação pai-filho; qualquer divergência continua bloqueante.
+Manager passou 128/128, typecheck e build de 74 páginas; Driver passou 67/67,
+typecheck e build PWA; contratos backend C3/PR18 passaram 18/18. P1-CI-01 fica
+remediado apenas na fronteira local. Continua aberto até CI remota com passos
+executados, revisão independente SEC/TL e SHA integrado. Ver
+`docs/evidence/C3_DEPENDENCY_REMEDIATION_20260827.md`.
+
 ### P1-ERP-01 — Fontes e fluxos ERP ainda parciais
 
 - stock mínimo no Manager usa limiar fixo `5`;
@@ -489,11 +502,14 @@ RC permanecem pendentes. Ver
 - Node patch fixado e Actions por SHA;
 - base vazia, snapshot e dois tenants/dois motoristas.
 
-Estado em 2026-08-26: contratos, Pyright/OpenAPI, Node, pins e comandos Driver
+Estado em 2026-08-27: contratos, Pyright/OpenAPI, Node, pins e comandos Driver
 da CI estão verdes localmente em `9cb2abe`; `4f7251c` tornou a auditoria
-fail-closed contra payload/exit code contraditório. Supply chain está vermelha
-por 6 high de produção, 9 high totais e árvore extraneous. CI remota não
-executada. C3 continua **em progresso/NO-GO**.
+fail-closed contra payload/exit code contraditório. `0271ae0` remediou a dívida
+conhecida de supply chain: auditorias de produção e completa com zero
+vulnerabilidades, gate PR18 verde, SBOM de 759 componentes, Manager 128/128 e
+Driver 67/67 com typechecks/builds verdes no Node `20.20.2`. CI remota, revisão
+independente, SHA integrado e perfil `release_candidate` não foram executados.
+C3 continua **em progresso/NO-GO**.
 
 ### C4 — Certificação da Issue #42
 

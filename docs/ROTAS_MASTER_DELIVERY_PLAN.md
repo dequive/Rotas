@@ -3535,3 +3535,23 @@ C3 permanece **em progresso/NO-GO**. Faltam supply chain verde, CI remota com
 passos executados, revisão e SHA integrado. Billing e base online permaneceram
 intactos. Evidência:
 `docs/evidence/C3_CI_SUPPLY_CHAIN_BASELINE_20260826.md`.
+
+### 16.39 C3 — Remediação supply chain e build Node 20 — 2026-08-27
+
+- `0271ae0` atualizou Next/SWC para `16.3.3`, fixou Vitest `4.1.11` nos dois
+  workspaces e regenerou o lockfile no Node `20.20.2`/npm `10.8.2`, sem
+  `audit fix --force`;
+- auditorias de produção e completa passaram com zero vulnerabilidades; o gate
+  PR18 passou fail-closed e o SBOM CycloneDX 1.5 contém 759 componentes;
+- o único par opcional Sharp WASM classificado pelo gate exige versões, URLs,
+  flags, caminhos e relação pai-filho exatos; qualquer outro problema bloqueia;
+- Manager passou 128/128, typecheck e build Next de 74 páginas; Driver passou
+  67/67, typecheck e build PWA; contratos backend C3/PR18 passaram 18/18;
+- os conteúdos úteis de #6/#7/#8/#37 ficam absorvidos nesta linha canónica, sem
+  merge cego dos PRs antigos.
+
+A remediação PR18/supply chain fica **fechada localmente**, não certificada.
+C3 permanece **em progresso/NO-GO** até CI remota com passos reais, revisão
+independente SEC/TL, SHA integrado e execução `release_candidate` com
+artefactos/attestations. Billing e a base online permaneceram intactos.
+Evidência: `docs/evidence/C3_DEPENDENCY_REMEDIATION_20260827.md`.

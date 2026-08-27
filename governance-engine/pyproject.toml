@@ -1,6 +1,9 @@
 [build-system]
 requires = ["setuptools>=69", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["adapters*", "api*", "core*"]
 
 [project]
 name = "governance-engine"
@@ -34,4 +37,10 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "B008",  # FastAPI dependency injection uses calls in parameter defaults.
+    "E501",  # Ruff formatter intentionally does not guarantee line-length wrapping.
+]

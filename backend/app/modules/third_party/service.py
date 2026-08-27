@@ -506,7 +506,8 @@ async def unassign_driver_from_vehicle(
     if assignment.unassigned_at is not None:
         return serialize_assignment(assignment)  # already unassigned — idempotent
 
-    assignment.unassigned_at = datetime.now(UTC)
+    unassigned_at = datetime.now(UTC)
+    assignment.unassigned_at = unassigned_at
     await db.flush()
     await db.refresh(assignment)
     await record_audit_log(
@@ -516,7 +517,7 @@ async def unassign_driver_from_vehicle(
         action="driver_vehicle_assignment.unassigned",
         entity_type="driver_vehicle_assignment",
         entity_id=assignment.id,
-        new_values={"unassigned_at": assignment.unassigned_at.isoformat()},
+        new_values={"unassigned_at": unassigned_at.isoformat()},
     )
     await db.commit()
     await db.refresh(assignment)
@@ -728,12 +729,12 @@ async def search_party_directory(
 ) -> list[dict]:
     """Single UNION ALL query across drivers / clients / third_parties.
 
-    subject_types: optional list to restrict which entity types are included.
-                   e.g. ['driver'] returns only drivers.
-                   None or empty list returns all three types.
-    query: optional name search applied per-sub-select (ILIKE %query%) before the UNION.
+    - third_parties are aggregated with their active roles from third_party_roles.
+    - legacy clients (without third_party_id) are included under subject_type 'client'.
+    - drivers are included under subject_type 'driver'.
     """
-    from sqlalchemy import String, cast, column, literal, union_all
+    from sqlalchemy import String, and_, cast, column, func, literal, union_all
+    from sqlalchemy.dialects.postgresql import ARRAY
 
     from app.modules.clients.models import Client
     from app.modules.drivers.models import Driver
@@ -748,6 +749,7 @@ async def search_party_directory(
             literal("driver").label("subject_type"),
             Driver.full_name.label("name"),
             Driver.status.label("status"),
+            cast(None, ARRAY(String)).label("roles"),
         ).where(Driver.tenant_id == tenant_id)
         if query:
             q = q.where(Driver.full_name.ilike(f"%{query}%"))
@@ -759,20 +761,39 @@ async def search_party_directory(
             literal("client").label("subject_type"),
             Client.trading_name.label("name"),
             cast(Client.is_active, String).label("status"),
-        ).where(Client.tenant_id == tenant_id)
+            cast(None, ARRAY(String)).label("roles"),
+        ).where(Client.tenant_id == tenant_id, Client.third_party_id.is_(None))
         if query:
             q = q.where(Client.trading_name.ilike(f"%{query}%"))
         subqueries.append(q)
 
     if "third_party" in _all_types:
-        q = select(
-            ThirdParty.id.label("subject_id"),
-            literal("third_party").label("subject_type"),
-            ThirdParty.name.label("name"),
-            ThirdParty.status.label("status"),
-        ).where(ThirdParty.tenant_id == tenant_id)
+        q = (
+            select(
+                ThirdParty.id.label("subject_id"),
+                literal("third_party").label("subject_type"),
+                ThirdParty.name.label("name"),
+                ThirdParty.status.label("status"),
+                func.coalesce(
+                    func.array_agg(ThirdPartyRole.role_type).filter(
+                        ThirdPartyRole.is_active.is_(True)
+                    ),
+                    cast([], ARRAY(String)),
+                ).label("roles"),
+            )
+            .outerjoin(
+                ThirdPartyRole,
+                and_(
+                    ThirdPartyRole.third_party_id == ThirdParty.id,
+                    ThirdPartyRole.tenant_id == tenant_id,
+                    ThirdPartyRole.is_active.is_(True),
+                ),
+            )
+            .where(ThirdParty.tenant_id == tenant_id)
+        )
         if query:
             q = q.where(ThirdParty.name.ilike(f"%{query}%"))
+        q = q.group_by(ThirdParty.id, ThirdParty.name, ThirdParty.status)
         subqueries.append(q)
 
     if not subqueries:
@@ -790,6 +811,7 @@ async def search_party_directory(
             column("subject_type"),
             column("name"),
             column("status"),
+            column("roles"),
         )
         .select_from(stmt.subquery("party_union"))
         .order_by(column("name").asc())
@@ -805,6 +827,7 @@ async def search_party_directory(
             "subject_type": row.subject_type,
             "name": row.name,
             "status": row.status,
+            "roles": row.roles if row.roles else (["client"] if row.subject_type == "client" else None),
         }
         for row in rows
     ]
@@ -818,7 +841,7 @@ async def create_contact(
     tenant_id: UUID,
     third_party_id: UUID,
     payload: ContactCreate,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     party = await _require_third_party(db, tenant_id, third_party_id)
     contact = ThirdPartyContact(
@@ -868,7 +891,7 @@ async def delete_contact(
     tenant_id: UUID,
     third_party_id: UUID,
     contact_id: UUID,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> None:
     await _require_third_party(db, tenant_id, third_party_id)
     result = await db.execute(
@@ -1025,7 +1048,7 @@ async def create_payment(
     tenant_id: UUID,
     third_party_id: UUID,
     payload: PaymentCreate,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     """Creates a supplier_ledger_entry with entry_type=credit."""
     await _require_third_party(db, tenant_id, third_party_id)
@@ -1088,7 +1111,7 @@ async def create_evaluation(
     tenant_id: UUID,
     third_party_id: UUID,
     payload: EvaluationCreate,
-    actor_id: UUID,
+    actor_id: UUID | None,
 ) -> dict:
     await _require_third_party(db, tenant_id, third_party_id)
     if not payload.criteria:

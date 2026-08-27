@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
@@ -10,7 +11,7 @@ from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
@@ -27,13 +28,35 @@ class IssueAdvanceRequest(BaseModel):
     notes: str | None = None
 
     @model_validator(mode="after")
-    def validate_amounts(self) -> "IssueAdvanceRequest":
+    def validate_amounts(self) -> IssueAdvanceRequest:
         if self.allowance_mzn + self.expenses_mzn != self.amount_mzn:
             raise ValueError("O montante total deve ser igual à soma do subsídio e das despesas.")
         return self
 
 
-@router.post("/{trip_id}/advance", status_code=status.HTTP_201_CREATED)
+class AdvanceResponse(BaseModel):
+    """Mirrors `advance_service.serialize_advance`."""
+
+    id: UUID
+    tenant_id: UUID
+    trip_id: UUID
+    driver_id: UUID
+    amount_mzn: Decimal
+    allowance_mzn: Decimal
+    expenses_mzn: Decimal
+    currency: str
+    status: str
+    issued_by: UUID | None = None
+    issued_at: datetime | None = None
+    notes: str | None = None
+    request_reference: str | None = None
+
+
+@router.post(
+    "/{trip_id}/advance",
+    status_code=status.HTTP_201_CREATED,
+    response_model=AdvanceResponse,
+)
 async def issue_advance(
     trip_id: UUID,
     payload: IssueAdvanceRequest,
@@ -70,7 +93,7 @@ async def issue_advance(
     )
 
 
-@router.get("/{trip_id}/advance")
+@router.get("/{trip_id}/advance", response_model=list[AdvanceResponse])
 async def get_trip_advance(
     trip_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -88,7 +111,7 @@ async def get_trip_advance(
     )
 
 
-@router.delete("/{trip_id}/advance/{advance_id}")
+@router.delete("/{trip_id}/advance/{advance_id}", response_model=AdvanceResponse)
 async def void_advance(
     trip_id: UUID,
     advance_id: UUID,

@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 import httpx
@@ -28,8 +29,10 @@ from app.modules.trips.models import Trip
 from app.modules.trips.schemas import (
     AssociateContractRequest,
     CompleteTripRequest,
+    DispatchClearanceApproveRequest,
     StartTripRequest,
     TripCreate,
+    TripDispatchRequest,
 )
 from app.modules.users.models import User
 from app.modules.vehicles.models import Vehicle
@@ -82,6 +85,59 @@ def auth_headers(tenant_id) -> dict[str, str]:
 async def create_api_client() -> httpx.AsyncClient:
     transport = httpx.ASGITransport(app=app)
     return httpx.AsyncClient(transport=transport, base_url="http://testserver")
+
+
+async def authorize_and_dispatch_service(db: AsyncSession, tenant_id: UUID, trip_id: UUID) -> None:
+    await trips_service.request_dispatch_clearance(db, tenant_id, trip_id)
+    clearance = await trips_service.approve_dispatch_clearance(
+        db,
+        tenant_id,
+        trip_id,
+        DispatchClearanceApproveRequest(
+            vehicle_checked=True,
+            driver_checked=True,
+            documents_checked=True,
+            load_permit_checked=True,
+            cargo_checked=True,
+            fuel_advance_checked=True,
+            route_risk_checked=True,
+        ),
+    )
+    assert clearance["clearance_status"] == "approved"
+    await trips_service.dispatch_trip(db, tenant_id, trip_id, TripDispatchRequest())
+
+
+async def authorize_and_dispatch_api(
+    client: httpx.AsyncClient,
+    headers: dict[str, str],
+    trip_id: str,
+) -> None:
+    requested = await client.post(
+        f"/api/v1/trips/{trip_id}/dispatch-clearance/request",
+        headers=headers,
+    )
+    assert requested.status_code == 200
+    approved = await client.post(
+        f"/api/v1/trips/{trip_id}/dispatch-clearance/approve",
+        headers={**headers, "Idempotency-Key": f"test:approve:{trip_id}"},
+        json={
+            "vehicle_checked": True,
+            "driver_checked": True,
+            "documents_checked": True,
+            "load_permit_checked": True,
+            "cargo_checked": True,
+            "fuel_advance_checked": True,
+            "route_risk_checked": True,
+        },
+    )
+    assert approved.status_code == 200
+    assert approved.json()["clearance_status"] == "approved"
+    dispatched = await client.post(
+        f"/api/v1/trips/{trip_id}/dispatch",
+        headers={**headers, "Idempotency-Key": f"test:dispatch:{trip_id}"},
+        json={},
+    )
+    assert dispatched.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -143,6 +199,7 @@ async def test_trip_first_flow_reaches_billing_document() -> None:
                 ),
             )
 
+            await authorize_and_dispatch_service(db, tenant.id, trip["id"])
             await trips_service.start_trip(
                 db,
                 tenant.id,
@@ -261,9 +318,11 @@ async def test_trip_first_flow_reaches_billing_document() -> None:
                 )
             )
             assert permit_audit is not None
-            assert permit_audit.new_values["client_name"] == "Cliente Industrial"
-            assert permit_audit.new_values["district"] == "Chimoio"
-            assert permit_audit.new_values["issuer_name"] == "Cliente Industrial"
+            permit_values = permit_audit.new_values
+            assert permit_values is not None
+            assert permit_values["client_name"] == "Cliente Industrial"
+            assert permit_values["district"] == "Chimoio"
+            assert permit_values["issuer_name"] == "Cliente Industrial"
 
             proof_audit = await db.scalar(
                 select(AuditLog).where(
@@ -272,9 +331,11 @@ async def test_trip_first_flow_reaches_billing_document() -> None:
                 )
             )
             assert proof_audit is not None
-            assert proof_audit.new_values["load_permit_number"] == "LP-001"
-            assert proof_audit.new_values["cargo_condition"] == "intact"
-            assert proof_audit.new_values["quantity_delivered"] == 1
+            proof_values = proof_audit.new_values
+            assert proof_values is not None
+            assert proof_values["load_permit_number"] == "LP-001"
+            assert proof_values["cargo_condition"] == "intact"
+            assert proof_values["quantity_delivered"] == 1
     except OperationalError as exc:
         pytest.skip(f"Local Postgres is not available: {exc}")
 
@@ -357,6 +418,7 @@ async def test_api_trip_first_flow_respects_billing_issue_boundary() -> None:
             )
             assert manifest_response.status_code == 200
 
+            await authorize_and_dispatch_api(client, headers, trip["id"])
             start_response = await client.post(
                 f"/api/v1/trips/{trip['id']}/start",
                 headers=headers,
@@ -427,9 +489,9 @@ async def test_api_trip_first_flow_respects_billing_issue_boundary() -> None:
             async with AsyncSessionLocal() as db:
                 trip_row = await db.get(Trip, UUID(trip["id"]))
                 assert trip_row is not None
-                trip_row.total_transport_cost = 12400
-                trip_row.contract_revenue = 8800
-                trip_row.actual_margin = -3600
+                trip_row.total_transport_cost = Decimal("12400")
+                trip_row.actual_revenue = Decimal("8800")
+                trip_row.actual_margin = Decimal("-3600")
                 trip_row.costs_reconciled_at = dt("2026-07-03T12:00:00")
                 await db.commit()
 
@@ -635,6 +697,7 @@ async def test_delivery_proof_dispute_blocks_validation_and_billing() -> None:
             assert trip_response.status_code == 200
             trip = trip_response.json()
 
+            await authorize_and_dispatch_api(client, headers, trip["id"])
             start_resp = await client.post(
                 f"/api/v1/trips/{trip['id']}/start",
                 headers=headers,
@@ -747,7 +810,9 @@ async def test_delivery_proof_dispute_blocks_validation_and_billing() -> None:
             )
             assert exception is not None
             assert exception.status == "resolved"
-            assert exception.context["trip_id"] == trip["id"]
+            exception_context = exception.context
+            assert exception_context is not None
+            assert exception_context["trip_id"] == trip["id"]
 
             audit_rows = await db.execute(
                 select(AuditLog.action).where(
@@ -802,6 +867,7 @@ async def test_sm03_accept_delivery_proof_reaches_billing() -> None:
                 AssociateContractRequest(contract_id=contract["id"]),
             )
 
+            await authorize_and_dispatch_service(db, tenant.id, trip["id"])
             await trips_service.start_trip(
                 db,
                 tenant.id,
@@ -904,6 +970,7 @@ async def test_list_billable_trips_excludes_trips_without_km_end() -> None:
                 trip["id"],
                 AssociateContractRequest(contract_id=contract["id"]),
             )
+            await authorize_and_dispatch_service(db, tenant.id, trip["id"])
             await trips_service.start_trip(
                 db,
                 tenant.id,
@@ -1005,6 +1072,8 @@ async def test_patch_trip_and_stop_produce_audit_logs() -> None:
                 )
             )
             assert audit_trip is not None
+            assert audit_trip.old_values is not None
+            assert audit_trip.new_values is not None
             assert audit_trip.old_values["destination"] == "Tete"
             assert audit_trip.new_values["destination"] == "Chimoio"
 
@@ -1035,6 +1104,8 @@ async def test_patch_trip_and_stop_produce_audit_logs() -> None:
                 )
             )
             assert audit_stop is not None
+            assert audit_stop.old_values is not None
+            assert audit_stop.new_values is not None
             assert audit_stop.old_values["location"] == {"name": "Inchope"}
             assert audit_stop.new_values["location"] == {"name": "Gorongosa"}
     except OperationalError as exc:

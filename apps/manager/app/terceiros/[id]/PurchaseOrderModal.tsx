@@ -2,24 +2,8 @@
 
 import { useState } from "react";
 import { X, ShoppingCart, CheckCircle2 } from "lucide-react";
-
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  const token = localStorage.getItem("rotas_access_token");
-  const tenantId = localStorage.getItem("rotas_tenant_id");
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),
-  };
-}
-
-function getApiBase(): string {
-  if (typeof window === "undefined") return "";
-  return (
-    localStorage.getItem("rotas_api_base_url") ??
-    (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "")
-  );
-}
+import { bffRequest } from "@/app/lib/bff";
+import { buildPurchaseOrderRequest } from "@/app/lib/finance-contracts";
 
 export function PurchaseOrderModal({
   isOpen,
@@ -49,20 +33,18 @@ export function PurchaseOrderModal({
 
     setLoading(true);
     try {
-      const res = await fetch(`${getApiBase()}/api/v1/payables/purchase-orders`, {
+      const res = await bffRequest("/api/v1/payables/purchase-orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...getAuthHeaders(),
         },
-        body: JSON.stringify({
-          third_party_id: thirdPartyId,
-          order_number: orderNumber || `PO-${Date.now().toString().slice(-6)}`,
-          description: description,
-          estimated_cost: parseFloat(estimatedCost),
-          currency: "MZN",
-          status: "sent",
-        }),
+        body: JSON.stringify(buildPurchaseOrderRequest({
+          thirdPartyId,
+          orderNumber: orderNumber || `PO-${Date.now().toString().slice(-6)}`,
+          description,
+          estimatedAmount: parseFloat(estimatedCost),
+          issuedAt: new Date().toISOString(),
+        })),
       });
 
       if (!res.ok) throw new Error("Erro ao gerar a requisição.");

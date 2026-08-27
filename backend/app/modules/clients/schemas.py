@@ -1,5 +1,7 @@
 import re
+from datetime import date, datetime
 from decimal import Decimal
+from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -69,3 +71,61 @@ class ClientPatch(BaseModel):
     @classmethod
     def validate_email(cls, v: str | None) -> str | None:
         return _normalize_email(v)
+
+
+class ClientResponse(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    trading_name: str
+    legal_name: str | None = None
+    nuit: str
+    address: str | None = None
+    city: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    payment_terms_days: int
+    credit_limit: float | None = None
+    is_active: bool
+    outstanding_balance: float | None = None
+    outstanding_balance_estimate: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class ClientStatementDocumentOut(BaseModel):
+    id: UUID
+    invoice_number: str | None = None
+    billing_period_start: datetime | None = None
+    billing_period_end: datetime | None = None
+    total_amount: Decimal
+    amount_paid: Decimal
+    outstanding_balance: Decimal
+    due_date: date | datetime | None = None
+    status: str
+    issued_at: datetime | None = None
+
+
+class ClientStatementPaymentOut(BaseModel):
+    id: UUID
+    amount: Decimal
+    value_date: date | datetime
+    payment_method: str | None = None
+    reference: str | None = None
+    status: str
+    allocated: Decimal
+    unallocated: Decimal
+
+
+class ClientStatementSummaryOut(BaseModel):
+    total_invoiced: Decimal
+    total_paid: Decimal
+    total_outstanding: Decimal
+    advance_balance: Decimal
+
+
+class ClientStatementOut(BaseModel):
+    client: ClientResponse
+    documents: list[ClientStatementDocumentOut]
+    payments: list[ClientStatementPaymentOut]
+    summary: ClientStatementSummaryOut
+

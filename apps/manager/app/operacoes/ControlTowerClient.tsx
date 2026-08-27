@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Truck, Package, CheckCircle, FileText, ArrowRight } from "lucide-react";
-import { Trip, loadTrips, startTrip, completeTrip, closeTrip, dispatchTrip } from "../lib/trips-api";
+import { Trip, loadTrips, startTrip, completeTrip, closeTrip } from "../lib/trips-api";
 
 export function ControlTowerClient() {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -20,21 +20,36 @@ export function ControlTowerClient() {
   }
 
   async function handleStart(id: string) {
-    await startTrip(id);
+    const km = prompt("Qual a quilometragem de partida?");
+    if (!km) return;
+    const kmStart = Number(km);
+    if (!Number.isFinite(kmStart) || kmStart < 0) {
+      alert("Informe uma quilometragem de partida válida.");
+      return;
+    }
+    await startTrip(id, {
+      km_start: kmStart,
+      override_missing_load_permit: false,
+    });
     await fetchData();
   }
 
   async function handleComplete(id: string) {
     const km = prompt("Qual a quilometragem de chegada?");
     if (!km) return;
-    await completeTrip(id, { km_end: parseFloat(km) });
+    const kmEnd = Number(km);
+    if (!Number.isFinite(kmEnd) || kmEnd < 0) {
+      alert("Informe uma quilometragem de chegada válida.");
+      return;
+    }
+    await completeTrip(id, { km_end: kmEnd });
     await fetchData();
   }
 
   async function handleClose(id: string) {
     const confirmed = confirm("Confirma a recepção da Guia de Transporte assinada (POD)?");
     if (!confirmed) return;
-    await closeTrip(id, { pod_received: true, pod_waiver: false });
+    await closeTrip(id, { notes: "POD validado pelo operador" });
     await fetchData();
   }
 
@@ -54,8 +69,8 @@ export function ControlTowerClient() {
           {trip.origin} <ArrowRight size={14} className="text-muted" /> {trip.destination}
         </div>
         <div className="text-xs text-muted flex flex-col gap-1">
-          <div className="flex items-center gap-1"><Truck size={12}/> {trip.vehicle_plate || "Sem Viatura"}</div>
-          <div className="flex items-center gap-1"><Package size={12}/> {trip.driver_name || "Sem Motorista"}</div>
+          <div className="flex items-center gap-1"><Truck size={12}/> Viatura #{trip.vehicle_id.slice(0, 8)}</div>
+          <div className="flex items-center gap-1"><Package size={12}/> Motorista #{trip.driver_id.slice(0, 8)}</div>
         </div>
         {onAction && (
           <button 
@@ -111,7 +126,7 @@ export function ControlTowerClient() {
           {/* Coluna 3: Entregues (Aguarda POD) */}
           <div className="flex flex-col gap-3 p-3 bg-surface-2 rounded-xl min-h-[500px] border border-border">
             <h3 className="font-bold text-ink uppercase tracking-wider text-xs mb-2 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+              <span className="w-2 h-2 rounded-full bg-info"></span>
               Aguardam POD ({completedTrips.length})
             </h3>
             {completedTrips.map(t => (

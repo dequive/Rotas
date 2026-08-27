@@ -81,11 +81,11 @@ describe("KpiCard", () => {
 
 describe("StatusBadge", () => {
   const operationalStatuses = [
-    { status: "em-rota", label: "Em Rota" },
+    { status: "em-rota", label: "Em rota" },
     { status: "concluida", label: "Concluída" },
     { status: "cancelada", label: "Cancelada" },
     { status: "planeada", label: "Planeada" },
-    { status: "manutencao", label: "Em Manutenção" },
+    { status: "manutencao", label: "Em manutenção" },
     { status: "alerta", label: "Alerta" },
     { status: "paragem", label: "Paragem" },
   ] as const;
@@ -98,10 +98,10 @@ describe("StatusBadge", () => {
   });
 
   const billingStatuses = [
-    { status: "billed", label: "Cobrado" },
-    { status: "billable", label: "A Cobrar" },
-    { status: "not_billable", label: "Não Faturável" },
-    { status: "waiver_required", label: "Necessita Dispensa" },
+    { status: "billed", label: "Faturado" },
+    { status: "billable", label: "A cobrar" },
+    { status: "not_billable", label: "Não faturável" },
+    { status: "waiver_required", label: "Necessita dispensa" },
     { status: "draft", label: "Rascunho" },
     { status: "issued", label: "Emitida" },
   ] as const;
@@ -115,7 +115,7 @@ describe("StatusBadge", () => {
 
   const documentStatuses = [
     { status: "valid", label: "Válido" },
-    { status: "expiring_soon", label: "A Vencer" },
+    { status: "expiring_soon", label: "A vencer" },
     { status: "expired", label: "Vencido" },
   ] as const;
 
@@ -132,9 +132,9 @@ describe("StatusBadge", () => {
     expect(screen.queryByText("Concluída")).not.toBeInTheDocument();
   });
 
-  it("renders unknown status as raw string fallback", () => {
+  it("renders an unknown status as a readable fallback", () => {
     render(<StatusBadge status="estado_desconhecido" />);
-    expect(screen.getByText("estado_desconhecido")).toBeInTheDocument();
+    expect(screen.getByText("estado desconhecido")).toBeInTheDocument();
   });
 });
 

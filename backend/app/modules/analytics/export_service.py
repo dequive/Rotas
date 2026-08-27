@@ -121,6 +121,8 @@ async def generate_fuel_report_xlsx(
 
     # ── Sheet 1: Per-vehicle summary ─────────────────────────────────────────
     ws = wb.active
+    if ws is None:
+        ws = wb.create_sheet()
     ws.title = f"Combustível {month}"
 
     for col_idx, col_name in enumerate(COLUMNS, start=1):

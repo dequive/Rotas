@@ -9,6 +9,12 @@ function makeBlob(content = "fake-photo-data") {
   return new Blob([content], { type: "image/jpeg" });
 }
 
+const identityScope = {
+  tenantId: "00000000-0000-0000-0000-000000000001",
+  driverId: "driver-test",
+  sessionId: "session-test",
+};
+
 type FetchResponse = { ok: boolean; body: unknown };
 
 function mockFetch(responses: FetchResponse[]) {
@@ -33,6 +39,8 @@ beforeEach(async () => {
   vi.unstubAllGlobals(); // clean up any fetch stubs from previous tests
   localStorage.clear();
   localStorage.setItem("rotas_tenant_id", "00000000-0000-0000-0000-000000000001");
+  localStorage.setItem("rotas_driver_id", identityScope.driverId);
+  localStorage.setItem("rotas_session_id", identityScope.sessionId);
   localStorage.setItem("rotas_device_id", "device-test-001");
   // apiBaseUrl() reads this key — must be set so fetch is called with a full URL
   localStorage.setItem("rotas_api_base_url", "http://localhost:8000");
@@ -53,6 +61,7 @@ describe("Photo Queue — upload offline e resolução de fileId", () => {
 
     // Foto já tem serverFileId (upload anterior bem sucedido)
     await db.photoQueue.add({
+      ...identityScope,
       localId: "photo_receipt_001",
       entityType: "fuel_log",
       entityLocalId: localId,
@@ -109,6 +118,7 @@ describe("Photo Queue — upload offline e resolução de fileId", () => {
     });
 
     await db.photoQueue.add({
+      ...identityScope,
       localId: "photo_no_fetch_001",
       entityType: "fuel_log",
       entityLocalId: localId,
@@ -132,6 +142,7 @@ describe("Photo Queue — upload offline e resolução de fileId", () => {
   it("foto sem serverFileId não é marcada como synced antes de receber um fileId do servidor", async () => {
     // Garantir que uma foto só muda de local_only quando o servidor confirmar
     await db.photoQueue.add({
+      ...identityScope,
       localId: "photo_guard_001",
       entityType: "fuel_log",
       entityLocalId: "any_trip",
@@ -206,7 +217,9 @@ describe("Idempotência — chave única por operação", () => {
     await processSyncQueue("token-abc");
 
     const body = JSON.parse((fetchMock as any).mock.calls[0][1].body);
+    const headers = new Headers((fetchMock as any).mock.calls[0][1].headers);
     expect(body.operations[0].idempotency_key).toBe(expectedKey);
+    expect(headers.get("Idempotency-Key")).toBe(expectedKey);
   });
 });
 
@@ -215,6 +228,7 @@ describe("Idempotência — chave única por operação", () => {
 describe("Retry — limite de 5 tentativas", () => {
   it("itens com retryCount >= 5 são ignorados pelo processSyncQueue", async () => {
     await db.syncQueue.add({
+      ...identityScope,
       localId: "trip_exhausted",
       idempotencyKey: crypto.randomUUID(),
       operation: "create",
@@ -233,8 +247,9 @@ describe("Retry — limite de 5 tentativas", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("item em retryCount=4 ainda é processado e incrementa para 5 em caso de falha de rede", async () => {
+  it("item na quinta falha entra explicitamente em dead-letter", async () => {
     await db.syncQueue.add({
+      ...identityScope,
       localId: "trip_last_chance",
       idempotencyKey: crypto.randomUUID(),
       operation: "create",
@@ -253,7 +268,9 @@ describe("Retry — limite de 5 tentativas", () => {
 
     const item = await db.syncQueue.where("localId").equals("trip_last_chance").first();
     expect(item?.retryCount).toBe(5);
-    expect(item?.status).toBe("retrying");
+    expect(item?.status).toBe("dead_letter");
+    expect(item?.deadLetteredAt).toBeTruthy();
+    expect(item?.nextAttemptAt).toBeUndefined();
     expect(item?.lastError).toBe("network_error");
   });
 });

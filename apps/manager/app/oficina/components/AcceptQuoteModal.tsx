@@ -3,6 +3,8 @@
 import { Check, Loader2, MessageCircle, Pen, Phone, Users } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Button } from "@/app/components/ui/Button";
+
 /**
  * AcceptQuoteModal — Traceable commercial consent for quote acceptance.
  *
@@ -117,7 +119,7 @@ export function AcceptQuoteModal({
             <div className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
               Valor Total
             </div>
-            <div className="text-base font-mono font-semibold text-emerald-600 mt-0.5">
+            <div className="mt-0.5 font-mono text-base font-semibold tabular-nums text-success">
               {formattedAmount} MT
             </div>
           </div>
@@ -126,7 +128,7 @@ export function AcceptQuoteModal({
         {/* Channel selector */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">
-            Canal de Aprovação <span className="text-rose-500">*</span>
+            Canal de Aprovação <span className="text-status-cancelled">*</span>
           </label>
           <div className="grid grid-cols-2 gap-2">
             {CHANNELS.map((ch) => {
@@ -134,6 +136,7 @@ export function AcceptQuoteModal({
               const selected = channel === ch.key;
               return (
                 <button
+                  type="button"
                   key={ch.key}
                   onClick={() => setChannel(ch.key)}
                   className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all ${
@@ -164,7 +167,7 @@ export function AcceptQuoteModal({
         {/* Person name */}
         <div className="space-y-2">
           <label htmlFor="accepted_by_person_name" className="text-sm font-medium text-foreground">
-            Nome de Quem Autorizou <span className="text-rose-500">*</span>
+            Nome de Quem Autorizou <span className="text-status-cancelled">*</span>
           </label>
           <input
             id="accepted_by_person_name"
@@ -181,24 +184,29 @@ export function AcceptQuoteModal({
 
         {/* Error */}
         {error && (
-          <div className="rounded-lg bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-sm text-rose-500">
+          <div
+            role="alert"
+            className="rounded-lg border border-status-cancelled bg-status-cancelled-soft px-3 py-2 text-sm text-status-cancelled"
+          >
             {error}
           </div>
         )}
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-3 pt-2 border-t border-border">
-          <button
+          <Button
+            type="button"
+            variant="outline"
             onClick={onClose}
             disabled={submitting}
-            className="px-4 py-2 text-sm font-medium rounded-lg border border-input bg-background hover:bg-accent transition-colors text-foreground disabled:opacity-50"
           >
             Cancelar
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="inline-flex items-center gap-2 px-5 py-2 text-sm font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? (
               <>
@@ -211,7 +219,7 @@ export function AcceptQuoteModal({
                 Aceitar e Gerar OS
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </dialog>

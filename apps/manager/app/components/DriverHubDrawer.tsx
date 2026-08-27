@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, AlertTriangle, AlertCircle, MapPin, DollarSign } from "lucide-react";
+import { AlertTriangle, AlertCircle, MapPin, DollarSign } from "lucide-react";
 import { loadDriverHub360, DriverHub360Response } from "../lib/drivers-api";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 export function DriverHubDrawer({
   driverId,
@@ -27,24 +34,18 @@ export function DriverHubDrawer({
     }
   }, [open, driverId]);
 
-  if (!open) return null;
-
   return (
-    <>
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/40 z-40 transition-opacity" 
-        onClick={onClose}
-      />
-      
-      {/* Drawer */}
-      <div className="fixed inset-y-0 right-0 w-full max-w-md bg-surface border-l border-border shadow-xl z-50 flex flex-col transform transition-transform duration-300">
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-lg font-semibold">Hub 360 do Motorista</h2>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-full">
-            <X size={20} />
-          </button>
-        </div>
+    <Sheet open={open} onOpenChange={(nextOpen: boolean) => !nextOpen && onClose()}>
+      <SheetContent
+        side="right"
+        className="flex w-full max-w-md flex-col gap-0 border-l border-border bg-surface p-0 shadow-xl sm:max-w-md"
+      >
+        <SheetHeader className="border-b border-border p-4 pr-12 text-left">
+          <SheetTitle>Hub 360 do Motorista</SheetTitle>
+          <SheetDescription className="sr-only">
+            Perfil, alertas, tesouraria e viagens recentes do motorista seleccionado.
+          </SheetDescription>
+        </SheetHeader>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {loading ? (
@@ -117,7 +118,7 @@ export function DriverHubDrawer({
             <div className="text-center text-muted py-8">Erro ao carregar dados.</div>
           )}
         </div>
-      </div>
-    </>
+      </SheetContent>
+    </Sheet>
   );
 }

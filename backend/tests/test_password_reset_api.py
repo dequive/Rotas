@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import select
 
 from app.core.passwords import hash_password
+from app.modules.auth.service import _may_expose_password_reset_token
 from app.modules.notifications.models import NotificationOutbox
 from app.modules.tenants.models import Tenant
 from app.modules.users.models import User
@@ -24,6 +25,13 @@ async def create_user(db):
     db.add(user)
     await db.commit()
     return tenant, user
+
+
+def test_password_reset_token_is_never_exposed_in_staging_or_production() -> None:
+    assert _may_expose_password_reset_token("development") is True
+    assert _may_expose_password_reset_token("test") is True
+    assert _may_expose_password_reset_token("staging") is False
+    assert _may_expose_password_reset_token("production") is False
 
 
 @pytest.mark.asyncio

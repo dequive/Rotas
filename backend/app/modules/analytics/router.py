@@ -11,11 +11,12 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.rbac import FLEET_READ, require_permission
 from app.modules.analytics import service
 from app.modules.billing.models import ExportJob
+from app.modules.billing.schemas import ExportJobEnqueuedResponse
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -63,9 +64,7 @@ async def get_document_expiry(
     horizon_days: int = Query(30, ge=7, le=90),
 ) -> list:
     """RPT-02: Vehicles and drivers with documents expiring within horizon_days."""
-    return await service.get_document_expiry_alerts(
-        db, principal.tenant_id, horizon_days=horizon_days
-    )
+    return await service.get_document_expiry_alerts(db, principal.tenant_id, horizon_days=horizon_days)
 
 
 @router.get("/dashboard")
@@ -78,12 +77,14 @@ async def get_dashboard(
 ) -> dict:
     """ANA-01: Extended analytics dashboard with Redis cache (TTL 300s)."""
     redis = getattr(request.app.state, "redis", None)
-    return await service.get_analytics_dashboard(
-        db, principal.tenant_id, period_start, period_end, redis=redis
-    )
+    return await service.get_analytics_dashboard(db, principal.tenant_id, period_start, period_end, redis=redis)
 
 
-@router.get("/fuel-report")
+@router.get(
+    "/fuel-report",
+    status_code=202,
+    response_model=ExportJobEnqueuedResponse,
+)
 async def trigger_fuel_report(
     request: Request,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -103,9 +104,7 @@ async def trigger_fuel_report(
         )
     )
     if existing:
-        return JSONResponse(
-            {"job_id": str(existing.id), "status": existing.status}, status_code=202
-        )
+        return JSONResponse({"job_id": str(existing.id), "status": existing.status}, status_code=202)
 
     job = ExportJob(
         id=_uuid.uuid4(),
@@ -119,14 +118,16 @@ async def trigger_fuel_report(
 
     arq_redis = getattr(request.app.state, "arq_redis", None)
     if arq_redis:
-        await arq_redis.enqueue_job(
-            "task_export_fuel_report", str(job.id), str(principal.tenant_id), month
-        )
+        await arq_redis.enqueue_job("task_export_fuel_report", str(job.id), str(principal.tenant_id), month)
 
     return JSONResponse({"job_id": str(job.id), "status": "queued"}, status_code=202)
 
 
-@router.get("/compliance-report")
+@router.get(
+    "/compliance-report",
+    status_code=202,
+    response_model=ExportJobEnqueuedResponse,
+)
 async def trigger_compliance_report(
     request: Request,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -145,9 +146,7 @@ async def trigger_compliance_report(
         )
     )
     if existing:
-        return JSONResponse(
-            {"job_id": str(existing.id), "status": existing.status}, status_code=202
-        )
+        return JSONResponse({"job_id": str(existing.id), "status": existing.status}, status_code=202)
 
     job = ExportJob(
         id=_uuid.uuid4(),
@@ -161,8 +160,6 @@ async def trigger_compliance_report(
 
     arq_redis = getattr(request.app.state, "arq_redis", None)
     if arq_redis:
-        await arq_redis.enqueue_job(
-            "task_export_compliance_report", str(job.id), str(principal.tenant_id)
-        )
+        await arq_redis.enqueue_job("task_export_compliance_report", str(job.id), str(principal.tenant_id))
 
     return JSONResponse({"job_id": str(job.id), "status": "queued"}, status_code=202)

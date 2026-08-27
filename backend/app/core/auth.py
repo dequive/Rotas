@@ -8,7 +8,8 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.core.errors import ApiError
-from app.database import AsyncSessionLocal
+from app.core.performance_diagnostics import measure_request_phase
+from app.database import AdminSessionLocal
 from app.modules.drivers.models import Driver, DriverDevice
 from app.modules.tenants.models import Tenant
 from app.modules.users.models import User
@@ -43,6 +44,18 @@ class Principal:
             else ROLE_PERMISSIONS.get(self.role or "", frozenset())
         )
         return bool(effective & required)
+
+
+@dataclass(frozen=True)
+class TenantPrincipal(Principal):
+    """Authenticated principal whose tenant boundary was validated."""
+
+    tenant_id: UUID
+
+
+@dataclass(frozen=True)
+class DriverPrincipal(TenantPrincipal):
+    """Driver-app principal whose tenant boundary was validated."""
 
 
 async def get_current_principal(
@@ -102,49 +115,76 @@ async def get_current_principal(
     raw_perms = claims.get("perms")  # list[str] | None
     permissions: frozenset[str] | None = frozenset(raw_perms) if raw_perms else None
     scope = claims.get("scope")
-    async with AsyncSessionLocal() as db:
-        tenant = await db.get(Tenant, tenant_id)
-        if not tenant or not tenant.is_active:
-            raise ApiError("tenant_inactive", "Tenant is inactive.", status_code=401)
-        if scope == "dashboard" and user_id:
-            user = await db.get(User, user_id)
-            if not user or user.tenant_id != tenant_id or not user.is_active:
-                raise ApiError("user_inactive", "User is inactive.", status_code=401)
-        elif scope == "driver_app" and driver_id and claims.get("device_id"):
-            driver = await db.get(Driver, driver_id)
-            if not driver or driver.tenant_id != tenant_id:
-                raise ApiError("driver_inactive", "Driver not found.", status_code=401)
-
-            # D-08: Query device WITHOUT is_active filter so we can distinguish
-            # "device deactivated" (revocation) from "device not found"
-            device = await db.scalar(
-                select(DriverDevice).where(
-                    DriverDevice.tenant_id == tenant_id,
-                    DriverDevice.driver_id == driver_id,
-                    DriverDevice.device_id == claims["device_id"],
-                )
-            )
-            if not device:
-                raise ApiError("driver_inactive", "Driver device not found.", status_code=401)
-
-            # D-08: Deactivated device is a permanent revocation — different error code than
-            # temporary suspension. The client (api.ts refreshAccessToken) checks this code to
-            # show "Acesso revogado" message and preserve local Dexie data.
-            if not device.is_active:
+    with measure_request_phase("auth_identity"):
+        async with AdminSessionLocal() as db:
+            if scope == "dashboard" and user_id:
+                # One round trip keeps revocation checks request-time and avoids the
+                # former Tenant.get + User.get sequence on every dashboard request.
+                identity = (
+                    await db.execute(
+                        select(
+                            Tenant.is_active.label("tenant_active"),
+                            User.id.label("user_id"),
+                            User.tenant_id.label("user_tenant_id"),
+                            User.is_active.label("user_active"),
+                        )
+                        .select_from(Tenant)
+                        .outerjoin(User, User.id == user_id)
+                        .where(Tenant.id == tenant_id)
+                    )
+                ).one_or_none()
+                if identity is None or not identity.tenant_active:
+                    raise ApiError("tenant_inactive", "Tenant is inactive.", status_code=401)
+                if (
+                    identity.user_id is None
+                    or identity.user_tenant_id != tenant_id
+                    or not identity.user_active
+                ):
+                    raise ApiError("user_inactive", "User is inactive.", status_code=401)
+            elif scope == "driver_app" and driver_id and claims.get("device_id"):
+                # Tenant, driver and device are validated in one statement. Device
+                # activity remains separate so revocation keeps its typed error.
+                identity = (
+                    await db.execute(
+                        select(
+                            Tenant.is_active.label("tenant_active"),
+                            Driver.id.label("driver_id"),
+                            Driver.tenant_id.label("driver_tenant_id"),
+                            Driver.status.label("driver_status"),
+                            DriverDevice.id.label("device_row_id"),
+                            DriverDevice.is_active.label("device_active"),
+                        )
+                        .select_from(Tenant)
+                        .outerjoin(Driver, Driver.id == driver_id)
+                        .outerjoin(
+                            DriverDevice,
+                            (DriverDevice.tenant_id == tenant_id)
+                            & (DriverDevice.driver_id == driver_id)
+                            & (DriverDevice.device_id == claims["device_id"]),
+                        )
+                        .where(Tenant.id == tenant_id)
+                    )
+                ).one_or_none()
+                if identity is None or not identity.tenant_active:
+                    raise ApiError("tenant_inactive", "Tenant is inactive.", status_code=401)
+                if identity.driver_id is None or identity.driver_tenant_id != tenant_id:
+                    raise ApiError("driver_inactive", "Driver not found.", status_code=401)
+                if identity.device_row_id is None:
+                    raise ApiError("driver_inactive", "Driver device not found.", status_code=401)
+                if not identity.device_active:
+                    raise ApiError(
+                        "driver_access_revoked",
+                        "Driver access has been revoked by the manager.",
+                        status_code=401,
+                    )
+                if identity.driver_status != "active":
+                    raise ApiError("driver_inactive", "Driver is inactive.", status_code=401)
+            else:
                 raise ApiError(
-                    "driver_access_revoked",
-                    "Driver access has been revoked by the manager.",
+                    "invalid_token_scope",
+                    "Authentication scope is invalid.",
                     status_code=401,
                 )
-
-            if driver.status != "active":
-                raise ApiError("driver_inactive", "Driver is inactive.", status_code=401)
-        else:
-            raise ApiError(
-                "invalid_token_scope",
-                "Authentication scope is invalid.",
-                status_code=401,
-            )
     return Principal(
         subject=claims["sub"],
         tenant_id=tenant_id,
@@ -209,7 +249,7 @@ async def get_current_platform_principal(
         )
     platform_user_id = UUID(platform_user_id_str)
 
-    async with AsyncSessionLocal() as db:
+    async with AdminSessionLocal() as db:
         from app.modules.platform.models import PlatformUser  # noqa: PLC0415
 
         user = await db.get(PlatformUser, platform_user_id)
@@ -231,12 +271,27 @@ async def get_current_platform_principal(
 
 async def get_driver_principal(
     principal: Annotated[Principal, Depends(get_current_principal)],
-) -> Principal:
+) -> DriverPrincipal:
     # Allow the development test-token bypass (subject="development:user") so existing
     # integration tests that exercise sync internals continue to work.
     # Real manager tokens (scope="dashboard", subject != "development:user") are rejected.
     if principal.scope == "driver_app" or principal.subject == "development:user":
-        return principal
+        if principal.tenant_id is None:
+            raise ApiError(
+                "tenant_required",
+                "Tenant context is required for the driver app.",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
+        return DriverPrincipal(
+            subject=principal.subject,
+            tenant_id=principal.tenant_id,
+            scope=principal.scope,
+            role=principal.role,
+            user_id=principal.user_id,
+            driver_id=principal.driver_id,
+            device_id=principal.device_id,
+            permissions=principal.permissions,
+        )
     raise ApiError(
         "driver_scope_required",
         "Driver app token is required.",

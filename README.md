@@ -4,11 +4,16 @@ Plataforma de gestao total de frotas para operadores mocambicanos, com foco em o
 
 ## Linha de Base
 
-- Plano mestre: `ROTAS_Plano_Mestre_Execucao.md`
-- Especificacao tecnica MVP: `ROTAS_Especificacao_Tecnica_MVP.md`
-- Analise de absorcao Kimi: `ROTAS_Analise_Absorcao_Kimi.md`
+- Instruções canónicas para agentes: `AGENTS.md`
+- Estado atual e convergência: `docs/CURRENT_STATE_AND_CONVERGENCE_PLAN_20260822.md`
+- Destino de branches e PRs: `docs/BRANCH_PR_CONVERGENCE_MATRIX_20260822.md`
 - Normas de engenharia: `docs/ENGINEERING_STANDARDS.md`
 - Plano mestre integrado de implementacao: `docs/ROTAS_MASTER_DELIVERY_PLAN.md`
+- Matriz de fecho: `docs/MODULE_CLOSURE_MATRIX.md`
+- Decisão GO/NO-GO: `docs/PRODUCTION_RELEASE_LEDGER.md`
+
+`ROTAS_Plano_Mestre_Execucao.md`, `ROTAS_Especificacao_Tecnica_MVP.md` e análises
+históricas são referências de origem, não fontes vinculativas do estado atual.
 
 ## Decisoes Nao Negociaveis
 
@@ -37,10 +42,12 @@ Plataforma de gestao total de frotas para operadores mocambicanos, com foco em o
 
 ## Estado
 
-Projecto em fase de MVP tecnico com backend modular, dashboard gestor, PWA motorista,
-infraestrutura local e Alembic. Os fluxos reais ja implementados incluem contratos,
-viagens/carga/cobranca, viaturas, motoristas, checklists, combustivel e sync
-offline idempotente.
+Projeto em beta interno avançado e estabilização pré-RC. A base técnica é ampla,
+mas a auditoria de 2026-08-22 confirmou bloqueios P0 em Driver/Sync, linhas Git
+divergentes e ausência de CI/staging/piloto no mesmo SHA. A decisão atual é
+`NO-GO` para merge do PR #44, piloto, comercialização e produção.
+
+Issue #42 e C0-C4 do plano de convergência precedem Issue #43 e novas funções.
 
 ## Execucao Local
 
@@ -78,30 +85,7 @@ cd backend
 .\.venv\Scripts\python.exe -m scripts.demo_pilot_flow
 ```
 
-Dashboard gestor ligado a API:
-
-```powershell
-$env:ROTAS_API_BASE_URL='http://localhost:8000'
-$env:ROTAS_TENANT_ID='<tenant_id devolvido por scripts.seed_pilot>'
-$env:ROTAS_MANAGER_TOKEN='dev-token'
-npm --workspace apps/manager run dev
-```
-
-Sem `ROTAS_TENANT_ID`, a tela de cobranca usa dados de demonstracao e mostra o
-aviso no topo da pagina.
-
-PWA motorista ligado a API:
-
-```powershell
-$env:VITE_ROTAS_API_BASE_URL='http://localhost:8000'
-$env:VITE_ROTAS_TENANT_ID='<tenant_id devolvido por scripts.seed_pilot>'
-$env:VITE_ROTAS_VEHICLE_ID='<vehicle_id devolvido por scripts.seed_pilot>'
-$env:VITE_ROTAS_DRIVER_ID='<driver_id devolvido por scripts.seed_pilot>'
-$env:VITE_ROTAS_CHECKLIST_TEMPLATE_ID='<checklist_template_id devolvido por scripts.seed_pilot>'
-$env:VITE_ROTAS_DRIVER_TOKEN='dev-token'
-npm --workspace apps/driver run dev
-```
-
-As telas de checklist e combustivel guardam registos offline na IndexedDB,
-sincronizam fotos primeiro via `/api/v1/files/upload` e depois enviam os dados
-operacionais via `/api/v1/sync/batch`.
+Manager e PWA devem usar autenticação real. Dados demo e tokens de desenvolvimento
+não constituem evidência. O Driver é emparelhado por código one-time e a validação
+de produto exige uma viagem atribuída pelo gestor, operação offline e
+reconciliação posterior; consultar a baseline antes de executar o piloto.

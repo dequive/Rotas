@@ -7,6 +7,10 @@ import pytest
 
 os.environ.setdefault("DEV_TEST_TOKEN", "test-token")
 
+from scripts.test_database_guard import activate_test_database  # noqa: E402
+
+activate_test_database(os.environ)
+
 from app.database import AsyncSessionLocal, engine, import_all_models  # noqa: E402
 from app.main import app  # noqa: E402
 from app.modules.drivers.models import Driver  # noqa: E402
@@ -24,6 +28,15 @@ async def reset_rate_limiter_storage():
     subsequent tests and cause legitimate requests to get 429.
     """
     from app.core.limiter import limiter
+
+    # Some legacy test modules disable the shared limiter during collection.
+    # Re-enable it per test so security tests remain order-independent.
+    limiter.enabled = True
+    if hasattr(limiter, "_storage") and hasattr(limiter._storage, "reset"):
+        try:
+            limiter._storage.reset()
+        except Exception:
+            pass
 
     yield
 
@@ -69,19 +82,22 @@ def auth_headers(tenant_id):
 
 @pytest.fixture
 async def test_user(db, tenant_id):
-    from app.modules.users.models import User
     from uuid import uuid4
+
+    from app.modules.users.models import User
+
     user = User(
         id=uuid4(),
         tenant_id=tenant_id,
         email=f"{uuid4()}@example.com",
         password_hash="fake",
         full_name="Mock User",
-        is_active=True
+        is_active=True,
     )
     db.add(user)
     await db.flush()
     return user
+
 
 @pytest.fixture
 async def async_client():

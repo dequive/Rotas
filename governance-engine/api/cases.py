@@ -70,6 +70,28 @@ async def create_case(
     return _serialize_case(case, body.case_type_code)
 
 
+@router.get("/types/")
+async def list_active_case_types(
+    _principal: Principal = Depends(require_scope("cases:read")),
+    db: AsyncSession = Depends(get_session),
+):
+    result = await db.execute(
+        select(TaxonomyCaseType)
+        .where(TaxonomyCaseType.is_active.is_(True))
+        .order_by(TaxonomyCaseType.name.asc())
+    )
+    return [
+        {
+            "id": ct.id,
+            "code": ct.code,
+            "name": ct.name,
+            "initial_status": ct.initial_status,
+            "sla_hours": ct.sla_hours,
+        }
+        for ct in result.scalars()
+    ]
+
+
 @router.get("/{case_id}")
 async def get_case(
     case_id: UUID,
@@ -78,7 +100,9 @@ async def get_case(
 ):
     case = await db.scalar(select(Case).where(Case.id == case_id))
     if case is None:
-        raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Case not found."})
+        raise HTTPException(
+            status_code=404, detail={"code": "not_found", "message": "Case not found."}
+        )
     code = await _case_type_code(db, case.case_type_id)
     return _serialize_case(case, code)
 
@@ -96,7 +120,9 @@ async def list_cases(
     if status:
         base = base.where(Case.status == status)
     if case_type_code:
-        ct = await db.scalar(select(TaxonomyCaseType).where(TaxonomyCaseType.code == case_type_code))
+        ct = await db.scalar(
+            select(TaxonomyCaseType).where(TaxonomyCaseType.code == case_type_code)
+        )
         if ct:
             base = base.where(Case.case_type_id == ct.id)
 

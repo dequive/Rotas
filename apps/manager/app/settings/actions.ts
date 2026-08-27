@@ -1,6 +1,7 @@
 "use server";
 
 import { apiFetch } from "@/app/lib/api";
+import { revalidatePath } from "next/cache";
 
 export async function updateUserProfile(
   userId: string,
@@ -11,6 +12,7 @@ export async function updateUserProfile(
       method: "PATCH",
       body: JSON.stringify(data),
     });
+    revalidatePath("/settings");
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Erro desconhecido ao guardar alterações." };
@@ -20,6 +22,7 @@ export async function updateUserProfile(
 export async function inviteUser(data: {
   email: string;
   full_name: string;
+  password: string;
   role: string;
   phone?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -28,9 +31,10 @@ export async function inviteUser(data: {
       method: "POST",
       body: JSON.stringify(data),
     });
+    revalidatePath("/settings");
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Erro ao convidar utilizador." };
+    return { ok: false, error: err instanceof Error ? err.message : "Erro ao criar utilizador." };
   }
 }
 
@@ -43,6 +47,7 @@ export async function changeUserRole(
       method: "PATCH",
       body: JSON.stringify({ role }),
     });
+    revalidatePath("/settings");
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Erro ao alterar role." };
@@ -59,6 +64,7 @@ export async function updateTenantSettings(data: {
       method: "PATCH",
       body: JSON.stringify(data),
     });
+    revalidatePath("/settings");
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Erro ao guardar configurações." };

@@ -2,35 +2,39 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, MapPin, CheckSquare, AlertTriangle } from "lucide-react";
-
-function getApiBase() {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("rotas_api_base_url") ?? (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "");
-}
+import { bffRequest } from "@/app/lib/bff";
 
 export default function TabOverview({ vehicleId }: { vehicleId: string }) {
   const [trips, setTrips] = useState<any[]>([]);
   const [checklists, setChecklists] = useState<any[]>([]);
+  const [tripsError, setTripsError] = useState(false);
+  const [checklistsError, setChecklistsError] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       try {
         const [resTrips, resChecklists] = await Promise.all([
-          fetch(`${getApiBase()}/api/v1/trips?vehicle_id=${vehicleId}&limit=5`),
-          fetch(`${getApiBase()}/api/v1/checklists/checklists?vehicle_id=${vehicleId}&limit=5`)
+          bffRequest(`/api/v1/trips?vehicle_id=${vehicleId}&limit=5`),
+          bffRequest(`/api/v1/checklists?vehicle_id=${vehicleId}&limit=5`)
         ]);
         
         if (resTrips.ok) {
           const t = await resTrips.json();
           setTrips(t.items || t);
+        } else {
+          setTripsError(true);
         }
         if (resChecklists.ok) {
           const c = await resChecklists.json();
           setChecklists(c.items || c);
+        } else {
+          setChecklistsError(true);
         }
       } catch (err) {
         console.error("Failed to load overview data", err);
+        setTripsError(true);
+        setChecklistsError(true);
       } finally {
         setLoading(false);
       }
@@ -51,7 +55,11 @@ export default function TabOverview({ vehicleId }: { vehicleId: string }) {
           <h3 className="text-lg font-bold text-slate-900">Viagens Recentes</h3>
         </div>
         
-        {trips.length === 0 ? (
+        {tripsError ? (
+          <p role="alert" className="rounded-r-md border border-error-border bg-error-bg p-3 text-sm text-error">
+            Não foi possível carregar as viagens recentes.
+          </p>
+        ) : trips.length === 0 ? (
           <p className="text-sm text-slate-500 py-4">Nenhum registo de viagem encontrado.</p>
         ) : (
           <div className="flex flex-col gap-3">
@@ -80,7 +88,11 @@ export default function TabOverview({ vehicleId }: { vehicleId: string }) {
           <h3 className="text-lg font-bold text-slate-900">Checklists de Inspeção</h3>
         </div>
 
-        {checklists.length === 0 ? (
+        {checklistsError ? (
+          <p role="alert" className="rounded-r-md border border-error-border bg-error-bg p-3 text-sm text-error">
+            Não foi possível carregar as checklists.
+          </p>
+        ) : checklists.length === 0 ? (
           <p className="text-sm text-slate-500 py-4">Nenhuma checklist registada.</p>
         ) : (
           <div className="flex flex-col gap-3">

@@ -64,27 +64,8 @@ function StatusDot({ status }: { status: "vigente" | "a_renovar" | "expirado" })
   );
 }
 
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return { "Content-Type": "application/json" };
-  const token = localStorage.getItem("rotas_access_token");
-  const tenantId = localStorage.getItem("rotas_tenant_id");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),
-  };
-}
-
-function getApiBase(): string {
-  if (typeof window === "undefined") return "";
-  return (
-    localStorage.getItem("rotas_api_base_url") ??
-    (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "")
-  );
-}
-
 const inputCls =
-  "w-full border border-border-strong rounded-md px-3 py-2 text-[13px] bg-surface text-ink focus:outline-none focus:border-amber focus:ring-2 focus:ring-amber/20 box-border";
+  "w-full border border-border-strong rounded-md px-3 py-2 text-[13px] bg-surface text-ink focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft box-border";
 const labelCls =
   "block text-[11px] font-semibold uppercase tracking-wide text-muted mb-1";
 
@@ -101,8 +82,8 @@ export default function InsuranceTab({ vehicleId }: { vehicleId: string }) {
     setError(null);
     try {
       const res = await fetch(
-        `${getApiBase()}/api/v1/vehicles/${vehicleId}/insurance`,
-        { headers: getAuthHeaders(), cache: "no-store" },
+        `/api/vehicles/${vehicleId}/insurance`,
+        { credentials: "include", cache: "no-store" },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: VehicleInsurancePolicy[] = await res.json();
@@ -124,10 +105,11 @@ export default function InsuranceTab({ vehicleId }: { vehicleId: string }) {
     setError(null);
     try {
       const res = await fetch(
-        `${getApiBase()}/api/v1/vehicles/${vehicleId}/insurance`,
+        `/api/vehicles/${vehicleId}/insurance`,
         {
           method: "POST",
-          headers: getAuthHeaders(),
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             ...form,
             premium_amount: parseFloat(form.premium_amount),

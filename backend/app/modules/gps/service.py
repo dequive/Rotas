@@ -173,6 +173,42 @@ async def ingest_position(
         )
     )
     await db.execute(stmt)
+
+    # Route deviation check for active trips
+    from app.modules.operational_exceptions.service import ensure_exception
+    from app.modules.trips.models import Trip
+    from app.modules.trips.routing import check_route_deviation
+
+    active_trip = await db.scalar(
+        select(Trip)
+        .where(
+            Trip.tenant_id == device.tenant_id,
+            Trip.vehicle_id == device.vehicle_id,
+            Trip.status.in_(["dispatched", "in_progress", "delayed", "incident"]),
+        )
+        .order_by(Trip.created_at.desc())
+        .limit(1)
+    )
+
+    if active_trip and active_trip.route_geometry:
+        is_deviated = check_route_deviation(
+            (norm["lat"], norm["lon"]),
+            active_trip.route_geometry,
+            threshold_km=5.0,
+        )
+        if is_deviated:
+            await ensure_exception(
+                db,
+                tenant_id=device.tenant_id,
+                entity_type="trip",
+                entity_id=active_trip.id,
+                exception_type="route_deviation",
+                severity="high",
+                title="Desvio de rota detetado na viagem",
+                message="Viatura a mais de 5km do corredor de rota planeado.",
+                source_type="gps_position",
+            )
+
     await db.commit()
 
     return {"accepted": True, "vehicle_id": str(device.vehicle_id)}

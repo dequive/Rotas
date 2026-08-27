@@ -9,14 +9,19 @@ Covers:
 - all 13 event types map to a valid taxonomy code
 - entity created on-the-fly when not pre-synced
 """
+
 import uuid
 from datetime import UTC, datetime
 
-import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from adapters.rotas.schemas import ROTAS_EVENT_TYPE_CODES, RotasEntityRecord, RotasEventEntity, RotasEventPush
+from adapters.rotas.schemas import (
+    ROTAS_EVENT_TYPE_CODES,
+    RotasEntityRecord,
+    RotasEventEntity,
+    RotasEventPush,
+)
 from adapters.rotas.service import RotasAdapterService
 from core.models import Case, Occurrence
 
@@ -45,14 +50,16 @@ async def test_sync_entities_creates_instances(db: AsyncSession, tenant_id: uuid
     await _svc(db, tenant_id).bootstrap()
     svc = _svc(db, tenant_id)
     vehicle_id = str(uuid.uuid4())
-    ids = await svc.sync_entities([
-        RotasEntityRecord(
-            entity_type="vehicle",
-            external_id=vehicle_id,
-            display_name="MZ-01-AB",
-            attributes={"plate": "MZ-01-AB", "make": "Mercedes"},
-        )
-    ])
+    ids = await svc.sync_entities(
+        [
+            RotasEntityRecord(
+                entity_type="vehicle",
+                external_id=vehicle_id,
+                display_name="MZ-01-AB",
+                attributes={"plate": "MZ-01-AB", "make": "Mercedes"},
+            )
+        ]
+    )
     assert len(ids) == 1
 
 
@@ -60,7 +67,9 @@ async def test_sync_entities_upserts_on_second_call(db: AsyncSession, tenant_id:
     await _svc(db, tenant_id).bootstrap()
     svc = _svc(db, tenant_id)
     ext_id = str(uuid.uuid4())
-    record = RotasEntityRecord(entity_type="vehicle", external_id=ext_id, display_name="v1", attributes={})
+    record = RotasEntityRecord(
+        entity_type="vehicle", external_id=ext_id, display_name="v1", attributes={}
+    )
     ids1 = await svc.sync_entities([record])
     record.display_name = "v2-updated"
     ids2 = await svc.sync_entities([record])
@@ -71,14 +80,16 @@ async def test_sync_entities_upserts_on_second_call(db: AsyncSession, tenant_id:
 async def test_push_event_creates_occurrence(db: AsyncSession, tenant_id: uuid.UUID):
     await _svc(db, tenant_id).bootstrap()
     svc = _svc(db, tenant_id)
-    result = await svc.push_event(RotasEventPush(
-        event_type="vehicle.breakdown",
-        severity="alta",
-        title="Avaria em estrada",
-        occurred_at=datetime.now(UTC),
-        entities=[],
-        idempotency_key=f"test:{uuid.uuid4()}",
-    ))
+    result = await svc.push_event(
+        RotasEventPush(
+            event_type="vehicle.breakdown",
+            severity="alta",
+            title="Avaria em estrada",
+            occurred_at=datetime.now(UTC),
+            entities=[],
+            idempotency_key=f"test:{uuid.uuid4()}",
+        )
+    )
     assert result.numero.startswith("EVT-")
     occ = await db.get(Occurrence, result.occurrence_id)
     assert occ is not None
@@ -88,14 +99,16 @@ async def test_push_event_creates_occurrence(db: AsyncSession, tenant_id: uuid.U
 async def test_push_event_high_severity_auto_promotes(db: AsyncSession, tenant_id: uuid.UUID):
     await _svc(db, tenant_id).bootstrap()
     svc = _svc(db, tenant_id)
-    result = await svc.push_event(RotasEventPush(
-        event_type="vehicle.breakdown",
-        severity="alta",
-        title="Avaria grave",
-        occurred_at=datetime.now(UTC),
-        entities=[],
-        idempotency_key=f"test:{uuid.uuid4()}",
-    ))
+    result = await svc.push_event(
+        RotasEventPush(
+            event_type="vehicle.breakdown",
+            severity="alta",
+            title="Avaria grave",
+            occurred_at=datetime.now(UTC),
+            entities=[],
+            idempotency_key=f"test:{uuid.uuid4()}",
+        )
+    )
     assert result.case_id is not None
     assert result.case_reference.startswith("CASE-")
     case = await db.get(Case, result.case_id)
@@ -106,14 +119,16 @@ async def test_push_event_high_severity_auto_promotes(db: AsyncSession, tenant_i
 async def test_push_event_low_severity_no_case(db: AsyncSession, tenant_id: uuid.UUID):
     await _svc(db, tenant_id).bootstrap()
     svc = _svc(db, tenant_id)
-    result = await svc.push_event(RotasEventPush(
-        event_type="vehicle.breakdown",
-        severity="baixa",
-        title="Avaria leve",
-        occurred_at=datetime.now(UTC),
-        entities=[],
-        idempotency_key=f"test:{uuid.uuid4()}",
-    ))
+    result = await svc.push_event(
+        RotasEventPush(
+            event_type="vehicle.breakdown",
+            severity="baixa",
+            title="Avaria leve",
+            occurred_at=datetime.now(UTC),
+            entities=[],
+            idempotency_key=f"test:{uuid.uuid4()}",
+        )
+    )
     assert result.case_id is None
 
 
@@ -139,25 +154,28 @@ async def test_push_event_with_entities_creates_links(db: AsyncSession, tenant_i
     await _svc(db, tenant_id).bootstrap()
     svc = _svc(db, tenant_id)
     vehicle_ext_id = str(uuid.uuid4())
-    result = await svc.push_event(RotasEventPush(
-        event_type="fuel.anomaly",
-        severity="alta",
-        title="Consumo anómalo",
-        occurred_at=datetime.now(UTC),
-        entities=[
-            RotasEventEntity(
-                entity_type="vehicle",
-                external_id=vehicle_ext_id,
-                role="sujeito",
-                display_name="MZ-99-XY",
-                snapshot={"plate": "MZ-99-XY"},
-            )
-        ],
-        idempotency_key=f"test:{uuid.uuid4()}",
-    ))
+    result = await svc.push_event(
+        RotasEventPush(
+            event_type="fuel.anomaly",
+            severity="alta",
+            title="Consumo anómalo",
+            occurred_at=datetime.now(UTC),
+            entities=[
+                RotasEventEntity(
+                    entity_type="vehicle",
+                    external_id=vehicle_ext_id,
+                    role="sujeito",
+                    display_name="MZ-99-XY",
+                    snapshot={"plate": "MZ-99-XY"},
+                )
+            ],
+            idempotency_key=f"test:{uuid.uuid4()}",
+        )
+    )
     assert result.occurrence_id is not None
     # Verify link was created
     from core.models import OccurrenceLink
+
     links = await db.execute(
         select(OccurrenceLink).where(OccurrenceLink.occurrence_id == result.occurrence_id)
     )
@@ -171,20 +189,22 @@ async def test_entity_created_on_the_fly_if_not_synced(db: AsyncSession, tenant_
     svc = _svc(db, tenant_id)
     # Push event with an entity that was never synced via sync_entities
     ext_id = str(uuid.uuid4())
-    result = await svc.push_event(RotasEventPush(
-        event_type="driver.infraction",
-        severity="media",
-        title="Infracção de trânsito",
-        occurred_at=datetime.now(UTC),
-        entities=[
-            RotasEventEntity(
-                entity_type="driver",
-                external_id=ext_id,
-                display_name="João Machava",
-            )
-        ],
-        idempotency_key=f"test:{uuid.uuid4()}",
-    ))
+    result = await svc.push_event(
+        RotasEventPush(
+            event_type="driver.infraction",
+            severity="media",
+            title="Infracção de trânsito",
+            occurred_at=datetime.now(UTC),
+            entities=[
+                RotasEventEntity(
+                    entity_type="driver",
+                    external_id=ext_id,
+                    display_name="João Machava",
+                )
+            ],
+            idempotency_key=f"test:{uuid.uuid4()}",
+        )
+    )
     assert result.occurrence_id is not None
 
 
@@ -198,17 +218,20 @@ async def test_all_event_types_have_taxonomy_code():
 async def test_document_expired_promotes_to_compliance(db: AsyncSession, tenant_id: uuid.UUID):
     await _svc(db, tenant_id).bootstrap()
     svc = _svc(db, tenant_id)
-    result = await svc.push_event(RotasEventPush(
-        event_type="document.expired",
-        severity="baixa",      # min_severity for compliance is baixa
-        title="Documento expirado",
-        occurred_at=datetime.now(UTC),
-        entities=[],
-        idempotency_key=f"test:{uuid.uuid4()}",
-    ))
+    result = await svc.push_event(
+        RotasEventPush(
+            event_type="document.expired",
+            severity="baixa",  # min_severity for compliance is baixa
+            title="Documento expirado",
+            occurred_at=datetime.now(UTC),
+            entities=[],
+            idempotency_key=f"test:{uuid.uuid4()}",
+        )
+    )
     # document.expired + baixa >= baixa → should promote to rotas.compliance
     assert result.case_id is not None
     case = await db.get(Case, result.case_id)
     from core.models import TaxonomyCaseType
+
     ct = await db.get(TaxonomyCaseType, case.case_type_id)
     assert ct.code == "rotas.compliance"

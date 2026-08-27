@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { bffRequest } from "@/app/lib/bff";
 
 import type {
   DriverDespachoTable,
@@ -13,9 +14,7 @@ import type {
 } from "../lib/operations-admin-api";
 
 interface ApiConfig {
-  apiBaseUrl: string;
   tenantId: string | null;
-  token: string;
 }
 
 interface DriverDespachoTableAdminProps {
@@ -80,7 +79,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
 
   async function saveTable() {
     if (!apiConfig.tenantId) {
-      setError("Configure ROTAS_TENANT_ID para gravar a tabela.");
+      setError("Sessão BFF indisponível para gravar a tabela.");
       return;
     }
     if (table.tiers.length === 0) {
@@ -91,12 +90,10 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
     setError(null);
     setSaved(false);
     try {
-      const response = await fetch(`${apiConfig.apiBaseUrl}/api/v1/tenants/me/driver-despacho-table`, {
+      const response = await bffRequest("/api/v1/tenants/me/driver-despacho-table", {
         method: "PUT",
         headers: {
-          Authorization: `Bearer ${apiConfig.token}`,
           "Content-Type": "application/json",
-          "X-Tenant-Id": apiConfig.tenantId,
         },
         body: JSON.stringify({
           ...table,
@@ -133,7 +130,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
           <h2 id="driver-despacho-title" className="m-0 mt-0.5 text-[21px]">Tabela manual de despacho</h2>
           <p className="m-0 mt-1 text-muted">Faixas de subsidio de viagem preenchidas manualmente pelo transportador.</p>
         </div>
-        <span className="flex-none inline-flex items-center gap-[7px] px-2.5 py-2 text-[#2563eb] bg-[#eff6ff] border border-[#bfdbfe] rounded-md text-[12px] font-black">
+        <span className="flex-none inline-flex items-center gap-[7px] px-2.5 py-2 text-blue bg-blue-light border border-blue-border rounded-md text-[12px] font-black">
           <WalletCards size={15} />
           {result.configured ? "Configurada" : "Por preencher"}
         </span>
@@ -179,7 +176,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
               <input
                 value={table.table_name}
                 onChange={(event) => updateTable("table_name", event.target.value)}
-                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
+                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
               />
             </label>
             <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
@@ -187,7 +184,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
               <input
                 value={table.table_reference ?? ""}
                 onChange={(event) => updateTable("table_reference", event.target.value)}
-                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
+                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
               />
             </label>
             <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
@@ -196,7 +193,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
                 maxLength={3}
                 value={table.currency}
                 onChange={(event) => updateTable("currency", event.target.value.toUpperCase())}
-                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20 font-mono"
+                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft font-mono"
               />
             </label>
             <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
@@ -205,7 +202,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
                 type="date"
                 value={table.effective_from ?? ""}
                 onChange={(event) => updateTable("effective_from", event.target.value || null)}
-                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
+                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
               />
             </label>
             <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
@@ -217,7 +214,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
                 onChange={(event) =>
                   updateTable("min_long_course_km", Number(event.target.value || 0))
                 }
-                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
+                className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
               />
             </label>
           </div>
@@ -252,7 +249,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
                     type="number"
                     value={tier.min_km}
                     onChange={(event) => updateTier(index, "min_km", Number(event.target.value || 0))}
-                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
+                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                   />
                 </label>
                 <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
@@ -268,7 +265,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
                         event.target.value === "" ? null : Number(event.target.value),
                       )
                     }
-                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
+                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                   />
                 </label>
                 <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
@@ -278,7 +275,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
                     type="number"
                     value={tier.amount}
                     onChange={(event) => updateTier(index, "amount", Number(event.target.value || 0))}
-                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
+                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                   />
                 </label>
                 <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
@@ -286,7 +283,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
                   <input
                     value={tier.code ?? ""}
                     onChange={(event) => updateTier(index, "code", event.target.value)}
-                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
+                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                   />
                 </label>
                 <label className="min-w-0 grid gap-1 text-[12px] font-bold text-muted">
@@ -294,7 +291,7 @@ export function DriverDespachoTableAdmin({ apiConfig, result }: DriverDespachoTa
                   <input
                     value={tier.label ?? ""}
                     onChange={(event) => updateTier(index, "label", event.target.value)}
-                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
+                    className="w-full min-w-0 min-h-[34px] px-2 border border-border rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                   />
                 </label>
                 <Button

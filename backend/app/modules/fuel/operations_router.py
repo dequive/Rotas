@@ -5,24 +5,27 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import FUEL_APPROVE, FUEL_READ, FUEL_WRITE, require_permission
 from app.modules.fuel import operations
 from app.modules.fuel.operations_schemas import (
+    FuelControlBoardResponse,
     FuelPurchaseCreate,
+    FuelPurchaseRead,
     FuelReceiptCreate,
     FuelStockAdjustmentApprove,
     FuelStockCountCreate,
     FuelTankCreate,
+    FuelTankRead,
     VehicleRefuelCreate,
 )
 
 router = APIRouter(prefix="/fuel-operations", tags=["fuel-operations"])
 
 
-@router.get("/board")
+@router.get("/board", response_model=FuelControlBoardResponse)
 async def get_fuel_control_board(
     principal: Annotated[Principal, Depends(require_permission(FUEL_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -30,7 +33,7 @@ async def get_fuel_control_board(
     return await operations.get_fuel_control_board(db, principal.tenant_id)
 
 
-@router.get("/tanks")
+@router.get("/tanks", response_model=list[FuelTankRead])
 async def list_tanks(
     principal: Annotated[Principal, Depends(require_permission(FUEL_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -59,7 +62,7 @@ async def create_tank(
     )
 
 
-@router.post("/purchases")
+@router.post("/purchases", response_model=FuelPurchaseRead)
 async def create_purchase(
     payload: FuelPurchaseCreate,
     principal: Annotated[Principal, Depends(require_permission(FUEL_WRITE))],

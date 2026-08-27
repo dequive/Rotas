@@ -22,10 +22,7 @@ async def test_rls_tenant_isolation_policy_exists():
     """D-19: pg_policies shows tenant_isolation policy on trips table."""
     async with AsyncSessionLocal() as db:
         result = await db.execute(
-            text(
-                "SELECT 1 FROM pg_policies "
-                "WHERE tablename = 'trips' AND policyname = 'tenant_isolation'"
-            )
+            text("SELECT 1 FROM pg_policies WHERE tablename = 'trips' AND policyname = 'tenant_isolation'")
         )
         row = result.scalar()
     assert row is not None, "RLS policy 'tenant_isolation' not found on trips table"
@@ -203,6 +200,45 @@ EXPECTED_RLS_TABLES = sorted(
         "gps_positions",
         "tracking_tokens",
         "vehicle_last_position",
+        # Production reconciliation: ERP, outbox, reception and workshop tables
+        "absences",
+        "accounting_accounts",
+        "accounting_journal_entries",
+        "accounting_journal_items",
+        "core_return_items",
+        "employee_documents",
+        "employees",
+        "fiscal_counters",
+        "files",
+        "item_categories",
+        "items",
+        "outbox_events",
+        "part_reservations",
+        "payroll_codes",
+        "payroll_slip_lines",
+        "payroll_slips",
+        "purchase_orders",
+        "reception_photos",
+        "salary_advances",
+        "service_catalog_items",
+        "service_warranties",
+        "spare_part_requisitions",
+        "spare_part_serial_items",
+        "stock_movements",
+        "supplier_invoices",
+        "supplier_payments",
+        "task_labor_logs",
+        "tenant_sequences",
+        "tool_calibrations",
+        "vehicle_receptions",
+        "vehicle_releases",
+        "warehouses",
+        "work_bays",
+        "workshop_purchase_order_items",
+        "workshop_purchase_orders",
+        "workshop_quote_items",
+        "workshop_quotes",
+        "workshop_staff_rates",
     ]
 )
 # 63 tables: base RLS set + export_jobs + self-service token/outbox tables
@@ -210,22 +246,9 @@ EXPECTED_RLS_TABLES = sorted(
 #            + Phase 23 third party registry (6 tables)
 #            + Phase 23 Plan 09: supplier_evaluations, supplier_ledger_entries, third_party_contacts
 
-INTENTIONALLY_EXCLUDED = {
-    "files",
-    # Phase 13.5 workshop expansion tables created without RLS
-    # in a8f3b2c1d4e5_add_workshop_expansion.py.
-    # These are pre-existing gaps tracked in deferred-items; Phase 13.5 plan must add RLS.
-    "tool_calibrations",
-    "spare_part_serial_items",
-    "workshop_staff_rates",
-    # fisc01_fiscal_counter_gap_free.py created fiscal_counters with RLS enabled
-    # and FORCE RLS but used policy name 'rls_fiscal_counters' instead of 'tenant_isolation'.
-    # The table IS protected by RLS — the gap test only scans for policyname='tenant_isolation'.
-    # Tracked: rename policy to 'tenant_isolation' in a follow-up migration.
-    "fiscal_counters",
-}
-# files: cross-tenant file service access pattern (design decision in migration 4b0a7802dc3c)
-# tenants: root table with no tenant_id column — never appears in gap query by design
+INTENTIONALLY_EXCLUDED: set[str] = set()
+# tenants is the root table and has no tenant_id column. Files are tenant-owned
+# records and must be protected like every other tenant-scoped table.
 
 
 async def test_rls_all_tenant_tables_have_policy():
@@ -237,11 +260,7 @@ async def test_rls_all_tenant_tables_have_policy():
     async with AsyncSessionLocal() as db:
         # 1. Collect all tables that currently have the tenant_isolation policy
         result = await db.execute(
-            text(
-                "SELECT tablename FROM pg_policies "
-                "WHERE policyname = 'tenant_isolation' "
-                "ORDER BY tablename"
-            )
+            text("SELECT tablename FROM pg_policies WHERE policyname = 'tenant_isolation' ORDER BY tablename")
         )
         actual_policy_set = {row[0] for row in result.fetchall()}
 
@@ -280,8 +299,57 @@ async def test_rls_all_tenant_tables_have_policy():
 
         assert gap_set == INTENTIONALLY_EXCLUDED, (
             f"Tables with tenant_id but no RLS policy "
-            f"(expected only {{tenants, files}}): {gap_set - INTENTIONALLY_EXCLUDED}"
+            f"(no exclusions are allowed): {gap_set - INTENTIONALLY_EXCLUDED}"
         )
+
+
+async def test_tenant_tables_have_only_the_canonical_restricted_policy():
+    """Every tenant table has one rotas_app policy with read and write guards."""
+    async with AsyncSessionLocal() as db:
+        tenant_tables = {
+            row.table_name
+            for row in (
+                await db.execute(
+                    text(
+                        "SELECT table_name FROM information_schema.columns "
+                        "WHERE table_schema = 'public' AND column_name = 'tenant_id' "
+                        "AND table_name NOT IN ("
+                        "  SELECT child.relname FROM pg_inherits "
+                        "  JOIN pg_class child ON child.oid = pg_inherits.inhrelid "
+                        "  JOIN pg_class parent ON parent.oid = pg_inherits.inhparent "
+                        "  WHERE parent.relkind = 'p'"
+                        ")"
+                    )
+                )
+            ).all()
+        }
+        policies = (
+            await db.execute(
+                text(
+                    "SELECT tablename, policyname, roles, qual, with_check "
+                    "FROM pg_policies WHERE schemaname = 'public' "
+                    "AND tablename = ANY(:table_names)"
+                ),
+                {"table_names": sorted(tenant_tables)},
+            )
+        ).mappings().all()
+
+    policies_by_table: dict[str, list] = {}
+    for policy in policies:
+        policies_by_table.setdefault(policy["tablename"], []).append(policy)
+
+    assert set(policies_by_table) == tenant_tables
+    for table_name in sorted(tenant_tables):
+        table_policies = policies_by_table[table_name]
+        assert len(table_policies) == 1, (
+            f"{table_name} must have exactly one RLS policy; "
+            f"found {[policy['policyname'] for policy in table_policies]}"
+        )
+        policy = table_policies[0]
+        assert policy["policyname"] == "tenant_isolation"
+        assert policy["roles"] == ["rotas_app"]
+        assert "app.tenant_id" in policy["qual"]
+        assert "app.tenant_id" in policy["with_check"]
 
 
 # ---------------------------------------------------------------------------
@@ -292,30 +360,13 @@ async def test_rls_all_tenant_tables_have_policy():
 async def test_rls_blocks_cross_tenant_vehicle_access():
     """RLS-03: DB-level RLS blocks cross-tenant vehicle reads without any WHERE tenant_id.
 
-    This test proves that the tenant_isolation policy on the vehicles table enforces
-    isolation at the PostgreSQL layer — not just via app-layer WHERE clauses.
-
-    Method: connect via asyncpg directly as the rotas_app role (not BYPASSRLS),
-    set app.tenant_id = tenant_B, then execute SELECT * FROM vehicles with NO WHERE
-    clause. Tenant A's vehicle must be invisible — count must be 0.
-
-    Assumption: the test database has a 'rotas_app' role with password 'rotas_app_dev'.
-    This matches the init SQL convention for local dev. If the role is unavailable,
-    the test skips gracefully rather than failing hard.
-
-    Expected: RED until plan 09-02 migration applies (enables RLS + FORCE RLS on
-    vehicles table). Will turn GREEN once the RLS migration has run against the test DB.
+    The live transaction switches to rotas_app, proving the actual restricted
+    PostgreSQL role without relying on a hardcoded development password.
     """
-    import re
     from uuid import uuid4
 
-    import asyncpg
-
-    from app.config import get_settings as _get_settings
     from app.modules.tenants.models import Tenant
     from app.modules.vehicles.models import Vehicle
-
-    _settings = _get_settings()
 
     # --- Setup: create two tenants and a vehicle for tenant_A using admin connection ---
     suffix = uuid4().hex[:6]
@@ -336,37 +387,22 @@ async def test_rls_blocks_cross_tenant_vehicle_access():
         t_b_id = str(t_b.id)
         v_a_id = str(v_a.id)
 
-    # --- Build rotas_app DSN from settings.database_url ---
-    # Replace the user/password portion with rotas_app:rotas_app_dev.
-    # settings.database_url uses asyncpg driver; asyncpg.connect needs postgresql:// scheme.
-    base_url = _settings.database_url
-    # Normalise asyncpg-style URL to plain postgresql:// for asyncpg library
-    rotas_app_dsn = re.sub(
-        r"postgresql\+asyncpg://[^@]+@",
-        "postgresql://rotas_app:rotas_app_dev@",
-        base_url,
-    )
+    async with AsyncSessionLocal() as db:
+        async with db.begin():
+            await db.execute(text("SET LOCAL ROLE rotas_app"))
+            await db.execute(
+                text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+                {"tenant_id": t_b_id},
+            )
+            active_role = await db.scalar(text("SELECT current_user"))
+            bypass_rls = await db.scalar(
+                text("SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user")
+            )
+            rows = (await db.execute(text("SELECT id FROM vehicles"))).all()
+            visible_ids = {str(row.id) for row in rows}
 
-    # --- Connect as rotas_app and verify RLS blocks tenant_A's vehicle under tenant_B context ---
-    try:
-        conn = await asyncpg.connect(rotas_app_dsn)
-    except Exception as exc:  # noqa: BLE001
-        pytest.skip(f"rotas_app role not available in test DB: {exc}")
-        return
-
-    try:
-        async with conn.transaction():
-            # Set tenant context to tenant_B — no WHERE clause will reference tenant_id
-            await conn.execute(f"SET LOCAL app.tenant_id = '{t_b_id}'")
-
-            # Query vehicles with NO WHERE clause — RLS should filter by app.tenant_id
-            rows = await conn.fetch("SELECT * FROM vehicles")
-
-            # Tenant_A's vehicle must not appear (RLS filters to tenant_B's rows only)
-            visible_ids = {str(r["id"]) for r in rows}
-    finally:
-        await conn.close()
-
+    assert active_role == "rotas_app"
+    assert bypass_rls is False
     assert v_a_id not in visible_ids, (
         f"RLS FAILED: tenant_B context (rotas_app role, SET LOCAL app.tenant_id=tenant_B) "
         f"can see tenant_A's vehicle {v_a_id} with no WHERE tenant_id clause. "

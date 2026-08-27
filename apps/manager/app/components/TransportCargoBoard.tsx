@@ -16,9 +16,7 @@ import { PageHeader } from "@/app/components/ui/PageHeader";
 import { EmptyStateInline } from "@/app/components/ui/EmptyState";
 
 interface ApiConfig {
-  apiBaseUrl: string;
   tenantId: string | null;
-  token: string;
 }
 
 interface TransportCargoBoardProps {
@@ -307,7 +305,7 @@ interface TransportQueueProps {
 const queueIconCls: Record<string, string> = {
   orange: "w-[30px] h-[30px] rounded-md inline-flex items-center justify-center flex-shrink-0 bg-warning-bg text-warning",
   red: "w-[30px] h-[30px] rounded-md inline-flex items-center justify-center flex-shrink-0 bg-error-bg text-error",
-  blue: "w-[30px] h-[30px] rounded-md inline-flex items-center justify-center flex-shrink-0 bg-[#dbeafe] text-[#2563eb]",
+  blue: "w-[30px] h-[30px] rounded-md inline-flex items-center justify-center flex-shrink-0 bg-blue-light text-blue",
   green: "w-[30px] h-[30px] rounded-md inline-flex items-center justify-center flex-shrink-0 bg-success-bg text-success",
 };
 
@@ -330,7 +328,7 @@ function TransportQueue({ emptyLabel, icon: Icon, items, title, tone }: Transpor
         ) : null}
         {items.map((item) => (
           <div className="grid gap-0.5 py-2 border-t border-border px-3.5 first:border-t-0" key={item.id}>
-            <strong className="text-[#2563eb] text-[12px] [overflow-wrap:anywhere]">{item.reference}</strong>
+            <strong className="text-blue text-[12px] [overflow-wrap:anywhere]">{item.reference}</strong>
             <span className="text-[13px] font-bold [overflow-wrap:anywhere]">{item.title}</span>
             <small className="text-muted text-[12px] [overflow-wrap:anywhere]">{item.detail}</small>
             <em className="text-muted text-[12px] [overflow-wrap:anywhere] not-italic">{item.meta}</em>

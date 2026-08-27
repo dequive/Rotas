@@ -490,7 +490,7 @@ async def test_party_directory_union_all(async_client, auth_headers, db, tenant_
     client = Client(
         tenant_id=tenant_id,
         trading_name="Transportes Beira Lda",
-        nuit=f"4001{uuid.uuid4().hex[:5]}",
+        nuit=f"4001{uuid.uuid4().int % 100000:05d}",
         is_active=True,
     )
     db.add_all([driver, client])
@@ -581,3 +581,203 @@ async def test_party_directory_cross_tenant_isolation(async_client, auth_headers
     assert resp.status_code == 200
     data = resp.json()
     assert str(other_driver.id) not in {row["subject_id"] for row in data}
+
+
+# ── F7.3 Specific Tests ────────────────────────────────────────────────────────
+
+
+async def test_create_role_client_accepted(async_client, auth_headers):
+    """F7.3: POST /{tp_id}/roles accepts role_type='client' with 201 Created."""
+    create_resp = await async_client.post(
+        "/api/v1/third-party",
+        json={"name": "Cliente Papel Teste", "status": "active"},
+        headers=auth_headers,
+    )
+    assert create_resp.status_code == 201
+    tp_id = create_resp.json()["id"]
+
+    role_resp = await async_client.post(
+        f"/api/v1/third-party/{tp_id}/roles",
+        json={"role_type": "client", "is_active": True},
+        headers=auth_headers,
+    )
+    assert role_resp.status_code == 201, role_resp.text
+    role_data = role_resp.json()
+    assert role_data["role_type"] == "client"
+    assert role_data["is_active"] is True
+
+
+async def test_party_directory_single_role_migrated_client(async_client, auth_headers, db, tenant_id):
+    """F7.3: Full client creation lifecycle -> Party Directory returns 1 deduplicated entry as third_party."""
+    from sqlalchemy import select
+
+    from app.modules.clients.models import Client
+    from app.modules.third_party.models import ThirdParty, ThirdPartyRole
+
+    # NUIT must be 9 digits — hex slices leak a-f and fail schema validation.
+    unique_nuit = f"4002{uuid.uuid4().int % 100000:05d}"
+    client_name = f"ABC Transportes {uuid.uuid4().hex[:4]} Lda"
+
+    # 1. Create client via clients API
+    client_resp = await async_client.post(
+        "/api/v1/clients",
+        json={
+            "trading_name": client_name,
+            "legal_name": client_name,
+            "nuit": unique_nuit,
+            "client_type": "organization",
+            "payment_terms_days": 30,
+        },
+        headers=auth_headers,
+    )
+    assert client_resp.status_code == 201, client_resp.text
+    client_id = uuid.UUID(client_resp.json()["id"])
+
+    # 2. Verify DB state: Client.third_party_id != None, ThirdParty exists, ThirdPartyRole(client) exists
+    client_row = await db.get(Client, client_id)
+    assert client_row is not None
+    assert client_row.third_party_id is not None
+
+    tp_row = await db.get(ThirdParty, client_row.third_party_id)
+    assert tp_row is not None
+    assert tp_row.name == client_name
+
+    role_result = await db.execute(
+        select(ThirdPartyRole).where(
+            ThirdPartyRole.third_party_id == tp_row.id,
+            ThirdPartyRole.role_type == "client",
+            ThirdPartyRole.is_active.is_(True),
+        )
+    )
+    assert role_result.scalar_one_or_none() is not None
+
+    # 3. Query directory by query string
+    dir_resp = await async_client.get(
+        f"/api/v1/third-party/party-directory?q={client_name}",
+        headers=auth_headers,
+    )
+    assert dir_resp.status_code == 200, dir_resp.text
+    matches = [r for r in dir_resp.json() if r["name"] == client_name]
+
+    # 4. Assert exact deduplication
+    assert len(matches) == 1, f"Expected exactly 1 entry for migrated client, got {len(matches)}"
+    assert matches[0]["subject_id"] == str(tp_row.id)
+    assert matches[0]["subject_type"] == "third_party"
+    assert set(matches[0]["roles"]) == {"client"}
+
+
+async def test_party_directory_multi_role_aggregation(async_client, auth_headers):
+    """F7.3: ThirdParty with multiple roles (client + service_provider) returns 1 entry with aggregated roles."""
+    tp_name = f"Logística Multi Role {uuid.uuid4().hex[:6]}"
+    create_resp = await async_client.post(
+        "/api/v1/third-party",
+        json={"name": tp_name, "status": "active"},
+        headers=auth_headers,
+    )
+    assert create_resp.status_code == 201
+    tp_id = create_resp.json()["id"]
+
+    # Assign role: client
+    r1 = await async_client.post(
+        f"/api/v1/third-party/{tp_id}/roles",
+        json={"role_type": "client", "is_active": True},
+        headers=auth_headers,
+    )
+    assert r1.status_code == 201
+
+    # Assign role: service_provider
+    r2 = await async_client.post(
+        f"/api/v1/third-party/{tp_id}/roles",
+        json={"role_type": "service_provider", "is_active": True},
+        headers=auth_headers,
+    )
+    assert r2.status_code == 201
+
+    dir_resp = await async_client.get(
+        f"/api/v1/third-party/party-directory?q={tp_name}",
+        headers=auth_headers,
+    )
+    assert dir_resp.status_code == 200
+    matches = [r for r in dir_resp.json() if r["name"] == tp_name]
+
+    assert len(matches) == 1, f"Expected 1 aggregated entry, got {len(matches)}"
+    assert matches[0]["subject_type"] == "third_party"
+    assert set(matches[0]["roles"]) == {"client", "service_provider"}
+
+
+async def test_party_directory_legacy_client_visible(async_client, auth_headers, db, tenant_id):
+    """F7.3: Legacy client (third_party_id IS NULL) remains visible as subject_type='client'."""
+    from app.modules.clients.models import Client
+
+    legacy_name = f"Cliente Legado {uuid.uuid4().hex[:6]}"
+    legacy_client = Client(
+        tenant_id=tenant_id,
+        trading_name=legacy_name,
+        nuit=f"4003{uuid.uuid4().hex[:5]}",
+        is_active=True,
+        third_party_id=None,
+    )
+    db.add(legacy_client)
+    await db.commit()
+
+    dir_resp = await async_client.get(
+        f"/api/v1/third-party/party-directory?q={legacy_name}",
+        headers=auth_headers,
+    )
+    assert dir_resp.status_code == 200
+    matches = [r for r in dir_resp.json() if r["name"] == legacy_name]
+
+    assert len(matches) == 1, f"Expected 1 legacy client entry, got {len(matches)}"
+    assert matches[0]["subject_id"] == str(legacy_client.id)
+    assert matches[0]["subject_type"] == "client"
+
+
+async def test_provinces_and_profiles_and_payments_typed_responses(async_client, auth_headers):
+    """F7.3: Verify provinces, profiles, and payments endpoints return expected typed structures."""
+    # 1. Provinces
+    prov_resp = await async_client.get("/api/v1/third-party/provinces")
+    assert prov_resp.status_code == 200
+    assert isinstance(prov_resp.json(), list)
+
+    # 2. Third Party + Supplier Profile
+    tp_resp = await async_client.post(
+        "/api/v1/third-party",
+        json={"name": f"Fornecedor Typed {uuid.uuid4().hex[:4]}", "status": "active"},
+        headers=auth_headers,
+    )
+    assert tp_resp.status_code == 201
+    tp_id = tp_resp.json()["id"]
+
+    supp_resp = await async_client.put(
+        f"/api/v1/third-party/{tp_id}/supplier-profile",
+        json={"payment_terms": "30_days", "bank_name": "Standard Bank"},
+        headers=auth_headers,
+    )
+    assert supp_resp.status_code == 200
+    supp_data = supp_resp.json()
+    assert supp_data["third_party_id"] == tp_id
+    assert supp_data["payment_terms"] == "30_days"
+
+    # 3. Service Provider Profile
+    sp_resp = await async_client.put(
+        f"/api/v1/third-party/{tp_id}/service-provider-profile",
+        json={"response_time_hours": 4, "rate_per_hour": "1500.00"},
+        headers=auth_headers,
+    )
+    assert sp_resp.status_code == 200
+    sp_data = sp_resp.json()
+    assert sp_data["third_party_id"] == tp_id
+    assert sp_data["response_time_hours"] == 4
+
+    # 4. Payment
+    pay_resp = await async_client.post(
+        f"/api/v1/third-party/{tp_id}/payments",
+        json={"amount": "25000.00", "currency": "MZN", "description": "Pagamento Adiantado"},
+        headers=auth_headers,
+    )
+    assert pay_resp.status_code == 201
+    pay_data = pay_resp.json()
+    assert pay_data["third_party_id"] == tp_id
+    assert pay_data["amount"] == "25000.00"
+    assert pay_data["entry_type"] == "credit"
+

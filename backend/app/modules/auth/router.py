@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session as get_rls_session
 from app.core.errors import ApiError
 from app.core.limiter import limiter
@@ -22,7 +22,10 @@ driver_router = APIRouter(prefix="/driver-auth", tags=["driver-auth"])
 # 3. Threshold: 10 requests/minute per IP — D-08 per CONTEXT.md
 
 
-@router.post("/login")
+@router.post(
+    "/login",
+    response_model=schemas.AuthTokenResponse | schemas.MfaChallengeResponse,
+)
 @limiter.limit("10/minute")
 async def login(
     request: Request,
@@ -37,7 +40,10 @@ async def login(
     )
 
 
-@router.post("/refresh")
+@router.post(
+    "/refresh",
+    response_model=schemas.AuthTokenResponse | schemas.DriverTokenResponse,
+)
 @limiter.limit("10/minute")
 async def refresh(
     request: Request,
@@ -52,7 +58,7 @@ async def refresh(
     )
 
 
-@router.post("/mfa/verify")
+@router.post("/mfa/verify", response_model=schemas.AuthTokenResponse)
 @limiter.limit("10/minute")
 async def verify_mfa(
     request: Request,
@@ -75,7 +81,11 @@ async def logout(
     return await service.logout(db, payload)
 
 
-@router.post("/password-reset/request")
+@router.post(
+    "/password-reset/request",
+    response_model=schemas.PasswordResetResponse,
+    response_model_exclude_none=True,
+)
 @limiter.limit("5/minute")
 async def request_password_reset(
     request: Request,
@@ -90,7 +100,11 @@ async def request_password_reset(
     )
 
 
-@router.post("/password-reset/complete")
+@router.post(
+    "/password-reset/complete",
+    response_model=schemas.PasswordResetResponse,
+    response_model_exclude_none=True,
+)
 @limiter.limit("5/minute")
 async def complete_password_reset(
     request: Request,
@@ -100,7 +114,7 @@ async def complete_password_reset(
     return await service.complete_password_reset(db, payload)
 
 
-@router.get("/sessions")
+@router.get("/sessions", response_model=list[schemas.SessionResponse])
 async def list_sessions(
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_rls_session)],
@@ -134,7 +148,7 @@ async def revoke_session(
     )
 
 
-@router.get("/mfa")
+@router.get("/mfa", response_model=schemas.MfaStatusResponse)
 async def get_mfa_status(
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_rls_session)],
@@ -148,7 +162,7 @@ async def get_mfa_status(
     )
 
 
-@router.post("/mfa/setup")
+@router.post("/mfa/setup", response_model=schemas.MfaSetupResponse)
 async def setup_mfa(
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_rls_session)],
@@ -162,7 +176,7 @@ async def setup_mfa(
     )
 
 
-@router.post("/mfa/confirm")
+@router.post("/mfa/confirm", response_model=schemas.MfaStatusResponse)
 async def confirm_mfa(
     payload: schemas.MfaCodeRequest,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -178,7 +192,7 @@ async def confirm_mfa(
     )
 
 
-@router.delete("/mfa")
+@router.delete("/mfa", response_model=schemas.MfaStatusResponse)
 async def disable_mfa(
     payload: schemas.MfaCodeRequest,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -194,7 +208,7 @@ async def disable_mfa(
     )
 
 
-@driver_router.post("/pair")
+@driver_router.post("/pair", response_model=schemas.DriverTokenResponse)
 @limiter.limit("10/minute")
 async def pair_driver_device(
     request: Request,

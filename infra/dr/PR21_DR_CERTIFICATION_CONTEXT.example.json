@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "policy_id": "PR21-DR-CERTIFICATION-V1",
+  "environment": "staging",
+  "release_sha": "0000000000000000000000000000000000000000",
+  "observed_at": "2026-07-31T00:00:00Z",
+  "external_runner": false,
+  "operator": "",
+  "backup_operator": "",
+  "backup_restore": {
+    "release_sha": "0000000000000000000000000000000000000000",
+    "source_environment": "",
+    "representative_volume": false,
+    "data_authorized": false,
+    "authorization_reference": "",
+    "client_side_encrypted": false,
+    "restic_read_data_clean": false,
+    "manifest_checksum_verified": false,
+    "temporary_plaintext_removed": false,
+    "snapshot_id": "",
+    "isolated_target": false,
+    "restore_succeeded": false,
+    "alembic_check_clean": false,
+    "tenant_tables": 0,
+    "force_rls_tables": 0,
+    "unbalanced_journal_entries": -1,
+    "journeys_passed": [],
+    "governance_restored": false,
+    "observability_restored": false,
+    "cleanup_completed": false
+  },
+  "pitr": {
+    "wal_archiving_continuous": false,
+    "archive_errors": -1,
+    "restore_point_created": false,
+    "restore_point_reached": false,
+    "target_time": "",
+    "restored_time": "",
+    "data_loss_seconds": -1,
+    "timeline_verified": false,
+    "pitr_restore_succeeded": false
+  },
+  "cross_region": {
+    "primary_region": "",
+    "replica_region": "",
+    "separate_failure_domain": false,
+    "replica_encrypted": false,
+    "versioning_enabled": false,
+    "object_lock_verified": false,
+    "object_lock_days": 0,
+    "replication_lag_seconds": -1,
+    "restore_credentials_separated": false,
+    "primary_unavailable_simulated": false,
+    "restored_from_replica": false
+  },
+  "rpo_rto": {
+    "measured_rpo_minutes": -1,
+    "measured_rto_minutes": -1,
+    "started_at": "",
+    "recovered_at": "",
+    "full_recovery_timed": false,
+    "representative_load": false,
+    "restored_bytes": 0,
+    "independent_operator_observed": false,
+    "incident_paging_exercised": false
+  },
+  "evidence": {
+    "backup_restore": [],
+    "pitr": [],
+    "cross_region": [],
+    "rpo_rto": []
+  }
+}

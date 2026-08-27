@@ -1,21 +1,23 @@
 import uuid
 from decimal import Decimal
-from typing import Any, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from typing import Any
+
 from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.accounting.models import Account, JournalEntry, JournalItem
-from app.modules.payables.models import SupplierInvoice
 from app.modules.accounting.schemas import JournalEntryCreate
+from app.modules.payables.models import SupplierInvoice
+
 
 async def create_journal_entry(
     session: AsyncSession,
     tenant_id: uuid.UUID,
     payload: JournalEntryCreate,
-    actor_id: Optional[uuid.UUID] = None,
-    source_type: Optional[str] = None,
-    source_id: Optional[uuid.UUID] = None,
+    actor_id: uuid.UUID | None = None,
+    source_type: str | None = None,
+    source_id: uuid.UUID | None = None,
 ) -> JournalEntry:
     """Função universal para injetar lançamentos a partir de hooks internos.
 
@@ -57,7 +59,7 @@ async def create_journal_entry(
         j_item = JournalItem(
             tenant_id=tenant_id,
             journal_entry_id=entry.id,
-            account_id=_resolve_account_uuid(item_data, tenant_id, session),
+            account_id=await _resolve_account_uuid(item_data, tenant_id, session),
             debit=_decimal_or_zero(getattr(item_data, "debit", 0)),
             credit=_decimal_or_zero(getattr(item_data, "credit", 0)),
             third_party_id=getattr(item_data, "third_party_id", None),
@@ -78,7 +80,11 @@ def _decimal_or_zero(value: Any) -> Decimal:
     return Decimal(str(value)).quantize(Decimal("0.01"))
 
 
-def _resolve_account_uuid(item_data: Any, tenant_id: uuid.UUID, session: AsyncSession) -> uuid.UUID:
+async def _resolve_account_uuid(
+    item_data: Any,
+    tenant_id: uuid.UUID,
+    session: AsyncSession,
+) -> uuid.UUID:
     """Resolve account_id either directly from the payload or by PGC-NIRF code.
 
     Workshop currently passes ``account_number`` instead of ``account_id``.
@@ -95,8 +101,11 @@ def _resolve_account_uuid(item_data: Any, tenant_id: uuid.UUID, session: AsyncSe
 
     from sqlalchemy import select  # local to avoid leaking at import time
 
-    result = session.execute(
-        select(Account).where(Account.tenant_id == tenant_id, Account.code == code)
+    result = await session.execute(
+        select(Account).where(
+            Account.tenant_id == tenant_id,
+            Account.code == code,
+        )
     )
     account = result.scalars().first()
     if not account:
@@ -108,7 +117,7 @@ def _resolve_account_uuid(item_data: Any, tenant_id: uuid.UUID, session: AsyncSe
 async def post_supplier_invoice(session: AsyncSession, invoice_id: uuid.UUID) -> JournalEntry:
     """
     Traduz a aprovação de uma SupplierInvoice num lançamento contabilístico de Partidas Dobradas.
-    Regra ERP: 
+    Regra ERP:
       - DÉBITO: Conta de Gastos (62 - Fornecimentos e Serviços de Terceiros)
       - CRÉDITO: Conta de Passivo (42 - Fornecedores)
     """
@@ -122,18 +131,21 @@ async def post_supplier_invoice(session: AsyncSession, invoice_id: uuid.UUID) ->
         pass
 
     # 2. Localizar as contas base do PGC-NIRF do Tenant
-    result_expense = await session.execute(
-        select(Account).where(Account.tenant_id == invoice.tenant_id, Account.code == "62")
+    result_accounts = await session.execute(
+        select(Account).where(
+            Account.tenant_id == invoice.tenant_id,
+            Account.code.in_(("6.3", "4.2", "62", "42")),
+        )
     )
-    expense_account = result_expense.scalars().first()
-
-    result_payable = await session.execute(
-        select(Account).where(Account.tenant_id == invoice.tenant_id, Account.code == "42")
-    )
-    payable_account = result_payable.scalars().first()
+    accounts_by_code = {account.code: account for account in result_accounts.scalars().all()}
+    expense_account = accounts_by_code.get("6.3") or accounts_by_code.get("62")
+    payable_account = accounts_by_code.get("4.2") or accounts_by_code.get("42")
 
     if not expense_account or not payable_account:
-        raise HTTPException(status_code=500, detail="Chart of Accounts is missing required PGC-NIRF accounts (62 or 42).")
+        raise HTTPException(
+            status_code=500,
+            detail="Chart of Accounts is missing required PGC-NIRF accounts (6.3 or 4.2).",
+        )
 
     # 3. Criar o Lançamento através da Porta de Segurança (create_journal_entry)
     from app.modules.accounting.schemas import JournalEntryCreate, JournalItemCreate
@@ -156,15 +168,18 @@ async def post_supplier_invoice(session: AsyncSession, invoice_id: uuid.UUID) ->
                 account_id=payable_account.id,
                 debit=Decimal("0.00"),
                 credit=invoice.amount,
-                third_party_id=invoice.third_party_id
-            )
-        ]
+                third_party_id=invoice.third_party_id,
+            ),
+        ],
     )
 
     try:
         journal_entry = await create_journal_entry(session, invoice.tenant_id, entry_payload)
         await session.commit()
         return journal_entry
-    except ValueError as e:
+    except ValueError as exc:
         await session.rollback()
-        raise HTTPException(status_code=500, detail=f"Erro Contabilístico: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro Contabilístico: {exc}",
+        ) from exc

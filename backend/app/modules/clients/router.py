@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.rbac import BILLING_READ, BILLING_WRITE, require_permission
@@ -14,7 +14,7 @@ from app.modules.clients import schemas, service
 router = APIRouter(prefix="/clients", tags=["clients"])
 
 
-@router.get("")
+@router.get("", response_model=list[schemas.ClientResponse])
 async def list_clients(
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -24,7 +24,7 @@ async def list_clients(
     return await service.list_clients(db, principal.tenant_id, limit=limit, offset=offset)
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, response_model=schemas.ClientResponse)
 async def create_client(
     request: Request,
     payload: schemas.ClientCreate,
@@ -36,7 +36,7 @@ async def create_client(
     return res
 
 
-@router.get("/{client_id}")
+@router.get("/{client_id}", response_model=schemas.ClientResponse)
 async def get_client(
     client_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],
@@ -45,7 +45,7 @@ async def get_client(
     return await service.get_client_with_balance(db, client_id, principal.tenant_id)
 
 
-@router.patch("/{client_id}")
+@router.patch("/{client_id}", response_model=schemas.ClientResponse)
 async def patch_client(
     request: Request,
     client_id: UUID,
@@ -58,7 +58,7 @@ async def patch_client(
     return res
 
 
-@router.get("/{client_id}/statement")
+@router.get("/{client_id}/statement", response_model=schemas.ClientStatementOut)
 async def get_client_statement(
     client_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(BILLING_READ))],

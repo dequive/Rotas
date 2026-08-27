@@ -8,6 +8,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
@@ -15,6 +16,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -92,11 +94,16 @@ class Trip(Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     operational_close_notes: Mapped[str | None] = mapped_column(Text)
+    route_geometry: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    route_polyline: Mapped[str | None] = mapped_column(Text, nullable=True)
+    route_distance_km: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    route_duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_trips_tenant_id_id"),
         CheckConstraint(
             "km_start IS NULL OR km_start >= 0",
             name="chk_trips_km_start_non_negative",
@@ -170,6 +177,7 @@ class TripStop(Base):
     expense_category: Mapped[str | None] = mapped_column(String(60))
     stopped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     resumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sequence_number: Mapped[int | None] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -180,6 +188,62 @@ class TripCost(Base):
             "tenant_id",
             "request_reference",
             name="uq_trip_costs_tenant_request_reference",
+        ),
+        UniqueConstraint("tenant_id", "id", name="uq_trip_costs_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "trip_id"],
+            ["trips.tenant_id", "trips.id"],
+            name="fk_trip_costs_tenant_trip_trips",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "corrects_id"],
+            ["trip_costs.tenant_id", "trip_costs.id"],
+            name="fk_trip_costs_tenant_corrects_trip_costs",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "driver_id"],
+            ["drivers.tenant_id", "drivers.id"],
+            name="fk_trip_costs_tenant_driver_drivers",
+        ),
+        CheckConstraint(
+            "entry_type IN ('original', 'adjustment', 'reversal')",
+            name="chk_trip_costs_entry_type",
+        ),
+        CheckConstraint(
+            "driver_visibility IN ('hidden', 'visible')",
+            name="chk_trip_costs_driver_visibility",
+        ),
+        CheckConstraint(
+            "recorded_by_type IN ('driver', 'manager', 'system')",
+            name="chk_trip_costs_recorded_by_type",
+        ),
+        CheckConstraint(
+            "driver_visibility = 'hidden' OR driver_id IS NOT NULL",
+            name="chk_trip_costs_visible_owner",
+        ),
+        CheckConstraint(
+            "(entry_type = 'original' AND corrects_id IS NULL "
+            "AND correction_reason IS NULL AND amount >= 0) OR "
+            "(entry_type = 'adjustment' AND corrects_id IS NOT NULL "
+            "AND correction_reason IS NOT NULL AND amount <> 0) OR "
+            "(entry_type = 'reversal' AND corrects_id IS NOT NULL "
+            "AND correction_reason IS NOT NULL AND amount < 0)",
+            name="chk_trip_costs_correction_shape",
+        ),
+        Index("ix_trip_costs_corrects_id", "corrects_id"),
+        Index(
+            "ix_trip_costs_driver_journal",
+            "tenant_id",
+            "driver_id",
+            "driver_visibility",
+            "incurred_at",
+        ),
+        Index(
+            "uq_trip_costs_one_reversal_per_original",
+            "tenant_id",
+            "corrects_id",
+            unique=True,
+            postgresql_where=text("entry_type = 'reversal'"),
         ),
     )
 
@@ -197,6 +261,12 @@ class TripCost(Base):
     source_type: Mapped[str] = mapped_column(String(40), default="manual", index=True)
     source_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    entry_type: Mapped[str] = mapped_column(String(20), default="original")
+    corrects_id: Mapped[uuid.UUID | None] = mapped_column()
+    correction_reason: Mapped[str | None] = mapped_column(Text)
+    driver_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("drivers.id"))
+    driver_visibility: Mapped[str] = mapped_column(String(16), default="hidden")
+    recorded_by_type: Mapped[str] = mapped_column(String(16), default="system")
     incurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -288,6 +358,8 @@ class KnownRoute(Base):
     avg_fuel_liters: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     despacho_vazio: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     despacho_carregado: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    destination_lat: Mapped[Decimal | None] = mapped_column(Numeric(9, 6), nullable=True)
+    destination_lon: Mapped[Decimal | None] = mapped_column(Numeric(9, 6), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

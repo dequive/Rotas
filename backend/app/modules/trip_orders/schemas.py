@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.modules.trips.schemas import TripResponse
+
 
 class TripOrderCreate(BaseModel):
     contract_id: UUID | None = None
@@ -51,3 +53,47 @@ class TripOrderCancelRequest(BaseModel):
 
 class DispatchClearanceRejectRequest(BaseModel):
     rejection_reason: str = Field(..., min_length=10, max_length=500)
+
+
+class TripOrderResponse(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    contract_id: UUID | None = None
+    client_id: UUID | None = None
+    customer_reference: str | None = None
+    origin: str
+    destination: str
+    cargo_type: str | None = None
+    cargo_description: str | None = None
+    estimated_weight: float | None = None
+    estimated_volume: float | None = None
+    cargo_value: float | None = None
+    cargo_risk_level: str
+    requested_pickup_date: date
+    requested_delivery_date: date | None = None
+    sla_pickup_deadline: datetime | None = None
+    sla_delivery_deadline: datetime | None = None
+    assigned_vehicle_id: UUID | None = None
+    assigned_driver_id: UUID | None = None
+    assigned_at: datetime | None = None
+    assigned_by: UUID | None = None
+    status: str
+    priority: str
+    estimated_distance_km: float | None = None
+    estimated_fuel_cost: float | None = None
+    estimated_toll_cost: float | None = None
+    estimated_revenue: float | None = None
+    source: str
+    load_permit_id: UUID | None = None
+    requires_load_permit: bool
+    requires_police_clearance: bool
+    requires_customs_clearance: bool
+    operational_notes: str | None = None
+    commercial_notes: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class TripOrderAssignmentResponse(BaseModel):
+    trip_order: TripOrderResponse
+    trip: TripResponse

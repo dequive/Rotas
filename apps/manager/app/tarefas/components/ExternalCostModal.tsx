@@ -2,24 +2,7 @@
 
 import { useState } from "react";
 import { X, FileText, CheckCircle2 } from "lucide-react";
-
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  const token = localStorage.getItem("rotas_access_token");
-  const tenantId = localStorage.getItem("rotas_tenant_id");
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),
-  };
-}
-
-function getApiBase(): string {
-  if (typeof window === "undefined") return "";
-  return (
-    localStorage.getItem("rotas_api_base_url") ??
-    (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "")
-  );
-}
+import { bffRequest } from "@/app/lib/bff";
 
 export function ExternalCostModal({
   isOpen,
@@ -51,11 +34,10 @@ export function ExternalCostModal({
 
     setLoading(true);
     try {
-      const res = await fetch(`${getApiBase()}/api/v1/payables/invoices`, {
+      const res = await bffRequest("/api/v1/payables/invoices", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           third_party_id: thirdPartyId,
@@ -120,7 +102,7 @@ export function ExternalCostModal({
               <select 
                 value={thirdPartyId}
                 onChange={(e) => setThirdPartyId(e.target.value)}
-                className="h-10 px-3 rounded-lg border border-slate-200 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none w-full"
+                className="h-10 px-3 rounded-lg border border-border-strong bg-surface text-ink text-sm focus:border-focus focus:ring-2 focus:ring-focus-soft outline-none w-full"
                 required
               >
                 <option value="">Selecione o Fornecedor...</option>
@@ -141,7 +123,7 @@ export function ExternalCostModal({
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
                   placeholder="Ex: FT-2023/1"
-                  className="h-10 px-3 rounded-lg border border-slate-200 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none w-full"
+                  className="h-10 px-3 rounded-lg border border-border-strong bg-surface text-ink text-sm focus:border-focus focus:ring-2 focus:ring-focus-soft outline-none w-full"
                 />
               </div>
               <div className="flex flex-col gap-1.5 w-1/3">
@@ -152,7 +134,7 @@ export function ExternalCostModal({
                   type="date" 
                   value={issuedAt}
                   onChange={(e) => setIssuedAt(e.target.value)}
-                  className="h-10 px-3 rounded-lg border border-slate-200 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none w-full"
+                  className="h-10 px-3 rounded-lg border border-border-strong bg-surface text-ink text-sm focus:border-focus focus:ring-2 focus:ring-focus-soft outline-none w-full"
                   required
                 />
               </div>
@@ -167,7 +149,7 @@ export function ExternalCostModal({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Ex: Substituição das pastilhas de travão e mão de obra associada."
-                className="p-3 rounded-lg border border-slate-200 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none w-full resize-none"
+                className="p-3 rounded-lg border border-border-strong bg-surface text-ink text-sm focus:border-focus focus:ring-2 focus:ring-focus-soft outline-none w-full resize-none"
               />
             </div>
 
@@ -183,7 +165,7 @@ export function ExternalCostModal({
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0.00"
-                    className="h-10 pl-3 pr-12 rounded-lg border border-slate-200 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none w-full font-mono font-medium text-slate-900"
+                    className="h-10 pl-3 pr-12 rounded-lg border border-border-strong bg-surface text-sm focus:border-focus focus:ring-2 focus:ring-focus-soft outline-none w-full font-mono font-medium text-ink"
                     required
                   />
                   <span className="absolute right-3 top-2.5 text-slate-400 font-mono text-sm">MZN</span>

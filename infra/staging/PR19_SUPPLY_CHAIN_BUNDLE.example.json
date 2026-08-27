@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "policy_id": "PR19-SUPPLY-CHAIN-V1",
+  "release_sha": "0000000000000000000000000000000000000000",
+  "source_repository": "https://github.com/REPLACE/rotas",
+  "expected_certificate_identity": "REPLACE_WITH_EXACT_CI_CERTIFICATE_IDENTITY",
+  "expected_oidc_issuer": "https://token.actions.githubusercontent.com",
+  "images": {
+    "ROTAS_BACKEND_IMAGE": {
+      "reference": "registry.invalid/rotas/backend@sha256:0000000000000000000000000000000000000000000000000000000000000001",
+      "signature": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+        "certificate_identity": "REPLACE_WITH_EXACT_CI_CERTIFICATE_IDENTITY",
+        "oidc_issuer": "https://token.actions.githubusercontent.com",
+        "transparency_log_verified": false
+      },
+      "sbom": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+        "predicate_type": "https://spdx.dev/Document"
+      },
+      "provenance": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+        "predicate_type": "https://slsa.dev/provenance/v1",
+        "source_repository": "https://github.com/REPLACE/rotas",
+        "source_revision": "0000000000000000000000000000000000000000",
+        "builder_id": "",
+        "mode": "max"
+      },
+      "scanner": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+        "critical": -1,
+        "high": -1,
+        "database_fresh": false
+      },
+      "admission": {
+        "policy_enforced": false,
+        "digest_allowed": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000001"
+      },
+      "evidence": []
+    },
+    "ROTAS_DRIVER_IMAGE": {
+      "reference": "registry.invalid/rotas/driver@sha256:0000000000000000000000000000000000000000000000000000000000000002",
+      "signature": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+        "certificate_identity": "REPLACE_WITH_EXACT_CI_CERTIFICATE_IDENTITY",
+        "oidc_issuer": "https://token.actions.githubusercontent.com",
+        "transparency_log_verified": false
+      },
+      "sbom": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+        "predicate_type": "https://spdx.dev/Document"
+      },
+      "provenance": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+        "predicate_type": "https://slsa.dev/provenance/v1",
+        "source_repository": "https://github.com/REPLACE/rotas",
+        "source_revision": "0000000000000000000000000000000000000000",
+        "builder_id": "",
+        "mode": "max"
+      },
+      "scanner": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+        "critical": -1,
+        "high": -1,
+        "database_fresh": false
+      },
+      "admission": {
+        "policy_enforced": false,
+        "digest_allowed": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000002"
+      },
+      "evidence": []
+    },
+    "ROTAS_GOVERNANCE_IMAGE": {
+      "reference": "registry.invalid/rotas/governance@sha256:0000000000000000000000000000000000000000000000000000000000000003",
+      "signature": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+        "certificate_identity": "REPLACE_WITH_EXACT_CI_CERTIFICATE_IDENTITY",
+        "oidc_issuer": "https://token.actions.githubusercontent.com",
+        "transparency_log_verified": false
+      },
+      "sbom": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+        "predicate_type": "https://spdx.dev/Document"
+      },
+      "provenance": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+        "predicate_type": "https://slsa.dev/provenance/v1",
+        "source_repository": "https://github.com/REPLACE/rotas",
+        "source_revision": "0000000000000000000000000000000000000000",
+        "builder_id": "",
+        "mode": "max"
+      },
+      "scanner": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+        "critical": -1,
+        "high": -1,
+        "database_fresh": false
+      },
+      "admission": {
+        "policy_enforced": false,
+        "digest_allowed": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000003"
+      },
+      "evidence": []
+    },
+    "ROTAS_MANAGER_IMAGE": {
+      "reference": "registry.invalid/rotas/manager@sha256:0000000000000000000000000000000000000000000000000000000000000004",
+      "signature": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000004",
+        "certificate_identity": "REPLACE_WITH_EXACT_CI_CERTIFICATE_IDENTITY",
+        "oidc_issuer": "https://token.actions.githubusercontent.com",
+        "transparency_log_verified": false
+      },
+      "sbom": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000004",
+        "predicate_type": "https://spdx.dev/Document"
+      },
+      "provenance": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000004",
+        "predicate_type": "https://slsa.dev/provenance/v1",
+        "source_repository": "https://github.com/REPLACE/rotas",
+        "source_revision": "0000000000000000000000000000000000000000",
+        "builder_id": "",
+        "mode": "max"
+      },
+      "scanner": {
+        "verified": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000004",
+        "critical": -1,
+        "high": -1,
+        "database_fresh": false
+      },
+      "admission": {
+        "policy_enforced": false,
+        "digest_allowed": false,
+        "subject_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000004"
+      },
+      "evidence": []
+    }
+  }
+}

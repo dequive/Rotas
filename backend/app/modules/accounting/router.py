@@ -1,29 +1,25 @@
+from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
-from datetime import datetime
-from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, func
-from sqlalchemy.orm import selectinload
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from app.core.auth import Principal, get_current_principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
-from app.core.rbac import require_permission, ACCOUNTING_READ, ACCOUNTING_POST, ACCOUNTING_REVERSE
+from app.core.rbac import ACCOUNTING_POST, ACCOUNTING_READ, require_permission
 from app.modules.accounting.models import Account, JournalEntry, JournalItem
 from app.modules.accounting.schemas import (
     AccountResponse,
     JournalEntryCreate,
     JournalEntryResponse,
     ProfitAndLossResponse,
-    TrialBalanceLine
+    TrialBalanceLine,
 )
 
 router = APIRouter(prefix="/accounting", tags=["accounting"])
-
-SessionDep = Annotated[AsyncSession, Depends(get_session)]
-PrincipalDep = Annotated[Principal, Depends(get_current_principal)]
 
 @router.get("/accounts", response_model=list[AccountResponse])
 async def list_accounts(
@@ -43,8 +39,8 @@ async def create_manual_entry(
     from app.modules.accounting.services import create_journal_entry as _create_journal_entry
     # Validar Partidas Dobradas (Total Debitos == Total Creditos)
     lines = payload.lines or payload.items or []
-    total_debit = sum(item.debit for item in lines)
-    total_credit = sum(item.credit for item in lines)
+    total_debit = sum((item.debit for item in lines), Decimal("0"))
+    total_credit = sum((item.credit for item in lines), Decimal("0"))
 
     if total_debit != total_credit:
         raise HTTPException(
@@ -132,22 +128,24 @@ async def get_profit_and_loss(
     lines = []
 
     for row in rows:
+        total_debit = Decimal(str(row.total_debit or 0))
+        total_credit = Decimal(str(row.total_credit or 0))
         bal = Decimal("0.00")
         if row.code.startswith("7"):
             # Receita: Creditos aumentam, Debitos diminuem
-            bal = (row.total_credit or 0) - (row.total_debit or 0)
+            bal = total_credit - total_debit
             total_revenue += bal
             lines.append(TrialBalanceLine(
                 account_id=row.id, code=row.code, name=row.name,
-                debit_total=row.total_debit or 0, credit_total=row.total_credit or 0, balance=bal
+                debit_total=total_debit, credit_total=total_credit, balance=bal
             ))
         elif row.code.startswith("6"):
             # Despesa: Debitos aumentam, Creditos diminuem
-            bal = (row.total_debit or 0) - (row.total_credit or 0)
+            bal = total_debit - total_credit
             total_expense += bal
             lines.append(TrialBalanceLine(
                 account_id=row.id, code=row.code, name=row.name,
-                debit_total=row.total_debit or 0, credit_total=row.total_credit or 0, balance=bal
+                debit_total=total_debit, credit_total=total_credit, balance=bal
             ))
 
     ebitda = total_revenue - total_expense

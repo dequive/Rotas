@@ -12,6 +12,7 @@ from app.modules.checklists.models import Checklist
 from app.modules.drivers.models import Driver
 from app.modules.operational_exceptions.models import OperationalException
 from app.modules.tenants.models import Tenant
+from app.modules.trips.models import Trip
 from app.modules.vehicles.models import Vehicle
 
 import_all_models()
@@ -83,6 +84,47 @@ def template_payload():
             },
         ],
     }
+
+
+@pytest.mark.asyncio
+async def test_checklist_rejects_trip_from_another_tenant() -> None:
+    tenant, vehicle, driver = await seed_entities()
+    foreign_tenant, foreign_vehicle, foreign_driver = await seed_entities()
+    async with AsyncSessionLocal() as db:
+        foreign_trip = Trip(
+            tenant_id=foreign_tenant.id,
+            vehicle_id=foreign_vehicle.id,
+            driver_id=foreign_driver.id,
+            origin="Beira",
+            destination="Tete",
+            status="in_progress",
+        )
+        db.add(foreign_trip)
+        await db.commit()
+        foreign_trip_id = foreign_trip.id
+
+    async with await create_api_client() as client:
+        template_response = await client.post(
+            "/api/v1/checklist-templates",
+            headers=auth_headers(tenant.id),
+            json=template_payload(),
+        )
+        assert template_response.status_code == 200
+        response = await client.post(
+            "/api/v1/checklists",
+            headers=auth_headers(tenant.id),
+            json={
+                "trip_id": str(foreign_trip_id),
+                "vehicle_id": str(vehicle.id),
+                "driver_id": str(driver.id),
+                "template_id": template_response.json()["id"],
+                "type": "pre_partida",
+                "responses": {},
+            },
+        )
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "trip_not_found"
 
 
 @pytest.mark.asyncio
@@ -214,7 +256,9 @@ async def test_checklist_template_create_and_completion_rules() -> None:
             )
         )
         assert failed_exception is not None
-        assert failed_exception.context["vehicle_id"] == str(vehicle.id)
+        failed_context = failed_exception.context
+        assert failed_context is not None
+        assert failed_context["vehicle_id"] == str(vehicle.id)
 
     async with await create_api_client() as client:
         resolve_response = await client.post(

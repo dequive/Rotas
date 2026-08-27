@@ -63,7 +63,7 @@ export function ClientsTable({ clients }: ClientsTableProps) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Pesquisar por nome, NUIT ou cidade…"
-          className="w-full pl-8 pr-3 py-2 text-[13px] border border-border rounded-md bg-surface text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-amber/20 focus:border-amber"
+          className="w-full pl-8 pr-3 py-2 text-[13px] border border-border rounded-md bg-surface text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus-soft focus:border-focus"
         />
       </div>
 

@@ -1,11 +1,13 @@
-import { apiFetch, extractApiError } from "./api";
+import { apiFetch } from "./api";
 import { requireSession } from "./auth";
+import { governanceRequest } from "./governance-bff";
 
 export type TaskStatus = "pending" | "in_progress" | "review" | "completed" | "cancelled";
+export type TaskSource = "workshop" | "governance";
 
 export interface UnifiedTask {
   id: string;
-  source: "workshop" | "governance";
+  source: TaskSource;
   title: string;
   category: string;
   status: TaskStatus;
@@ -15,78 +17,91 @@ export interface UnifiedTask {
   tenantId: string;
 }
 
-export async function getUnifiedTasks(): Promise<UnifiedTask[]> {
-  try {
-    // 1. Fetch Maintenance Requests (Workshop)
-    // using apiFetch which points to ROTAS_API_BASE_URL
-    const maintenanceRequests = await apiFetch<any[]>("/api/v1/workshop/maintenance-requests").catch(() => []);
+export interface UnifiedTasksResult {
+  tasks: UnifiedTask[];
+  unavailableSources: TaskSource[];
+}
 
-    // 2. Fetch Governance Cases
-    // using direct fetch since apiFetch uses ROTAS_API_BASE_URL
-    const GOVERNANCE_API = process.env.GOVERNANCE_API_URL || "http://localhost:8001";
-    const session = await requireSession();
-    
-    const casesRes = await fetch(`${GOVERNANCE_API}/api/v1/cases`, {
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${session.accessToken}`,
-        "X-Tenant-Id": session.tenantId,
-      }
-    }).catch(() => null);
+interface WorkshopTask {
+  id: string;
+  tenant_id: string;
+  description: string;
+  status: string;
+  created_at: string;
+}
 
-    const cases = casesRes && casesRes.ok ? await casesRes.json() : [];
+interface GovernanceCase {
+  id: string;
+  case_type_code: string;
+  status: string;
+  payload: Record<string, unknown>;
+  created_at: string;
+  sla_due_at?: string | null;
+  assignee_id?: string | null;
+}
 
-    // 3. Normalize
-    const unified: UnifiedTask[] = [];
+function normalizeStatus(status: string): TaskStatus {
+  if (["cancelled", "rejected"].includes(status)) return "cancelled";
+  if (["resolved", "closed", "completed", "converted"].includes(status)) return "completed";
+  if (["quality_check", "review"].includes(status)) return "review";
+  if (["approved", "in_progress", "in_analysis", "triaged"].includes(status)) return "in_progress";
+  return "pending";
+}
 
-    // Map Workshop tasks
-    if (Array.isArray(maintenanceRequests)) {
-      maintenanceRequests.forEach((mr: any) => {
-        let normalizedStatus: TaskStatus = "pending";
-        if (mr.status === "approved" || mr.status === "in_progress") normalizedStatus = "in_progress";
-        if (mr.status === "quality_check") normalizedStatus = "review";
-        if (mr.status === "closed") normalizedStatus = "completed";
+export async function getUnifiedTasks(): Promise<UnifiedTasksResult> {
+  const session = await requireSession();
+  const unavailableSources: TaskSource[] = [];
+  const tasks: UnifiedTask[] = [];
 
-        unified.push({
-          id: mr.id,
-          source: "workshop",
-          title: mr.description || "Pedido de Manutenção",
-          category: "Mecânica/Frota",
-          status: normalizedStatus,
-          createdAt: mr.created_at,
-          tenantId: mr.tenant_id,
-        });
+  const [workshopResult, governanceResult] = await Promise.allSettled([
+    apiFetch<WorkshopTask[]>("/api/v1/workshop/maintenance-requests"),
+    governanceRequest("/api/v1/cases/"),
+  ]);
+
+  if (workshopResult.status === "fulfilled") {
+    for (const item of workshopResult.value) {
+      tasks.push({
+        id: item.id,
+        source: "workshop",
+        title: item.description || "Pedido de manutenção",
+        category: "Mecânica/Frota",
+        status: normalizeStatus(item.status),
+        createdAt: item.created_at,
+        tenantId: item.tenant_id,
       });
     }
-
-    // Map Governance Cases
-    if (Array.isArray(cases)) {
-      cases.forEach((c: any) => {
-        let normalizedStatus: TaskStatus = "pending";
-        if (c.status === "in_progress") normalizedStatus = "in_progress";
-        if (c.status === "resolved") normalizedStatus = "completed";
-        if (c.status === "cancelled") normalizedStatus = "cancelled";
-
-        unified.push({
-          id: c.id,
-          source: "governance",
-          title: c.title || "Caso Interno",
-          category: c.case_type_id || "Geral", // Should map to actual taxonomy
-          status: normalizedStatus,
-          createdAt: c.created_at,
-          slaDueAt: c.sla_due_at,
-          assigneeId: c.assignee_id,
-          tenantId: c.tenant_id,
-        });
-      });
-    }
-
-    // Sort by creation date descending
-    unified.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    return unified;
-  } catch (error) {
-    console.error("Failed to fetch unified tasks", error);
-    return [];
+  } else {
+    unavailableSources.push("workshop");
   }
+
+  if (governanceResult.status === "fulfilled" && governanceResult.value.ok) {
+    const body = (await governanceResult.value.json().catch(() => null)) as
+      | { items?: GovernanceCase[] }
+      | null;
+    if (Array.isArray(body?.items)) {
+      for (const item of body.items) {
+        tasks.push({
+          id: item.id,
+          source: "governance",
+          title:
+            typeof item.payload?.title === "string"
+              ? item.payload.title
+              : item.case_type_code,
+          category: item.case_type_code,
+          status: normalizeStatus(item.status),
+          createdAt: item.created_at,
+          ...(item.sla_due_at ? { slaDueAt: item.sla_due_at } : {}),
+          ...(item.assignee_id ? { assigneeId: item.assignee_id } : {}),
+          tenantId: session.tenantId,
+        });
+      }
+    } else {
+      unavailableSources.push("governance");
+    }
+  } else {
+    unavailableSources.push("governance");
+  }
+
+  tasks.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  return { tasks, unavailableSources };
 }

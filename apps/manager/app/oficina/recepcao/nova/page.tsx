@@ -1,434 +1,613 @@
 "use client";
 
-import React, { useState } from "react";
+import { ArrowLeft, Camera, ClipboardCheck, Gauge, UsersRound } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import { SidebarLayout } from "../../../components/SidebarLayout";
+import { Button } from "../../../components/ui/Button";
+import { PageHeader } from "../../../components/ui/PageHeader";
+import { bffRequest } from "../../../lib/bff";
 import { PhotoEvidenceUploader } from "../../components/PhotoEvidenceUploader";
 import SignatureCanvas from "../../components/SignatureCanvas";
 import VehicleHistoryPanel from "../../components/VehicleHistoryPanel";
 
-export default function NovaRecepcaoPage() {
+interface VehicleOption {
+  id: string;
+  plate: string;
+  brand: string;
+  model: string;
+  current_km: number;
+}
+
+interface ClientOption {
+  id: string;
+  trading_name: string;
+  legal_name: string | null;
+  phone: string | null;
+  is_active: boolean;
+}
+
+const inputClass =
+  "h-10 w-full rounded-[var(--r-md)] border border-border-strong bg-surface px-3 text-sm text-ink focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus-soft";
+const labelClass =
+  "mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted";
+const cardClass =
+  "space-y-5 rounded-[var(--r-lg)] border border-border bg-surface p-4 shadow-card sm:p-6";
+
+async function readApiError(response: Response, fallback: string) {
+  const body = (await response.json().catch(() => ({}))) as {
+    detail?: string;
+    error?: { message?: string };
+  };
+  return body.error?.message ?? body.detail ?? fallback;
+}
+
+export default function NewReceptionPage() {
   const router = useRouter();
+  const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
+  const [clients, setClients] = useState<ClientOption[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // 1. Tipo de Propriedade da Viatura: Frota vs Cliente Comercial
-  const [ownershipType, setOwnershipType] = useState<"fleet" | "customer">("customer");
-
-  // 2. Tipo de Cliente: Indivíduo vs Organização (Default: individual)
-  const [clientType, setClientType] = useState<"individual" | "organization">("individual");
-  const [clientName, setClientName] = useState("João Muchanga");
-  const [clientPhone, setClientPhone] = useState("+258 84 123 4567");
-
-  // 3. Viatura selecionada e Odómetro Baseline
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("veh-demo-01");
-  const [vehiclePlate, setVehiclePlate] = useState("AFM-8821-TR");
-  const [odometerKm, setOdometerKm] = useState<number>(48500);
-  const lastKnownOdometer = 48500; // Leitura de referência histórica
-
-  // 4. Contactos Rastreáveis de Entrega & Levantamento
-  const [deliveredByName, setDeliveredByName] = useState("João Muchanga");
-  const [deliveredByPhone, setDeliveredByPhone] = useState("+258 84 123 4567");
-  const [pickupAuthorizedByName, setPickupAuthorizedByName] = useState("João Muchanga");
-  const [pickupAuthorizedByPhone, setPickupAuthorizedByPhone] = useState("+258 84 123 4567");
-  const [isAutoFilled, setIsAutoFilled] = useState(true);
-
-  // 5. Sintomas e Condição Visual
+  const [ownershipType, setOwnershipType] = useState<"fleet" | "customer">(
+    "customer",
+  );
+  const [selectedClientId, setSelectedClientId] = useState("");
+  const [selectedVehicleId, setSelectedVehicleId] = useState("");
+  const [odometerKm, setOdometerKm] = useState(0);
+  const [deliveredByName, setDeliveredByName] = useState("");
+  const [deliveredByPhone, setDeliveredByPhone] = useState("");
+  const [pickupAuthorizedByName, setPickupAuthorizedByName] = useState("");
+  const [pickupAuthorizedByPhone, setPickupAuthorizedByPhone] = useState("");
   const [reportedIssues, setReportedIssues] = useState("");
   const [visualCondition, setVisualCondition] = useState("");
   const [personalItems, setPersonalItems] = useState("");
   const [fuelLevel, setFuelLevel] = useState("half");
-
-  // 6. Evidências Fotográficas e Assinatura
+  const [estimatedCompletionAt, setEstimatedCompletionAt] = useState("");
   const [photoFileIds, setPhotoFileIds] = useState<string[]>([]);
   const [signatureFileId, setSignatureFileId] = useState<string | null>(null);
 
-  // Manipulador de Auto-preenchimento ao Mudar Tipo de Cliente ou Nome
-  const handleClientTypeChange = (type: "individual" | "organization") => {
-    setClientType(type);
-    if (type === "individual") {
-      setDeliveredByName(clientName);
-      setDeliveredByPhone(clientPhone);
-      setPickupAuthorizedByName(clientName);
-      setPickupAuthorizedByPhone(clientPhone);
-      setIsAutoFilled(true);
-    } else {
-      // Para Empresa/Organização, limpa para exigência de preenchimento do motorista/responsável
-      setDeliveredByName("");
-      setDeliveredByPhone("");
-      setPickupAuthorizedByName("");
-      setPickupAuthorizedByPhone("");
-      setIsAutoFilled(false);
-    }
-  };
-
-  const handleManualContactEdit = () => {
-    setIsAutoFilled(false);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-    setIsSubmitting(true);
-
-    const payload = {
-      vehicle_id: selectedVehicleId,
-      client_id: ownershipType === "customer" ? "client-demo-01" : null,
-      odometer_at_reception: odometerKm,
-      reported_issues: reportedIssues,
-      visual_condition: visualCondition,
-      personal_items: personalItems,
-      fuel_level: fuelLevel,
-      delivered_by_name: deliveredByName,
-      delivered_by_phone: deliveredByPhone,
-      pickup_authorized_by_name: pickupAuthorizedByName,
-      pickup_authorized_by_phone: pickupAuthorizedByPhone,
-      client_signature_file_id: signatureFileId,
-    };
-
-    try {
-      const res = await fetch("/api/v1/workshop/receptions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        router.push(`/oficina/recepcao/${data.id || "REC-2026-0005"}`);
-      } else {
-        const err = await res.json();
-        setErrorMessage(err.detail || "Erro ao gravar recepção de viatura.");
-        setIsSubmitting(false);
+  useEffect(() => {
+    let active = true;
+    async function loadOptions() {
+      setLoadingOptions(true);
+      setErrorMessage(null);
+      try {
+        const [vehiclesResponse, clientsResponse] = await Promise.all([
+          fetch("/api/vehicles?limit=200", { cache: "no-store" }),
+          fetch("/api/clients?limit=200", { cache: "no-store" }),
+        ]);
+        if (!vehiclesResponse.ok) {
+          throw new Error(
+            await readApiError(
+              vehiclesResponse,
+              "Não foi possível carregar as viaturas.",
+            ),
+          );
+        }
+        if (!clientsResponse.ok) {
+          throw new Error(
+            await readApiError(
+              clientsResponse,
+              "Não foi possível carregar os clientes.",
+            ),
+          );
+        }
+        const [vehicleData, clientData] = await Promise.all([
+          vehiclesResponse.json() as Promise<VehicleOption[]>,
+          clientsResponse.json() as Promise<ClientOption[]>,
+        ]);
+        if (active) {
+          setVehicles(Array.isArray(vehicleData) ? vehicleData : []);
+          setClients(
+            Array.isArray(clientData)
+              ? clientData.filter((client) => client.is_active)
+              : [],
+          );
+        }
+      } catch (err) {
+        if (active) {
+          setErrorMessage(
+            err instanceof Error
+              ? err.message
+              : "Erro ao carregar os dados de referência.",
+          );
+        }
+      } finally {
+        if (active) setLoadingOptions(false);
       }
-    } catch (err) {
-      // Demo fallback redirect
-      router.push("/oficina/recepcao/REC-2026-0005");
     }
-  };
+    void loadOptions();
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  const isOdometerWarning = odometerKm > 0 && odometerKm < lastKnownOdometer;
+  const selectedVehicle = useMemo(
+    () => vehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? null,
+    [selectedVehicleId, vehicles],
+  );
+  const isOdometerWarning =
+    Boolean(selectedVehicle) &&
+    odometerKm >= 0 &&
+    odometerKm < (selectedVehicle?.current_km ?? 0);
+
+  function handleVehicleChange(vehicleId: string) {
+    setSelectedVehicleId(vehicleId);
+    const vehicle = vehicles.find((item) => item.id === vehicleId);
+    setOdometerKm(vehicle?.current_km ?? 0);
+  }
+
+  function handleClientChange(clientId: string) {
+    setSelectedClientId(clientId);
+    const client = clients.find((item) => item.id === clientId);
+    if (!client) return;
+    setDeliveredByName(client.trading_name);
+    setDeliveredByPhone(client.phone ?? "");
+    setPickupAuthorizedByName(client.trading_name);
+    setPickupAuthorizedByPhone(client.phone ?? "");
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setErrorMessage(null);
+    if (!selectedVehicleId) {
+      setErrorMessage("Selecione uma viatura registada.");
+      return;
+    }
+    if (ownershipType === "customer" && !selectedClientId) {
+      setErrorMessage("Selecione o cliente proprietário da viatura.");
+      return;
+    }
+    if (isOdometerWarning) {
+      setErrorMessage(
+        "O odómetro não pode ser inferior à leitura atual da viatura sem reconciliação prévia.",
+      );
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await bffRequest("/api/v1/workshop/receptions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": crypto.randomUUID(),
+        },
+        body: JSON.stringify({
+          vehicle_id: selectedVehicleId,
+          client_id:
+            ownershipType === "customer" ? selectedClientId : undefined,
+          odometer_at_reception: odometerKm,
+          reported_issues: reportedIssues.trim() || undefined,
+          visual_condition: visualCondition.trim() || undefined,
+          personal_items: personalItems.trim() || undefined,
+          fuel_level: fuelLevel,
+          delivered_by_name: deliveredByName.trim() || undefined,
+          delivered_by_phone: deliveredByPhone.trim() || undefined,
+          pickup_authorized_by_name:
+            pickupAuthorizedByName.trim() || undefined,
+          pickup_authorized_by_phone:
+            pickupAuthorizedByPhone.trim() || undefined,
+          client_signature_file_id: signatureFileId || undefined,
+          estimated_completion_at: estimatedCompletionAt
+            ? new Date(estimatedCompletionAt).toISOString()
+            : undefined,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(
+          await readApiError(response, "Erro ao registar a receção da viatura."),
+        );
+      }
+      const created = (await response.json()) as {
+        id?: string;
+        reception_number?: string;
+      };
+      if (!created.id) {
+        throw new Error("A API não devolveu a identidade da nova receção.");
+      }
+
+      const evidenceResults = await Promise.all(
+        photoFileIds.map(async (fileId, index) => {
+          const photoResponse = await bffRequest(
+            `/api/v1/workshop/receptions/${created.id}/photos`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Idempotency-Key": crypto.randomUUID(),
+              },
+              body: JSON.stringify({
+                file_id: fileId,
+                caption: `Fotografia de entrada ${index + 1}`,
+              }),
+            },
+          );
+          return photoResponse.ok;
+        }),
+      );
+      const failedEvidence = evidenceResults.filter((attached) => !attached).length;
+      const warning =
+        failedEvidence > 0 ? `?evidence_warning=${failedEvidence}` : "";
+      router.push(`/oficina/recepcao/${created.id}${warning}`);
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : "Erro de ligação ao registar a receção.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <SidebarLayout active="recepcao">
-      <div className="max-w-6xl mx-auto space-y-6 pb-12">
-        {/* Cabeçalho da Página */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-4 gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Nova Recepção de Viatura (Check-in)</h1>
-            <p className="text-xs text-slate-500 mt-1">
-              Entrada oficial na oficina • Emissão de sequência não-fiscal <code className="font-mono">REC-2026-XXXX</code>
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
+      <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+        <PageHeader
+          eyebrow="Oficina Auto"
+          title="Novo check-in"
+          description="Registo operacional da entrada, intervenientes, condição e evidências da viatura."
+          actions={
+            <Button
               type="button"
+              variant="outline"
               onClick={() => router.back()}
-              className="px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded border border-slate-300"
             >
+              <ArrowLeft aria-hidden="true" className="h-4 w-4" />
               Cancelar
-            </button>
-          </div>
-        </div>
+            </Button>
+          }
+        />
 
         {errorMessage && (
-          <div className="p-3 text-xs text-red-800 bg-red-50 border border-red-200 rounded-md">
-            ⚠️ {errorMessage}
+          <div
+            role="alert"
+            className="rounded-[var(--r-md)] border border-status-cancelled bg-status-cancelled-soft p-4 text-sm text-status-cancelled"
+          >
+            {errorMessage}
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Coluna Principal: Formulário de Check-in em 2 terços */}
-          <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
-            {/* Bloco 1: Seleção de Origem & Cliente */}
-            <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-sm space-y-4">
-              <h2 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
-                1. Origem da Viatura & Titular do Registo
-              </h2>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <section className={cardClass}>
+              <div className="flex items-center gap-2 border-b border-border pb-3">
+                <ClipboardCheck
+                  aria-hidden="true"
+                  className="h-5 w-5 text-rotas-600"
+                />
+                <h2 className="text-base font-semibold text-ink">
+                  Viatura e titular
+                </h2>
+              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <fieldset>
+                <legend className={labelClass}>Origem da viatura</legend>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: "customer", label: "Cliente do tenant" },
+                    { value: "fleet", label: "Frota própria" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={ownershipType === option.value}
+                      onClick={() => {
+                        setOwnershipType(option.value as "fleet" | "customer");
+                        if (option.value === "fleet") setSelectedClientId("");
+                      }}
+                      className={`min-h-11 rounded-[var(--r-md)] border px-3 py-2 text-sm font-semibold transition-colors ${
+                        ownershipType === option.value
+                          ? "border-rotas-500 bg-rotas-50 text-rotas-700 dark:bg-surface-2"
+                          : "border-border bg-surface text-muted hover:bg-surface-2"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Tipo de Propriedade</label>
-                  <div className="flex space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => setOwnershipType("customer")}
-                      className={`flex-1 py-2 px-3 text-xs font-semibold rounded border ${
-                        ownershipType === "customer"
-                          ? "bg-indigo-50 border-indigo-600 text-indigo-700"
-                          : "bg-slate-50 border-slate-200 text-slate-600"
-                      }`}
-                    >
-                      👤 Cliente Comercial
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setOwnershipType("fleet")}
-                      className={`flex-1 py-2 px-3 text-xs font-semibold rounded border ${
-                        ownershipType === "fleet"
-                          ? "bg-indigo-50 border-indigo-600 text-indigo-700"
-                          : "bg-slate-50 border-slate-200 text-slate-600"
-                      }`}
-                    >
-                      🚛 Frota Própria
-                    </button>
-                  </div>
+                  <label htmlFor="reception-vehicle" className={labelClass}>
+                    Viatura *
+                  </label>
+                  <select
+                    id="reception-vehicle"
+                    required
+                    disabled={loadingOptions}
+                    value={selectedVehicleId}
+                    onChange={(event) => handleVehicleChange(event.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">
+                      {loadingOptions ? "A carregar…" : "Selecione a viatura"}
+                    </option>
+                    {vehicles.map((vehicle) => (
+                      <option key={vehicle.id} value={vehicle.id}>
+                        {vehicle.plate} — {vehicle.brand} {vehicle.model}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {ownershipType === "customer" && (
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Tipo de Cliente</label>
-                    <div className="flex space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => handleClientTypeChange("individual")}
-                        className={`flex-1 py-2 px-3 text-xs font-semibold rounded border ${
-                          clientType === "individual"
-                            ? "bg-slate-800 text-white border-slate-800"
-                            : "bg-slate-50 border-slate-200 text-slate-600"
-                        }`}
-                      >
-                        Indivíduo (Particular)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleClientTypeChange("organization")}
-                        className={`flex-1 py-2 px-3 text-xs font-semibold rounded border ${
-                          clientType === "organization"
-                            ? "bg-slate-800 text-white border-slate-800"
-                            : "bg-slate-50 border-slate-200 text-slate-600"
-                        }`}
-                      >
-                        Organização / Empresa
-                      </button>
-                    </div>
+                    <label htmlFor="reception-client" className={labelClass}>
+                      Cliente *
+                    </label>
+                    <select
+                      id="reception-client"
+                      required
+                      disabled={loadingOptions}
+                      value={selectedClientId}
+                      onChange={(event) => handleClientChange(event.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">
+                        {loadingOptions ? "A carregar…" : "Selecione o cliente"}
+                      </option>
+                      {clients.map((client) => (
+                        <option key={client.id} value={client.id}>
+                          {client.trading_name}
+                          {client.legal_name ? ` — ${client.legal_name}` : ""}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
               </div>
+            </section>
 
-              {/* Autocomplete de Cliente */}
-              {ownershipType === "customer" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Nome do Cliente</label>
-                    <input
-                      type="text"
-                      value={clientName}
-                      onChange={(e) => setClientName(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500"
-                      placeholder="Pesquisar ou registar cliente..."
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Telefone Principal</label>
-                    <input
-                      type="text"
-                      value={clientPhone}
-                      onChange={(e) => setClientPhone(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500"
-                      placeholder="+258 8X XXX XXXX"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Bloco 2: Pessoas Rastreáveis de Entrega & Levantamento */}
-            <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h2 className="text-sm font-bold text-slate-800">
-                  2. Responsáveis pela Entrega & Levantamento Autorizado
+            <section className={cardClass}>
+              <div className="flex items-center gap-2 border-b border-border pb-3">
+                <UsersRound
+                  aria-hidden="true"
+                  className="h-5 w-5 text-rotas-600"
+                />
+                <h2 className="text-base font-semibold text-ink">
+                  Entrega e levantamento autorizado
                 </h2>
-                {isAutoFilled && clientType === "individual" && (
-                  <span className="text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                    ℹ️ Dados pré-preenchidos. Confirme com quem entregou.
-                  </span>
-                )}
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                  <h3 className="text-xs font-bold text-slate-700">Pessoa que Entregou a Viatura</h3>
+              <p className="text-xs leading-relaxed text-muted">
+                Confirme sempre as pessoas reais. A seleção do cliente apenas
+                pré-preenche os contactos para reduzir digitação.
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-4 rounded-[var(--r-md)] border border-border bg-surface-2 p-4">
+                  <h3 className="text-sm font-semibold text-ink">Quem entrega</h3>
                   <div>
-                    <label className="block text-[11px] text-slate-600 mb-1">Nome de quem entregou</label>
+                    <label htmlFor="delivered-name" className={labelClass}>
+                      Nome
+                    </label>
                     <input
-                      type="text"
+                      id="delivered-name"
                       value={deliveredByName}
-                      onChange={(e) => {
-                        setDeliveredByName(e.target.value);
-                        handleManualContactEdit();
-                      }}
-                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded bg-white"
-                      placeholder="ex: Carlos Sitoe (Motorista)"
-                      required
+                      onChange={(event) => setDeliveredByName(event.target.value)}
+                      className={inputClass}
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] text-slate-600 mb-1">Contacto Telefónico</label>
+                    <label htmlFor="delivered-phone" className={labelClass}>
+                      Telefone
+                    </label>
                     <input
-                      type="text"
+                      id="delivered-phone"
+                      type="tel"
                       value={deliveredByPhone}
-                      onChange={(e) => {
-                        setDeliveredByPhone(e.target.value);
-                        handleManualContactEdit();
-                      }}
-                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded bg-white"
-                      placeholder="+258 8X XXX XXXX"
+                      onChange={(event) => setDeliveredByPhone(event.target.value)}
+                      className={inputClass}
                     />
                   </div>
                 </div>
-
-                <div className="space-y-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                  <h3 className="text-xs font-bold text-slate-700">Pessoa Autorizada a Levantar</h3>
+                <div className="space-y-4 rounded-[var(--r-md)] border border-border bg-surface-2 p-4">
+                  <h3 className="text-sm font-semibold text-ink">
+                    Quem pode levantar
+                  </h3>
                   <div>
-                    <label className="block text-[11px] text-slate-600 mb-1">Nome Autorizado no Release</label>
+                    <label htmlFor="pickup-name" className={labelClass}>
+                      Nome
+                    </label>
                     <input
-                      type="text"
+                      id="pickup-name"
                       value={pickupAuthorizedByName}
-                      onChange={(e) => {
-                        setPickupAuthorizedByName(e.target.value);
-                        handleManualContactEdit();
-                      }}
-                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded bg-white"
-                      placeholder="ex: Dra. Maria Santos (Diretora)"
-                      required
+                      onChange={(event) =>
+                        setPickupAuthorizedByName(event.target.value)
+                      }
+                      className={inputClass}
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] text-slate-600 mb-1">Contacto Telefónico</label>
+                    <label htmlFor="pickup-phone" className={labelClass}>
+                      Telefone
+                    </label>
                     <input
-                      type="text"
+                      id="pickup-phone"
+                      type="tel"
                       value={pickupAuthorizedByPhone}
-                      onChange={(e) => {
-                        setPickupAuthorizedByPhone(e.target.value);
-                        handleManualContactEdit();
-                      }}
-                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded bg-white"
-                      placeholder="+258 8X XXX XXXX"
+                      onChange={(event) =>
+                        setPickupAuthorizedByPhone(event.target.value)
+                      }
+                      className={inputClass}
                     />
                   </div>
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* Bloco 3: Dados da Viatura & Odómetro Baseline */}
-            <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-sm space-y-4">
-              <h2 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
-                3. Identificação & Odómetro Baseline
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <section className={cardClass}>
+              <div className="flex items-center gap-2 border-b border-border pb-3">
+                <Gauge
+                  aria-hidden="true"
+                  className="h-5 w-5 text-rotas-600"
+                />
+                <h2 className="text-base font-semibold text-ink">
+                  Condição de entrada
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Matrícula da Viatura</label>
-                  <input
-                    type="text"
-                    value={vehiclePlate}
-                    onChange={(e) => setVehiclePlate(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded font-bold uppercase"
-                    placeholder="AFM-8821-TR"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Odómetro na Recepção (KM) *
+                  <label htmlFor="reception-odometer" className={labelClass}>
+                    Odómetro (km) *
                   </label>
                   <input
-                    type="number"
-                    value={odometerKm}
-                    onChange={(e) => setOdometerKm(Number(e.target.value))}
-                    className={`w-full px-3 py-2 text-xs border rounded font-semibold ${
-                      isOdometerWarning ? "border-amber-500 bg-amber-50 text-amber-900" : "border-slate-300"
-                    }`}
-                    min={0}
+                    id="reception-odometer"
                     required
+                    type="number"
+                    min={selectedVehicle?.current_km ?? 0}
+                    value={odometerKm}
+                    onChange={(event) => setOdometerKm(Number(event.target.value))}
+                    className={`${inputClass} font-mono tabular-nums ${
+                      isOdometerWarning
+                        ? "border-status-awaiting bg-status-awaiting-soft"
+                        : ""
+                    }`}
                   />
-                  {isOdometerWarning && (
-                    <p className="text-[11px] text-amber-700 mt-1 font-medium">
-                      ⚠️ Odómetro inferior ao último histórico registado ({lastKnownOdometer} km). Verifique digitação.
+                  {selectedVehicle && (
+                    <p className="mt-1 text-xs text-muted">
+                      Leitura atual:{" "}
+                      <span className="font-mono tabular-nums">
+                        {selectedVehicle.current_km.toLocaleString("pt-MZ")} km
+                      </span>
                     </p>
                   )}
                 </div>
-              </div>
-
-              {/* Nível de Combustível */}
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-2">Nível de Combustível</label>
-                <div className="grid grid-cols-5 gap-2 text-center text-xs">
-                  {[
-                    { id: "empty", label: "Reserva (0%)" },
-                    { id: "quarter", label: "1/4 (25%)" },
-                    { id: "half", label: "1/2 (50%)" },
-                    { id: "three_quarter", label: "3/4 (75%)" },
-                    { id: "full", label: "Cheio (100%)" },
-                  ].map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setFuelLevel(item.id)}
-                      className={`py-2 px-1 border rounded text-[11px] font-medium ${
-                        fuelLevel === item.id
-                          ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
+                <div>
+                  <label htmlFor="estimated-completion" className={labelClass}>
+                    Conclusão estimada
+                  </label>
+                  <input
+                    id="estimated-completion"
+                    type="datetime-local"
+                    value={estimatedCompletionAt}
+                    onChange={(event) =>
+                      setEstimatedCompletionAt(event.target.value)
+                    }
+                    className={inputClass}
+                  />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Sintomas / Avarias Reportadas</label>
-                <textarea
-                  value={reportedIssues}
-                  onChange={(e) => setReportedIssues(e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded"
-                  placeholder="Descreva os ruídos, falhas de motor ou intervenções solicitadas pelo cliente..."
-                />
-              </div>
-            </div>
+              <fieldset>
+                <legend className={labelClass}>Nível de combustível</legend>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  {[
+                    ["empty", "Reserva"],
+                    ["quarter", "1/4"],
+                    ["half", "1/2"],
+                    ["three_quarter", "3/4"],
+                    ["full", "Cheio"],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={fuelLevel === value}
+                      onClick={() => setFuelLevel(value)}
+                      className={`min-h-11 rounded-[var(--r-md)] border px-2 text-xs font-semibold ${
+                        fuelLevel === value
+                          ? "border-rotas-500 bg-rotas-50 text-rotas-700 dark:bg-surface-2"
+                          : "border-border bg-surface text-muted hover:bg-surface-2"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
 
-            {/* Bloco 4: Fotos de Entrada & Assinatura */}
-            <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-sm space-y-4">
-              <h2 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
-                4. Fotos de Danos Prévios & Assinatura
-              </h2>
-
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-2">
-                  Fotografia de Entrada (Evidência com Hash SHA-256 no Servidor)
+                <label htmlFor="reported-issues" className={labelClass}>
+                  Sintomas ou avarias reportadas
                 </label>
-                <PhotoEvidenceUploader
-                  label="Fotografias de entrada"
-                  onUpload={(photo) => setPhotoFileIds((prev) => [...prev, photo.id])}
+                <textarea
+                  id="reported-issues"
+                  rows={3}
+                  value={reportedIssues}
+                  onChange={(event) => setReportedIssues(event.target.value)}
+                  className={`${inputClass} h-auto py-2`}
                 />
               </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="visual-condition" className={labelClass}>
+                    Condição visual
+                  </label>
+                  <textarea
+                    id="visual-condition"
+                    rows={3}
+                    value={visualCondition}
+                    onChange={(event) => setVisualCondition(event.target.value)}
+                    className={`${inputClass} h-auto py-2`}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="personal-items" className={labelClass}>
+                    Objetos pessoais
+                  </label>
+                  <textarea
+                    id="personal-items"
+                    rows={3}
+                    value={personalItems}
+                    onChange={(event) => setPersonalItems(event.target.value)}
+                    className={`${inputClass} h-auto py-2`}
+                  />
+                </div>
+              </div>
+            </section>
 
-              <SignatureCanvas
-                onSignatureCaptured={(fileId: string) => setSignatureFileId(fileId)}
+            <section className={cardClass}>
+              <div className="flex items-center gap-2 border-b border-border pb-3">
+                <Camera
+                  aria-hidden="true"
+                  className="h-5 w-5 text-rotas-600"
+                />
+                <div>
+                  <h2 className="text-base font-semibold text-ink">Evidências</h2>
+                  <p className="mt-0.5 text-xs text-muted">
+                    O hash é calculado pelo servidor; anexos confirmados não são
+                    substituídos no histórico da receção.
+                  </p>
+                </div>
+              </div>
+              <PhotoEvidenceUploader
+                label="Fotografias de entrada"
+                onUpload={(photo) =>
+                  setPhotoFileIds((current) => [...current, photo.id])
+                }
+                onRemove={(photoId) =>
+                  setPhotoFileIds((current) =>
+                    current.filter((id) => id !== photoId),
+                  )
+                }
               />
-            </div>
+              <SignatureCanvas
+                onSignatureCaptured={(fileId) => setSignatureFileId(fileId)}
+                onSignatureCleared={() => setSignatureFileId(null)}
+              />
+            </section>
 
-            {/* Botão de Submissão */}
-            <div className="flex justify-end pt-2">
-              <button
+            <div className="flex justify-end border-t border-border pt-5">
+              <Button
                 type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-3 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-md disabled:opacity-50"
+                variant="accent"
+                size="lg"
+                loading={isSubmitting}
+                disabled={loadingOptions || vehicles.length === 0}
               >
-                {isSubmitting ? "A Registar Check-in..." : "Concluir Recepção & Gerar REC-2026-XXXX"}
-              </button>
+                <ClipboardCheck aria-hidden="true" className="h-5 w-5" />
+                Confirmar check-in
+              </Button>
             </div>
           </form>
 
-          {/* Coluna Lateral: Painel Vivo de Histórico em 1 terço */}
-          <div className="lg:col-span-1">
-            <VehicleHistoryPanel vehicleId={selectedVehicleId} />
-          </div>
+          <aside>
+            <VehicleHistoryPanel vehicleId={selectedVehicleId || null} />
+          </aside>
         </div>
       </div>
     </SidebarLayout>

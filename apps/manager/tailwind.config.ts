@@ -9,8 +9,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Manrope', 'system-ui', 'sans-serif'],
-        mono: ['IBM Plex Mono', 'monospace'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
       },
       colors: {
         // ── Legacy aliases (keep for unmigrated components) ──
@@ -25,7 +25,68 @@ const config: Config = {
         red: 'var(--red)',
         cyan: 'var(--cyan)',
 
-        // ── DESIGN.md semantic tokens ─────────────────────────
+        // ── ROTAS Design System v1.3.1 ────────────────────────
+        rotas: {
+          50: 'var(--rotas-50)',
+          100: 'var(--rotas-100)',
+          200: 'var(--rotas-200)',
+          300: 'var(--rotas-300)',
+          400: 'var(--rotas-400)',
+          500: 'var(--rotas-500)',
+          600: 'var(--rotas-600)',
+          700: 'var(--rotas-700)',
+          800: 'var(--rotas-800)',
+          900: 'var(--rotas-900)',
+          950: 'var(--rotas-950)',
+        },
+        'accent-action': {
+          400: 'var(--accent-400)',
+          500: 'var(--accent-500)',
+          600: 'var(--accent-600)',
+          soft: 'var(--accent-soft)',
+        },
+        focus: {
+          DEFAULT: 'var(--focus-ring)',
+          soft: 'var(--focus-ring-soft)',
+        },
+        'status-reception': {
+          DEFAULT: 'var(--status-reception)',
+          soft: 'var(--status-reception-soft)',
+        },
+        'status-diagnosis': {
+          DEFAULT: 'var(--status-diagnosis)',
+          soft: 'var(--status-diagnosis-soft)',
+        },
+        'status-awaiting': {
+          DEFAULT: 'var(--status-awaiting)',
+          soft: 'var(--status-awaiting-soft)',
+        },
+        'status-supplement': {
+          DEFAULT: 'var(--status-supplement)',
+          soft: 'var(--status-supplement-soft)',
+        },
+        'status-execution': {
+          DEFAULT: 'var(--status-execution)',
+          soft: 'var(--status-execution-soft)',
+        },
+        'status-quality': {
+          DEFAULT: 'var(--status-quality)',
+          soft: 'var(--status-quality-soft)',
+        },
+        'status-delivered': {
+          DEFAULT: 'var(--status-delivered)',
+          soft: 'var(--status-delivered-soft)',
+        },
+        'status-cancelled': {
+          DEFAULT: 'var(--status-cancelled)',
+          soft: 'var(--status-cancelled-soft)',
+        },
+        'status-draft': {
+          DEFAULT: 'var(--status-draft)',
+          soft: 'var(--status-draft-soft)',
+        },
+
+        // ── Compatibility aliases for incremental migration ───
         amber: {
           DEFAULT: 'var(--amber)',
           light: 'var(--amber-light)',
@@ -64,9 +125,16 @@ const config: Config = {
         bg: 'var(--bg)',
         surface: 'var(--surface)',
         'surface-2': 'var(--surface-2)',
+        'surface-elevated': 'var(--surface-elevated)',
         'border-strong': 'var(--border-strong)',
+        'document-paper': 'var(--document-paper)',
+        'document-ink': 'var(--document-ink)',
+        'document-muted': 'var(--document-muted)',
+        'document-header': 'var(--document-header)',
+        'document-canvas': 'var(--document-canvas)',
         // ── Text tokens ───────────────────────────────────────
         'ink-2': 'var(--ink-2)',
+        tertiary: 'var(--tertiary-color)',
         placeholder: 'var(--placeholder)',
         // ── Sidebar tokens ────────────────────────────────────
         'sidebar-bg': 'var(--sidebar-bg)',
@@ -129,6 +197,7 @@ const config: Config = {
         'r-md': 'var(--r-md)',
         'r-lg': 'var(--r-lg)',
         'r-xl': 'var(--r-xl)',
+        'r-full': 'var(--r-full)',
       },
       spacing: {
         s1: 'var(--s1)',
@@ -139,10 +208,14 @@ const config: Config = {
         s6: 'var(--s6)',
         s7: 'var(--s7)',
         s8: 'var(--s8)',
+        s9: 'var(--s9)',
       },
       boxShadow: {
         'design-sm': 'var(--shadow-sm)',
+        design: 'var(--shadow)',
         'design-md': 'var(--shadow-md)',
+        'design-lg': 'var(--shadow-lg)',
+        card: 'var(--shadow-card)',
       },
     },
   },

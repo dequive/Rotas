@@ -7,8 +7,12 @@ requires-python = ">=3.11"
 dependencies = [
   "alembic>=1.13",
   "asyncpg>=0.29",
-  "fastapi>=0.111",
-  "pydantic-settings>=2.2",
+  # Framework family is pinned together: these packages are imported directly
+  # and incompatible transitive upgrades previously caused resolver backtracking.
+  "fastapi==0.136.3",
+  "pydantic==2.13.4",
+  "pydantic-settings==2.14.1",
+  "starlette==1.2.0",
   "psycopg[binary]>=3.1",
   "PyJWT>=2.8",
   "slowapi>=0.1.9",
@@ -16,13 +20,14 @@ dependencies = [
   "sqlalchemy[asyncio]>=2.0",
   "uvicorn[standard]>=0.29",
   "arq>=0.28",
-  "redis[asyncio]>=4.2,<6",
+  "redis>=4.2,<6",
   "gunicorn>=22.0",
   "fpdf2>=2.8.7",
   "openpyxl>=3.1",
   "sentry-sdk[fastapi]>=2.61.1",
-  "aiobotocore[boto3]>=3.7.0",
-  "prometheus-fastapi-instrumentator>=7.0",
+  "aiobotocore>=3.7.0",
+  "prometheus-client==0.25.0",
+  "prometheus-fastapi-instrumentator==8.0.0",
   "structlog>=24.0",
   "aiosmtplib>=3.0",
   # Stabilization/P0-F8: outbox drainer calls the governance engine over HTTP.
@@ -32,6 +37,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "httpx>=0.27",
+  "pyright>=1.1.407,<2",
   "pytest>=8.2",
   "pytest-asyncio>=0.23",
   "ruff>=0.4",
@@ -45,11 +51,14 @@ build-backend = "setuptools.build_meta"
 include = ["app*"]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/**/router.py" = ["B008"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -59,4 +68,4 @@ pythonpath = ["."]
 [tool.pyright]
 include = ["app", "tests"]
 extraPaths = ["."]
-
+pythonVersion = "3.11"

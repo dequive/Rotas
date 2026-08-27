@@ -1,8 +1,7 @@
-import io
-from datetime import datetime
 from fpdf import FPDF
 
 from app.modules.tenants.models import Tenant, TenantDocumentProfile
+
 
 class BaseReportEngine(FPDF):
     """

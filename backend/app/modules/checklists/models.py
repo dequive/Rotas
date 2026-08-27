@@ -1,7 +1,16 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, Numeric, String, func
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Integer,
+    Numeric,
+    String,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,9 +35,17 @@ class ChecklistTemplate(Base):
 
 class Checklist(Base):
     __tablename__ = "checklists"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "trip_id"],
+            ["trips.tenant_id", "trips.id"],
+            name="fk_checklists_tenant_trip_trips",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    trip_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
     vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"), index=True)
     driver_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("drivers.id"), index=True)
     template_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("checklist_templates.id"))

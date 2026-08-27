@@ -5,26 +5,30 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--r-md)] text-sm font-semibold transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rotas-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+          "border border-rotas-500 bg-rotas-500 text-white shadow-design-sm hover:border-rotas-600 hover:bg-rotas-600",
+        primary:
+          "border border-rotas-500 bg-rotas-500 text-white shadow-design-sm hover:border-rotas-600 hover:bg-rotas-600",
+        accent:
+          "border border-accent-action-600 bg-accent-action-600 text-white shadow-design-sm hover:border-accent-action-500 hover:bg-accent-action-500",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+          "border border-status-cancelled bg-status-cancelled text-white hover:opacity-90",
         outline:
-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
+          "border border-border bg-transparent text-ink hover:border-border-strong hover:bg-surface-2",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+          "border border-border bg-surface text-ink shadow-design-sm hover:border-border-strong hover:bg-surface-2",
+        ghost: "border border-transparent bg-transparent text-ink hover:bg-rotas-50 dark:hover:bg-surface-2",
+        link: "text-rotas-600 underline-offset-4 hover:text-rotas-700 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-10 rounded-md px-8",
-        icon: "h-9 w-9",
+        default: "h-10 px-4 [@media(pointer:coarse)]:min-h-11",
+        sm: "h-8 px-3 text-xs [@media(pointer:coarse)]:min-h-11",
+        lg: "h-12 px-5 text-base",
+        icon: "h-10 w-10 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11",
       },
     },
     defaultVariants: {

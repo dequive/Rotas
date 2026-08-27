@@ -1,8 +1,11 @@
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
 
+from app.core.errors import ApiError
 from app.modules.billing.domain import (
     BILLING_BILLABLE,
     BILLING_PENDING_DELIVERY,
@@ -13,6 +16,7 @@ from app.modules.billing.domain import (
     billing_status_for_candidate,
     billing_status_for_delivery,
     can_create_billing_item,
+    resolve_iva,
 )
 
 
@@ -127,13 +131,6 @@ def test_invalid_billing_period_is_rejected() -> None:
 
 
 # ── resolve_iva tests (IVA-SEAM-01) ──────────────────────────────────────────
-
-from dataclasses import dataclass
-from decimal import Decimal
-
-from app.core.errors import ApiError
-from app.modules.billing.domain import resolve_iva
-
 
 @dataclass
 class _FakeTrip:

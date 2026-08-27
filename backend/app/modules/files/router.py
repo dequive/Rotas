@@ -6,10 +6,11 @@ from fastapi import APIRouter, Depends, File, Form, Header, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.errors import ApiError
 from app.core.idempotency import execute_http_idempotent
+from app.core.openapi_responses import FILE_DOWNLOAD_RESPONSE
 from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
 from app.modules.files import schemas, service
 
@@ -35,7 +36,7 @@ async def _read_limited_upload(upload: UploadFile) -> bytes:
     return b"".join(chunks)
 
 
-@router.post("/presign")
+@router.post("/presign", response_model=schemas.PresignResponse)
 async def presign_upload(
     payload: schemas.PresignRequest,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
@@ -62,7 +63,7 @@ async def presign_upload(
     )
 
 
-@router.post("/upload")
+@router.post("/upload", response_model=schemas.FileResponse)
 async def upload_file(
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -103,7 +104,7 @@ async def upload_file(
     )
 
 
-@router.post("/confirm")
+@router.post("/confirm", response_model=schemas.FileResponse)
 async def confirm_upload(
     payload: schemas.ConfirmUploadRequest,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
@@ -118,7 +119,7 @@ async def confirm_upload(
     )
 
 
-@router.get("/{file_id}")
+@router.get("/{file_id}", response_model=schemas.FileResponse)
 async def get_file(
     file_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
@@ -127,7 +128,11 @@ async def get_file(
     return await service.get_file(db, principal.tenant_id, file_id)
 
 
-@router.get("/{file_id}/download")
+@router.get(
+    "/{file_id}/download",
+    responses=FILE_DOWNLOAD_RESPONSE,
+    response_class=FileResponse,
+)
 async def download_file(
     file_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],

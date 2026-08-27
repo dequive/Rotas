@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -6,7 +7,7 @@ const API_BASE = process.env.ROTAS_API_BASE_URL ?? "http://localhost:8000";
 export async function POST(req: NextRequest) {
   const { email, password } = (await req.json()) as { email: string; password: string };
 
-  const upstream = await fetch(`${API_BASE}/api/v1/auth/login`, {
+  const upstream = await upstreamFetch(`${API_BASE}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),

@@ -1,0 +1,23 @@
+{
+  "gate": "PR-05",
+  "started_at_utc": "2026-07-25T22:44:24.2354873+00:00",
+  "completed_at_utc": "2026-07-25T22:45:19.3508803+00:00",
+  "source_database": "rotas_pr05_hardened_source_20260726",
+  "source_revision": "rec11",
+  "target_database": "rotas_pr05_hardened_target_20260726",
+  "expected_head": "rec11",
+  "final_revision": "rec11 (head)",
+  "dump_bytes": 617447,
+  "dump_sha256": "21b52ebe5eb2e68c53fa647c7a4a7537accb7cdc608103cd7cb02f94e6ee9994",
+  "dump_seconds": 1.187,
+  "restore_seconds": 26.17,
+  "upgrade_seconds": 7.961,
+  "lock_samples": 17,
+  "max_waiting_locks": 0,
+  "lock_monitor_errors": 0,
+  "observed_lock_modes": [],
+  "lock_timeout": "5s",
+  "statement_timeout": "15min",
+  "alembic_check": "No new upgrade operations detected.",
+  "artifacts_retained": false
+}

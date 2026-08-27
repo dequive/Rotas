@@ -457,7 +457,10 @@ def render_purchase_order(
 
     _items_table(pdf, items, show_price=True)
 
-    total_items = sum(_d(i.get("unit_price", 0)) * _d(i.get("quantity", 0)) for i in items)
+    total_items = sum(
+        (_d(i.get("unit_price", 0)) * _d(i.get("quantity", 0)) for i in items),
+        Decimal("0"),
+    )
     _totals_block(pdf, total_items, currency=currency)
 
     extra_kv = []
@@ -516,7 +519,10 @@ def render_requisition(
     _items_table(pdf, items, show_price=show_price)
 
     if show_price:
-        total_items = sum(_d(i.get("unit_price", 0)) * _d(i.get("quantity", 0)) for i in items)
+        total_items = sum(
+            (_d(i.get("unit_price", 0)) * _d(i.get("quantity", 0)) for i in items),
+            Decimal("0"),
+        )
         _totals_block(pdf, total_items, currency=currency)
 
     _notes_block(pdf, notes or "")

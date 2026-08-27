@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "policy_id": "PR22-PERFORMANCE-V1",
+  "release_sha": "replace-with-full-40-character-release-sha",
+  "backend_image": "registry.example.invalid/rotas/backend@sha256:replace-with-64-hex-digest",
+  "base_url": "https://api.staging.example.invalid",
+  "metrics_url": "https://metrics.staging.example.invalid/metrics",
+  "runner": {
+    "location": "external",
+    "runner_id": "replace-with-approved-runner-id",
+    "co_located_with_api": false
+  },
+  "database": {
+    "application_role": "rotas_app",
+    "pg_stat_statements_enabled": true
+  },
+  "tenants": [
+    {
+      "alias": "tenant_a",
+      "tenant_id": "replace-with-authorized-tenant-a-uuid",
+      "token_env": "ROTAS_PERF_TENANT_A_TOKEN"
+    },
+    {
+      "alias": "tenant_b",
+      "tenant_id": "replace-with-authorized-tenant-b-uuid",
+      "token_env": "ROTAS_PERF_TENANT_B_TOKEN"
+    }
+  ],
+  "scenarios": [
+    "api_read",
+    "offline_sync_batch",
+    "idempotency_race",
+    "degraded_network"
+  ],
+  "soak_seconds": 7200,
+  "pg_stat_report": "PR22_PG_STAT_STATEMENTS.json",
+  "reports": {
+    "tenant_a": {
+      "api_read": "tenant_a_api_read.json",
+      "offline_sync_batch": "tenant_a_offline_sync_batch.json",
+      "idempotency_race": "tenant_a_idempotency_race.json",
+      "degraded_network": "tenant_a_degraded_network.json"
+    },
+    "tenant_b": {
+      "api_read": "tenant_b_api_read.json",
+      "offline_sync_batch": "tenant_b_offline_sync_batch.json",
+      "idempotency_race": "tenant_b_idempotency_race.json",
+      "degraded_network": "tenant_b_degraded_network.json"
+    }
+  },
+  "soak_report": "PR22_SOAK_REPORT.json"
+}

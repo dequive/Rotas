@@ -20,7 +20,7 @@ export default async function TerceirosPage({
     offset,
   }).catch(() => []);
 
-  const selectCls = "h-9 px-2.5 border border-border-strong rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-amber focus:ring-2 focus:ring-amber/20 cursor-pointer";
+  const selectCls = "h-9 px-2.5 border border-border-strong rounded-md bg-surface text-ink text-[13px] focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft cursor-pointer";
   const labelCls = "text-[11px] font-semibold uppercase tracking-wide text-muted";
 
   return (

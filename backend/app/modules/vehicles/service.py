@@ -2,11 +2,11 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import status
-from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy import func, literal, or_, select, text, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.cache import AsyncRedisHashClient
 from app.core.errors import ApiError
 from app.modules.audit.models import AuditLog
 from app.modules.audit.service import record_audit_log
@@ -58,7 +58,7 @@ async def _require_vehicle(db: AsyncSession, tenant_id: UUID, vehicle_id: UUID) 
 
 
 async def _get_cached_vehicle_count(
-    db: AsyncSession, tenant_id: UUID, redis: AsyncRedis | None
+    db: AsyncSession, tenant_id: UUID, redis: AsyncRedisHashClient | None
 ) -> int:
     """Return active vehicle count from Redis cache (TTL 30s) or DB (D-15)."""
     cache_key = f"tenant:limits:{tenant_id}"
@@ -76,12 +76,14 @@ async def _get_cached_vehicle_count(
     )
     count = result.scalar_one()
     if redis is not None:
-        await redis.hset(cache_key, "vehicle_count", count)
+        await redis.hset(cache_key, "vehicle_count", str(count))
         await redis.expire(cache_key, 30)
     return count
 
 
-async def _check_vehicle_limit(db: AsyncSession, tenant: Tenant, redis: AsyncRedis | None) -> None:
+async def _check_vehicle_limit(
+    db: AsyncSession, tenant: Tenant, redis: AsyncRedisHashClient | None
+) -> None:
     """Raise plan_limit_reached if tenant is at or over max_vehicles (D-13, D-14).
 
     Skip entirely when max_vehicles is None (unlimited enterprise plan).
@@ -156,7 +158,7 @@ async def create_vehicle(
     payload: VehicleCreate,
     *,
     actor_id: UUID | None = None,
-    redis: AsyncRedis | None = None,
+    redis: AsyncRedisHashClient | None = None,
 ) -> dict:
     tenant = await db.get(Tenant, tenant_id)
     if not tenant or not tenant.is_active:

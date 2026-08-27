@@ -75,9 +75,26 @@ class ContractPatch(BaseModel):
         return self
 
 
-class ContractResponse(ContractCreate):
+class ContractResponse(BaseModel):
     id: UUID
+    tenant_id: UUID
+    client_id: UUID | None = None
+    client_name: str
+    contract_reference: str
+    title: str | None = None
     status: str
+    service_type: str
+    billing_cycle: str
+    billing_basis: str
+    currency: str
+    default_unit_price: float | None = None
+    requires_load_permit: bool
+    requires_delivery_proof: bool
+    requires_cargo_manifest_for_manufactured_goods: bool
+    pricing_rules: dict | None = None
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    notes: str | None = None
     created_at: datetime
     updated_at: datetime
 

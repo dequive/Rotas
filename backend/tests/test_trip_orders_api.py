@@ -129,6 +129,7 @@ async def test_trip_order_assignment_creates_planned_trip_and_audit_logs() -> No
                     AuditLog.entity_type.in_(("trip_order", "trip")),
                 )
             )
+            assert audit_count is not None
             assert audit_count >= 3
     except OperationalError as exc:
         pytest.skip(f"Local Postgres is not available: {exc}")

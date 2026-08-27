@@ -9,8 +9,8 @@
  * - No banner when all max values are null (unlimited plan)
  *
  * Design tokens (DESIGN.md):
- * - Warning state: --amber #f59e0b → Tailwind amber-400/amber-950
- * - Error state: --error #dc2626 → Tailwind red-600/white
+ * - Warning state: semantic warning tokens
+ * - Error state: semantic error tokens
  * - Font: Manrope (UI text), IBM Plex Mono (numeric used/max values)
  * - Badge dot: inline span (DESIGN.md convention — ::before not usable in JSX)
  * - Decoration: minimal — no gradients, no blobs

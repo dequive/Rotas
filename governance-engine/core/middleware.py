@@ -4,6 +4,7 @@ Request ID + structured access logging middleware.
 Sets X-Request-Id on every response. Logs method, path, status, and
 duration_ms as a single JSON line per request via the structured logger.
 """
+
 import logging
 import time
 import uuid
@@ -26,8 +27,9 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
 
         token = request_id_var.set(req_id)
         t0 = time.monotonic()
+        response: Response | None = None
         try:
-            response: Response = await call_next(request)
+            response = await call_next(request)
         finally:
             duration_ms = round((time.monotonic() - t0) * 1000)
             logger.info(

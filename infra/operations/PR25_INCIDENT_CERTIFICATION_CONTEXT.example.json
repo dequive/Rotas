@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "policy_id": "PR25-INCIDENT-CERTIFICATION-V1",
+  "environment": "staging",
+  "release_sha": "0000000000000000000000000000000000000000",
+  "observed_at": "2026-07-31T00:00:00Z",
+  "external_runner": false,
+  "images": {
+    "ROTAS_BACKEND_IMAGE": "registry.invalid/rotas/backend@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "ROTAS_DRIVER_IMAGE": "registry.invalid/rotas/driver@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "ROTAS_GOVERNANCE_IMAGE": "registry.invalid/rotas/governance@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "ROTAS_MANAGER_IMAGE": "registry.invalid/rotas/manager@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "upstreams": {
+    "PR-20": {
+      "policy_id": "PR20-OBSERVABILITY-CERTIFICATION-V1",
+      "release_sha": "0000000000000000000000000000000000000000",
+      "decision": "NO-GO",
+      "passed": false,
+      "artifact_sha256": ""
+    },
+    "PR-21": {
+      "policy_id": "PR21-DR-CERTIFICATION-V1",
+      "release_sha": "0000000000000000000000000000000000000000",
+      "decision": "NO-GO",
+      "passed": false,
+      "artifact_sha256": ""
+    },
+    "PR-22": {
+      "policy_id": "PR22-PERFORMANCE-V1",
+      "release_sha": "0000000000000000000000000000000000000000",
+      "decision": "NO-GO",
+      "passed": false,
+      "artifact_sha256": ""
+    },
+    "PR-23": {
+      "policy_id": "PR23-SECURITY-CERTIFICATION-V1",
+      "release_sha": "0000000000000000000000000000000000000000",
+      "decision": "NO-GO",
+      "passed": false,
+      "artifact_sha256": ""
+    }
+  },
+  "paging": {
+    "external_roster": false,
+    "primary_secondary_present": false,
+    "real_provider": false,
+    "delivery_observed": false,
+    "acknowledgement_observed": false,
+    "credentials_revoked_after_drill": false,
+    "provider": "",
+    "alerts_exercised": [
+      "RotasApiHighErrorRate",
+      "RotasApiLatencyBudget",
+      "RotasBackendDown",
+      "RotasOutboxDeadLetter",
+      "RotasPrometheusRuleFailures"
+    ],
+    "deliveries": [],
+    "undelivered_pages": 0
+  },
+  "escalation": {
+    "severities_exercised": ["SEV1", "SEV2", "SEV3", "SEV4"],
+    "human_acknowledgement": false,
+    "secondary_escalation_observed": false,
+    "incident_commander_assigned": false,
+    "tenant_scoped_updates": false,
+    "public_updates_exclude_tenant_identifiers": false,
+    "cadence_met": false,
+    "ack_sla_breaches": 0,
+    "escalation_sla_breaches": 0,
+    "communication_sla_breaches": 0
+  },
+  "game_day": {
+    "production_like_staging": false,
+    "release_candidate_used": false,
+    "independent_facilitator": false,
+    "failure_injection_real": false,
+    "independent_recovery_validation": false,
+    "audit_timeline_reconciled": false,
+    "scenarios": [],
+    "sev1_sev2_after_drill": 0,
+    "unreconciled_data_loss": 0,
+    "measured_rpo_minutes": 16,
+    "measured_rto_minutes": 241
+  },
+  "signoff": {
+    "participants": [
+      "business_owner",
+      "communications_lead",
+      "incident_commander",
+      "operations_lead",
+      "scribe",
+      "security_privacy_lead"
+    ],
+    "approved_roles": ["PO", "QA", "SRE"],
+    "attendance_verified": false,
+    "postmortem_complete": false,
+    "all_actions_closed": false,
+    "actions_independently_verified": false,
+    "test_access_removed": false,
+    "temporary_changes_reverted": false,
+    "attendees": 0,
+    "open_actions": 0,
+    "open_release_blockers": 0
+  },
+  "evidence": {
+    "paging": [],
+    "escalation": [],
+    "game_day": [],
+    "signoff": []
+  }
+}

@@ -1,7 +1,5 @@
-from decimal import Decimal
 from uuid import UUID
 
-from fastapi import status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

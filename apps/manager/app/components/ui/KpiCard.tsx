@@ -11,7 +11,7 @@ interface KpiCardProps {
   value: string | number
   trend?: TrendProps
   icon?: React.ReactNode
-  semantic?: 'default' | 'amber' | 'error' | 'success' | 'warning' | 'info'
+  semantic?: 'default' | 'primary' | 'accent' | 'amber' | 'error' | 'success' | 'warning' | 'info'
   className?: string
   // For loading state — pass true to show skeleton
   loading?: boolean
@@ -19,7 +19,9 @@ interface KpiCardProps {
 
 const semanticValueColor: Record<NonNullable<KpiCardProps['semantic']>, string> = {
   default: 'text-ink',
-  amber:   'text-amber-dark',
+  primary: 'text-rotas-600',
+  accent:  'text-accent-action-600',
+  amber:   'text-accent-action-600',
   error:   'text-error',
   success: 'text-success',
   warning: 'text-warning',
@@ -40,7 +42,7 @@ export function KpiCard({
   if (loading) {
     return (
       <div className={cn(
-        'bg-surface border border-border rounded-lg p-4 shadow-sm min-h-[96px]',
+        'min-h-[104px] rounded-[var(--r-lg)] border border-border bg-surface p-4 shadow-card',
         className
       )}>
         <div className="animate-pulse space-y-3">
@@ -53,7 +55,7 @@ export function KpiCard({
 
   return (
     <div className={cn(
-      'bg-surface border border-border rounded-lg p-4 shadow-sm',
+      'min-h-[104px] rounded-[var(--r-lg)] border border-border bg-surface p-4 shadow-card',
       className
     )}>
       <div className="flex items-start justify-between mb-3">
@@ -65,7 +67,7 @@ export function KpiCard({
         )}
       </div>
       <div className={cn(
-        'font-mono text-[26px] font-medium leading-none tabular-nums',
+        'font-mono text-[26px] font-semibold leading-none tabular-nums',
         valueColor
       )}>
         {value}

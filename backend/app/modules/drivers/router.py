@@ -5,20 +5,19 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import DRIVERS_PAIRING, DRIVERS_READ, DRIVERS_WRITE, require_permission
 from app.modules.availability import service as availability_service
 from app.modules.drivers import schemas, service
-
 from app.modules.drivers.schemas import DriverHub360Response
 
 router = APIRouter(prefix="/drivers", tags=["drivers"])
 
 
-@router.get("")
+@router.get("", response_model=list[schemas.DriverRead])
 async def list_drivers(
     request: Request,
     principal: Annotated[Principal, Depends(require_permission(DRIVERS_READ))],
@@ -49,7 +48,7 @@ async def list_drivers(
     return result
 
 
-@router.post("")
+@router.post("", response_model=schemas.DriverRead)
 async def create_driver(
     request: Request,
     payload: schemas.DriverCreate,
@@ -78,7 +77,7 @@ async def create_driver(
     return res
 
 
-@router.get("/{driver_id}")
+@router.get("/{driver_id}", response_model=schemas.DriverRead)
 async def get_driver(
     driver_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(DRIVERS_READ))],
@@ -97,7 +96,7 @@ async def get_driver_hub360(
     return await service.get_driver_hub360(db, principal.tenant_id, driver_id)
 
 
-@router.get("/{driver_id}/scorecard")
+@router.get("/{driver_id}/scorecard", response_model=schemas.DriverScorecardRead)
 async def get_driver_scorecard(
     driver_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(DRIVERS_READ))],
@@ -112,7 +111,7 @@ async def get_driver_scorecard(
     return await service.get_driver_scorecard(db, principal.tenant_id, driver_id, days=days)
 
 
-@router.get("/{driver_id}/history")
+@router.get("/{driver_id}/history", response_model=schemas.DriverHistoryRead)
 async def list_driver_history(
     driver_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(DRIVERS_READ))],
@@ -144,7 +143,7 @@ async def get_driver_availability(
     )
 
 
-@router.patch("/{driver_id}")
+@router.patch("/{driver_id}", response_model=schemas.DriverRead)
 async def patch_driver(
     request: Request,
     driver_id: UUID,
@@ -163,7 +162,7 @@ async def patch_driver(
     return res
 
 
-@router.post("/{driver_id}/pairing-code")
+@router.post("/{driver_id}/pairing-code", response_model=schemas.PairingCodeRead)
 async def issue_driver_pairing_code(
     request: Request,
     driver_id: UUID,

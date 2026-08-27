@@ -34,6 +34,41 @@ async def test_cors_allows_listed_origin():
     assert response.status_code in (200, 400, 405)
 
 
+@pytest.mark.parametrize(
+    "origin",
+    ["http://localhost:4173", "http://localhost:5174"],
+)
+async def test_cors_allows_driver_development_origins(origin: str):
+    """The installed Driver PWA and Vite dev server must reach the local API."""
+    async with await create_api_client() as client:
+        response = await client.options(
+            "/api/v1/driver/trips?limit=20&offset=0",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "authorization,x-device-id",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == origin
+
+
+async def test_cors_rejects_retired_driver_preview_origin():
+    """A instalação Driver não pode voltar a dividir storage entre 4173 e 4174."""
+    async with await create_api_client() as client:
+        response = await client.options(
+            "/api/v1/auth/driver/pair",
+            headers={
+                "Origin": "http://localhost:4174",
+                "Access-Control-Request-Method": "POST",
+            },
+        )
+
+    assert response.status_code == 400
+    assert "access-control-allow-origin" not in response.headers
+
+
 async def test_cors_rejects_unknown_origin():
     """SEC-02: Requests from unknown origins must not receive Allow-Origin header."""
     async with await create_api_client() as client:

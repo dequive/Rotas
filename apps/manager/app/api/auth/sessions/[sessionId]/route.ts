@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -31,7 +32,7 @@ export async function DELETE(
   if (!headers) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
 
   const { sessionId } = await context.params;
-  const upstream = await fetch(`${API_BASE}/api/v1/auth/sessions/${sessionId}`, {
+  const upstream = await upstreamFetch(`${API_BASE}/api/v1/auth/sessions/${sessionId}`, {
     method: "DELETE",
     headers,
   });

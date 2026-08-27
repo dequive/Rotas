@@ -10,6 +10,7 @@ POST /platform/onboard atomically:
 Protected by X-Platform-Key (static secret from PLATFORM_ADMIN_KEY env var).
 Uses get_raw_session() — operates outside tenant RLS.
 """
+
 import secrets
 from uuid import UUID
 
@@ -29,9 +30,12 @@ from core.models_auth import ApiKey, Tenant
 router = APIRouter(prefix="/platform", tags=["platform"])
 
 _FULL_SCOPES = [
-    "occurrences:read", "occurrences:write",
-    "cases:read", "cases:write",
-    "admin:read", "admin:write",
+    "occurrences:read",
+    "occurrences:write",
+    "cases:read",
+    "cases:write",
+    "admin:read",
+    "admin:write",
     "adapter:rotas",
 ]
 
@@ -63,7 +67,9 @@ async def onboard_tenant(
     # Constant-time comparison to prevent timing attacks
     expected = settings.platform_admin_key.get_secret_value()
     if not secrets.compare_digest(body.platform_key.encode(), expected.encode()):
-        raise HTTPException(status_code=403, detail={"code": "forbidden", "message": "Invalid platform key."})
+        raise HTTPException(
+            status_code=403, detail={"code": "forbidden", "message": "Invalid platform key."}
+        )
 
     # Slug uniqueness check (tenants has no RLS — safe on raw session)
     existing = await db.scalar(select(Tenant).where(Tenant.slug == body.slug))

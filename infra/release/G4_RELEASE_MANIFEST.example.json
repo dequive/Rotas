@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "release_sha": "replace-with-full-40-character-release-sha",
+  "requested_decision": "GO",
+  "workstreams": {
+    "PR-18": {
+      "controls": {
+        "no_unwaived_high_critical": false,
+        "valid_dependency_graph": false,
+        "sbom_attested": false
+      },
+      "evidence": [],
+      "signoffs": []
+    },
+    "PR-19": {
+      "controls": {
+        "immutable_images": false,
+        "tls": false,
+        "external_secrets": false,
+        "migrations": false
+      },
+      "evidence": [],
+      "signoffs": []
+    },
+    "PR-20": {
+      "controls": {
+        "metrics": false,
+        "logs": false,
+        "traces": false,
+        "alerts_delivered": false,
+        "slo_window": false
+      },
+      "evidence": [],
+      "signoffs": []
+    },
+    "PR-21": {
+      "controls": {
+        "backup_restore": false,
+        "pitr": false,
+        "cross_region": false,
+        "rpo_rto": false
+      },
+      "evidence": [],
+      "signoffs": []
+    },
+    "PR-22": {
+      "controls": {
+        "two_tenants": false,
+        "performance_budgets": false,
+        "network_degraded": false,
+        "soak": false
+      },
+      "evidence": [],
+      "signoffs": []
+    },
+    "PR-23": {
+      "controls": {
+        "pentest_independent": false,
+        "zero_high_critical": false,
+        "privacy_approved": false
+      },
+      "evidence": [],
+      "signoffs": []
+    },
+    "PR-24": {
+      "controls": {
+        "wcag_2_2_aa": false,
+        "manual_assistive": false,
+        "mobile_real": false,
+        "role_coverage": false
+      },
+      "evidence": [],
+      "signoffs": []
+    },
+    "PR-25": {
+      "controls": {
+        "paging": false,
+        "escalation": false,
+        "game_day": false,
+        "signoff": false
+      },
+      "evidence": [],
+      "signoffs": []
+    }
+  }
+}

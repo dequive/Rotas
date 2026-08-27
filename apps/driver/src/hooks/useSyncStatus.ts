@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { db } from "../db";
+import { belongsToIdentity, db, getCurrentIdentityScope } from "../db";
+import {
+  subscribePwaUpdate,
+  type WaitingServiceWorkerController,
+} from "../pwaUpdate";
 
 export type BannerState =
   | "idle"
@@ -15,8 +19,7 @@ export interface SyncStatusState {
   pendingCount: number;
   errorCount: number;
   // Workbox instance for triggering SKIP_WAITING — only set in update_available state
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  workboxInstance: any | null;
+  workboxInstance: WaitingServiceWorkerController | null;
 }
 
 /**
@@ -24,13 +27,22 @@ export interface SyncStatusState {
  * Listens to: navigator.onLine, Dexie syncQueue counts, custom window events
  * from api.ts (session-expired, driver-access-revoked, sw-update-available).
  */
-export function useSyncStatus(isOnline: boolean, isSyncing: boolean): SyncStatusState {
+export function useSyncStatus(
+  isOnline: boolean,
+  isSyncing: boolean,
+  sessionId?: string,
+): SyncStatusState {
   const [pendingCount, setPendingCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
   const [sessionState, setSessionState] = useState<"ok" | "expired" | "revoked">("ok");
   const [updateAvailable, setUpdateAvailable] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const workboxRef = useRef<any | null>(null);
+  const workboxRef = useRef<WaitingServiceWorkerController | null>(null);
+
+  // A sessão é uma identidade efémera. Um novo emparelhamento não pode herdar
+  // os estados terminalmente expirado/revogado da sessão anterior.
+  useEffect(() => {
+    setSessionState("ok");
+  }, [sessionId]);
 
   // Poll Dexie syncQueue counts every 5 seconds when banner is visible
   useEffect(() => {
@@ -38,13 +50,21 @@ export function useSyncStatus(isOnline: boolean, isSyncing: boolean): SyncStatus
 
     async function refresh() {
       try {
+        const scope = getCurrentIdentityScope();
+        if (!scope) {
+          setPendingCount(0);
+          setErrorCount(0);
+          return;
+        }
         const pending = await db.syncQueue
           .where("status")
           .anyOf(["local_only", "retrying"])
+          .filter((item) => belongsToIdentity(item, scope))
           .count();
         const errors = await db.syncQueue
           .where("status")
-          .equals("conflict")
+          .anyOf(["conflict", "failed", "dead_letter"])
+          .filter((item) => belongsToIdentity(item, scope))
           .count();
         setPendingCount(pending);
         setErrorCount(errors);
@@ -62,20 +82,19 @@ export function useSyncStatus(isOnline: boolean, isSyncing: boolean): SyncStatus
   useEffect(() => {
     const onSessionExpired = () => setSessionState("expired");
     const onAccessRevoked = () => setSessionState("revoked");
-    const onUpdateAvailable = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      workboxRef.current = customEvent.detail?.wb ?? null;
+    const onUpdateAvailable = (workbox: WaitingServiceWorkerController) => {
+      workboxRef.current = workbox;
       setUpdateAvailable(true);
     };
 
     window.addEventListener("session-expired", onSessionExpired);
     window.addEventListener("driver-access-revoked", onAccessRevoked);
-    window.addEventListener("sw-update-available", onUpdateAvailable);
+    const unsubscribePwaUpdate = subscribePwaUpdate(onUpdateAvailable);
 
     return () => {
       window.removeEventListener("session-expired", onSessionExpired);
       window.removeEventListener("driver-access-revoked", onAccessRevoked);
-      window.removeEventListener("sw-update-available", onUpdateAvailable);
+      unsubscribePwaUpdate();
     };
   }, []);
 

@@ -89,8 +89,8 @@ async def test_unapproved_excess_quantity_blocking_409(db, tenant_id, test_user)
             WorkshopQuoteItemCreate(
                 item_type="part",
                 description="Troca de Óleo Motor 5L",
-                quantity=5.000,
-                unit_price=250.00,
+                quantity=Decimal("5.000"),
+                unit_price=Decimal("250.00"),
                 part_id=oil_part.id,
             )
         ],
@@ -126,8 +126,8 @@ async def test_unapproved_excess_quantity_blocking_409(db, tenant_id, test_user)
             WorkshopQuoteItemCreate(
                 item_type="part",
                 description="Complemento Óleo Motor +1.5L",
-                quantity=1.500,
-                unit_price=250.00,
+                quantity=Decimal("1.500"),
+                unit_price=Decimal("250.00"),
                 part_id=oil_part.id,
             )
         ],
@@ -194,7 +194,12 @@ async def test_multi_quote_fifo_reservation_consumption_and_surplus_release(db, 
             client_id=client.id,
             vehicle_id=vehicle.id,
             items=[
-                WorkshopQuoteItemCreate(item_type="part", description="Filtros 5x", quantity=5.000, part_id=part.id)
+                WorkshopQuoteItemCreate(
+                    item_type="part",
+                    description="Filtros 5x",
+                    quantity=Decimal("5.000"),
+                    part_id=part.id,
+                )
             ],
         ),
         actor_id=test_user.id,
@@ -212,7 +217,12 @@ async def test_multi_quote_fifo_reservation_consumption_and_surplus_release(db, 
             related_work_order_id=wo_id,
             is_supplemental=True,
             items=[
-                WorkshopQuoteItemCreate(item_type="part", description="Filtros 2x", quantity=2.000, part_id=part.id)
+                WorkshopQuoteItemCreate(
+                    item_type="part",
+                    description="Filtros 2x",
+                    quantity=Decimal("2.000"),
+                    part_id=part.id,
+                )
             ],
         ),
         actor_id=test_user.id,
@@ -287,7 +297,14 @@ async def test_post_billing_immutability_guard_and_wo_cancel_cleanup(db, tenant_
         WorkshopQuoteCreate(
             client_id=client.id,
             vehicle_id=vehicle.id,
-            items=[WorkshopQuoteItemCreate(item_type="part", description="Pastilhas", quantity=2.000, part_id=part.id)],
+            items=[
+                WorkshopQuoteItemCreate(
+                    item_type="part",
+                    description="Pastilhas",
+                    quantity=Decimal("2.000"),
+                    part_id=part.id,
+                )
+            ],
         ),
         actor_id=test_user.id,
     )
@@ -330,7 +347,10 @@ async def test_post_billing_immutability_guard_and_wo_cancel_cleanup(db, tenant_
             vehicle_id=vehicle.id,
             items=[
                 WorkshopQuoteItemCreate(
-                    item_type="part", description="Pastilhas Extra", quantity=4.000, part_id=part.id
+                    item_type="part",
+                    description="Pastilhas Extra",
+                    quantity=Decimal("4.000"),
+                    part_id=part.id,
                 )
             ],
         ),
@@ -430,7 +450,12 @@ async def test_asyncio_gather_real_concurrency_contention(db, tenant_id, test_us
             client_id=client.id,
             vehicle_id=vehicle.id,
             items=[
-                WorkshopQuoteItemCreate(item_type="part", description="Óleo 10L", quantity=10.000, part_id=oil_part.id)
+                WorkshopQuoteItemCreate(
+                    item_type="part",
+                    description="Óleo 10L",
+                    quantity=Decimal("10.000"),
+                    part_id=oil_part.id,
+                )
             ],
         ),
         actor_id=test_user.id,
@@ -496,7 +521,12 @@ async def test_reorder_suggestions_with_blocked_work_orders(db, tenant_id, test_
             client_id=client.id,
             vehicle_id=vehicle.id,
             items=[
-                WorkshopQuoteItemCreate(item_type="part", description="Filtros Ar 3x", quantity=3.000, part_id=part.id)
+                WorkshopQuoteItemCreate(
+                    item_type="part",
+                    description="Filtros Ar 3x",
+                    quantity=Decimal("3.000"),
+                    part_id=part.id,
+                )
             ],
         ),
         actor_id=test_user.id,
@@ -598,7 +628,7 @@ async def test_core_return_with_photo_evidence_and_supplier_credit(db, tenant_id
     db.add(vehicle)
     await db.flush()
 
-    wo_payload = WorkOrderCreate(vehicle_id=vehicle.id, client_id=client.id, planned_work="Substituição de Alternador")
+    wo_payload = WorkOrderCreate(vehicle_id=vehicle.id, planned_work="Substituição de Alternador")
     wo = await create_work_order(
         db,
         tenant_id,

@@ -1,0 +1,75 @@
+{
+  "checks": {
+    "p95_http": true,
+    "p99_http": true,
+    "unexpected_error_rate": true
+  },
+  "concurrency": 12,
+  "elapsed_seconds": 11.266,
+  "evidence_class": "engineering_evidence_only",
+  "generated_at": "2026-07-29T20:30:30.776218+00:00",
+  "metrics": {
+    "delivered_requests": 600,
+    "distinct_server_ids": 0,
+    "domain_failure_rate": 0,
+    "end_to_end_ms": {
+      "max": 10112.96,
+      "p95": 143.009
+    },
+    "http_ms": {
+      "max": 10112.956,
+      "mean": 193.92,
+      "p50": 107.667,
+      "p95": 142.951,
+      "p99": 304.934
+    },
+    "requests": 600,
+    "server_timing_ms": {
+      "admin_sql": {
+        "max": 48.0,
+        "p50": 5.587,
+        "p95": 23.252,
+        "samples": 595
+      },
+      "app_sql": {
+        "max": 91.936,
+        "p50": 9.035,
+        "p95": 29.56,
+        "samples": 595
+      },
+      "auth_identity": {
+        "max": 183.994,
+        "p50": 31.013,
+        "p95": 57.345,
+        "samples": 595
+      },
+      "rls_context": {
+        "max": 89.713,
+        "p50": 5.838,
+        "p95": 24.579,
+        "samples": 595
+      },
+      "tenant_lookup": {
+        "max": 249.148,
+        "p50": 29.697,
+        "p95": 54.951,
+        "samples": 595
+      }
+    },
+    "simulated_drop_rate": 0.0,
+    "status_codes": {
+      "200": 595
+    },
+    "unexpected_error_rate": 0.008333
+  },
+  "passed": true,
+  "policy_id": "PR22-PERFORMANCE-V1",
+  "profile": "local_drill",
+  "scenario": "api_read",
+  "schema_version": 1,
+  "target": {
+    "authorization": "redacted",
+    "base_url": "http://127.0.0.1:8000",
+    "tenant_id": "59138d8a-39cf-4526-967d-f2adae665e1b"
+  }
+}

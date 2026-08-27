@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const userId = url.searchParams.get("user_id");
-  const upstream = await fetch(
+  const upstream = await upstreamFetch(
     `${API_BASE}/api/v1/auth/sessions${userId ? `?user_id=${userId}` : ""}`,
     { headers, cache: "no-store" }
   );

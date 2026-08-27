@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "policy_id": "PR19-STAGING-CERTIFICATION-V1",
+  "environment": "staging",
+  "release_sha": "0000000000000000000000000000000000000000",
+  "observed_at": "2026-07-31T00:00:00Z",
+  "external_runner": false,
+  "operator": "",
+  "supply_chain": {
+    "passed": false,
+    "policy_id": "PR19-SUPPLY-CHAIN-V1",
+    "release_sha": "0000000000000000000000000000000000000000",
+    "images": 0,
+    "evidence_files": 0
+  },
+  "tls": {
+    "manager": {
+      "url": "https://manager.staging.example.invalid",
+      "chain_verified": false,
+      "hostname_verified": false,
+      "protocol": "",
+      "not_before": "",
+      "not_after": "",
+      "hsts_max_age": 0,
+      "hsts_include_subdomains": false
+    },
+    "driver": {
+      "url": "https://driver.staging.example.invalid",
+      "chain_verified": false,
+      "hostname_verified": false,
+      "protocol": "",
+      "not_before": "",
+      "not_after": "",
+      "hsts_max_age": 0,
+      "hsts_include_subdomains": false
+    },
+    "api": {
+      "url": "https://api.staging.example.invalid",
+      "chain_verified": false,
+      "hostname_verified": false,
+      "protocol": "",
+      "not_before": "",
+      "not_after": "",
+      "hsts_max_age": 0,
+      "hsts_include_subdomains": false
+    },
+    "grafana": {
+      "url": "https://grafana.staging.example.invalid",
+      "chain_verified": false,
+      "hostname_verified": false,
+      "protocol": "",
+      "not_before": "",
+      "not_after": "",
+      "hsts_max_age": 0,
+      "hsts_include_subdomains": false
+    }
+  },
+  "external_secrets": {
+    "provider": "",
+    "secret_count": 0,
+    "injected_as_files": false,
+    "runtime_environment_values_absent": false,
+    "repository_scan_clean": false,
+    "temporary_material_removed": false
+  },
+  "migrations": {
+    "rotas": {
+      "release_sha": "0000000000000000000000000000000000000000",
+      "one_shot": false,
+      "exit_code": -1,
+      "head": "",
+      "started_at": "",
+      "finished_at": "",
+      "alembic_check_clean": false
+    },
+    "governance": {
+      "release_sha": "0000000000000000000000000000000000000000",
+      "one_shot": false,
+      "exit_code": -1,
+      "head": "",
+      "started_at": "",
+      "finished_at": ""
+    }
+  },
+  "runtime": {
+    "release_sha": "0000000000000000000000000000000000000000",
+    "version_endpoint_sha": "",
+    "health_deep": "unknown",
+    "database_role": "",
+    "database_superuser": true,
+    "database_bypass_rls": true,
+    "worker_heartbeat": false,
+    "applications_started_at": ""
+  },
+  "evidence": {
+    "supply_chain": [],
+    "tls": [],
+    "external_secrets": [],
+    "migrations": [],
+    "runtime": []
+  }
+}

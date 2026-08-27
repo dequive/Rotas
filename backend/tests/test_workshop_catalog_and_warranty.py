@@ -1,9 +1,6 @@
-from datetime import datetime, timedelta, UTC
-from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 
 from app.core.limiter import limiter
 from app.database import AsyncSessionLocal
@@ -144,4 +141,5 @@ async def test_warranty_issuance_and_claim(async_client, workshop_tenant_headers
     # Verify status changed to expired
     async with AsyncSessionLocal() as db:
         w_db = await db.get(ServiceWarranty, war_id)
+        assert w_db is not None
         assert w_db.status == "expired"

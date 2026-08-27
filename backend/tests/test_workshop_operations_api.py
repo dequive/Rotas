@@ -92,6 +92,13 @@ async def test_active_work_order_blocks_assignment_until_closed() -> None:
             )
             assert maintenance_request.status_code == 200
             assert maintenance_request.json()["status"] == "open"
+            maintenance_request_detail = await client.get(
+                f"/api/v1/workshop/maintenance-requests/{maintenance_request.json()['id']}",
+                headers=headers,
+            )
+            assert maintenance_request_detail.status_code == 200
+            assert maintenance_request_detail.json()["id"] == maintenance_request.json()["id"]
+            assert maintenance_request_detail.json()["vehicle_id"] == str(vehicle_id)
             maintenance_request_replay = await client.post(
                 "/api/v1/workshop/maintenance-requests",
                 headers={**headers, "Idempotency-Key": "maintenance-request:brakes:001"},
@@ -481,7 +488,7 @@ async def test_tool_checkout_return_and_critical_calibration_controls() -> None:
                 json={},
             )
             assert blocked_quality_check.status_code == 409
-            assert blocked_quality_check.json()["error"]["code"] == "work_order_tools_checked_out"
+            assert blocked_quality_check.json()["error"]["code"] == "unreturned_tools_blocking"
 
             return_payload = {
                 "return_reference": f"RET-{uuid4().hex[:8]}",

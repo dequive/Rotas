@@ -341,3 +341,29 @@ async def get_file_path(db: AsyncSession, tenant_id: UUID, file_id: UUID) -> tup
             status_code=status.HTTP_404_NOT_FOUND,
         )
     return file, path
+
+
+async def get_file_download_target(
+    db: AsyncSession,
+    tenant_id: UUID,
+    file_id: UUID,
+) -> tuple[File, Path | str]:
+    file = await _require_file(db, tenant_id, file_id)
+    if file.storage_provider in ("local", "local_stub"):
+        return await get_file_path(db, tenant_id, file_id)
+    if "/" not in file.storage_key or file.storage_key.split("/", maxsplit=1)[0] != str(
+        tenant_id
+    ):
+        raise ApiError(
+            "invalid_storage_key",
+            "Stored file path does not match tenant context.",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    url = await _storage.get_file_url(file.storage_key)
+    if not url:
+        raise ApiError(
+            "file_storage_unavailable",
+            "File storage is temporarily unavailable.",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    return file, url

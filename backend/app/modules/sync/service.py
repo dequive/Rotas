@@ -1,27 +1,55 @@
 from __future__ import annotations
 
+import logging
 import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 from fastapi.encoders import jsonable_encoder
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import DriverPrincipal
+from app.core.errors import ApiError
 from app.core.idempotency import IDEMPOTENCY_TTL_DAYS, canonical_request_hash, ttl_for
+from app.core.performance_diagnostics import measure_request_phase
+from app.database import defer_session_commits
 from app.modules.cargo import schemas as cargo_schemas
 from app.modules.cargo import service as cargo_service
+from app.modules.cargo.models import DeliveryProof
 from app.modules.checklists import schemas as checklist_schemas
 from app.modules.checklists import service as checklist_service
+from app.modules.checklists.models import Checklist
 from app.modules.fuel import schemas as fuel_schemas
 from app.modules.fuel import service as fuel_service
 from app.modules.sync.models import IdempotencyKey, SyncEvent
 from app.modules.sync.schemas import SyncBatchRequest, SyncOperation
 from app.modules.trips import schemas as trip_schemas
 from app.modules.trips import service as trip_service
+from app.modules.trips.models import Trip, TripStop
+
+DRIVER_SYNC_POLICY: dict[str, frozenset[str]] = {
+    "create": frozenset(
+        {
+            "checklist",
+            "fuel_log",
+            "trip_stop",
+            "delivery_proof",
+            "trip_cost",
+        }
+    ),
+    "update": frozenset({"checklist", "trip_stop", "delivery_proof"}),
+}
+ACTIVE_ASSIGNED_TRIP_STATUSES = frozenset(
+    {"planned", "dispatch_pending", "dispatched", "in_progress", "delayed", "incident"}
+)
+DRIVER_TRIP_BOUND_CREATE_TYPES = frozenset({"trip_stop", "delivery_proof", "trip_cost"})
+DRIVER_ASSET_BOUND_CREATE_TYPES = frozenset({"checklist", "fuel_log"})
+DRIVER_OWNED_UPDATE_TYPES = frozenset({"checklist", "trip_stop", "delivery_proof"})
+DRIVER_MUTABLE_DELIVERY_TRIP_STATUSES = ACTIVE_ASSIGNED_TRIP_STATUSES | {"delivered"}
 
 
 def _snake_case(value: str) -> str:
@@ -40,6 +68,187 @@ def _normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+def _payload_uuid(payload: dict[str, Any], *keys: str) -> UUID | None:
+    for key in keys:
+        value = payload.get(key)
+        if value is None:
+            continue
+        try:
+            return UUID(str(value))
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+async def _authorize_driver_trip_create(
+    db: AsyncSession,
+    principal: DriverPrincipal,
+    operation: SyncOperation,
+) -> dict | None:
+    if (
+        operation.operation != "create"
+        or operation.entity_type not in DRIVER_TRIP_BOUND_CREATE_TYPES
+    ):
+        return None
+
+    trip_id = _payload_uuid(_normalize_payload(operation.payload), "trip_id")
+    trip_status = (
+        await db.scalar(
+            select(Trip.status).where(
+                Trip.id == trip_id,
+                Trip.tenant_id == principal.tenant_id,
+                Trip.driver_id == principal.driver_id,
+            )
+        )
+        if trip_id is not None
+        else None
+    )
+    if trip_status is None:
+        return _result(
+            operation,
+            status="failed",
+            error_code="driver_trip_forbidden",
+            message="Trip is not assigned to the authenticated driver.",
+        )
+    if trip_status not in ACTIVE_ASSIGNED_TRIP_STATUSES:
+        return _result(
+            operation,
+            status="failed",
+            error_code="driver_trip_not_active",
+            message="Driver operations require an active assigned trip.",
+        )
+    return None
+
+
+async def _authorize_driver_asset_create(
+    db: AsyncSession,
+    principal: DriverPrincipal,
+    operation: SyncOperation,
+) -> dict | None:
+    if (
+        operation.operation != "create"
+        or operation.entity_type not in DRIVER_ASSET_BOUND_CREATE_TYPES
+    ):
+        return None
+
+    payload = _normalize_payload(operation.payload)
+    if str(payload.get("driver_id")) != str(principal.driver_id):
+        return _result(
+            operation,
+            status="failed",
+            error_code="driver_identity_mismatch",
+            message="Operation driver does not match the authenticated driver.",
+        )
+
+    vehicle_id = _payload_uuid(payload, "vehicle_id")
+    requested_trip_value = payload.get("trip_id")
+    requested_trip_id = _payload_uuid(payload, "trip_id")
+    if requested_trip_value is not None and requested_trip_id is None:
+        return _result(
+            operation,
+            status="failed",
+            error_code="driver_trip_forbidden",
+            message="Trip is not assigned to the authenticated driver.",
+        )
+    trip_filters = [
+        Trip.tenant_id == principal.tenant_id,
+        Trip.driver_id == principal.driver_id,
+        Trip.vehicle_id == vehicle_id,
+        Trip.status.in_(ACTIVE_ASSIGNED_TRIP_STATUSES),
+    ]
+    if requested_trip_id is not None:
+        trip_filters.append(Trip.id == requested_trip_id)
+    assigned_trip_id = (
+        await db.scalar(
+            select(Trip.id).where(*trip_filters)
+        )
+        if vehicle_id is not None
+        else None
+    )
+    if assigned_trip_id is None:
+        return _result(
+            operation,
+            status="failed",
+            error_code=(
+                "driver_trip_forbidden"
+                if requested_trip_id is not None
+                else "driver_vehicle_forbidden"
+            ),
+            message=(
+                "Trip is not assigned to the authenticated driver."
+                if requested_trip_id is not None
+                else "Vehicle is not assigned to the authenticated driver."
+            ),
+        )
+    return None
+
+
+async def _authorize_driver_owned_update(
+    db: AsyncSession,
+    principal: DriverPrincipal,
+    operation: SyncOperation,
+) -> dict | None:
+    if (
+        operation.operation != "update"
+        or operation.entity_type not in DRIVER_OWNED_UPDATE_TYPES
+    ):
+        return None
+
+    server_id = _payload_uuid(_normalize_payload(operation.payload), "server_id", "id")
+    if operation.entity_type == "checklist":
+        owned_record = (
+            await db.scalar(
+                select(Checklist.id).where(
+                    Checklist.id == server_id,
+                    Checklist.tenant_id == principal.tenant_id,
+                    Checklist.driver_id == principal.driver_id,
+                )
+            )
+            if server_id is not None
+            else None
+        )
+        if owned_record is not None:
+            return None
+    else:
+        record_model = TripStop if operation.entity_type == "trip_stop" else DeliveryProof
+        row = (
+            (
+                await db.execute(
+                    select(Trip.driver_id, Trip.status)
+                    .join(record_model, record_model.trip_id == Trip.id)
+                    .where(
+                        record_model.id == server_id,
+                        record_model.tenant_id == principal.tenant_id,
+                        Trip.tenant_id == principal.tenant_id,
+                    )
+                )
+            ).one_or_none()
+            if server_id is not None
+            else None
+        )
+        if row is not None and row.driver_id == principal.driver_id:
+            allowed_statuses = (
+                ACTIVE_ASSIGNED_TRIP_STATUSES
+                if operation.entity_type == "trip_stop"
+                else DRIVER_MUTABLE_DELIVERY_TRIP_STATUSES
+            )
+            if row.status in allowed_statuses:
+                return None
+            return _result(
+                operation,
+                status="failed",
+                error_code="driver_trip_not_active",
+                message="Driver operations require a mutable assigned trip.",
+            )
+
+    return _result(
+        operation,
+        status="failed",
+        error_code="driver_record_forbidden",
+        message="Record does not belong to the authenticated driver.",
+    )
+
+
 def _request_hash(operation: SyncOperation) -> str:
     raw = {
         "operation": operation.operation,
@@ -47,6 +256,18 @@ def _request_hash(operation: SyncOperation) -> str:
         "payload": operation.payload,
     }
     return canonical_request_hash(raw)
+
+
+def _idempotency_owner_matches(
+    existing: IdempotencyKey,
+    principal: DriverPrincipal,
+    payload: SyncBatchRequest,
+) -> bool:
+    """Keep cached sync responses private to the driver/device that created them."""
+    return (
+        existing.driver_id == principal.driver_id
+        and existing.device_id == payload.device_id
+    )
 
 
 def _result(
@@ -122,6 +343,12 @@ async def _dispatch_create(
         return _result(operation, status="processed", server_id=created["id"])
 
     if entity_type == "trip_cost":
+        # `request_reference` is the domain dedup key for a cost: unique per
+        # tenant, with its own reuse conflict. That is the same guarantee the
+        # operation's idempotency key already carries, and the device generates
+        # it once per queued record — so derive it rather than demand a second
+        # key the driver app would have to invent.
+        payload.setdefault("request_reference", f"sync:{operation.idempotency_key}")
         created = await trip_service.create_cost(
             db,
             tenant_id,
@@ -212,13 +439,6 @@ async def _dispatch_update(
             updated = await trip_service.patch_trip(db, tenant_id, entity_uuid, patch)
             return _result(operation, status="processed", server_id=updated["id"])
 
-        if entity_type == "fuel_log":
-            patch = fuel_schemas.FuelLogPatch(
-                **{k: v for k, v in payload.items() if k in fuel_schemas.FuelLogPatch.model_fields}
-            )
-            updated = await fuel_service.patch_fuel_log(db, tenant_id, entity_uuid, patch)
-            return _result(operation, status="processed", server_id=updated["id"])
-
         if entity_type == "trip_stop":
             patch = trip_schemas.TripStopPatch(
                 **{k: v for k, v in payload.items() if k in trip_schemas.TripStopPatch.model_fields}
@@ -267,7 +487,7 @@ async def _dispatch_operation(
 
 async def _record_event(
     db: AsyncSession,
-    principal: Principal,
+    principal: DriverPrincipal,
     payload: SyncBatchRequest,
     operation: SyncOperation,
     result: dict,
@@ -291,20 +511,136 @@ async def _record_event(
     )
 
 
+logger = logging.getLogger(__name__)
+
+
+async def _dispatch_failed_safe(
+    db: AsyncSession,
+    principal: DriverPrincipal,
+    operation: SyncOperation,
+    *,
+    defer_commit: bool,
+) -> dict:
+    """Dispatch one operation so that its failure cannot take the batch with it.
+
+    A driver's queue is built offline over hours. If one operation the server
+    cannot accept — a field an older installed client does not send, an entity
+    that no longer exists, a schema that moved on — aborted the request, every
+    record captured that day would be stuck behind it and retried forever. That
+    is the precise situation the offline guarantee exists for, so the failure is
+    reported per operation instead.
+
+    Isolation differs by mode, because the transaction does:
+
+    - batch: every operation shares one transaction and the domain services'
+      commits are deferred to flushes, so a SAVEPOINT contains a half-applied
+      write without discarding the operations already processed.
+    - single: the operation owns the transaction, so a plain rollback is both
+      sufficient and correct. A SAVEPOINT would not survive here — the services
+      commit internally, which closes it.
+
+    The driver PWA already models this: `apps/driver/src/sync.ts` types the
+    result status as processed | conflict | failed and routes failures to the
+    dead-letter queue.
+    """
+    if (
+        principal.scope == "driver_app"
+        and operation.entity_type
+        not in DRIVER_SYNC_POLICY.get(operation.operation, frozenset())
+    ):
+        return _result(
+            operation,
+            status="failed",
+            error_code="driver_operation_forbidden",
+            message="This operation is managed by fleet dispatch.",
+        )
+
+    if principal.scope == "driver_app":
+        authorization_error = await _authorize_driver_trip_create(db, principal, operation)
+        if authorization_error is not None:
+            return authorization_error
+        authorization_error = await _authorize_driver_asset_create(db, principal, operation)
+        if authorization_error is not None:
+            return authorization_error
+        authorization_error = await _authorize_driver_owned_update(db, principal, operation)
+        if authorization_error is not None:
+            return authorization_error
+
+    savepoint = await db.begin_nested() if defer_commit else None
+
+    try:
+        result = await _dispatch_operation(db, principal.tenant_id, operation)
+    except Exception as exc:  # noqa: BLE001 - one operation must never abort the batch
+        if savepoint is not None and savepoint.is_active:
+            await savepoint.rollback()
+        elif savepoint is None:
+            await db.rollback()
+
+        if isinstance(exc, ValidationError):
+            first = exc.errors()[0] if exc.errors() else {}
+            field = ".".join(str(part) for part in first.get("loc", ())) or "payload"
+            return _result(
+                operation,
+                status="failed",
+                error_code="payload_validation_failed",
+                message=f"{field}: {first.get('msg', 'invalid payload')}",
+            )
+        if isinstance(exc, ApiError):
+            return _result(
+                operation,
+                status="failed",
+                error_code=exc.code,
+                message=exc.message,
+            )
+        logger.exception(
+            "sync_operation_failed entity_type=%s local_id=%s",
+            operation.entity_type,
+            operation.local_id,
+        )
+        return _result(
+            operation,
+            status="failed",
+            error_code="sync_operation_failed",
+            message="The server could not process this operation.",
+        )
+
+    if savepoint is not None and savepoint.is_active:
+        await savepoint.commit()
+    return result
+
+
 async def _process_operation(
     db: AsyncSession,
-    principal: Principal,
+    principal: DriverPrincipal,
     payload: SyncBatchRequest,
     operation: SyncOperation,
+    *,
+    defer_commit: bool = False,
+    existing_by_key: dict[str, IdempotencyKey] | None = None,
 ) -> dict:
     request_hash = _request_hash(operation)
-    existing = await db.scalar(
-        select(IdempotencyKey).where(
-            IdempotencyKey.tenant_id == principal.tenant_id,
-            IdempotencyKey.idempotency_key == operation.idempotency_key,
-        )
-    )
+    if existing_by_key is None:
+        with measure_request_phase("sync_idempotency"):
+            existing = await db.scalar(
+                select(IdempotencyKey).where(
+                    IdempotencyKey.tenant_id == principal.tenant_id,
+                    IdempotencyKey.idempotency_key == operation.idempotency_key,
+                )
+            )
+    else:
+        existing = existing_by_key.get(operation.idempotency_key)
     if existing:
+        if not _idempotency_owner_matches(existing, principal, payload):
+            result = _result(
+                operation,
+                status="conflict",
+                error_code="idempotency_owner_mismatch",
+                message="Idempotency key belongs to another driver or device.",
+            )
+            await _record_event(db, principal, payload, operation, result)
+            if not defer_commit:
+                await db.commit()
+            return result
         if existing.request_hash != request_hash:
             result = _result(
                 operation,
@@ -313,6 +649,8 @@ async def _process_operation(
                 message="Idempotency key was reused with a different payload.",
             )
             await _record_event(db, principal, payload, operation, result)
+            if not defer_commit:
+                await db.commit()
             return result
         cached = existing.response_body or {}
         return {
@@ -320,7 +658,19 @@ async def _process_operation(
             "message": cached.get("message") or "idempotent_replay",
         }
 
-    result = await _dispatch_operation(db, principal.tenant_id, operation)
+    with measure_request_phase("sync_dispatch"):
+        if defer_commit:
+            result = await _dispatch_failed_safe(
+                db, principal, operation, defer_commit=True
+            )
+        else:
+            # Domain services still call commit internally. Keep the domain
+            # effect, idempotency row and sync event in one transaction so a
+            # losing concurrent consumer can roll back every local effect.
+            with defer_session_commits(db):
+                result = await _dispatch_failed_safe(
+                    db, principal, operation, defer_commit=False
+                )
     response_body = jsonable_encoder(result)
     idempotency = IdempotencyKey(
         tenant_id=principal.tenant_id,
@@ -336,10 +686,18 @@ async def _process_operation(
         expires_at=datetime.now(UTC) + timedelta(days=ttl_for(operation.entity_type)),
     )
     db.add(idempotency)
+    if existing_by_key is not None:
+        existing_by_key[operation.idempotency_key] = idempotency
     await _record_event(db, principal, payload, operation, result)
 
+    if defer_commit:
+        with measure_request_phase("sync_flush"):
+            await db.flush()
+        return result
+
     try:
-        await db.commit()
+        with measure_request_phase("sync_commit"):
+            await db.commit()
     except IntegrityError:
         await db.rollback()
         existing = await db.scalar(
@@ -348,17 +706,30 @@ async def _process_operation(
                 IdempotencyKey.idempotency_key == operation.idempotency_key,
             )
         )
+        if existing and not _idempotency_owner_matches(existing, principal, payload):
+            result = _result(
+                operation,
+                status="conflict",
+                error_code="idempotency_owner_mismatch",
+                message="Idempotency key belongs to another driver or device.",
+            )
+            await _record_event(db, principal, payload, operation, result)
+            await db.commit()
+            return result
         if existing and existing.request_hash == request_hash:
             return {
                 **(existing.response_body or {}),
                 "message": "idempotent_replay",
             }
-        return _result(
+        result = _result(
             operation,
             status="conflict",
             error_code="idempotency_race_conflict",
             message="Idempotency key conflict detected during concurrent sync.",
         )
+        await _record_event(db, principal, payload, operation, result)
+        await db.commit()
+        return result
 
     return result
 
@@ -366,29 +737,74 @@ async def _process_operation(
 async def process_batch(
     db: AsyncSession,
     payload: SyncBatchRequest,
-    principal: Principal,
+    principal: DriverPrincipal,
 ) -> dict:
-    results = []
-    for operation in payload.operations:
-        results.append(await _process_operation(db, principal, payload, operation))
-    return {"results": results}
+    if len(payload.operations) <= 1:
+        results = [
+            await _process_operation(db, principal, payload, operation)
+            for operation in payload.operations
+        ]
+        return {"results": results}
+
+    try:
+        operation_keys = {
+            operation.idempotency_key for operation in payload.operations
+        }
+        with measure_request_phase("sync_idempotency"):
+            existing_rows = (
+                await db.scalars(
+                    select(IdempotencyKey).where(
+                        IdempotencyKey.tenant_id == principal.tenant_id,
+                        IdempotencyKey.idempotency_key.in_(operation_keys),
+                    )
+                )
+            ).all()
+        existing_by_key = {
+            row.idempotency_key: row for row in existing_rows
+        }
+        # Domain services historically call commit internally. During a batch,
+        # those commits become flushes so all operations share one transaction.
+        # This removes N commits without changing the services' standalone API.
+        with defer_session_commits(db):
+            results = [
+                await _process_operation(
+                    db,
+                    principal,
+                    payload,
+                    operation,
+                    defer_commit=True,
+                    existing_by_key=existing_by_key,
+                )
+                for operation in payload.operations
+            ]
+        with measure_request_phase("sync_commit"):
+            await db.commit()
+        return {"results": results}
+    except IntegrityError:
+        # A competing batch may win an idempotency-key race during the single
+        # outer commit. Roll back all local effects, then use the established
+        # per-operation replay path to reconcile safely.
+        await db.rollback()
+        results = [
+            await _process_operation(db, principal, payload, operation)
+            for operation in payload.operations
+        ]
+        return {"results": results}
 
 
-async def bootstrap(principal: Principal) -> dict:
+async def bootstrap(principal: DriverPrincipal) -> dict:
     return {
         "tenant_id": principal.tenant_id,
         "server_time": datetime.now(UTC),
-        "supported_entity_types": [
-            "trip",
-            "checklist",
-            "fuel_log",
-            "trip_stop",
-            "load_permit",
-            "cargo_manifest",
-            "transport_document",
-            "delivery_proof",
-            "trip_cost",
-        ],
+        "supported_entity_types": sorted(set().union(*DRIVER_SYNC_POLICY.values())),
         "supported_operations": ["create", "update"],
+        "supported_operations_by_entity": {
+            entity_type: sorted(
+                operation
+                for operation, entity_types in DRIVER_SYNC_POLICY.items()
+                if entity_type in entity_types
+            )
+            for entity_type in sorted(set().union(*DRIVER_SYNC_POLICY.values()))
+        },
         "idempotency_ttl_days": IDEMPOTENCY_TTL_DAYS,
     }

@@ -1,29 +1,54 @@
-from typing import Annotated, List
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal, get_current_principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
-from app.core.rbac import require_permission, HR_READ, HR_WRITE, HR_PAYROLL_GENERATE, HR_PAYROLL_APPROVE
+from app.core.rbac import (
+    HR_PAYROLL_APPROVE,
+    HR_PAYROLL_GENERATE,
+    HR_READ,
+    HR_SALARY_VIEW,
+    HR_WRITE,
+    require_permission,
+)
 from app.modules.hr import schemas, service
 
-# Em produção real teríamos permissões específicas para RH, mas para já utilizamos WORKSHOP_WRITE ou similar, 
-# ou podemos omitir validações extremas de escopo num MVP (aqui uso 'require_permission("tenant_admin")' ou apenas Principal validado)
+# Em produção real teríamos permissões específicas para RH, mas para já utilizamos WORKSHOP_WRITE ou similar,
+# No MVP, podemos manter apenas o Principal validado ou exigir explicitamente
+# `require_permission("tenant_admin")`.
 
 router = APIRouter(prefix="/hr", tags=["hr"])
 
-PrincipalDep = Annotated[Principal, Depends(get_current_principal)]
+SalaryPrincipalDep = Annotated[Principal, Depends(require_permission(HR_SALARY_VIEW))]
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
+# Fields that are only visible to a principal holding HR_SALARY_VIEW. The employee
+# directory itself stays open to HR_READ — a dispatcher needs to know who works
+# here — but pay and bank details are not part of "who works here".
+SALARY_FIELDS = ("base_salary", "bank_account_nib")
+
+
+def _redact_salary(employee: object) -> dict:
+    """Return the employee as a dict with pay and bank fields blanked out."""
+    data = schemas.EmployeeResponse.model_validate(employee).model_dump()
+    for field in SALARY_FIELDS:
+        data[field] = None
+    return data
+
+
 # Aqui assumimos que apenas um utilizador logado de uma Tenant pode aceder:
-@router.get("/employees", response_model=List[schemas.EmployeeResponse])
+@router.get("/employees", response_model=list[schemas.EmployeeResponse])
 async def list_employees(
     principal: Annotated[Principal, Depends(require_permission(HR_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    return await service.list_employees(principal.tenant_id, db)
+    employees = await service.list_employees(principal.tenant_id, db)
+    if principal.has_any_permission(frozenset({HR_SALARY_VIEW})):
+        return employees
+    return [_redact_salary(employee) for employee in employees]
 
 
 @router.post("/employees", response_model=schemas.EmployeeResponse, status_code=201)
@@ -35,7 +60,7 @@ async def create_employee(
     return await service.create_employee(principal.tenant_id, payload, db)
 
 
-@router.get("/employees/{employee_id}/documents", response_model=List[schemas.EmployeeDocumentResponse])
+@router.get("/employees/{employee_id}/documents", response_model=list[schemas.EmployeeDocumentResponse])
 async def list_employee_documents(
     employee_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(HR_READ))],
@@ -54,7 +79,7 @@ async def add_employee_document(
     return await service.add_employee_document(principal.tenant_id, employee_id, payload, db)
 
 
-@router.post("/payroll/generate", response_model=List[schemas.PayrollSlipResponse], status_code=201)
+@router.post("/payroll/generate", response_model=list[schemas.PayrollSlipResponse], status_code=201)
 async def generate_payroll(
     payload: schemas.PayrollGenerationRequest,
     principal: Annotated[Principal, Depends(require_permission(HR_PAYROLL_GENERATE))],
@@ -63,11 +88,11 @@ async def generate_payroll(
     return await service.generate_payroll(principal.tenant_id, payload, principal.user_id, db)
 
 
-@router.get("/payroll", response_model=List[schemas.PayrollSlipResponse])
+@router.get("/payroll", response_model=list[schemas.PayrollSlipResponse])
 async def list_payroll_slips(
     month: int,
     year: int,
-    principal: Annotated[Principal, Depends(require_permission(HR_READ))],
+    principal: SalaryPrincipalDep,
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     return await service.list_payroll_slips(principal.tenant_id, month, year, db)
@@ -77,13 +102,16 @@ async def list_payroll_slips(
 # Salary Advances (Vales)
 # ---------------------------------------------------------
 
-@router.get("/advances", response_model=List[schemas.SalaryAdvanceResponse])
+
+@router.get("/advances", response_model=list[schemas.SalaryAdvanceResponse])
 async def list_salary_advances(
-    principal: PrincipalDep,
+    principal: SalaryPrincipalDep,
     db: SessionDep,
 ):
     from sqlalchemy import select
+
     from app.modules.hr.models import SalaryAdvance
+
     stmt = select(SalaryAdvance).where(SalaryAdvance.tenant_id == principal.tenant_id)
     result = await db.execute(stmt)
     return result.scalars().all()
@@ -96,10 +124,8 @@ async def create_salary_advance(
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
     from app.modules.hr.models import SalaryAdvance
-    advance = SalaryAdvance(
-        tenant_id=principal.tenant_id,
-        **payload.model_dump()
-    )
+
+    advance = SalaryAdvance(tenant_id=principal.tenant_id, **payload.model_dump())
     db.add(advance)
     await db.commit()
     await db.refresh(advance)
@@ -112,17 +138,16 @@ async def approve_salary_advance(
     principal: Annotated[Principal, Depends(require_permission(HR_PAYROLL_APPROVE))],
     db: Annotated[AsyncSession, Depends(get_session)],
 ):
-    from sqlalchemy import select
     from fastapi import HTTPException
+    from sqlalchemy import select
+
     from app.modules.hr.models import SalaryAdvance
-    stmt = select(SalaryAdvance).where(
-        SalaryAdvance.tenant_id == principal.tenant_id,
-        SalaryAdvance.id == advance_id
-    )
+
+    stmt = select(SalaryAdvance).where(SalaryAdvance.tenant_id == principal.tenant_id, SalaryAdvance.id == advance_id)
     advance = await db.scalar(stmt)
     if not advance:
         raise HTTPException(status_code=404, detail="Advance not found")
-        
+
     advance.status = "approved"
     await db.commit()
     await db.refresh(advance)
@@ -136,35 +161,37 @@ async def approve_salary_advance(
 async def export_ps2_file(
     month: int,
     year: int,
-    principal: PrincipalDep,
+    principal: SalaryPrincipalDep,
     db: SessionDep,
 ):
     """
-    Gera um ficheiro CSV limpo com NOME, NIB e VALOR LÍQUIDO 
+    Gera um ficheiro CSV limpo com NOME, NIB e VALOR LÍQUIDO
     pronto a carregar no banco ou formato semelhante.
     """
-    from sqlalchemy import select
     from fastapi.responses import PlainTextResponse
-    from app.modules.hr.models import PayrollSlip, Employee
-    
-    stmt = select(PayrollSlip, Employee).join(Employee, PayrollSlip.employee_id == Employee.id).where(
-        PayrollSlip.tenant_id == principal.tenant_id,
-        PayrollSlip.period_month == month,
-        PayrollSlip.period_year == year
+    from sqlalchemy import select
+
+    from app.modules.hr.models import Employee, PayrollSlip
+
+    stmt = (
+        select(PayrollSlip, Employee)
+        .join(Employee, PayrollSlip.employee_id == Employee.id)
+        .where(
+            PayrollSlip.tenant_id == principal.tenant_id,
+            PayrollSlip.period_month == month,
+            PayrollSlip.period_year == year,
+        )
     )
     result = await db.execute(stmt)
     rows = result.all()
-    
+
     csv_lines = ["NOME,NIB,VALOR_LIQUIDO"]
     for slip, emp in rows:
         nib = emp.bank_account_nib or "000000000000000000000"
         csv_lines.append(f"{emp.first_name} {emp.last_name},{nib},{slip.net_salary}")
-        
+
     csv_content = "\n".join(csv_lines)
-    
+
     return PlainTextResponse(
-        content=csv_content,
-        headers={
-            "Content-Disposition": f"attachment; filename=vencimentos_{year}_{month:02d}.csv"
-        }
+        content=csv_content, headers={"Content-Disposition": f"attachment; filename=vencimentos_{year}_{month:02d}.csv"}
     )

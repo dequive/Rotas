@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { PurchaseOrderModal } from "./PurchaseOrderModal";
 import { SupplierPaymentModal } from "./SupplierPaymentModal";
 import { FileDown } from "lucide-react";
+import { bffRequest } from "@/app/lib/bff";
 
 interface SupplierInvoice {
   id: string;
@@ -18,29 +19,11 @@ interface SupplierInvoice {
 
 interface PurchaseOrder {
   id: string;
-  order_number: string;
+  po_number: string;
   description: string;
-  estimated_cost: string;
+  estimated_amount: string | null;
   status: "draft" | "sent" | "fulfilled" | "cancelled";
   created_at: string;
-}
-
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  const token = localStorage.getItem("rotas_access_token");
-  const tenantId = localStorage.getItem("rotas_tenant_id");
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),
-  };
-}
-
-function getApiBase(): string {
-  if (typeof window === "undefined") return "";
-  return (
-    localStorage.getItem("rotas_api_base_url") ??
-    (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "")
-  );
 }
 
 function fmt(v: string, currency = "MZN") {
@@ -72,12 +55,8 @@ export default function PayablesTab({ thirdPartyId }: { thirdPartyId: string }) 
       // Fetch both POs and Invoices for this supplier
       // Note: Backend endpoints need to exist for these
       const [invRes, ordRes] = await Promise.all([
-        fetch(`${getApiBase()}/api/v1/payables/invoices?third_party_id=${thirdPartyId}`, {
-          headers: getAuthHeaders(),
-        }),
-        fetch(`${getApiBase()}/api/v1/payables/orders?third_party_id=${thirdPartyId}`, {
-          headers: getAuthHeaders(),
-        })
+        bffRequest(`/api/v1/payables/invoices?third_party_id=${thirdPartyId}`),
+        bffRequest(`/api/v1/payables/purchase-orders?third_party_id=${thirdPartyId}`)
       ]);
 
       if (invRes.ok) {
@@ -97,9 +76,7 @@ export default function PayablesTab({ thirdPartyId }: { thirdPartyId: string }) 
 
   const handleDownloadPDF = async (poId: string) => {
     try {
-      const res = await fetch(`${getApiBase()}/api/v1/payables/purchase-orders/${poId}/pdf`, {
-        headers: getAuthHeaders()
-      });
+      const res = await bffRequest(`/api/v1/payables/purchase-orders/${poId}/pdf`);
       if (!res.ok) throw new Error("Erro ao gerar PDF");
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -134,9 +111,6 @@ export default function PayablesTab({ thirdPartyId }: { thirdPartyId: string }) 
       <div className="bg-surface border border-border rounded-lg p-6 shadow-sm">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-base font-semibold text-ink m-0">Faturas Recebidas (Custo Efetivo)</h2>
-          <button className="h-9 px-3.5 rounded-md border-none bg-amber text-ink text-[13px] font-bold cursor-pointer hover:bg-amber-dark transition-colors">
-            + Nova Fatura
-          </button>
         </div>
         
         {invoices.length === 0 ? (
@@ -223,9 +197,9 @@ export default function PayablesTab({ thirdPartyId }: { thirdPartyId: string }) 
                     <td className="py-3 px-4 text-muted whitespace-nowrap">
                       {new Date(ord.created_at).toLocaleDateString("pt-MZ")}
                     </td>
-                    <td className="py-3 px-4 font-medium text-ink">{ord.order_number}</td>
+                    <td className="py-3 px-4 font-medium text-ink">{ord.po_number}</td>
                     <td className="py-3 px-4 text-muted max-w-xs truncate">{ord.description || "-"}</td>
-                    <td className="py-3 px-4 font-mono text-ink">{fmt(ord.estimated_cost, "MZN")}</td>
+                    <td className="py-3 px-4 font-mono text-ink">{fmt(ord.estimated_amount ?? "0", "MZN")}</td>
                     <td className="py-3 px-4 text-right">
                       <span className={cn("px-2 py-1 rounded text-[11px] font-semibold uppercase tracking-wider", statusColors[ord.status])}>
                         {ord.status}

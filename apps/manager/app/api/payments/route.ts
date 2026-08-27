@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -16,7 +17,7 @@ async function getAuthHeaders(idempotencyKey?: string | null) {
 export async function POST(req: NextRequest) {
   const idempotencyKey = req.headers.get("Idempotency-Key");
   const body = await req.json();
-  const res = await fetch(`${API_BASE}/api/v1/billing/payments`, {
+  const res = await upstreamFetch(`${API_BASE}/api/v1/billing/payments`, {
     method: "POST",
     headers: await getAuthHeaders(idempotencyKey),
     body: JSON.stringify(body),

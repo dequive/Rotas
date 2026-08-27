@@ -3,7 +3,12 @@ from functools import lru_cache
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-DEV_CORS_ORIGINS = ["http://localhost:3000", "http://localhost:5173"]
+DEV_CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:4173",
+    "http://localhost:5173",
+    "http://localhost:5174",
+]
 
 
 class Settings(BaseSettings):
@@ -89,6 +94,10 @@ class Settings(BaseSettings):
     ff_pwa_offline_lifecycle: bool = Field(
         default=False, validation_alias="FF_PWA_OFFLINE_LIFECYCLE"
     )
+    performance_diagnostics: bool = Field(
+        default=False,
+        validation_alias="PERFORMANCE_DIAGNOSTICS",
+    )
 
     @property
     def resolved_admin_database_url(self) -> str:
@@ -109,6 +118,16 @@ class Settings(BaseSettings):
     def validate_production_config(self) -> "Settings":
         """D-05 / SEC-02: In production, CORS_ORIGINS must be explicit — no wildcard, no empty."""
         if self.environment == "production":
+            if self.performance_diagnostics:
+                raise ValueError(
+                    "PERFORMANCE_DIAGNOSTICS must be disabled in production."
+                )
+            if len(self.jwt_secret_key.get_secret_value()) < 32:
+                raise ValueError(
+                    "JWT_SECRET_KEY must contain at least 32 characters in production."
+                )
+            if self.dev_test_token.get_secret_value():
+                raise ValueError("DEV_TEST_TOKEN must be empty in production.")
             if (
                 not self.cors_origins
                 or "*" in self.cors_origins
@@ -118,6 +137,8 @@ class Settings(BaseSettings):
                     "CORS_ORIGINS must be set to one or more explicit origins (not '*') "
                     "when ENVIRONMENT=production."
                 )
+            if any(not origin.startswith("https://") for origin in self.cors_origins):
+                raise ValueError("Every CORS_ORIGINS entry must use HTTPS in production.")
             if self.redis_url == "redis://localhost:6381":
                 raise ValueError(
                     "REDIS_URL must be set to a production Redis URL when ENVIRONMENT=production."
@@ -141,6 +162,8 @@ class Settings(BaseSettings):
                     "R2 storage settings are required when ENVIRONMENT=production: "
                     + ", ".join(missing_r2)
                 )
+            if not self.r2_endpoint_url.startswith("https://"):
+                raise ValueError("R2_ENDPOINT_URL must use HTTPS in production.")
             if self.email_provider.lower() == "none":
                 raise ValueError("EMAIL_PROVIDER must be configured when ENVIRONMENT=production.")
             if not self.email_from_address:
@@ -155,9 +178,24 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "SMTP_HOST must be configured when EMAIL_PROVIDER=smtp in production."
                 )
+            if not self.admin_database_url or not self.alembic_database_url:
+                raise ValueError(
+                    "ADMIN_DATABASE_URL and ALEMBIC_DATABASE_URL must use the administrative "
+                    "database role in production; DATABASE_URL is reserved for rotas_app."
+                )
+            if self.database_url in {
+                self.admin_database_url,
+                self.alembic_database_url,
+            }:
+                raise ValueError(
+                    "DATABASE_URL must be distinct from ADMIN_DATABASE_URL and "
+                    "ALEMBIC_DATABASE_URL in production."
+                )
         return self
 
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # Required fields are populated by pydantic-settings from the environment.
+    # Static analyzers cannot observe that runtime constructor contract.
+    return Settings()  # pyright: ignore[reportCallIssue]

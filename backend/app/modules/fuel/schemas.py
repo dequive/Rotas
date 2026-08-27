@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 
 class FuelLogCreate(BaseModel):
+    trip_id: UUID | None = None
     vehicle_id: UUID
     driver_id: UUID
     fuel_date: datetime
@@ -25,12 +26,3 @@ class FuelLogCreate(BaseModel):
 class VerifyFuelLogRequest(BaseModel):
     is_verified: bool = True
     flagged: bool | None = None
-
-
-class FuelLogPatch(BaseModel):
-    liters: float | None = None
-    total_cost: float | None = None
-    station_name: str | None = None
-    km_at_refuel: int | None = None
-    payment_method: str | None = None
-    notes: str | None = None

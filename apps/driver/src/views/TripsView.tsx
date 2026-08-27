@@ -1,0 +1,418 @@
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  Download,
+  FileText,
+  LockKeyhole,
+  MapPinned,
+  Send,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  downloadDriverTripDocument,
+  getDriverTripDocuments,
+  listDriverTripHistory,
+  listDriverTrips,
+  requestDriverTripDocument,
+  type DriverTrip,
+  type DriverTripDocuments,
+} from "../api";
+import { documentLabel, tripStatusLabel } from "../labels";
+import {
+  getCurrentIdentityScope,
+  getDriverReadCache,
+  saveDriverReadCache,
+  type DriverIdentityScope,
+} from "../db";
+
+type TripsViewProps = {
+  mode: "assigned" | "history";
+  onBack: () => void;
+  /**
+   * Incrementado pelo ecrã principal a cada sincronização manual. As leituras
+   * do motorista têm de acompanhar o que o gestor acabou de emitir; sem isto,
+   * um documento já disponibilizado continuaria a aparecer como "Em falta".
+   */
+  refreshToken?: number;
+};
+
+function dateLabel(value: string | null) {
+  if (!value) return "Horário por confirmar";
+  return new Intl.DateTimeFormat("pt-MZ", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+async function saveReadCache<T>(
+  identity: DriverIdentityScope,
+  key: string,
+  data: T,
+) {
+  try {
+    await saveDriverReadCache(identity, key, data);
+  } catch {
+    // A falha do cache nunca transforma uma resposta válida da API em erro.
+  }
+}
+
+async function readCache<T>(identity: DriverIdentityScope, key: string) {
+  try {
+    return await getDriverReadCache<T>(identity, key);
+  } catch {
+    return undefined;
+  }
+}
+
+export function TripsView({ mode, onBack, refreshToken = 0 }: TripsViewProps) {
+  const [trips, setTrips] = useState<DriverTrip[]>([]);
+  const [total, setTotal] = useState(0);
+  const [selectedTrip, setSelectedTrip] = useState<DriverTrip | null>(null);
+  const [documents, setDocuments] = useState<DriverTripDocuments | null>(null);
+  const [state, setState] = useState<"loading" | "success" | "error">("loading");
+  const [documentState, setDocumentState] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [actionMessage, setActionMessage] = useState("");
+  const [requesting, setRequesting] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [listCachedAt, setListCachedAt] = useState<string | null>(null);
+  const [documentsCachedAt, setDocumentsCachedAt] = useState<string | null>(null);
+
+  const loadTrips = useCallback(async (offset = 0) => {
+    const cacheKey = `trips:${mode}:${offset}`;
+    const identity = getCurrentIdentityScope();
+    if (offset === 0) {
+      setState("loading");
+      setSelectedTrip(null);
+      setDocuments(null);
+      setListCachedAt(null);
+      setDocumentsCachedAt(null);
+    } else {
+      setLoadingMore(true);
+    }
+    try {
+      const page = mode === "history"
+        ? await listDriverTripHistory(20, offset)
+        : await listDriverTrips(20, offset);
+      setTrips((current) => offset === 0 ? page.items : [...current, ...page.items]);
+      setTotal(page.total);
+      setState("success");
+      if (offset === 0) setListCachedAt(null);
+      if (identity) {
+        await saveReadCache(identity, cacheKey, page);
+      }
+    } catch {
+      const cachedPage = identity
+        ? await readCache<{
+          items: DriverTrip[];
+          total: number;
+          limit: number;
+          offset: number;
+        }>(identity, cacheKey)
+        : undefined;
+      if (cachedPage) {
+        setTrips((current) => offset === 0
+          ? cachedPage.data.items
+          : [...current, ...cachedPage.data.items]);
+        setTotal(cachedPage.data.total);
+        setListCachedAt(cachedPage.cachedAt);
+        setState("success");
+      } else if (offset === 0) {
+        setTrips([]);
+        setTotal(0);
+        setState("error");
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    void loadTrips();
+  }, [loadTrips]);
+
+  const openTripRef = useRef<((trip: DriverTrip) => Promise<void>) | null>(null);
+  const selectedTripRef = useRef<DriverTrip | null>(null);
+  selectedTripRef.current = selectedTrip;
+
+  useEffect(() => {
+    if (refreshToken === 0) return;
+    const current = selectedTripRef.current;
+    if (current) {
+      void openTripRef.current?.(current);
+    } else {
+      void loadTrips();
+    }
+  }, [refreshToken, loadTrips]);
+
+  async function openTrip(trip: DriverTrip) {
+    const cacheKey = `trip:${trip.id}:documents`;
+    const identity = getCurrentIdentityScope();
+    setSelectedTrip(trip);
+    setDocuments(null);
+    setDocumentsCachedAt(null);
+    setDocumentState("loading");
+    setActionMessage("");
+    try {
+      const nextDocuments = await getDriverTripDocuments(trip.id);
+      setDocuments(nextDocuments);
+      if (identity) {
+        await saveReadCache(identity, cacheKey, nextDocuments);
+      }
+      setDocumentState("success");
+    } catch {
+      const cachedDocuments = identity
+        ? await readCache<DriverTripDocuments>(identity, cacheKey)
+        : undefined;
+      if (cachedDocuments) {
+        setDocuments(cachedDocuments.data);
+        setDocumentsCachedAt(cachedDocuments.cachedAt);
+        setDocumentState("success");
+      } else {
+        setDocumentState("error");
+      }
+    }
+  }
+
+  openTripRef.current = openTrip;
+
+  async function requestDocument(documentType: string) {
+    if (!selectedTrip) return;
+    setRequesting(documentType);
+    setActionMessage("");
+    try {
+      await requestDriverTripDocument(selectedTrip.id, documentType);
+      const nextDocuments = await getDriverTripDocuments(selectedTrip.id);
+      setDocuments(nextDocuments);
+      const identity = getCurrentIdentityScope();
+      if (identity) {
+        await saveReadCache(
+          identity,
+          `trip:${selectedTrip.id}:documents`,
+          nextDocuments,
+        );
+      }
+      setActionMessage("Pedido enviado ao gestor de frota.");
+    } catch {
+      setActionMessage("Não foi possível enviar o pedido. Tente novamente.");
+    } finally {
+      setRequesting(null);
+    }
+  }
+
+  async function downloadDocument(fileId: string, filename: string) {
+    if (!selectedTrip) return;
+    // O ficheiro só existe no servidor. Sem rede, falhar de imediato e dizê-lo,
+    // em vez de deixar o motorista sem resposta durante os retries.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setActionMessage(
+        "Sem ligação — o documento só pode ser aberto quando houver rede.",
+      );
+      return;
+    }
+    setDownloading(fileId);
+    setActionMessage("A abrir o documento…");
+    try {
+      const blob = await downloadDriverTripDocument(selectedTrip.id, fileId);
+      const url = URL.createObjectURL(blob);
+      const link = window.document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+      setActionMessage("");
+    } catch {
+      setActionMessage("Não foi possível abrir o documento. Tente novamente.");
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  if (selectedTrip) {
+    const canRequestDocuments = Boolean(documents?.can_request && !documentsCachedAt);
+    const activeRequestTypes = new Set(
+      documents?.requests
+        .filter((request) => request.status === "open" || request.status === "acknowledged")
+        .map((request) => request.document_type) ?? [],
+    );
+    return (
+      <section className="trip-workspace" aria-labelledby="trip-detail-title">
+        <button className="back-btn trip-back" type="button" onClick={() => setSelectedTrip(null)}>
+          <ArrowLeft size={18} /> {mode === "history" ? "Histórico" : "Minhas viagens"}
+        </button>
+        <header className="trip-detail-header">
+          <span>{selectedTrip.status === "closed" ? "Viagem concluída" : "Viagem atribuída"}</span>
+          <h2 id="trip-detail-title">{selectedTrip.origin} → {selectedTrip.destination}</h2>
+          <p>{dateLabel(selectedTrip.planned_departure)}</p>
+        </header>
+
+        <dl className="trip-facts">
+          <div><dt>Estado</dt><dd>{tripStatusLabel(selectedTrip.status)}</dd></div>
+          <div><dt>Carga</dt><dd>{selectedTrip.cargo_type ?? "Não informada"}</dd></div>
+          <div><dt>Peso</dt><dd>{selectedTrip.cargo_weight ? `${selectedTrip.cargo_weight} kg` : "—"}</dd></div>
+          <div><dt>Destinatário</dt><dd>{selectedTrip.recipient_name ?? "—"}</dd></div>
+        </dl>
+
+        <section className="document-panel" aria-labelledby="documents-title">
+          <div className="document-panel__title">
+            <div>
+              <span>Preparação da viagem</span>
+              <h3 id="documents-title">Documentos</h3>
+            </div>
+            {documents?.complete ? <CheckCircle2 className="success-icon" /> : null}
+          </div>
+
+          {documentState === "loading" && <p role="status">A verificar documentos…</p>}
+          {documentState === "error" && (
+            <div className="inline-state inline-state--error" role="alert">
+              <AlertTriangle size={18} />
+              <span>Não foi possível carregar os documentos.</span>
+              <button type="button" onClick={() => void openTrip(selectedTrip)}>Tentar novamente</button>
+            </div>
+          )}
+          {documentState === "success" && documents && (
+            <>
+              <div className={`document-summary ${documents.complete ? "is-complete" : "is-missing"}`}>
+                {documents.complete ? (
+                  <><CheckCircle2 size={18} /><strong>Documentação completa</strong></>
+                ) : (
+                  <><AlertTriangle size={18} /><strong>Documentação incompleta</strong></>
+                )}
+              </div>
+
+              {!documents.can_request && (
+                <p className="read-only-note"><LockKeyhole size={17} /> Viagem fechada — somente leitura.</p>
+              )}
+              {documentsCachedAt && (
+                <p className="read-only-note" role="status">
+                  <LockKeyhole size={17} /> Não foi possível actualizar — documentos guardados em{" "}
+                  {dateLabel(documentsCachedAt)}; somente leitura.
+                </p>
+              )}
+
+              <div className="requirements-list" aria-label="Requisitos documentais">
+                {documents.requirements.map((requirement) => (
+                  <article key={requirement.document_type} className="requirement-row">
+                    <span className={requirement.present ? "requirement-dot present" : "requirement-dot missing"} />
+                    <div>
+                      <strong>{documentLabel(requirement.document_type)}</strong>
+                      <small>{requirement.present ? "Disponível" : "Em falta"}</small>
+                    </div>
+                    {!requirement.present && canRequestDocuments && activeRequestTypes.has(requirement.document_type) && (
+                      <span className="request-pending">Pedido enviado</span>
+                    )}
+                    {!requirement.present && canRequestDocuments && !activeRequestTypes.has(requirement.document_type) && (
+                      <button
+                        type="button"
+                        disabled={requesting !== null}
+                        onClick={() => void requestDocument(requirement.document_type)}
+                        aria-label={`Solicitar ${documentLabel(requirement.document_type)}`}
+                      >
+                        <Send size={15} /> {requesting === requirement.document_type ? "A enviar…" : "Solicitar"}
+                      </button>
+                    )}
+                  </article>
+                ))}
+              </div>
+
+              <div className="issued-documents">
+                <h4>Documentos emitidos</h4>
+                {documents.documents.length === 0 ? (
+                  <p>Nenhum documento foi disponibilizado.</p>
+                ) : documents.documents.map((document) => (
+                  <article key={document.id} className="issued-document">
+                    <FileText size={19} />
+                    <div>
+                      <strong>{documentLabel(document.document_type)}</strong>
+                      <small>{document.document_number ?? "Sem número"}</small>
+                    </div>
+                    {document.file_id ? (
+                      <button
+                        type="button"
+                        onClick={() => void downloadDocument(
+                          document.file_id!,
+                          `${document.document_number ?? document.document_type}.pdf`,
+                        )}
+                        disabled={downloading === document.file_id}
+                        aria-label={`Abrir ${documentLabel(document.document_type)}`}
+                      >
+                        <Download size={16} />
+                      </button>
+                    ) : <span className="digital-only">Registo digital</span>}
+                  </article>
+                ))}
+              </div>
+              {actionMessage && <p className="action-message" role="status">{actionMessage}</p>}
+            </>
+          )}
+        </section>
+      </section>
+    );
+  }
+
+  return (
+    <section className="trip-workspace" aria-labelledby="trip-list-title">
+      <button className="back-btn trip-back" type="button" onClick={onBack}>
+        <ArrowLeft size={18} /> Hoje
+      </button>
+      <header className="workspace-heading">
+        <span>{mode === "history" ? "Arquivo operacional" : "Trabalho atribuído"}</span>
+        <h2 id="trip-list-title">{mode === "history" ? "Histórico" : "Minhas viagens"}</h2>
+        <p>{mode === "history" ? "Viagens concluídas e canceladas." : "Viagens planeadas para si pelo gestor de frota."}</p>
+      </header>
+
+      {listCachedAt && (
+        <div className="panel inline-state" role="status">
+          <LockKeyhole size={18} />
+          <span>Não foi possível actualizar — a mostrar viagens guardadas em {dateLabel(listCachedAt)}.</span>
+        </div>
+      )}
+
+      {state === "loading" && <div className="panel inline-state" role="status">A carregar viagens…</div>}
+      {state === "error" && (
+        <div className="panel inline-state inline-state--error" role="alert">
+          <AlertTriangle size={20} />
+          <span>Não foi possível carregar as viagens.</span>
+          <button type="button" onClick={() => void loadTrips()}>Tentar novamente</button>
+        </div>
+      )}
+      {state === "success" && trips.length === 0 && (
+        <div className="panel trip-empty">
+          <MapPinned size={28} />
+          <h3>{mode === "history" ? "Ainda não há histórico" : "Sem viagens atribuídas"}</h3>
+          <p>{mode === "history" ? "As viagens fechadas aparecerão aqui." : "O gestor de frota ainda não lhe atribuiu uma viagem."}</p>
+        </div>
+      )}
+      {state === "success" && trips.length > 0 && (
+        <div className="trip-list">
+          {trips.map((trip) => (
+            <button
+              key={trip.id}
+              type="button"
+              className="trip-list-card"
+              onClick={() => void openTrip(trip)}
+              aria-label={`${trip.origin} para ${trip.destination}`}
+            >
+              <span className="trip-list-card__route">{trip.origin} → {trip.destination}</span>
+              <span className="trip-list-card__meta">{dateLabel(trip.planned_departure)}</span>
+              <span className="trip-list-card__status">{tripStatusLabel(trip.status)}</span>
+            </button>
+          ))}
+          {trips.length < total && (
+            <button
+              type="button"
+              className="load-more"
+              disabled={loadingMore}
+              onClick={() => void loadTrips(trips.length)}
+            >
+              {loadingMore ? "A carregar…" : `Carregar mais (${trips.length} de ${total})`}
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}

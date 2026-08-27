@@ -1,4 +1,6 @@
+import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import status
@@ -16,7 +18,12 @@ from app.modules.operational_exceptions.service import ensure_exception
 from app.modules.operations.service import has_active_waiver
 from app.modules.tenants.models import Tenant
 from app.modules.trip_orders.models import TripOrder
-from app.modules.trips.costs import reconcile_trip_costs, record_trip_cost, serialize_trip_cost
+from app.modules.trips.costs import (
+    correct_trip_cost,
+    reconcile_trip_costs,
+    record_trip_cost,
+    serialize_trip_cost,
+)
 from app.modules.trips.models import (
     DispatchClearance,
     Trip,
@@ -31,6 +38,7 @@ from app.modules.trips.schemas import (
     DispatchClearanceApproveRequest,
     OperationalCloseTripRequest,
     StartTripRequest,
+    TripCostCorrectionCreate,
     TripCostCreate,
     TripCreate,
     TripDispatchRequest,
@@ -446,7 +454,11 @@ async def evaluate_delivery_sla(
                     "evaluated_at": evaluated_at,
                 },
             )
-        delay_minutes = int((evaluated_at - trip.planned_arrival).total_seconds() // 60)
+        delay_minutes = (
+            int((evaluated_at - trip.planned_arrival).total_seconds() // 60)
+            if trip.planned_arrival is not None
+            else 0
+        )
         await ensure_exception(
             db,
             tenant_id,
@@ -459,7 +471,7 @@ async def evaluate_delivery_sla(
             actor_id=actor_id,
             context={
                 "trip_id": str(trip.id),
-                "planned_arrival": trip.planned_arrival.isoformat(),
+                "planned_arrival": trip.planned_arrival.isoformat() if trip.planned_arrival is not None else None,
                 "delay_minutes": delay_minutes,
             },
             source_type="trip",
@@ -537,6 +549,8 @@ async def create_trip(
             },
         )
 
+    waybill_num = f"GT-{datetime.now(UTC).year}/{str(uuid.uuid4()).split('-')[0].upper()}"
+
     trip = Trip(
         tenant_id=tenant_id,
         contract_id=payload.contract_id,
@@ -552,6 +566,7 @@ async def create_trip(
         load_state=payload.load_state,
         requires_load_permit=payload.requires_load_permit,
         requires_cargo_manifest=payload.requires_cargo_manifest,
+        waybill_number=waybill_num,
         planned_departure=payload.planned_departure,
         planned_arrival=payload.planned_arrival,
         contract_reference=contract_reference,
@@ -607,10 +622,10 @@ async def start_trip(
     actor_id: UUID | None = None,
 ) -> dict:
     trip = await _require_trip(db, tenant_id, trip_id)
-    if trip.status not in {"draft", "planned", "dispatched"}:
+    if trip.status != "dispatched":
         raise ApiError(
-            "invalid_trip_status",
-            "Only draft, planned or dispatched trips can be started.",
+            "dispatch_required",
+            "Trip must pass dispatch clearance and dispatch before it can be started.",
             status_code=409,
             details={"status": trip.status},
         )
@@ -827,6 +842,21 @@ async def _missing_required_cargo_documents(
     tenant_id: UUID,
     trip: Trip,
 ) -> list[str]:
+    status_payload = await get_trip_document_requirements(db, tenant_id, trip)
+    return [
+        item["document_type"]
+        for item in status_payload["requirements"]
+        if not item["present"]
+    ]
+
+
+async def get_trip_document_requirements(
+    db: AsyncSession,
+    tenant_id: UUID,
+    trip: Trip,
+) -> dict:
+    """Return the canonical dispatch document requirements for one trip."""
+
     policy = await _tenant_compliance_policy(db, tenant_id)
     required = _required_cargo_documents_for_trip(policy, trip)
     if trip.requires_load_permit:
@@ -834,44 +864,59 @@ async def _missing_required_cargo_documents(
     if trip.requires_cargo_manifest:
         required.add("cargo_manifest")
 
-    missing: list[str] = []
+    transport_document_types = set(
+        await db.scalars(
+            select(func.lower(TransportDocument.document_type)).where(
+                TransportDocument.tenant_id == tenant_id,
+                TransportDocument.trip_id == trip.id,
+                TransportDocument.status != "cancelled",
+            )
+        )
+    )
+    has_load_permit = (
+        await db.scalar(
+            select(LoadPermit.id).where(
+                LoadPermit.tenant_id == tenant_id,
+                LoadPermit.trip_id == trip.id,
+                LoadPermit.status != "cancelled",
+            )
+        )
+    ) is not None
+    has_cargo_manifest = (
+        await db.scalar(
+            select(CargoManifest.id).where(
+                CargoManifest.tenant_id == tenant_id,
+                CargoManifest.trip_id == trip.id,
+                CargoManifest.status != "cancelled",
+            )
+        )
+    ) is not None
+
+    requirements: list[dict] = []
     for document in sorted(required):
         if document == "load_permit":
-            exists = (
-                await db.scalar(
-                    select(LoadPermit.id).where(
-                        LoadPermit.tenant_id == tenant_id,
-                        LoadPermit.trip_id == trip.id,
-                        LoadPermit.status != "cancelled",
-                    )
-                )
-            ) is not None
+            present = has_load_permit
         elif document == "cargo_manifest":
-            exists = (
-                await db.scalar(
-                    select(CargoManifest.id).where(
-                        CargoManifest.tenant_id == tenant_id,
-                        CargoManifest.trip_id == trip.id,
-                        CargoManifest.status != "cancelled",
-                    )
-                )
-            ) is not None
+            present = has_cargo_manifest
         elif document == "transport_document":
-            exists = await _has_transport_document(db, tenant_id, trip.id)
+            present = bool(transport_document_types)
         elif document.startswith("transport_document:"):
             document_type = document.split(":", 1)[1].strip()
-            exists = bool(document_type) and await _has_transport_document(
-                db,
-                tenant_id,
-                trip.id,
-                document_type,
+            present = bool(document_type) and document_type.casefold() in (
+                transport_document_types
             )
         else:
-            exists = False
+            present = False
+        requirements.append({"document_type": document, "present": present})
 
-        if not exists:
-            missing.append(document)
-    return missing
+    missing_required = [
+        item["document_type"] for item in requirements if not item["present"]
+    ]
+    return {
+        "requirements": requirements,
+        "missing_required": missing_required,
+        "complete": not missing_required,
+    }
 
 
 async def _missing_required_trip_stops(
@@ -1447,6 +1492,7 @@ async def operational_close_trip(
         source="system",
     )
     db.add(event)
+    closed_at = trip.closed_at
     await record_audit_log(
         db,
         tenant_id=tenant_id,
@@ -1457,7 +1503,7 @@ async def operational_close_trip(
         old_values={"status": old_status},
         new_values={
             "status": trip.status,
-            "closed_at": trip.closed_at.isoformat(),
+            "closed_at": closed_at.isoformat() if closed_at is not None else None,
             "validated_proof_id": str(validated_proof) if validated_proof else None,
             "total_transport_cost": str(trip.total_transport_cost),
             "actual_margin": str(trip.actual_margin),
@@ -1488,6 +1534,28 @@ async def create_cost(
     return serialize_trip_cost(cost)
 
 
+async def correct_cost(
+    db: AsyncSession,
+    tenant_id: UUID,
+    trip_id: UUID,
+    cost_id: UUID,
+    payload: TripCostCorrectionCreate,
+    *,
+    actor_id: UUID | None = None,
+) -> dict:
+    cost = await correct_trip_cost(
+        db,
+        tenant_id,
+        trip_id=trip_id,
+        cost_id=cost_id,
+        actor_id=actor_id,
+        **payload.model_dump(),
+    )
+    await db.commit()
+    await db.refresh(cost)
+    return serialize_trip_cost(cost)
+
+
 async def _trip_allowance_distance(
     db: AsyncSession,
     tenant_id: UUID,
@@ -1501,7 +1569,7 @@ async def _trip_allowance_distance(
                 "Trip allowance distance cannot be negative.",
                 status_code=422,
             )
-        return float(override_distance_km)
+        return override_distance_km
 
     if trip.trip_order_id:
         order = await db.get(TripOrder, trip.trip_order_id)
@@ -1675,3 +1743,63 @@ async def patch_stop(
         "arrived_at": getattr(stop, "arrived_at", None),
         "departed_at": getattr(stop, "departed_at", None),
     }
+
+
+async def optimize_trip_route(
+    db: AsyncSession,
+    tenant_id: UUID,
+    trip_id: UUID,
+    *,
+    actor_id: UUID | None = None,
+) -> dict:
+    from app.modules.trips import routing
+
+    trip = await _require_trip(db, tenant_id, trip_id)
+
+    # Fetch stops
+    stmt = select(TripStop).where(TripStop.trip_id == trip.id, TripStop.tenant_id == tenant_id)
+    res = await db.execute(stmt)
+    stops = list(res.scalars().all())
+
+    # Format stops for optimizer
+    stops_payload = [{"id": s.id, "location": s.location, "instance": s} for s in stops]
+
+    ordered_stops_payload = routing.optimize_waypoint_sequence(
+        trip.origin_location,
+        trip.destination_location,
+        stops_payload,
+    )
+
+    # Update sequence numbers on stops
+    for item in ordered_stops_payload:
+        stop_obj = item["instance"]
+        stop_obj.sequence_number = item["sequence_number"]
+
+    # Build full list of waypoints for OSRM
+    waypoints: list[dict[str, float]] = []
+    if trip.origin_location and "lat" in trip.origin_location and "lon" in trip.origin_location:
+        waypoints.append({"lat": float(trip.origin_location["lat"]), "lon": float(trip.origin_location["lon"])})
+
+    for item in ordered_stops_payload:
+        loc = item.get("location")
+        if loc and "lat" in loc and "lon" in loc:
+            waypoints.append({"lat": float(loc["lat"]), "lon": float(loc["lon"])})
+
+    if trip.destination_location and "lat" in trip.destination_location and "lon" in trip.destination_location:
+        waypoints.append(
+            {
+                "lat": float(trip.destination_location["lat"]),
+                "lon": float(trip.destination_location["lon"]),
+            }
+        )
+
+    route_data = await routing.fetch_osrm_route(waypoints)
+
+    trip.route_geometry = route_data["geometry"]
+    trip.route_polyline = route_data["polyline"]
+    trip.route_distance_km = Decimal(str(route_data["distance_km"]))
+    trip.route_duration_seconds = route_data["duration_seconds"]
+
+    await db.commit()
+    await db.refresh(trip)
+    return serialize_trip(trip)

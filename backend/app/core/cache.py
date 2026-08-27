@@ -1,9 +1,20 @@
 import logging
+from typing import Protocol
 from uuid import UUID
 
 from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
+
+
+class AsyncRedisHashClient(Protocol):
+    """Minimal decoded-response Redis contract used by plan-limit counters."""
+
+    async def hget(self, name: str, key: str) -> str | None: ...
+
+    async def hset(self, name: str, key: str, value: str) -> int: ...
+
+    async def expire(self, name: str, time: int) -> bool: ...
 
 
 async def invalidate_keys(redis: Redis | None, pattern: str) -> None:
@@ -30,4 +41,3 @@ async def invalidate_tenant_caches(redis: Redis | None, tenant_id: UUID) -> None
         await redis.delete(f"tenant:limits:{tenant_id}")
     except Exception as e:
         logger.error(f"Failed to delete limits cache key for tenant {tenant_id}: {e}")
-

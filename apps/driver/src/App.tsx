@@ -1,38 +1,60 @@
 import {
   Camera,
   CheckCircle2,
-  FileText,
+  ClipboardList,
+  Home,
   LogOut,
   MapPin,
+  MoreHorizontal,
+  NotebookTabs,
   ReceiptText,
   RefreshCw,
   Save,
-  Truck,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { getAuth, bootstrap, type ActiveTrip, type ChecklistTemplate, clearAuth } from "./api";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import {
+  getAuth,
+  bootstrap,
+  type ActiveTrip,
+  type BootstrapData,
+  type ChecklistTemplate,
+} from "./api";
 import type { AuthState } from "./api";
-import { db, makeLocalId, queueFuelLog, queueOperation, type SyncStatus } from "./db";
+import {
+  db,
+  getBootstrapCache,
+  makeLocalId,
+  queueFuelLog,
+  queueOperation,
+  saveBootstrapCache,
+  getCurrentIdentityScope,
+  type SyncStatus,
+} from "./db";
+import { loadStateLabel, tripStatusLabel } from "./labels";
 import { processSyncQueue } from "./sync";
 import { PairingView } from "./views/PairingView";
-import { TripStartView } from "./views/TripStartView";
-import { LoadPermitView } from "./views/LoadPermitView";
-import { CargoManifestView } from "./views/CargoManifestView";
 import { TripStopView } from "./views/TripStopView";
 import { DeliveryProofView } from "./views/DeliveryProofView";
+import { TripsView } from "./views/TripsView";
+import { RecordsView } from "./views/RecordsView";
 import { useNetworkStatus } from "./hooks/useNetworkStatus";
 import { useSyncStatus } from "./hooks/useSyncStatus";
-import { SyncStatusBanner } from "./components/SyncStatusBanner";
+import {
+  activateWaitingServiceWorker,
+  SyncStatusBanner,
+} from "./components/SyncStatusBanner";
+import { SyncIssuesPanel } from "./components/SyncIssuesPanel";
+import { purgeDriverIdentity } from "./identity";
 
 type View =
   | "dashboard"
   | "checklist"
   | "fuel"
-  | "load_permit"
-  | "cargo_manifest"
   | "trip_stop"
   | "delivery_proof"
-  | "new_trip";
+  | "trips"
+  | "records"
+  | "more";
 
 type ChecklistResponseState = Record<string, { value: boolean; photo?: File }>;
 
@@ -61,6 +83,8 @@ function initialChecklistResponses(template: ChecklistTemplate): ChecklistRespon
 export function App() {
   const [auth, setAuth] = useState<AuthState | null>(getAuth);
   const [view, setView] = useState<View>("dashboard");
+  const [tripMode, setTripMode] = useState<"assigned" | "history">("assigned");
+  const [readRefresh, setReadRefresh] = useState(0);
   const [activeTrip, setActiveTrip] = useState<ActiveTrip | null>(null);
   const [checklistTemplate, setChecklistTemplate] = useState<ChecklistTemplate | null>(null);
   const [checklistResponses, setChecklistResponses] = useState<ChecklistResponseState>({});
@@ -68,9 +92,13 @@ export function App() {
   const [pendingCount, setPendingCount] = useState(0);
   const [lastMessage, setLastMessage] = useState("A carregar...");
   const [syncing, setSyncing] = useState(false);
+  const [logoutState, setLogoutState] = useState<
+    "idle" | "purging" | "failed"
+  >("idle");
+  const syncLock = useRef(false);
 
   const { isOnline } = useNetworkStatus();
-  const syncStatus = useSyncStatus(isOnline, syncing);
+  const syncStatus = useSyncStatus(isOnline, syncing, auth?.sessionId);
 
   useEffect(() => {
     if (!auth) return;
@@ -78,22 +106,68 @@ export function App() {
     void refreshPendingCount();
   }, [auth]);
 
+  useEffect(() => {
+    if (!auth || !isOnline) return;
+    void syncNow();
+    const interval = window.setInterval(() => {
+      void syncNow();
+    }, 30_000);
+    return () => window.clearInterval(interval);
+  }, [auth, isOnline]);
+
+  function applyBootstrap(data: BootstrapData) {
+    setActiveTrip(data.activeTrip);
+    if (data.checklistTemplates[0]) {
+      setChecklistTemplate(data.checklistTemplates[0]);
+      setChecklistResponses(initialChecklistResponses(data.checklistTemplates[0]));
+    } else {
+      setChecklistTemplate(null);
+      setChecklistResponses({});
+    }
+  }
+
   async function loadBootstrap() {
+    if (!auth) return;
     try {
       const data = await bootstrap();
-      setActiveTrip(data.activeTrip);
-      if (data.checklistTemplates[0]) {
-        setChecklistTemplate(data.checklistTemplates[0]);
-        setChecklistResponses(initialChecklistResponses(data.checklistTemplates[0]));
-      }
+      applyBootstrap(data);
+      await saveBootstrapCache(
+        auth.tenantId,
+        auth.driverId,
+        auth.sessionId,
+        data,
+      );
       setLastMessage(data.activeTrip ? "Viagem activa carregada." : "Sem viagem activa.");
     } catch {
-      setLastMessage("Sem rede — a trabalhar offline.");
+      const cached = await getBootstrapCache<BootstrapData>(
+        auth.tenantId,
+        auth.driverId,
+        auth.sessionId,
+      );
+      if (cached) {
+        applyBootstrap(cached.data);
+        setLastMessage(
+          `Modo offline — dados guardados em ${new Date(cached.cachedAt).toLocaleString("pt-MZ")}.`,
+        );
+      } else {
+        setActiveTrip(null);
+        setChecklistTemplate(null);
+        setLastMessage("Sem rede e sem dados locais para este motorista.");
+      }
     }
   }
 
   async function refreshPendingCount() {
-    const count = await db.syncQueue.count();
+    const scope = getCurrentIdentityScope();
+    const count = scope
+      ? await db.syncQueue
+          .filter((item) =>
+            item.tenantId === scope.tenantId &&
+            item.driverId === scope.driverId &&
+            item.sessionId === scope.sessionId
+          )
+          .count()
+      : 0;
     setPendingCount(count);
   }
 
@@ -105,8 +179,11 @@ export function App() {
     fieldKey?: string
   ) {
     if (!file) return undefined;
+    const scope = getCurrentIdentityScope();
+    if (!scope) throw new Error("driver_identity_scope_missing");
     const localId = makeLocalId(fileType);
     await db.photoQueue.add({
+      ...scope,
       localId,
       entityType,
       entityLocalId,
@@ -139,7 +216,7 @@ export function App() {
       return;
     }
     if (!activeTrip) {
-      setLastMessage("Não há viagem activa. Crie uma viagem primeiro.");
+      setLastMessage("Não há viagem atribuída. Contacte o gestor de frota.");
       return;
     }
 
@@ -211,23 +288,84 @@ export function App() {
   }
 
   async function syncNow() {
-    if (!auth) return;
+    if (!auth || syncLock.current || !isOnline) return;
+    syncLock.current = true;
     setSyncing(true);
     setLastMessage("A sincronizar...");
-    await processSyncQueue(auth.accessToken);
-    await refreshPendingCount();
-    setSyncing(false);
-    setLastMessage("Sincronização concluída.");
+    try {
+      await processSyncQueue(auth.accessToken);
+      await refreshPendingCount();
+      // Sincronizar também tem de reler o que o gestor publicou entretanto:
+      // documentos emitidos, requisitos e estado das viagens atribuídas.
+      setReadRefresh((token) => token + 1);
+      setLastMessage("Sincronização concluída.");
+    } catch {
+      setLastMessage("Sincronização interrompida; os registos locais foram preservados.");
+    } finally {
+      syncLock.current = false;
+      setSyncing(false);
+    }
   }
 
-  function handleLogout() {
-    clearAuth();
+  async function handleLogout() {
+    setLogoutState("purging");
     setAuth(null);
     setActiveTrip(null);
+    setChecklistTemplate(null);
+    setChecklistResponses({});
+    setFuelForm(initialFuelForm);
+    setPendingCount(0);
+    setView("dashboard");
+    try {
+      await purgeDriverIdentity();
+      setLogoutState("idle");
+    } catch {
+      setLogoutState("failed");
+    }
+  }
+
+  if (logoutState !== "idle") {
+    return (
+      <main className="phone-shell">
+        <section className="panel identity-purge">
+          <h1>Protecção da sessão</h1>
+          {logoutState === "purging" ? (
+            <p>A remover os dados locais do motorista anterior…</p>
+          ) : (
+            <>
+              <p>
+                Não foi possível confirmar a limpeza completa. O novo
+                emparelhamento permanece bloqueado.
+              </p>
+              <button
+                className="primary-action"
+                type="button"
+                onClick={() => void handleLogout()}
+              >
+                Tentar novamente
+              </button>
+            </>
+          )}
+        </section>
+      </main>
+    );
   }
 
   if (!auth) {
-    return <PairingView onPaired={(a) => setAuth(a)} />;
+    const waitingUpdate =
+      syncStatus.bannerState === "update_available"
+        ? syncStatus.workboxInstance
+        : null;
+    return (
+      <PairingView
+        onPaired={(a) => setAuth(a)}
+        onUpdate={
+          waitingUpdate
+            ? () => activateWaitingServiceWorker(waitingUpdate)
+            : undefined
+        }
+      />
+    );
   }
 
   const tripId = activeTrip?.id ?? "local_trip";
@@ -243,68 +381,52 @@ export function App() {
           <button className="icon-btn" aria-label="Sincronizar" onClick={syncNow} disabled={syncing}>
             <RefreshCw size={20} className={syncing ? "spin" : ""} />
           </button>
-          <button className="icon-btn" aria-label="Sair" onClick={handleLogout} title="Sair">
+          <button className="icon-btn" aria-label="Sair" onClick={() => void handleLogout()} title="Sair">
             <LogOut size={18} />
           </button>
         </div>
       </header>
 
-      {activeTrip ? (
+      {view !== "trips" && view !== "records" && view !== "more" && (activeTrip ? (
         <section className="status-card">
           <div>
             <p>Viagem activa</p>
             <strong>{activeTrip.origin} → {activeTrip.destination}</strong>
           </div>
-          <span className={`status-badge ${activeTrip.billing_status}`}>
-            {activeTrip.load_state ?? activeTrip.status}
+          <span className={`status-badge ${activeTrip.status}`}>
+            {activeTrip.load_state
+              ? loadStateLabel(activeTrip.load_state)
+              : tripStatusLabel(activeTrip.status)}
           </span>
         </section>
       ) : (
         <section className="status-card status-card--empty">
-          <p>Sem viagem activa</p>
-          <button className="small-btn" onClick={() => setView("new_trip")}>
-            <Truck size={14} /> Nova viagem
-          </button>
+          <div>
+            <p>Sem viagem atribuída</p>
+            <strong>As novas viagens são atribuídas pelo gestor de frota.</strong>
+          </div>
         </section>
-      )}
+      ))}
 
       {view === "dashboard" && (
         <section className="actions" aria-label="Acções da viagem">
-          <button type="button" onClick={() => setView("checklist")} disabled={!checklistTemplate}>
+          <button type="button" onClick={() => setView("checklist")} disabled={!activeTrip || !checklistTemplate}>
             <CheckCircle2 />
             Checklist
           </button>
-          <button type="button" onClick={() => setView("fuel")}>
+          <button type="button" onClick={() => setView("fuel")} disabled={!activeTrip}>
             <ReceiptText />
             Combustível
           </button>
-          <button type="button" onClick={() => setView("load_permit")}>
-            <FileText />
-            Load Permit
-          </button>
-          <button type="button" onClick={() => setView("cargo_manifest")}>
-            <Truck />
-            Manifesto
-          </button>
-          <button type="button" onClick={() => setView("delivery_proof")}>
+          <button type="button" onClick={() => setView("delivery_proof")} disabled={!activeTrip}>
             <Camera />
             Descarga
           </button>
-          <button type="button" onClick={() => setView("trip_stop")}>
+          <button type="button" onClick={() => setView("trip_stop")} disabled={!activeTrip}>
             <MapPin />
             Paragem
           </button>
         </section>
-      )}
-
-      {view === "new_trip" && (
-        <TripStartView
-          onTripCreated={(trip) => {
-            setActiveTrip(trip);
-            setView("dashboard");
-            setLastMessage(`Viagem ${trip.origin} → ${trip.destination} criada.`);
-          }}
-        />
       )}
 
       {view === "checklist" && checklistTemplate && (
@@ -327,20 +449,6 @@ export function App() {
         />
       )}
 
-      {view === "load_permit" && (
-        <LoadPermitView
-          tripLocalId={tripId}
-          onSaved={() => { void refreshPendingCount(); setLastMessage("Load Permit guardado."); setView("dashboard"); }}
-        />
-      )}
-
-      {view === "cargo_manifest" && (
-        <CargoManifestView
-          tripLocalId={tripId}
-          onSaved={() => { void refreshPendingCount(); setLastMessage("Manifesto guardado."); setView("dashboard"); }}
-        />
-      )}
-
       {view === "trip_stop" && (
         <TripStopView
           tripLocalId={tripId}
@@ -355,9 +463,87 @@ export function App() {
         />
       )}
 
-      {view === "dashboard" && <BillingPanel trip={activeTrip} />}
+      {view === "trips" && (
+        <section className="journeys-workspace">
+          <div className="journey-switcher" aria-label="Tipo de viagens">
+            <button type="button" className={tripMode === "assigned" ? "selected" : ""} onClick={() => setTripMode("assigned")}>Atribuídas</button>
+            <button type="button" className={tripMode === "history" ? "selected" : ""} onClick={() => setTripMode("history")}>Histórico</button>
+          </div>
+          <TripsView mode={tripMode} refreshToken={readRefresh} onBack={() => setView("dashboard")} />
+        </section>
+      )}
 
-      <SyncStatusBanner status={syncStatus} />
+      {view === "records" && (
+        <RecordsView refreshToken={readRefresh} />
+      )}
+
+      {view === "more" && (
+        <section className="more-workspace" aria-labelledby="more-title">
+          <div className="workspace-heading">
+            <span>Conta e aplicação</span>
+            <h2 id="more-title">Mais</h2>
+            <p>Sincronização, dispositivo e sessão deste motorista.</p>
+          </div>
+          <div className="more-card">
+            <span>Dispositivo emparelhado</span>
+            <strong>{auth.deviceId}</strong>
+          </div>
+          <div className="more-card">
+            <span>Operações por sincronizar</span>
+            <strong>{pendingCount}</strong>
+          </div>
+          <button className="more-action" type="button" onClick={() => void syncNow()} disabled={syncing || !isOnline}>
+            <RefreshCw size={20} className={syncing ? "spin" : ""} />
+            {syncing ? "A sincronizar…" : "Sincronizar agora"}
+          </button>
+          <button className="more-action more-action--danger" type="button" onClick={() => void handleLogout()}>
+            <LogOut size={20} /> Terminar sessão
+          </button>
+        </section>
+      )}
+
+      {view === "dashboard" && syncStatus.errorCount > 0 && (
+        <SyncIssuesPanel refreshToken={readRefresh} onChanged={() => void refreshPendingCount()} />
+      )}
+
+      <SyncStatusBanner status={syncStatus} onRePair={() => void handleLogout()} />
+
+      {(view === "dashboard" || view === "trips" || view === "records" || view === "more") && (
+      <nav className="driver-nav" aria-label="Navegação principal">
+        <button
+          type="button"
+          className={view === "dashboard" ? "active" : ""}
+          onClick={() => setView("dashboard")}
+          aria-current={view === "dashboard" ? "page" : undefined}
+        >
+          <Home size={20} /> Hoje
+        </button>
+        <button
+          type="button"
+          className={view === "trips" ? "active" : ""}
+          onClick={() => setView("trips")}
+          aria-current={view === "trips" ? "page" : undefined}
+        >
+          <ClipboardList size={20} /> Viagens
+        </button>
+        <button
+          type="button"
+          className={view === "records" ? "active" : ""}
+          onClick={() => setView("records")}
+          aria-current={view === "records" ? "page" : undefined}
+        >
+          <NotebookTabs size={20} /> Registos
+        </button>
+        <button
+          type="button"
+          className={view === "more" ? "active" : ""}
+          onClick={() => setView("more")}
+          aria-current={view === "more" ? "page" : undefined}
+        >
+          <MoreHorizontal size={20} /> Mais
+        </button>
+      </nav>
+      )}
     </main>
   );
 }
@@ -467,35 +653,6 @@ function FuelPanel({
         <button className="primary-action" type="submit"><Save size={18} /> Guardar</button>
       </form>
       <p className={statusClassName(latestStatus)}>{latestStatus}</p>
-    </section>
-  );
-}
-
-// ── BillingPanel ────────────────────────────────────────────────
-
-function BillingPanel({ trip }: { trip: ActiveTrip | null }) {
-  if (!trip) return null;
-  const steps = ["Carga", "Viagem", "Descarga", "Cobrança"];
-  const doneIndex =
-    trip.billing_status === "billed" ? 4 :
-    trip.billing_status === "billable" ? 3 :
-    trip.billing_status === "pending_delivery_validation" ? 2 :
-    trip.billing_status === "pending_delivery_proof" ? 1 : 0;
-
-  return (
-    <section className="panel">
-      <h2>Estado de cobrança</h2>
-      <div className="progress">
-        {steps.map((step, i) => (
-          <span key={step} className={i < doneIndex ? "done" : ""}>{step}</span>
-        ))}
-      </div>
-      <p className="billing-status-text">{
-        trip.billing_status === "pending_delivery_proof" ? "Pendente: falta prova de descarga" :
-        trip.billing_status === "pending_delivery_validation" ? "A aguardar validação da descarga" :
-        trip.billing_status === "billable" ? "Pronto para cobrança" :
-        trip.billing_status === "billed" ? "Cobrado" : trip.billing_status
-      }</p>
     </section>
   );
 }

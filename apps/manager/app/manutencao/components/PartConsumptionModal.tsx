@@ -13,11 +13,6 @@ interface Props {
   vehicles: { id: string; plate: string }[];
 }
 
-function getApiBase() {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("rotas_api_base_url") ?? (process.env.NEXT_PUBLIC_ROTAS_API_BASE_URL ?? "");
-}
-
 export function PartConsumptionModal({ part, warehouses, vehicles }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);

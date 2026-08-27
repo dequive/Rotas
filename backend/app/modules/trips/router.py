@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, R
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.cache import invalidate_tenant_caches
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
@@ -22,7 +22,7 @@ from app.modules.vehicles.models import Vehicle
 router = APIRouter(prefix="/trips", tags=["trips"])
 
 
-@router.get("")
+@router.get("", response_model=list[schemas.TripResponse])
 async def list_trips(
     request: Request,
     principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
@@ -67,7 +67,7 @@ async def list_trips(
     return result
 
 
-@router.post("")
+@router.post("", response_model=schemas.TripResponse)
 async def create_trip(
     request: Request,
     payload: schemas.TripCreate,
@@ -92,8 +92,6 @@ async def create_trip(
     )
     await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
     return res
-
-
 @router.post("/sla/evaluate")
 async def evaluate_delivery_sla(
     principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
@@ -106,7 +104,7 @@ async def evaluate_delivery_sla(
     )
 
 
-@router.post("/{trip_id}/start")
+@router.post("/{trip_id}/start", response_model=schemas.TripResponse)
 async def start_trip(
     request: Request,
     trip_id: UUID,
@@ -135,7 +133,10 @@ async def start_trip(
     return res
 
 
-@router.post("/{trip_id}/dispatch-clearance/request")
+@router.post(
+    "/{trip_id}/dispatch-clearance/request",
+    response_model=schemas.DispatchClearanceResponse,
+)
 async def request_dispatch_clearance(
     request: Request,
     trip_id: UUID,
@@ -152,7 +153,10 @@ async def request_dispatch_clearance(
     return res
 
 
-@router.get("/dispatch-clearances")
+@router.get(
+    "/dispatch-clearances",
+    response_model=list[schemas.DispatchClearanceResponse],
+)
 async def list_dispatch_clearances(
     principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -171,7 +175,10 @@ async def list_dispatch_clearances(
     )
 
 
-@router.post("/{trip_id}/dispatch-clearance/approve")
+@router.post(
+    "/{trip_id}/dispatch-clearance/approve",
+    response_model=schemas.DispatchClearanceResponse,
+)
 async def approve_dispatch_clearance(
     request: Request,
     trip_id: UUID,
@@ -200,7 +207,7 @@ async def approve_dispatch_clearance(
     return res
 
 
-@router.post("/{trip_id}/dispatch")
+@router.post("/{trip_id}/dispatch", response_model=schemas.TripDispatchResponse)
 async def dispatch_trip(
     request: Request,
     trip_id: UUID,
@@ -396,7 +403,7 @@ async def associate_contract(
     return res
 
 
-@router.post("/{trip_id}/costs")
+@router.post("/{trip_id}/costs", response_model=schemas.TripCostRead)
 async def create_cost(
     request: Request,
     trip_id: UUID,
@@ -411,7 +418,45 @@ async def create_cost(
     return res
 
 
-@router.post("/{trip_id}/driver-despacho")
+@router.post(
+    "/{trip_id}/costs/{cost_id}/corrections",
+    response_model=schemas.TripCostRead,
+    status_code=201,
+)
+async def correct_cost(
+    request: Request,
+    trip_id: UUID,
+    cost_id: UUID,
+    payload: schemas.TripCostCorrectionCreate,
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+):
+    res = await execute_http_idempotent(
+        db,
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        idempotency_key=idempotency_key,
+        operation="trips.cost.correction.create",
+        entity_type="trip_cost",
+        payload={"trip_id": trip_id, "cost_id": cost_id, **payload.model_dump()},
+        handler=lambda: service.correct_cost(
+            db,
+            principal.tenant_id,
+            trip_id,
+            cost_id,
+            payload,
+            actor_id=principal.user_id,
+        ),
+    )
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res
+
+
+@router.post(
+    "/{trip_id}/driver-despacho",
+    response_model=schemas.TripDriverAllowanceResponse,
+)
 async def record_driver_travel_allowance(
     request: Request,
     trip_id: UUID,
@@ -440,7 +485,7 @@ async def record_driver_travel_allowance(
     return res
 
 
-@router.get("/{trip_id}/costs")
+@router.get("/{trip_id}/costs", response_model=list[schemas.TripCostRead])
 async def list_costs(
     trip_id: UUID,
     principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
@@ -449,7 +494,7 @@ async def list_costs(
     return await service.list_costs(db, principal.tenant_id, trip_id)
 
 
-@router.post("/{trip_id}/complete")
+@router.post("/{trip_id}/complete", response_model=schemas.TripResponse)
 async def complete_trip(
     request: Request,
     trip_id: UUID,
@@ -478,7 +523,7 @@ async def complete_trip(
     return res
 
 
-@router.post("/{trip_id}/close")
+@router.post("/{trip_id}/close", response_model=schemas.TripResponse)
 async def operational_close_trip(
     request: Request,
     trip_id: UUID,
@@ -574,3 +619,14 @@ async def patch_trip(
     await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
     return res
 
+
+@router.post("/{trip_id}/optimize-route")
+async def optimize_trip_route(
+    request: Request,
+    trip_id: UUID,
+    principal: Annotated[Principal, Depends(require_permission(TRIPS_DISPATCH))],
+    db: Annotated[AsyncSession, Depends(get_session)],
+):
+    res = await service.optimize_trip_route(db, principal.tenant_id, trip_id, actor_id=principal.user_id)
+    await invalidate_tenant_caches(getattr(request.app.state, "redis", None), principal.tenant_id)
+    return res

@@ -76,6 +76,37 @@ async def create_trip(client: httpx.AsyncClient, headers: dict[str, str], vehicl
     return response.json()
 
 
+async def authorize_and_dispatch_trip(
+    client: httpx.AsyncClient, headers: dict[str, str], trip_id: str
+) -> None:
+    requested = await client.post(
+        f"/api/v1/trips/{trip_id}/dispatch-clearance/request",
+        headers=headers,
+    )
+    assert requested.status_code == 200
+    approved = await client.post(
+        f"/api/v1/trips/{trip_id}/dispatch-clearance/approve",
+        headers=headers,
+        json={
+            "vehicle_checked": True,
+            "driver_checked": True,
+            "documents_checked": True,
+            "load_permit_checked": True,
+            "cargo_checked": True,
+            "fuel_advance_checked": True,
+            "route_risk_checked": True,
+        },
+    )
+    assert approved.status_code == 200
+    assert approved.json()["clearance_status"] == "approved"
+    dispatched = await client.post(
+        f"/api/v1/trips/{trip_id}/dispatch",
+        headers=headers,
+        json={"notes": "Despacho autorizado para fecho operacional"},
+    )
+    assert dispatched.status_code == 200
+
+
 @pytest.mark.asyncio
 async def test_operational_close_requires_validated_pod_or_waiver() -> None:
     try:
@@ -83,6 +114,7 @@ async def test_operational_close_requires_validated_pod_or_waiver() -> None:
         async with await create_api_client() as client:
             headers = auth_headers(tenant_id)
             trip = await create_trip(client, headers, vehicle_id, driver_id)
+            await authorize_and_dispatch_trip(client, headers, trip["id"])
 
             start_response = await client.post(
                 f"/api/v1/trips/{trip['id']}/start",
@@ -208,6 +240,7 @@ async def test_operational_close_blocks_open_high_incident_and_allows_no_pod_wai
         async with await create_api_client() as client:
             headers = auth_headers(tenant_id)
             trip = await create_trip(client, headers, vehicle_id, driver_id)
+            await authorize_and_dispatch_trip(client, headers, trip["id"])
 
             start_response = await client.post(
                 f"/api/v1/trips/{trip['id']}/start",

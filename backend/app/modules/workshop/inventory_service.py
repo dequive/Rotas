@@ -23,7 +23,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select, or_
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
@@ -34,15 +34,13 @@ from app.modules.workshop.models import (
     CoreReturnItem,
     MaintenancePartUsed,
     PartReservation,
-    WorkshopPurchaseOrder,
-    WorkshopPurchaseOrderItem,
     SparePartInventory,
     SparePartMovement,
-    SparePartRequisition,
     WorkOrder,
-    WorkOrderTask,
+    WorkshopPurchaseOrder,
+    WorkshopPurchaseOrderItem,
 )
-from app.modules.workshop.quote_models import WorkshopQuote, WorkshopQuoteItem
+from app.modules.workshop.quote_models import WorkshopQuoteItem
 
 
 async def get_available_stock(
@@ -210,7 +208,8 @@ async def issue_parts_for_work_order(
     if inv.current_quantity < quantity_requested:
         raise ApiError(
             "insufficient_stock",
-            f"Physical stock insufficient ({inv.current_quantity} {inv.unit} available, {quantity_requested} requested).",
+            "Physical stock insufficient "
+            f"({inv.current_quantity} {inv.unit} available, {quantity_requested} requested).",
             status_code=409,
         )
 
@@ -310,6 +309,7 @@ async def issue_parts_for_work_order(
         quantity=quantity_requested,
         unit_cost=unit_cost,
         total_cost=total_cost,
+        net_total_cost=total_cost,
         issued_by=actor_id,
         issued_at=now,
         notes=notes,
@@ -373,18 +373,21 @@ async def return_part_from_work_order(
     if wo.status in ("closed", "cancelled"):
         raise ApiError(
             "work_order_already_billed",
-            f"Cannot return parts for a work order in status '{wo.status}'. Retifications must be handled via fiscal credit notes.",
+            f"Cannot return parts for a work order in status '{wo.status}'. "
+            "Rectifications must be handled via fiscal credit notes.",
             status_code=409,
         )
 
     # Verificar se já existe fatura emitida para a OS
     existing_billed = await db.scalar(
-        select(BillingDocument.id).where(
+        select(BillingDocument.id)
+        .where(
             BillingDocument.tenant_id == tenant_id,
             BillingDocument.document_source == "workshop",
             BillingDocument.status.in_(("issued", "paid")),
             BillingDocument.contract_reference == wo.work_order_number,
-        ).limit(1)
+        )
+        .limit(1)
     )
     if existing_billed:
         raise ApiError(
@@ -392,6 +395,45 @@ async def return_part_from_work_order(
             "Cannot return parts for an issued/paid invoice. Retifications must be handled via fiscal credit notes.",
             status_code=409,
         )
+
+    # Lock issue rows so concurrent returns cannot exceed net consumption.
+    usage_result = await db.execute(
+        select(MaintenancePartUsed)
+        .where(
+            MaintenancePartUsed.tenant_id == tenant_id,
+            MaintenancePartUsed.work_order_id == work_order_id,
+            MaintenancePartUsed.inventory_id == inventory_id,
+        )
+        .order_by(MaintenancePartUsed.issued_at.asc(), MaintenancePartUsed.id.asc())
+        .with_for_update()
+    )
+    usages = list(usage_result.scalars().all())
+    net_issued = sum(
+        (usage.quantity - (usage.returned_quantity or Decimal("0"))) for usage in usages
+    )
+    if quantity_to_return > net_issued:
+        raise ApiError(
+            "return_exceeds_net_issued",
+            "Returned quantity exceeds the quantity still consumed by this work order.",
+            status_code=409,
+            details={"net_issued": str(net_issued), "requested_return": str(quantity_to_return)},
+        )
+
+    remaining = quantity_to_return
+    returned_cost = Decimal("0")
+    for usage in usages:
+        available = usage.quantity - (usage.returned_quantity or Decimal("0"))
+        if available <= 0 or remaining <= 0:
+            continue
+        applied = min(available, remaining)
+        unit_cost_at_issue = usage.unit_cost or Decimal("0")
+        usage.returned_quantity = (usage.returned_quantity or Decimal("0")) + applied
+        usage.net_total_cost = (
+            (usage.quantity - usage.returned_quantity) * unit_cost_at_issue
+        ).quantize(Decimal("0.01"))
+        returned_cost += applied * unit_cost_at_issue
+        remaining -= applied
+    returned_cost = returned_cost.quantize(Decimal("0.01"))
 
     # Lock FOR UPDATE on inventory item
     inv = await db.scalar(
@@ -407,8 +449,8 @@ async def return_part_from_work_order(
 
     now = datetime.now(UTC)
     inv.current_quantity = (inv.current_quantity + quantity_to_return).quantize(Decimal("0.001"))
-    unit_cost = inv.average_unit_cost
-    total_cost = (quantity_to_return * unit_cost).quantize(Decimal("0.01"))
+    unit_cost = (returned_cost / quantity_to_return).quantize(Decimal("0.01"))
+    total_cost = returned_cost
     req_ref = f"RETURN-WO-{wo.id.hex[:8]}-{now.strftime('%H%M%S')}"
 
     movement = SparePartMovement(
@@ -450,6 +492,8 @@ async def return_part_from_work_order(
         "movement_id": movement.id,
         "quantity_returned": float(quantity_to_return),
         "current_stock": float(inv.current_quantity),
+        "net_quantity_remaining": float(net_issued - quantity_to_return),
+        "returned_cost": float(returned_cost),
     }
 
 
@@ -625,20 +669,22 @@ async def get_reorder_suggestions(
             )
             backorder_rows = list(backorders_res.scalars().all())
 
-            suggestions.append({
-                "inventory_id": item.id,
-                "sku": item.sku,
-                "name": item.name,
-                "unit": item.unit,
-                "current_quantity": float(item.current_quantity),
-                "available_stock": float(avail),
-                "minimum_quantity": float(item.minimum_quantity),
-                "reorder_quantity": item.reorder_quantity or 10,
-                "lead_time_days": item.lead_time_days,
-                "supplier_name": item.supplier_name,
-                "backorders_count": len(backorder_rows),
-                "blocked_work_order_ids": [str(b.work_order_id) for b in backorder_rows if b.work_order_id],
-            })
+            suggestions.append(
+                {
+                    "inventory_id": item.id,
+                    "sku": item.sku,
+                    "name": item.name,
+                    "unit": item.unit,
+                    "current_quantity": float(item.current_quantity),
+                    "available_stock": float(avail),
+                    "minimum_quantity": float(item.minimum_quantity),
+                    "reorder_quantity": item.reorder_quantity or 10,
+                    "lead_time_days": item.lead_time_days,
+                    "supplier_name": item.supplier_name,
+                    "backorders_count": len(backorder_rows),
+                    "blocked_work_order_ids": [str(b.work_order_id) for b in backorder_rows if b.work_order_id],
+                }
+            )
 
     return suggestions
 

@@ -75,6 +75,7 @@ export function SettingsClient({
   // ── Acessos tab state ─────────────────────────────────────────────────────
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
+  const [invitePassword, setInvitePassword] = useState("");
   const [inviteRole, setInviteRole] = useState("viewer");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -116,11 +117,17 @@ export function SettingsClient({
     setInviteLoading(true);
     setInviteError(null);
     setInviteSuccess(null);
-    const result = await inviteUser({ email: inviteEmail, full_name: inviteName, role: inviteRole });
+    const result = await inviteUser({
+      email: inviteEmail,
+      full_name: inviteName,
+      password: invitePassword,
+      role: inviteRole,
+    });
     if (result.ok) {
-      setInviteSuccess("Utilizador convidado com sucesso!");
+      setInviteSuccess("Utilizador criado com sucesso!");
       setInviteEmail("");
       setInviteName("");
+      setInvitePassword("");
       setInviteRole("viewer");
       router.refresh();
     } else {
@@ -212,7 +219,7 @@ export function SettingsClient({
                     <label className="text-[12px] font-semibold text-muted uppercase tracking-wide">Nome Completo</label>
                     <input
                       type="text"
-                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-amber"
+                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
@@ -222,7 +229,7 @@ export function SettingsClient({
                     <label className="text-[12px] font-semibold text-muted uppercase tracking-wide">Email</label>
                     <input
                       type="email"
-                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-amber"
+                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -232,7 +239,7 @@ export function SettingsClient({
                     <label className="text-[12px] font-semibold text-muted uppercase tracking-wide">Telefone</label>
                     <input
                       type="text"
-                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-amber"
+                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="Ex: +258 84..."
@@ -328,7 +335,7 @@ export function SettingsClient({
                           router.refresh();
                           setRoleChangingId(null);
                         }}
-                        className="h-8 px-2 text-[12px] border border-border rounded-md bg-surface focus:outline-none focus:border-amber disabled:opacity-50"
+                        className="h-8 px-2 text-[12px] border border-border rounded-md bg-surface focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft disabled:opacity-50"
                       >
                         {["owner", "admin", "manager", "viewer"].map((r) => (
                           <option key={r} value={r}>{r}</option>
@@ -343,7 +350,7 @@ export function SettingsClient({
             {/* Invite form — only owner/admin */}
             {(userRole === "owner" || userRole === "admin") && (
               <section className="bg-surface border border-border rounded-lg p-5">
-                <SectionHeader title="Convidar Utilizador" />
+                <SectionHeader title="Criar Utilizador" />
                 <form onSubmit={handleInviteUser} className="mt-4 space-y-3">
                   {inviteError && (
                     <div className="p-3 bg-error-bg text-error rounded-md text-xs font-semibold">
@@ -362,7 +369,7 @@ export function SettingsClient({
                       value={inviteName}
                       onChange={(e) => setInviteName(e.target.value)}
                       required
-                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink placeholder:text-placeholder focus:outline-none focus:border-amber"
+                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink placeholder:text-placeholder focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                     />
                     <input
                       type="email"
@@ -370,12 +377,26 @@ export function SettingsClient({
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
                       required
-                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink placeholder:text-placeholder focus:outline-none focus:border-amber"
+                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink placeholder:text-placeholder focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
+                    />
+                    <label className="sr-only" htmlFor="temporary-user-password">
+                      Palavra-passe temporária
+                    </label>
+                    <input
+                      id="temporary-user-password"
+                      type="password"
+                      placeholder="Palavra-passe temporária"
+                      value={invitePassword}
+                      onChange={(e) => setInvitePassword(e.target.value)}
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink placeholder:text-placeholder focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                     />
                     <select
                       value={inviteRole}
                       onChange={(e) => setInviteRole(e.target.value)}
-                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-amber"
+                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                     >
                       <option value="viewer">Viewer</option>
                       <option value="manager">Manager</option>
@@ -386,7 +407,7 @@ export function SettingsClient({
                       disabled={inviteLoading}
                       className="h-10 px-4 text-[13px] font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity duration-75 disabled:opacity-50"
                     >
-                      {inviteLoading ? "A convidar..." : "Convidar"}
+                      {inviteLoading ? "A criar..." : "Criar utilizador"}
                     </button>
                   </div>
                 </form>
@@ -418,7 +439,7 @@ export function SettingsClient({
                     <select
                       value={timezone}
                       onChange={(e) => setTimezone(e.target.value)}
-                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-amber"
+                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                     >
                       <option value="Africa/Maputo">Africa/Maputo (UTC+2)</option>
                       <option value="UTC">UTC</option>
@@ -429,7 +450,7 @@ export function SettingsClient({
                     <select
                       value={currency}
                       onChange={(e) => setCurrency(e.target.value)}
-                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-amber"
+                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                     >
                       <option value="MZN">MZN — Metical Moçambicano</option>
                       <option value="USD">USD — Dólar</option>
@@ -444,7 +465,7 @@ export function SettingsClient({
                       value={whatsapp}
                       onChange={(e) => setWhatsapp(e.target.value)}
                       placeholder="+258 84 ..."
-                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink placeholder:text-placeholder focus:outline-none focus:border-amber"
+                      className="h-10 px-3 bg-surface border border-border rounded-md text-[14px] text-ink placeholder:text-placeholder focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
                     />
                   </div>
                 </div>

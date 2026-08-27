@@ -35,7 +35,7 @@ async def list_tenants(
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[dict]:
     """List all tenants. Accessible by all platform roles."""
-    return await service.list_tenants(db, actor_id=principal.user_id, actor_role=principal.role)
+    return await service.list_tenants(db)
 
 
 @router.get("/tenants/{tenant_id}")
@@ -48,9 +48,7 @@ async def get_tenant(
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
     """Get tenant detail. platform_support reads are logged to platform_audit_logs."""
-    return await service.get_tenant_detail(
-        db, tenant_id, actor_id=principal.user_id, actor_role=principal.role
-    )
+    return await service.get_tenant_detail(db, tenant_id, actor=principal)
 
 
 @router.patch("/tenants/{tenant_id}/plan")

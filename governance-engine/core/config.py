@@ -28,8 +28,29 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _validate_production(self) -> "Settings":
         if self.environment == "production":
-            if self.platform_admin_key.get_secret_value() == "dev-platform-key-change-me":
-                raise ValueError("PLATFORM_ADMIN_KEY must be set in production.")
+            if (
+                self.platform_admin_key.get_secret_value() == "dev-platform-key-change-me"
+                or len(self.platform_admin_key.get_secret_value()) < 32
+            ):
+                raise ValueError(
+                    "PLATFORM_ADMIN_KEY must contain at least 32 non-default characters "
+                    "in production."
+                )
+            if self.jwt_secret_key == "change-me-in-env" or len(self.jwt_secret_key) < 32:
+                raise ValueError(
+                    "JWT_SECRET_KEY must contain at least 32 non-default characters "
+                    "in production."
+                )
+            if "localhost" in self.database_url or "127.0.0.1" in self.database_url:
+                raise ValueError(
+                    "GOVERNANCE_DATABASE_URL must not use localhost in production."
+                )
+            if "*" in self.cors_origins:
+                raise ValueError("CORS_ORIGINS must not contain '*' in production.")
+            if any(not origin.startswith("https://") for origin in self.cors_origins):
+                raise ValueError(
+                    "Every Governance CORS origin must use HTTPS in production."
+                )
         return self
 
     model_config = SettingsConfigDict(

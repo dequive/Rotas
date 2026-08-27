@@ -38,7 +38,12 @@ export default async function RotasConfigPage() {
           <h2 className="text-base font-semibold m-0">Catálogo de destinos</h2>
           <span>{routes.length} rotas</span>
         </div>
-        <div className="table-wrap">
+        <div
+          className="table-wrap"
+          role="region"
+          aria-label="Tabela de destinos"
+          tabIndex={0}
+        >
           <table className="table">
             <thead>
               <tr>

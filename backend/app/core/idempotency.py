@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError
+from app.database import defer_session_commits
 from app.modules.sync.models import IdempotencyKey
 
 IDEMPOTENCY_TTL_DAYS = 30
@@ -43,13 +44,14 @@ async def execute_http_idempotent(
 ) -> dict:
     if not idempotency_key:
         return await handler()
+    owner_device_id = device_id or (f"user:{user_id}" if user_id else None)
     request_hash = canonical_request_hash(
         {"operation": operation, "entity_type": entity_type, "payload": payload}
     )
     reserved = IdempotencyKey(
         tenant_id=tenant_id,
         driver_id=driver_id,
-        device_id=device_id or (f"user:{user_id}" if user_id else None),
+        device_id=owner_device_id,
         idempotency_key=idempotency_key,
         operation=operation,
         entity_type=entity_type,
@@ -58,7 +60,9 @@ async def execute_http_idempotent(
     )
     db.add(reserved)
     try:
-        await db.commit()
+        # Keep the unique reservation in the business transaction. Concurrent
+        # requests wait on this key and replay the committed response.
+        await db.flush()
     except IntegrityError as exc:
         await db.rollback()
         existing = await db.scalar(
@@ -67,6 +71,14 @@ async def execute_http_idempotent(
                 IdempotencyKey.idempotency_key == idempotency_key,
             )
         )
+        if existing and (
+            existing.driver_id != driver_id or existing.device_id != owner_device_id
+        ):
+            raise ApiError(
+                "idempotency_owner_mismatch",
+                "Idempotency key belongs to another actor or device.",
+                status_code=409,
+            ) from exc
         if not existing or existing.request_hash != request_hash:
             raise ApiError(
                 "idempotency_key_reused",
@@ -82,15 +94,17 @@ async def execute_http_idempotent(
         return existing.response_body
 
     try:
-        response = await handler()
-    except ApiError:
-        await db.delete(reserved)
+        # Legacy services still call db.commit(). Inside this use case those
+        # commits become flushes; the real commit happens exactly once below.
+        with defer_session_commits(db):
+            response = await handler()
+        reserved.response_body = jsonable_encoder(response)
+        reserved.status_code = 200
+        entity_id = response.get("id")
+        if entity_id:
+            reserved.entity_id = UUID(str(entity_id))
         await db.commit()
+    except BaseException:
+        await db.rollback()
         raise
-    reserved.response_body = jsonable_encoder(response)
-    reserved.status_code = 200
-    entity_id = response.get("id")
-    if entity_id:
-        reserved.entity_id = UUID(str(entity_id))
-    await db.commit()
     return response

@@ -1,41 +1,77 @@
+import {
+  HttpContractError,
+  ensureIdempotencyKey,
+  getHttpErrorMessage,
+  requestWithPolicy,
+  responseToHttpError,
+  type HttpErrorBody,
+  type HttpPolicy,
+} from "@rotas/http-contract";
+import { redirect } from "next/navigation";
 import { requireSession, refreshAccessToken } from "./auth";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-type ApiErrorBody = {
-  detail?: string;
-  error?: { code?: string; message?: string; details?: unknown };
-};
+const API_BASE =
+  process.env.ROTAS_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://127.0.0.1:8000";
 
 /** Extract a human-readable message from the ROTAS error envelope. */
-export function extractApiError(body: ApiErrorBody, fallback: string): string {
-  if (typeof body.error === "object" && body.error !== null) {
-    if (body.error.message) return body.error.message;
-    if (body.error.code) return body.error.code;
-  }
-  if (typeof body.detail === "string" && body.detail) return body.detail;
-  return fallback;
+export function extractApiError(body: HttpErrorBody, fallback: string): string {
+  return getHttpErrorMessage(body) ?? fallback;
 }
+
+type ApiFetchOptions = RequestInit & {
+  revalidate?: number;
+  policy?: HttpPolicy;
+};
 
 export async function apiFetch<T>(
   path: string,
-  options?: RequestInit & { revalidate?: number }
+  options?: ApiFetchOptions,
 ): Promise<T> {
   const session = await requireSession();
-  const { revalidate, ...rest } = options ?? {};
+  const { revalidate, policy, ...rest } = options ?? {};
+  let requestHeaders = new Headers(rest.headers);
+  if (!requestHeaders.has("Content-Type") && rest.body !== undefined) {
+    requestHeaders.set("Content-Type", "application/json");
+  }
+  const method = (rest.method ?? "GET").toUpperCase();
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+    requestHeaders = ensureIdempotencyKey(requestHeaders);
+  }
 
-  const buildHeaders = (accessToken: string, tenantId: string) => ({
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${accessToken}`,
-    "X-Tenant-Id": tenantId,
-    ...(rest.headers ?? {}),
-  });
+  const buildHeaders = (accessToken: string, tenantId: string) => {
+    const headers = new Headers(requestHeaders);
+    headers.set("Authorization", `Bearer ${accessToken}`);
+    headers.set("X-Tenant-Id", tenantId);
+    return headers;
+  };
 
-  let res = await fetch(`${API_BASE}${path}`, {
-    ...rest,
-    headers: buildHeaders(session.accessToken, session.tenantId),
-    next: revalidate !== undefined ? { revalidate } : undefined,
-  });
+  const fetchBackend = async (
+    accessToken: string,
+    tenantId: string,
+  ): Promise<Response> => {
+    const requestInit = {
+      ...rest,
+      headers: buildHeaders(accessToken, tenantId),
+      next: revalidate !== undefined ? { revalidate } : undefined,
+    };
+    try {
+      return await requestWithPolicy(`${API_BASE}${path}`, requestInit, policy);
+    } catch (error) {
+      const fallbackBase = "http://127.0.0.1:8000";
+      const mayFallback =
+        error instanceof HttpContractError &&
+        error.status === 0 &&
+        !API_BASE.startsWith(fallbackBase);
+      if (mayFallback) {
+        return requestWithPolicy(`${fallbackBase}${path}`, requestInit, policy);
+      }
+      throw error;
+    }
+  };
+
+  let res = await fetchBackend(session.accessToken, session.tenantId);
 
   // AUTH-01: silent token refresh — retry once on 401 before failing
   if (res.status === 401) {
@@ -43,19 +79,17 @@ export async function apiFetch<T>(
     if (newToken) {
       // Retry with the fresh token; cookies are updated by refreshAccessToken()
       const session2 = await requireSession();
-      res = await fetch(`${API_BASE}${path}`, {
-        ...rest,
-        headers: buildHeaders(newToken, session2.tenantId),
-        next: revalidate !== undefined ? { revalidate } : undefined,
-      });
+      res = await fetchBackend(newToken, session2.tenantId);
     }
-    // If refresh failed (newToken = null), fall through to the error below
-    // requireSession() will redirect to /login on the next navigation
+
+    // If token refresh failed or retry still returns 401, redirect cleanly to login
+    if (res.status === 401) {
+      redirect("/login");
+    }
   }
 
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
-    throw new Error(extractApiError(body, `HTTP ${res.status}`));
+    throw await responseToHttpError(res);
   }
   return res.json() as Promise<T>;
 }

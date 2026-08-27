@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Clock, Package, TrendingUp, Truck, User } from "lucide-react";
 import { type ScorecardData, loadDriverScorecard } from "../lib/drivers-api";
+import { StatusBadge } from "./ui/StatusBadge";
 
 interface DriverSlim {
   id: string;
@@ -13,12 +14,11 @@ interface Props {
   drivers: DriverSlim[];
 }
 
-// Tier to CSS badge class mapping (D-09 / UI-SPEC.md)
-const TIER_BADGE: Record<string, { cls: string; label: string }> = {
-  verde: { cls: "badge green", label: "Verde" },
-  amarelo: { cls: "badge orange", label: "Amarelo" },
-  vermelho: { cls: "badge red", label: "Vermelho" },
-  insuficiente: { cls: "badge", label: "Dados insuficientes" },
+const TIER_BADGE: Record<string, { status: string; label: string }> = {
+  verde: { status: "valid", label: "Verde" },
+  amarelo: { status: "alerta", label: "Amarelo" },
+  vermelho: { status: "blocked", label: "Vermelho" },
+  insuficiente: { status: "draft", label: "Dados insuficientes" },
 };
 
 function formatKm(km: number): string {
@@ -69,7 +69,7 @@ export function DriverScorecardPanel({ drivers }: Props) {
       <div className="mb-4">
         <select
           aria-label="Seleccionar motorista"
-          className="min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/20"
+          className="min-h-[38px] px-2.5 border border-border-strong rounded-md bg-surface text-[14px] text-ink w-full focus:outline-none focus:border-focus focus:ring-2 focus:ring-focus-soft"
           value={selectedId}
           onChange={(e) => handleDriverChange(e.target.value)}
         >
@@ -105,7 +105,10 @@ export function DriverScorecardPanel({ drivers }: Props) {
             <span>Score composto</span>
             {isInsufficient ? (
               <>
-                <span className={tier?.cls ?? "badge"}>{tier?.label}</span>
+                <StatusBadge
+                  status={tier?.status ?? "draft"}
+                  label={tier?.label}
+                />
                 <small className="text-xs text-muted">
                   {scorecard.message ?? "Mínimo 3 viagens em 30 dias para score válido"}
                 </small>
@@ -115,40 +118,45 @@ export function DriverScorecardPanel({ drivers }: Props) {
                 <strong aria-label={`Score: ${scorecard.score} — ${tier?.label}`}>
                   {scorecard.score}
                 </strong>
-                <span aria-label={`Tier: ${tier?.label}`} className={tier?.cls ?? "badge"}>
-                  {tier?.label}
-                </span>
+                <StatusBadge
+                  status={tier?.status ?? "draft"}
+                  label={tier?.label}
+                />
               </>
             )}
           </div>
 
-          {/* Proof de entrega */}
-          <div className="transport-kpi">
-            <Package className="text-ink-2" size={16} />
-            <span>Proof de entrega</span>
-            <strong>{scorecard.metrics.delivery_rate.toFixed(1)}%</strong>
-          </div>
+          {!isInsufficient && (
+            <>
+              {/* Proof de entrega */}
+              <div className="transport-kpi">
+                <Package className="text-ink-2" size={16} />
+                <span>Proof de entrega</span>
+                <strong>{scorecard.metrics.delivery_rate.toFixed(1)}%</strong>
+              </div>
 
-          {/* Disciplina de sync */}
-          <div className="transport-kpi">
-            <TrendingUp className="text-ink-2" size={16} />
-            <span>Disciplina de sync</span>
-            <strong>{scorecard.metrics.sync_score.toFixed(1)}</strong>
-          </div>
+              {/* Disciplina de sync */}
+              <div className="transport-kpi">
+                <TrendingUp className="text-ink-2" size={16} />
+                <span>Disciplina de sync</span>
+                <strong>{scorecard.metrics.sync_score.toFixed(1)}</strong>
+              </div>
 
-          {/* Quilómetros */}
-          <div className="transport-kpi">
-            <Truck className="text-ink-2" size={16} />
-            <span>Quilómetros</span>
-            <strong>{formatKm(scorecard.metrics.total_km)}</strong>
-          </div>
+              {/* Quilómetros */}
+              <div className="transport-kpi">
+                <Truck className="text-ink-2" size={16} />
+                <span>Quilómetros</span>
+                <strong>{formatKm(scorecard.metrics.total_km)}</strong>
+              </div>
 
-          {/* Eficiência de paradas */}
-          <div className="transport-kpi">
-            <Clock className="text-ink-2" size={16} />
-            <span>Eficiência de paradas</span>
-            <strong>{scorecard.metrics.stop_score.toFixed(1)}</strong>
-          </div>
+              {/* Eficiência de paradas */}
+              <div className="transport-kpi">
+                <Clock className="text-ink-2" size={16} />
+                <span>Eficiência de paradas</span>
+                <strong>{scorecard.metrics.stop_score.toFixed(1)}</strong>
+              </div>
+            </>
+          )}
         </div>
       )}
     </section>

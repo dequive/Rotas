@@ -1,4 +1,4 @@
-import { Smartphone, Truck } from "lucide-react";
+import { RefreshCw, ShieldCheck, Smartphone, Truck } from "lucide-react";
 import { useState } from "react";
 import { pairDevice, type AuthState } from "../api";
 
@@ -10,22 +10,32 @@ function generateDeviceId(): string {
   return id;
 }
 
-export function PairingView({ onPaired }: { onPaired: (auth: AuthState) => void }) {
+export function PairingView({
+  onPaired,
+  onUpdate,
+}: {
+  onPaired: (auth: AuthState) => void;
+  onUpdate?: () => void;
+}) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (code.trim().length < 4) return;
+    if (code.length !== 6) return;
     setError(null);
     setLoading(true);
     try {
       const deviceId = generateDeviceId();
-      const auth = await pairDevice(code.trim().toUpperCase(), deviceId);
+      const auth = await pairDevice(code, deviceId);
       onPaired(auth);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Código inválido ou expirado.");
+    } catch {
+      setError(
+        navigator.onLine
+          ? "Não foi possível emparelhar. Confirme o código ou peça um novo ao gestor."
+          : "Sem ligação à internet. Ligue-se à rede e tente novamente.",
+      );
     } finally {
       setLoading(false);
     }
@@ -33,35 +43,80 @@ export function PairingView({ onPaired }: { onPaired: (auth: AuthState) => void 
 
   return (
     <main className="pairing-shell">
-      <div className="pairing-card">
-        <div className="pairing-brand">
-          <Truck size={36} />
-          <span>ROTAS</span>
+      <section className="pairing-card" aria-labelledby="pairing-title">
+        <header className="pairing-brand">
+          <span className="pairing-brand__mark" aria-hidden="true">
+            <Truck size={24} />
+          </span>
+          <span>
+            <strong>ROTAS</strong>
+            <small>Aplicação do motorista</small>
+          </span>
+        </header>
+
+        <div className="pairing-heading">
+          <span>ATIVAÇÃO SEGURA</span>
+          <h1 id="pairing-title">Emparelhe este telefone</h1>
+          <p>Associe o dispositivo à sua conta de motorista para receber viagens e documentos.</p>
         </div>
-        <p className="pairing-subtitle">App do motorista</p>
 
         <div className="pairing-instructions">
           <Smartphone size={20} />
-          <p>Peça ao seu gestor o código de pareamento de 6 caracteres e introduza-o abaixo.</p>
+          <p>
+            <strong>Use o código de 6 dígitos</strong>
+            <span>Peça ao gestor para gerar um código novo. É válido durante 15 minutos.</span>
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="pairing-form">
+          <label htmlFor="pairing-code" className="pairing-label">
+            Código de emparelhamento
+          </label>
           <input
+            id="pairing-code"
             className="pairing-input"
             value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="ABC123"
-            maxLength={8}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="000000"
+            maxLength={6}
             required
-            autoComplete="off"
-            autoCapitalize="characters"
+            inputMode="numeric"
+            pattern="[0-9]{6}"
+            autoComplete="one-time-code"
+            aria-describedby={error ? "pairing-help pairing-error" : "pairing-help"}
+            aria-invalid={error ? "true" : "false"}
           />
-          {error && <p className="pairing-error">{error}</p>}
-          <button type="submit" className="pairing-btn" disabled={loading || code.trim().length < 4}>
-            {loading ? "A parear..." : "Entrar"}
+          <span id="pairing-help" className="pairing-help">
+            Introduza os seis números apresentados pelo gestor.
+          </span>
+          {error && (
+            <p id="pairing-error" role="alert" className="pairing-error">
+              {error}
+            </p>
+          )}
+          <button type="submit" className="pairing-btn" disabled={loading || code.length !== 6}>
+            {loading ? "A emparelhar…" : "Emparelhar dispositivo"}
           </button>
         </form>
-      </div>
+
+        {onUpdate && (
+          <aside className="pairing-update" role="status" aria-live="polite">
+            <span>
+              <strong>Nova versão pronta</strong>
+              <small>Atualize antes de emparelhar este telefone.</small>
+            </span>
+            <button type="button" onClick={onUpdate}>
+              <RefreshCw size={16} aria-hidden="true" />
+              Atualizar aplicação
+            </button>
+          </aside>
+        )}
+
+        <footer className="pairing-security">
+          <ShieldCheck size={18} aria-hidden="true" />
+          <span>O código é de uso único. Este telefone ficará associado apenas à sua conta.</span>
+        </footer>
+      </section>
     </main>
   );
 }

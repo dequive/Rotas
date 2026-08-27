@@ -25,6 +25,7 @@ from app.database import Base
 class Driver(Base):
     __tablename__ = "drivers"
     __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_drivers_tenant_id_id"),
         CheckConstraint("score >= 0 AND score <= 100", name="chk_drivers_score_range"),
     )
 
@@ -60,6 +61,14 @@ class Driver(Base):
 
 class DriverDevice(Base):
     __tablename__ = "driver_devices"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "driver_id",
+            "device_id",
+            name="uq_driver_devices_tenant_driver_device",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)

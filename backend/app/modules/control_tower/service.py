@@ -54,8 +54,12 @@ async def get_ct_cached(
             db, tenant_id, target_date=target_date, page=page, page_size=page_size
         )
 
-    key = f"ct:kpis:{tenant_id}"
-    lock_key = f"ct:kpis:{tenant_id}:lock"
+    date_key = target_date.isoformat() if target_date else "default"
+    key = (
+        f"tenant:{tenant_id}:control-tower:date={date_key}:"
+        f"page={page}:page_size={page_size}"
+    )
+    lock_key = f"{key}:lock"
 
     # Cache hit — return without touching the DB
     cached = await redis.get(key)
@@ -423,6 +427,7 @@ async def _pending_dispatch_queue(
         .where(
             DispatchClearance.tenant_id == tenant_id,
             DispatchClearance.clearance_status.in_(("pending", "approved")),
+            Trip.status == "dispatch_pending",
         )
         .order_by(DispatchClearance.updated_at.desc())
         .limit(page_size)

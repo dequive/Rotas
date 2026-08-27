@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.idempotency import execute_http_idempotent
 from app.core.rbac import ADMIN_USERS, TRIPS_READ, require_permission
@@ -13,7 +13,7 @@ from app.modules.operations import schemas, service
 router = APIRouter(prefix="/operations", tags=["operations"])
 
 
-@router.post("/waivers")
+@router.post("/waivers", response_model=schemas.OperationalWaiverRead)
 async def create_waiver(
     payload: schemas.OperationalWaiverCreate,
     principal: Annotated[Principal, Depends(require_permission(ADMIN_USERS))],
@@ -37,7 +37,7 @@ async def create_waiver(
     )
 
 
-@router.get("/waivers")
+@router.get("/waivers", response_model=list[schemas.OperationalWaiverRead])
 async def list_waivers(
     principal: Annotated[Principal, Depends(require_permission(TRIPS_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -56,7 +56,10 @@ async def list_waivers(
     )
 
 
-@router.post("/waivers/{waiver_id}/revoke")
+@router.post(
+    "/waivers/{waiver_id}/revoke",
+    response_model=schemas.OperationalWaiverRead,
+)
 async def revoke_waiver(
     waiver_id: UUID,
     payload: schemas.OperationalWaiverRevokeRequest,

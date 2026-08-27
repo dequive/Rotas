@@ -92,17 +92,21 @@ class ThirdPartyOut(BaseModel):
     contact_phone: str | None
     province_code: str | None
     address: str | None
+    activity_code: str | None = None
+    sector: str | None = None
     status: str
     is_verified: bool
     verified_at: datetime | None
     notes: str | None
     created_at: datetime
     updated_at: datetime
+    average_score: Decimal | None = None
 
 
 # ── Roles ─────────────────────────────────────────────────────────────────────
 
 VALID_ROLE_TYPES = {
+    "client",
     "fuel_supplier",
     "spare_parts_supplier",
     "service_provider",
@@ -208,7 +212,9 @@ class AssignmentOut(BaseModel):
     id: UUID
     tenant_id: UUID
     driver_id: UUID
+    driver_name: str | None = None
     vehicle_id: UUID
+    vehicle_plate: str | None = None
     assigned_at: datetime
     unassigned_at: datetime | None
     assignment_type: str | None
@@ -268,6 +274,7 @@ class PartyDirectoryEntry(BaseModel):
     subject_type: str
     name: str
     status: str
+    roles: list[str] | None = None
 
 
 # ── Contacts ──────────────────────────────────────────────────────────────────
@@ -319,3 +326,82 @@ class EvaluationCreate(BaseModel):
     evaluation_date: date | None = None
     criteria: list[dict]  # list of EvaluationCriterion dicts
     notes: str | None = None
+
+
+# ── Response contracts (F7.2) ─────────────────────────────────────────────────
+# Mirrors the `service.serialize_*` helpers so the OpenAPI contract exposes a
+# non-empty 2xx schema for every operation the Manager calls.
+
+
+class ContactOut(BaseModel):
+    id: UUID
+    third_party_id: UUID
+    name: str
+    role: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    is_primary: bool
+    created_at: datetime
+
+
+class LedgerEntryOut(BaseModel):
+    id: UUID
+    third_party_id: UUID
+    entry_type: str
+    amount: Decimal
+    currency: str
+    source_type: str | None = None
+    source_id: UUID | None = None
+    description: str | None = None
+    entry_date: date
+    created_at: datetime
+
+
+class PaymentRecordOut(BaseModel):
+    id: UUID
+    third_party_id: UUID
+    entry_type: str
+    amount: Decimal
+    currency: str
+    source_type: str | None = None
+    source_id: UUID | None = None
+    description: str | None = None
+    entry_date: date
+    created_at: datetime
+
+
+PaymentOut = PaymentRecordOut
+
+
+class LedgerCurrencyBalance(BaseModel):
+    total_credits: Decimal
+    total_debits: Decimal
+    balance: Decimal
+
+
+class SupplierAccountOut(BaseModel):
+    third_party_id: UUID
+    total_debits: Decimal
+    total_credits: Decimal
+    balance: Decimal
+    balances: dict[str, LedgerCurrencyBalance]
+    entries: list[LedgerEntryOut]
+    date_from: date | None = None
+    date_to: date | None = None
+    opening_balance: Decimal | None = None
+
+
+class EvaluationOut(BaseModel):
+    id: UUID
+    third_party_id: UUID
+    evaluated_by: UUID | None = None
+    evaluation_date: date
+    criteria: list[dict]
+    score: Decimal
+    notes: str | None = None
+    created_at: datetime
+
+
+class EvaluationListOut(BaseModel):
+    average_score: Decimal | None = None
+    evaluations: list[EvaluationOut]

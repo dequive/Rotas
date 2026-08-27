@@ -1,0 +1,19 @@
+{
+  "backup_id": "f72c0286-9c6b-4ad7-99a4-6f7b8c22812a",
+  "completed_at_utc": "2026-07-27T12:07:24.416486+00:00",
+  "dump_sha256": "e13f0a361ce4ffdb29938c3e692ccf2579c8eda3295aa58211596add76edf09a",
+  "forced_rls_tables": 113,
+  "gate": "PR-21",
+  "local_drill": true,
+  "public_tables": 123,
+  "release_sha": "d8a8e52b5f1cb98ef4fd805c945fd70674c98e25",
+  "restore_seconds": 58.338,
+  "restored_revision": "rec13",
+  "rto_met_locally": true,
+  "rto_target_minutes": 240,
+  "schema_version": 1,
+  "snapshot_id": "7076b6d1c9d9e21edfac5d5d2fb8349df0a34273462e179bb1aa3e429862549a",
+  "started_at_utc": "2026-07-27T12:06:20.854780+00:00",
+  "target_database": "rotas_dr_pr21_20260727",
+  "unbalanced_journal_entries": 0
+}

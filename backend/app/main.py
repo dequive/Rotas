@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from datetime import UTC
+from typing import Any, cast
 
 import arq
 import sentry_sdk
@@ -10,6 +11,7 @@ from fastapi.responses import JSONResponse
 from prometheus_client import Gauge
 from prometheus_fastapi_instrumentator import Instrumentator
 from redis.asyncio import Redis
+from sentry_sdk.types import Event, Hint
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
@@ -20,8 +22,13 @@ from app.core.limiter import limiter
 from app.core.logging import configure_structlog
 from app.core.middleware import StructlogRequestMiddleware
 from app.core.request_context import RequestContextMiddleware
+from app.core.runtime_metrics import (
+    start_runtime_metrics_sampler,
+    stop_runtime_metrics_sampler,
+)
 from app.database import engine as _engine
-from app.database import import_all_models
+from app.database import import_all_models, validate_application_database_role
+from app.modules.accounting.router import router as accounting_router
 from app.modules.alerts.router import router as alerts_router
 from app.modules.analytics.router import router as analytics_router
 from app.modules.audit.router import router as audit_router
@@ -44,10 +51,12 @@ from app.modules.fuel.operations_router import router as fuel_operations_router
 from app.modules.fuel.router import router as fuel_router
 from app.modules.gps.router import router as gps_router
 from app.modules.hr.router import router as hr_router
+from app.modules.inventory.router import router as inventory_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.onboarding.router import router as onboarding_router
 from app.modules.operational_exceptions.router import router as operational_exceptions_router
 from app.modules.operations.router import router as operations_router
+from app.modules.outbox.router import router as outbox_router
 from app.modules.payables.router import router as payables_router
 from app.modules.platform.auth_router import router as platform_auth_router
 from app.modules.platform.router import router as platform_router
@@ -60,14 +69,12 @@ from app.modules.trips.known_routes_router import router as known_routes_router
 from app.modules.trips.router import router as trips_router
 from app.modules.users.router import router as users_router
 from app.modules.vehicles.router import router as vehicles_router
-from app.modules.workshop.router import router as workshop_router
-from app.modules.workshop.reception_router import router as reception_router
-from app.modules.workshop.quote_router import router as quote_router
 from app.modules.workshop.catalog_router import router as catalog_router
+from app.modules.workshop.quote_router import router as quote_router
+from app.modules.workshop.reception_router import router as reception_router
+from app.modules.workshop.router import router as workshop_router
 from app.modules.workshop.warranty_router import router as warranty_router
 from app.modules.workshop.workbay_router import router as workbay_router
-from app.modules.inventory.router import router as inventory_router
-from app.modules.accounting.router import router as accounting_router
 
 settings = get_settings()
 import_all_models()
@@ -87,13 +94,13 @@ _PII_FIELDS = frozenset(
 )
 
 
-def _scrub_dict(d: object) -> object:
+def _scrub_dict(d: object) -> Any:
     if not isinstance(d, dict):
         return d
     return {k: "[Filtered]" if k in _PII_FIELDS else _scrub_dict(v) for k, v in d.items()}
 
 
-def _scrub_pii(event: dict, hint: dict) -> dict | None:
+def _scrub_pii(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any]:
     """Strip PII from Sentry event before sending (INFRA-01 / D-03)."""
     # Scrub request.data (POST body)
     if "request" in event and "data" in event["request"]:
@@ -102,16 +109,29 @@ def _scrub_pii(event: dict, hint: dict) -> dict | None:
     if "extra" in event:
         event["extra"] = _scrub_dict(event["extra"])
     # Scrub SQL breadcrumbs — remove 'data' key which may contain param values
-    for breadcrumb in event.get("breadcrumbs", {}).get("values", []):
-        if breadcrumb.get("category") == "query":
-            breadcrumb.pop("data", None)
+    breadcrumbs = event.get("breadcrumbs")
+    if isinstance(breadcrumbs, dict):
+        values = breadcrumbs.get("values")
+        if isinstance(values, list):
+            for breadcrumb in values:
+                if isinstance(breadcrumb, dict) and breadcrumb.get("category") == "query":
+                    breadcrumb.pop("data", None)
     return event
+
+
+def _sentry_before_send(event: Event, hint: Hint) -> Event | None:
+    scrubbed = _scrub_pii(
+        cast(dict[str, Any], event),
+        cast(dict[str, Any], hint),
+    )
+    return cast(Event, scrubbed)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # INFRA2-02: Configure structured logging first — before any other init
     configure_structlog(json_logs=settings.environment == "production")
+    app.state.database_role = await validate_application_database_role()
 
     # INFRA-01: Sentry init — silent when DSN absent (D-02)
     if settings.sentry_dsn_backend:
@@ -119,7 +139,7 @@ async def lifespan(app: FastAPI):
             dsn=settings.sentry_dsn_backend,
             environment=settings.environment,
             traces_sample_rate=0.05,
-            before_send=_scrub_pii,
+            before_send=_sentry_before_send,
         )
 
     # Initialize plain Redis client for CT cache-aside (redis.asyncio.Redis)
@@ -146,6 +166,7 @@ async def lifespan(app: FastAPI):
         "Number of active tenants in the platform",
     )
     app.state.active_tenants_gauge = _active_tenants_gauge
+    app.state.runtime_metrics_task = start_runtime_metrics_sampler()
 
     yield
 
@@ -153,12 +174,21 @@ async def lifespan(app: FastAPI):
         await app.state.redis.aclose()
     if app.state.arq_redis is not None:
         await app.state.arq_redis.aclose()
+    await stop_runtime_metrics_sampler(app.state.runtime_metrics_task)
 
 
 app = FastAPI(title=settings.app_name, version=settings.version, lifespan=lifespan)
 # SEC-03: Rate limiting — limiter state and 429 exception handler
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+def _handle_rate_limit(request: Request, exc: Exception):
+    if not isinstance(exc, RateLimitExceeded):
+        raise exc
+    return _rate_limit_exceeded_handler(request, exc)
+
+
+app.add_exception_handler(RateLimitExceeded, _handle_rate_limit)
 install_error_handlers(app)
 app.add_middleware(RequestContextMiddleware)
 # INFRA2-02: HTTP request logging — placed after RequestContextMiddleware so request_id is in scope
@@ -193,9 +223,9 @@ async def health_simple(request: Request) -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/health/deep", tags=["operation"])
+@app.get("/health/deep", tags=["operation"], response_model=None)
 @limiter.limit("60/minute")
-async def health_deep(request: Request) -> dict:
+async def health_deep(request: Request) -> dict | JSONResponse:
     import asyncio
     from datetime import datetime
 
@@ -289,6 +319,7 @@ app.include_router(known_routes_router, prefix=api)
 app.include_router(cargo_router, prefix=api)
 app.include_router(billing_router, prefix=api)
 app.include_router(operations_router, prefix=api)
+app.include_router(outbox_router, prefix=api)
 app.include_router(operational_exceptions_router, prefix=api)
 app.include_router(workshop_router, prefix=api)
 app.include_router(reception_router, prefix=api)

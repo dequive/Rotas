@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import Principal
+from app.core.auth import TenantPrincipal as Principal
 from app.core.deps import get_session
 from app.core.rbac import FLEET_READ, FLEET_WRITE, require_permission
 from app.modules.alerts import schemas, service
@@ -12,7 +12,7 @@ from app.modules.alerts import schemas, service
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
 
-@router.get("")
+@router.get("", response_model=list[schemas.AlertRead])
 async def list_alerts(
     principal: Annotated[Principal, Depends(require_permission(FLEET_READ))],
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -33,7 +33,7 @@ async def list_alerts(
     )
 
 
-@router.post("")
+@router.post("", response_model=schemas.AlertRead)
 async def create_alert(
     payload: schemas.AlertCreate,
     principal: Annotated[Principal, Depends(require_permission(FLEET_WRITE))],
@@ -42,7 +42,7 @@ async def create_alert(
     return await service.create_alert(db, principal.tenant_id, payload, actor_id=principal.user_id)
 
 
-@router.patch("/{alert_id}/status")
+@router.patch("/{alert_id}/status", response_model=schemas.AlertRead)
 async def patch_alert_status(
     alert_id: UUID,
     payload: schemas.AlertStatusPatch,

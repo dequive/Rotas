@@ -1,3 +1,4 @@
+import { upstreamFetch } from "@/app/lib/upstream-http";
 import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE = process.env.ROTAS_API_BASE_URL ?? "http://localhost:8000";
@@ -16,7 +17,7 @@ function errorMessage(body: unknown): string {
 
 export async function POST(req: NextRequest) {
   const payload = await req.json();
-  const upstream = await fetch(`${API_BASE}/api/v1/onboarding/verify-email`, {
+  const upstream = await upstreamFetch(`${API_BASE}/api/v1/onboarding/verify-email`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

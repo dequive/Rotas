@@ -108,6 +108,7 @@ async def schedule_preventive_maintenance(
     base_odometer_km: int | None = None,
     base_date: datetime | None = None,
     actor_id: UUID | None = None,
+    commit: bool = True,
 ) -> MaintenanceSchedule:
     """Agendar Manutenção Preventiva com Deduplicação Estrita e cálculo com base real no release.
 
@@ -162,7 +163,10 @@ async def schedule_preventive_maintenance(
         status="pending",
     )
     db.add(schedule)
-    await db.commit()
+    if commit:
+        await db.commit()
+    else:
+        await db.flush()
     await db.refresh(schedule)
     return schedule
 
@@ -348,8 +352,8 @@ async def convert_schedule_to_action(
                 WorkshopQuoteItemCreate(
                     item_type="labor",
                     description=f"Revisão Preventiva Recomendada: {plan.name}",
-                    quantity=1.0,
-                    unit_price=float(est_cost) if est_cost > 0 else 1000.0,
+                    quantity=Decimal("1.0"),
+                    unit_price=est_cost if est_cost > 0 else Decimal("1000.0"),
                 )
             ],
             notes=f"Orçamento rascunho de preventiva gerado automaticamente para o plano {plan.name}.",
@@ -374,6 +378,7 @@ async def handle_work_order_completion_preventive_matching(
     work_order_id: UUID,
     *,
     actor_id: UUID | None = None,
+    commit: bool = True,
 ) -> dict:
     """Gatilho de Conclusão da OS em `close_work_order`: Matching por Catálogo e Automação do Próximo Ciclo.
 
@@ -422,11 +427,15 @@ async def handle_work_order_completion_preventive_matching(
             base_odometer_km=release_odometer,
             base_date=now,
             actor_id=actor_id,
+            commit=commit,
         )
         if new_sched:
             new_schedules_created += 1
 
-    await db.commit()
+    if commit:
+        await db.commit()
+    else:
+        await db.flush()
     return {
         "matched_plans": len(active_scheds),
         "new_schedules_created": new_schedules_created,

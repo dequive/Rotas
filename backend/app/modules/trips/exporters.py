@@ -127,8 +127,8 @@ class _TripReportPDF(FPDF):
 
 def render_trip_report(
     trip: object,
-    vehicle: dict | None = None,
-    driver: dict | None = None,
+    vehicle: object | None = None,
+    driver: object | None = None,
     stops: list | None = None,
     profile: dict | None = None,
 ) -> bytes:
@@ -178,8 +178,8 @@ def render_trip_report(
     trip_id_str = str(g(trip, "id"))[:8].upper() if g(trip, "id") != "—" else "—"
     waybill = g(trip, "waybill_number")
     status = g(trip, "status")
-    vplate = (vehicle or {}).get("plate", "—") if vehicle else "—"
-    dname = (driver or {}).get("full_name", "—") if driver else "—"
+    vplate = g(vehicle, "plate") if vehicle is not None else "—"
+    dname = g(driver, "full_name") if driver is not None else "—"
     for lbl, val in [
         ("ID", trip_id_str),
         ("Status", status),
@@ -364,7 +364,7 @@ def render_trip_report(
     pdf.set_text_color(*_INK)
     pdf.set_y(max(left_bottom, fin_y + 38))
 
-    total_pages_ref[0] = pdf.pages
+    total_pages_ref[0] = len(pdf.pages)
     buf = BytesIO()
     pdf.output(buf)
     return buf.getvalue()

@@ -1,0 +1,87 @@
+rule_files:
+  - ../rules/rotas-slo.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: release alerts fire after their configured duration
+    interval: 1m
+    input_series:
+      - series: 'up{job="rotas-backend"}'
+        values: '0x20'
+      - series: 'http_requests_total{method="GET",status="2xx",handler="/api/v1/test"}'
+        values: '0+90x20'
+      - series: 'http_requests_total{method="GET",status="5xx",handler="/api/v1/test"}'
+        values: '0+10x20'
+      - series: 'http_request_duration_highr_seconds_bucket{le="0.1"}'
+        values: '0+80x20'
+      - series: 'http_request_duration_highr_seconds_bucket{le="0.25"}'
+        values: '0+90x20'
+      - series: 'http_request_duration_highr_seconds_bucket{le="+Inf"}'
+        values: '0+100x20'
+      - series: 'rotas_outbox_delivery_outcomes_total{outcome="dead_letter",event_kind="external"}'
+        values: '0+1x20'
+      - series: 'prometheus_rule_evaluation_failures_total'
+        values: '0+1x20'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: RotasBackendDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: backend
+              gate: PR-20
+              job: rotas-backend
+            exp_annotations:
+              summary: ROTAS backend metrics target is unavailable
+              runbook: docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasbackenddown
+      - eval_time: 15m
+        alertname: RotasApiHighErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: backend
+              gate: PR-20
+            exp_annotations:
+              summary: ROTAS API availability is below the fast-burn threshold
+              runbook: docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasapihigherrorrate
+      - eval_time: 15m
+        alertname: RotasApiLatencyBudget
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: backend
+              gate: PR-20
+            exp_annotations:
+              summary: ROTAS API p95 latency exceeds 200 ms
+              runbook: docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasapilatencybudget
+      - eval_time: 3m
+        alertname: RotasOutboxDeadLetter
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: outbox
+              gate: PR-20
+            exp_annotations:
+              summary: ROTAS transactional outbox produced a dead-letter event
+              runbook: docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasoutboxdeadletter
+      - eval_time: 3m
+        alertname: RotasPrometheusRuleFailures
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: observability
+              gate: PR-20
+            exp_annotations:
+              summary: Prometheus failed to evaluate one or more ROTAS rules
+              runbook: docs/observability/PR20_OBSERVABILITY_RUNBOOK.md#rotasprometheusrulefailures
+
+  - name: backend down alert resolves when scrape recovers
+    interval: 1m
+    input_series:
+      - series: 'up{job="rotas-backend"}'
+        values: '0 0 0 1 1'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: RotasBackendDown
+        exp_alerts: []

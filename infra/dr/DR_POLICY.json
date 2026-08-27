@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "policy_id": "PR21-DR-V1",
+  "owners": ["SRE", "QA"],
+  "scope": ["rotas-postgresql", "governance-postgresql", "prometheus", "grafana"],
+  "postgresql": {
+    "rpo_minutes": 15,
+    "rto_minutes": 240,
+    "backup_schedule": "every 15 minutes or equivalent continuous recovery",
+    "dump_schedule": "daily",
+    "restore_drill_schedule": "monthly",
+    "independent_operator_required": true
+  },
+  "retention": {
+    "hourly": 24,
+    "daily": 7,
+    "weekly": 5,
+    "monthly": 12,
+    "yearly": 7
+  },
+  "storage": {
+    "client_side_encryption": "restic",
+    "object_lock_days": 30,
+    "cross_region_copy": true,
+    "separate_failure_domain": true,
+    "temporary_plaintext": "encrypted volume or memory-backed filesystem only"
+  },
+  "verification": {
+    "manifest_sha256": true,
+    "restic_check_each_backup": true,
+    "restic_read_data_schedule": "weekly",
+    "alembic_revision": true,
+    "minimum_public_tables": 100,
+    "minimum_forced_rls_tables": 50,
+    "balanced_journals": true
+  }
+}

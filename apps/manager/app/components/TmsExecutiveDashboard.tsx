@@ -23,7 +23,7 @@ interface TmsExecutiveDashboardProps {
 
 const activityIconCls: Record<string, string> = {
   red: "w-[38px] h-[38px] inline-flex items-center justify-center rounded-lg flex-shrink-0 bg-error-bg text-error",
-  blue: "w-[38px] h-[38px] inline-flex items-center justify-center rounded-lg flex-shrink-0 bg-[#dbeafe] text-[#2563eb]",
+  blue: "w-[38px] h-[38px] inline-flex items-center justify-center rounded-lg flex-shrink-0 bg-blue-light text-blue",
   orange: "w-[38px] h-[38px] inline-flex items-center justify-center rounded-lg flex-shrink-0 bg-warning-bg text-warning",
 };
 
@@ -180,7 +180,7 @@ export function TmsExecutiveDashboard({
             <div
               className="tms-donut"
               style={{
-                background: `conic-gradient(#16a34a 0 ${percent(delivered, shipmentTotal)}%, #2563eb 0 ${percent(delivered + inTransit, shipmentTotal)}%, #f59e0b 0 ${percent(delivered + inTransit + pending, shipmentTotal)}%, #dc2626 0 100%)`,
+                background: `conic-gradient(var(--success) 0 ${percent(delivered, shipmentTotal)}%, var(--blue) 0 ${percent(delivered + inTransit, shipmentTotal)}%, var(--amber) 0 ${percent(delivered + inTransit + pending, shipmentTotal)}%, var(--error) 0 100%)`,
               }}
             >
               <strong>{shipmentTotal}</strong>

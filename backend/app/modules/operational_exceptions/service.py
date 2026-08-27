@@ -1,5 +1,5 @@
-import asyncio
 from datetime import UTC, datetime
+from hashlib import sha256
 from uuid import UUID
 
 from sqlalchemy import select
@@ -8,12 +8,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ApiError
 from app.modules.alerts.models import Alert
 from app.modules.audit.service import record_audit_log
-from app.modules.governance.client import push_governance_event
 from app.modules.governance.events import operational_exception_event
 from app.modules.operational_exceptions.models import OperationalException
+from app.modules.outbox.service import enqueue as enqueue_outbox
 
 ACTIVE_STATUSES = {"open", "acknowledged"}
 SEVERITIES = {"low", "medium", "high", "critical"}
+DRIVER_DOCUMENT_REQUEST_PREFIX = "driver_doc_request:"
+
+
+def driver_document_request_type(document_type: str) -> str:
+    digest = sha256(document_type.encode("utf-8")).hexdigest()[:24]
+    return f"{DRIVER_DOCUMENT_REQUEST_PREFIX}{digest}"
 
 
 def serialize_exception(item: OperationalException) -> dict:
@@ -51,6 +57,7 @@ async def ensure_exception(
     title: str,
     message: str,
     actor_id: UUID | None = None,
+    driver_id: UUID | None = None,
     context: dict | None = None,
     source_type: str | None = None,
     source_id: UUID | None = None,
@@ -90,6 +97,7 @@ async def ensure_exception(
         db,
         tenant_id=tenant_id,
         user_id=actor_id,
+        driver_id=driver_id,
         action="operational_exception.created",
         entity_type=entity_type,
         entity_id=entity_id,
@@ -117,14 +125,15 @@ async def ensure_exception(
         db,
         tenant_id=tenant_id,
         user_id=actor_id,
+        driver_id=driver_id,
         action="alert.created_from_exception",
         entity_type="alert",
         entity_id=alert.id,
         new_values={"exception_id": str(item.id), "alert_type": alert.alert_type},
     )
 
-    # Push high/critical exceptions to the Governance Engine (fire-and-forget).
-    # Wrapped in create_task so a slow/unavailable engine never delays the response.
+    # Persist high/critical events in the same transaction as the exception.
+    # The outbox worker performs the network delivery after commit.
     if severity in {"high", "critical"}:
         payload = operational_exception_event(
             exception_id=item.id,
@@ -138,7 +147,14 @@ async def ensure_exception(
             entity_attributes=context or {},
             tenant_id=tenant_id,
         )
-        asyncio.create_task(push_governance_event(**payload))
+        await enqueue_outbox(
+            db,
+            tenant_id=tenant_id,
+            event_type=payload["event_type"],
+            aggregate_type="operational_exception",
+            aggregate_id=item.id,
+            payload=payload,
+        )
 
     return item
 

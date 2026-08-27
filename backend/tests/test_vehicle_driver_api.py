@@ -25,7 +25,10 @@ async def dispose_engine_between_tests():
     await engine.dispose()
 
 
-async def create_tenant(max_vehicles: int = 5, max_drivers: int = 5) -> Tenant:
+async def create_tenant(
+    max_vehicles: int | None = 5,
+    max_drivers: int | None = 5,
+) -> Tenant:
     suffix = uuid4().hex[:8]
     async with AsyncSessionLocal() as db:
         tenant = Tenant(
@@ -35,6 +38,12 @@ async def create_tenant(max_vehicles: int = 5, max_drivers: int = 5) -> Tenant:
             max_drivers=max_drivers,
         )
         db.add(tenant)
+        await db.flush()
+        # SQLAlchemy applies the trial-plan defaults during INSERT. Reassigning
+        # after the flush lets this factory represent an explicit unlimited
+        # plan (persisted NULL), which is distinct from an omitted limit.
+        tenant.max_vehicles = max_vehicles
+        tenant.max_drivers = max_drivers
         await db.commit()
         await db.refresh(tenant)
         return tenant
@@ -661,10 +670,22 @@ async def test_vehicle_limit_returns_403_with_upgrade_url() -> None:
         assert "upgrade_url" in limit_response.json().get("error", {}).get("details", {})
 
 
-@pytest.mark.skip(reason="Wave 3 — null limit guard not yet implemented")
-async def test_no_limit_when_max_null(client, db, auth_headers):
+@pytest.mark.asyncio
+async def test_no_limit_when_max_null() -> None:
     """When Tenant.max_vehicles is None, vehicles can be created past default limit."""
-    pass
+    tenant = await create_tenant(max_vehicles=None)
+
+    async with await create_api_client() as client:
+        for _ in range(6):
+            response = await client.post(
+                "/api/v1/vehicles",
+                headers=auth_headers(tenant.id),
+                json={
+                    "plate": f"UNL-{uuid4().hex[:6].upper()}",
+                    "category": "pesado",
+                },
+            )
+            assert response.status_code == 200, response.text
 
 
 @pytest.mark.asyncio

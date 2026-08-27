@@ -2,6 +2,19 @@
 
 Estas normas sao obrigatorias para a materializacao do ROTAS. O objectivo e construir um produto robusto, auditavel, evolutivo e seguro para operacao real de frotas em Mocambique.
 
+## Precedência documental obrigatória
+
+Estas normas são aplicadas segundo a hierarquia definida em `AGENTS.md` e na
+`ADR-009`. Nenhum agente pode criar um padrão paralelo, promover um módulo com
+base em evidência histórica ou alterar a sequência do plano mestre sem atualizar
+as fontes canónicas na mesma mudança.
+
+A baseline operacional atual é
+`docs/CURRENT_STATE_AND_CONVERGENCE_PLAN_20260822.md`. Enquanto os seus P0/P1
+estiverem abertos, Issue #42 precede Issue #43 e novas capacidades. O estado de
+release continua a ser decidido exclusivamente por
+`docs/PRODUCTION_RELEASE_LEDGER.md`.
+
 ## Principios Base
 
 - O dominio manda na tecnologia: carga, viagens, documentos, descarga e cobranca contratual devem estar modelados explicitamente.
@@ -11,11 +24,46 @@ Estas normas sao obrigatorias para a materializacao do ROTAS. O objectivo e cons
 - Tudo que afecta cobranca, auditoria, seguranca ou disponibilidade deve ter teste automatizado.
 - Dados de operacao nao devem ser apagados fisicamente sem politica clara; usar estados, auditoria e anulacao controlada.
 
+## Governanca obrigatoria: Issue -> PR -> Deploy
+
+Este contrato foi introduzido pela
+[Issue #23](https://github.com/dequive/Rotas/issues/23). Nenhuma correccao,
+melhoria, nova funcao, refactor, dependencia, migracao,
+infraestrutura ou alteracao documental comeca sem uma GitHub Issue. A Issue e o
+registo canonico de problema, escopo e aceite; o PR e o registo canonico de revisao e
+evidencia; o deploy e a promocao de um SHA imutavel ja revisto.
+
+1. Criar a Issue com o template `Task` e classificar como `correction`,
+   `improvement` ou `feature`.
+2. Registar contexto, fora de escopo, criterios de aceite, riscos, estados UX,
+   telemetria, plano de testes, rollout e rollback.
+3. Criar uma branch curta e um PR dedicado. O corpo do PR deve conter
+   `Closes #<numero>` e evidencias reproduziveis dos gates aplicaveis.
+4. Exigir CI verde, revisao, CODEOWNERS, conversas resolvidas e aprovacao independente
+   conforme `infra/release/PR00_RELEASE_GOVERNANCE.json`.
+5. Fazer deploy apenas do merge/release SHA. Registar ambiente, artefacto/digest,
+   migracao, smoke tests, SLOs/alertas observados e decisao GO/NO-GO.
+6. Fechar a Issue apenas depois da verificacao pos-deploy. Merge nao e sinonimo de
+   deploy; implementado localmente nao e sinonimo de certificado em runtime.
+
+Emergencias podem usar um fluxo abreviado, mas exigem Issue, PR, aprovacao, rollback e
+post-mortem. Push directo e deploy de working tree sao proibidos. As templates
+canonicas vivem em `.github/ISSUE_TEMPLATE/task.yml` e
+`.github/pull_request_template.md`; o gate de ligacao Issue/PR vive em
+`.github/workflows/engineering-governance.yml`.
+
 ## SOLID
 
 ### Single Responsibility Principle
 
-- Cada modulo de produto tem uma responsabilidade operacional clara: Centro de Comando, Frota e Pessoas, Transporte e Carga, Custos e Margem, Combustivel, Oficina e Manutencao, Cobranca, Administracao Operacional e Suporte Tecnico-Operacional.
+- Cada módulo de negócio tem uma responsabilidade operacional clara conforme a
+  taxonomia da `ADR-011`; módulos do tenant, governação e fundações técnicas não
+  podem ser tratados como a mesma camada.
+- Clientes/Vendas/Cobrança owns contratos, documentos de cobrança e contas a
+  receber. Custos e Margem owns estimativas, custos reais, reconciliação e
+  margem, sem emitir documentos comerciais.
+- Identidade, autorização, auditoria, ficheiros, sync/offline, idempotência e
+  integrações são fundações transversais obrigatórias, não módulos vendáveis.
 - Pacotes tecnicos backend podem ser mais granulares que os modulos de produto quando isso reduz acoplamento ou protege regras de dominio.
 - Routers cuidam apenas de HTTP: entrada, dependencias e resposta.
 - Services coordenam casos de uso.
@@ -78,7 +126,24 @@ Estas normas sao obrigatorias para a materializacao do ROTAS. O objectivo e cons
 
 - Interface deve ser operacional, densa, clara e orientada a decisao.
 - Evitar ecras decorativos ou marketing no produto.
-- Estados de loading, vazio, erro e permissao negada devem existir em todos os fluxos reais.
+- Estados de loading, progresso/pending, vazio, dados parciais/degradados, erro,
+  permissao negada e sucesso devem existir em todos os fluxos reais onde se aplicam.
+- O primeiro carregamento usa skeleton que preserva a geometria do conteudo; spinner
+  isolado e reservado a accoes curtas e locais. Operacoes mensuraveis mostram progresso
+  real; quando nao mensuraveis, mostram estado indeterminado e texto da operacao.
+- Rotas, modais pesados, graficos, editores, media e listas extensas usam lazy loading
+  quando isso reduz o caminho critico. Reservar dimensoes evita layout shift. Conteudo
+  essencial, foco, erros e confirmacao da accao nunca dependem de lazy loading tardio.
+- Movimento segue `DESIGN.md` e a skill Design Motion Principles. Para o SaaS ROTAS,
+  Emil Kowalski e a lente primaria (proposito, frequencia e rapidez) e Jakub Krehel a
+  secundaria (polimento discreto de producao).
+- Nao se anima cada elemento. Toda mudanca perceptivel de estado tem feedback, mas
+  accoes frequentes ou iniciadas por teclado sao instantaneas. Transicoes ocasionais
+  sao interrompiveis, em geral 180-250 ms e nunca decorativas por defeito.
+- Animar apenas `transform`, `opacity` e, com parcimonia, `filter`; nunca propriedades de
+  layout. Saidas sao mais subtis que entradas, curvas sao explicitas e bounce e zero em
+  fluxos empresariais. `prefers-reduced-motion` e um caminho funcional sem movimento
+  sao obrigatorios e testados.
 - Tabelas de operacao devem permitir filtro por periodo, cliente, viatura, motorista, contrato e estado de cobranca.
 
 ## PWA Motorista
@@ -89,12 +154,50 @@ Estas normas sao obrigatorias para a materializacao do ROTAS. O objectivo e cons
 - Fotos devem ser comprimidas antes do upload.
 - Accoes criticas devem ter prova: GPS, timestamp, foto/documento e responsavel.
 - UX deve funcionar em Android barato, ecras pequenos e rede instavel.
+- Skeletons, lazy loading e movimento devem ser testados num perfil de dispositivo de
+  baixo desempenho. O feedback offline/sync tem prioridade sobre animacao decorativa.
+- A navegacao principal segue `Hoje`, `Viagens`, `Registos` e `Mais`; o detalhe
+  da viagem separa `Resumo`, `Documentos`, `Registos` e `Ocorrencias`.
+- Checklist, combustivel, despesas e despacho de viagem devem ter historico
+  Driver paginado, ownership-scoped e disponivel offline por identidade.
+- Despesas Driver publicas incluem apenas factos pagos pelo motorista; custos
+  internos da empresa, margem, reconciliacao e referencias contabilisticas nao
+  atravessam o contrato. Despacho monetario le o agregado `DriverAdvance`.
+- UUID de comprovativo so pode ser publicado juntamente com download dedicado
+  que volte a provar tenant, motorista, viagem e registo; ate la expor apenas a
+  existencia da evidencia, nunca o identificador bruto.
+- Factos operacionais submetidos sao append-only. Correcao, rejeicao, ajuste ou
+  estorno cria evento referenciado e auditado; nao reescreve o original.
+- Depois de `delivered`, `closed` ou `cancelled`, o diario operacional e somente
+  leitura. Tarefas administrativas do gestor nunca aparecem como accoes Driver.
+- A origem local instalavel, de preview e E2E do Driver e exclusivamente
+  `http://localhost:4173`. A porta `5174` e somente desenvolvimento e nunca deve
+  ser instalada; `4174` e `127.0.0.1:4173` nao sao origens consumidoras.
+- O preview faz bind tecnico em `0.0.0.0` para que `adb reverse` alcance o
+  servidor IPv4; isto nao autoriza navegar por IP nem acrescentar esse endereco
+  ao CORS. Em Android fisico, manter apenas reverses 4173 e 8000.
+- Preview deve usar porta estrita, sem fallback automatico. Configuracao Vite e
+  manifesto PWA possuem uma unica fonte versionada; nao manter copias `.mjs` ou
+  manifestos estaticos concorrentes.
+- Preview e build devem carregar `vite.config.ts` com `configLoader native`;
+  isto evita compilacao transitória da configuracao e travessia indevida da raiz
+  em workspaces Windows/OneDrive.
+- Uma PWA ja controlada verifica update antes do primeiro render, envia
+  `SKIP_WAITING` a versao em espera e recarrega apenas depois de `controlling`.
+  Primeira instalacao nao bloqueia o render. Regressar ao foreground ou recuperar
+  rede dispara nova verificacao; cold start offline preserva o cache certificado.
+- Na ativacao, remover de `static-assets` somente bundles content-hashed que nao
+  pertencem ao precache atual. Nunca eliminar fotos, dados offline, URLs de API
+  ou recursos sem hash por esta rotina.
 
 ## Dominio de Carga e Cobranca
 
 - Contrato de prestacao de servicos e entidade de primeira classe.
 - O MVP usa viagem primeiro com contrato opcional como fluxo principal, preservando suporte a contrato primeiro para clientes maduros.
 - Load Permit/Autorizacao de Carregamento e documento emitido pelo cliente, nao pelo transportador; o ROTAS rastreia e valida o registo.
+- Na PWA, usar `Autorizacao de carregamento` como nome principal, identificar o
+  cliente/dono da carga como emissor e permitir ao Driver apenas consulta ou
+  pedido em falta.
 - Manifesto de Carga e obrigatorio quando o transportador emite documento para produtos manufaturados.
 - Documento de descarga/prova de entrega valida a cobranca apenas apos validacao do gestor no MVP.
 - Para cliente empresa, prova preferencial e guia carimbada/assinada ou documento de descarga emitido pelo cliente.
@@ -120,6 +223,25 @@ Estas normas sao obrigatorias para a materializacao do ROTAS. O objectivo e cons
 - Divergencia entre stock fisico e teorico acima da tolerancia deve gerar exception.
 - Todo ajuste de stock deve exigir permissao, motivo e auditoria.
 - Quem regista abastecimento nao deve aprovar ajuste de stock.
+- Litros, custo, posto, odometro, metodo de pagamento e evidencias de um
+  abastecimento submetido nao podem ser alterados no mesmo registo. Ajustes e
+  estornos sao novos movimentos ligados ao original.
+- Verificacao do gestor e um evento separado do facto capturado pelo motorista;
+  ambos permanecem visiveis no historico auditavel.
+
+## Despesas e despacho de viagem
+
+- Despesa de viagem e um lancamento append-only com viagem, motorista,
+  categoria, valor, moeda, instante, comprovativo e origem.
+- O motorista pode registar despesas apenas na viagem que lhe foi atribuida e
+  no estado permitido pela politica; aprovacao, rejeicao e ajuste pertencem aos
+  papeis administrativos configurados.
+- `Despacho de viagem` designa o allowance entregue ao motorista. E emitido por
+  gestor, sistema ou tesouraria; o motorista apenas consulta e acusa rececao.
+- `Autorizacao de saida` designa o gate operacional para iniciar a viagem e nao
+  pode ser usada como sinonimo de despacho monetario.
+- Correcao ou anulacao de despesa/despacho cria ajuste ou estorno referenciado,
+  preservando o lancamento original e o ator.
 
 ## Dominio de Oficina, Pecas e Ferramentas
 
@@ -148,6 +270,16 @@ Estas normas sao obrigatorias para a materializacao do ROTAS. O objectivo e cons
 - Fluxos financeiros devem testar limites de periodo, duplicacao, cancelamento e estados de cobranca.
 - Fluxos de concorrencia devem testar duas submissoes simultaneas para a mesma viatura, viagem ou idempotency key.
 - Antes de piloto com frota real, testar pico de sync quando varias viaturas regressam a base e enviam filas offline ao mesmo tempo.
+- Frontends usam Vitest/Testing Library para unidade e integracao e Playwright para E2E,
+  acessibilidade, reduced-motion, loading/progresso e jornadas criticas.
+- Backend e Governance usam pytest para unidade, service/API, integracao, migracao e
+  isolamento multitenant. Testes que dizem usar uma base real devem provar a role e RLS.
+- Coverage e publicado no Codecov por componente. Coverage e sinal de risco, nao prova
+  de qualidade: limiares nao podem cair no PR e modulos financeiros, autenticacao,
+  tenant/RLS, sync/idempotencia e migracoes exigem cobertura de branches critica.
+- Stryker e a ferramenta canonica de mutation testing TypeScript/JavaScript (o nome e
+  `Stryker`, nao `Stryke`). Executa incrementalmente em PRs de dominio critico e em suite
+  alargada agendada; mutantes sobreviventes exigem teste, justificacao ou Issue.
 
 ## Seguranca
 
@@ -166,7 +298,20 @@ Estas normas sao obrigatorias para a materializacao do ROTAS. O objectivo e cons
 - Alertas operacionais devem distinguir falha tecnica de problema de negocio.
 - Metricas minimas: latencia por endpoint, taxa de erro por modulo, tamanho da fila offline, tempo medio de sync, falhas de upload e falhas de notificacao.
 - Alertas tecnicos do sistema nao devem ser misturados com alertas operacionais de frota no mesmo dominio de codigo.
-- OpenTelemetry deve ser considerado desde o MVP para tracing simples entre API, jobs e integracoes externas.
+- OpenTelemetry e o contrato canonico para traces, metricas e correlacao de logs entre
+  Manager, Driver, API, workers, Governance e integracoes. Propagar W3C Trace Context e
+  baggage apenas com atributos allowlisted e de baixa cardinalidade.
+- Sentry e obrigatorio para erro, crash e performance onde ja integrado, sempre com
+  scrub de PII/segredos, release SHA e environment. Um DSN ausente desactiva o exportador
+  sem alterar o comportamento de negocio.
+- Datadog e New Relic sao destinos suportados atraves de OTLP/OpenTelemetry Collector,
+  nao agentes paralelos sempre activos. A escolha/activacao por ambiente requer Issue,
+  avaliacao de custo/retencao/residencia de dados, teste de exportacao e rollback.
+- E proibido enviar payloads, tokens, cookies, salarios, dados medicos, documentos,
+  coordenadas precisas ou IDs humanos/tenant crus. Preferir IDs tecnicos correlacionaveis
+  e hashing/normalizacao aprovados.
+- A prova minima de runtime inclui trace ponta a ponta, erro correlacionado no Sentry,
+  metricas/SLO, log correlacionado, alerta entregue/ack/resolvido e verificacao de scrub.
 
 ## Integracoes Externas
 
@@ -190,6 +335,18 @@ Estas normas sao obrigatorias para a materializacao do ROTAS. O objectivo e cons
 - Toda regra de cobranca deve ter criterio de aceite documentado.
 - Evitar duplicacao prematura, mas extrair regra quando ela for partilhada por API, dashboard e PWA.
 - Preferir nomes explicitos do dominio a nomes genericos.
+- Contratos de arquitectura bloqueiam importacoes proibidas, ciclos e fuga de ORM/regras
+  entre bounded contexts. `test_module_guard.py` e o baseline Python; o gate `arch-contract`
+  deve cobrir tambem os workspaces TypeScript.
+- Biome e o linter/formatter canonico TypeScript/JavaScript; TypeScript continua a ser o
+  gate de tipos. Ruff e Pyright continuam canonicos em Python.
+- Commitlint valida commits Conventional Commits e o historico do PR. Squash/merge deve
+  conservar Issue e intencao no titulo/mensagem.
+- Knip bloqueia exports, ficheiros e dependencias nao usados, com allowlist curta,
+  comentada, temporaria e ligada a Issue.
+- Dependencias e configuracoes de Biome, Commitlint, Knip, Stryker e Codecov devem ser
+  fixadas no lockfile e executadas em CI; citar uma ferramenta neste documento nao a
+  torna implementada.
 
 ## Definition of Done
 
@@ -201,3 +358,29 @@ Estas normas sao obrigatorias para a materializacao do ROTAS. O objectivo e cons
 - Fluxo documentado quando houver regra operacional nova.
 - Auditoria/tenant/idempotencia considerados.
 - Riscos e limitacoes conhecidos foram registados.
+- Issue ligada, PR revisto e checks requeridos verdes.
+- UX assincrona cobre skeleton/loading, pending/progresso, empty, partial/degraded,
+  error/forbidden e success aplicaveis, incluindo reduced-motion e lazy loading sem CLS.
+- Telemetria e alertas da mudanca foram exercitados sem PII; dashboard/runbook actualizado.
+- Coverage nao regrediu e mutation testing foi executado quando o risco exige.
+- Deploy/rollback e smoke tests foram registados para o mesmo SHA; a Issue so fecha apos
+  verificacao pos-deploy.
+
+## Estado de adopcao deste padrao em 2026-08-09
+
+| Capacidade | Estado comprovado no checkout | Proximo gate |
+|---|---|---|
+| Governanca Issue -> PR -> Deploy | Template e workflow implementados nesta branch; branch protection remota ainda pendente | [Issue #31](https://github.com/dequive/Rotas/issues/31) |
+| UX assincrona e Motion Principles | Contrato definido; implementacao desigual entre rotas/componentes | [Issue #25](https://github.com/dequive/Rotas/issues/25) |
+| Sentry | Parcial: Backend, Manager e Driver possuem SDK/configuracao e testes locais | validar evento e scrub por release SHA em staging |
+| Prometheus, Alertmanager e Grafana | Implementado localmente; certificacao runtime PR-20 pendente | executar bundle PR-20 e janela SLO |
+| OpenTelemetry | Apenas direccao/documentacao; sem instrumentacao/export OTLP comprovado | [Issue #26](https://github.com/dequive/Rotas/issues/26) |
+| Datadog / New Relic | Nao configurados | [Issue #26](https://github.com/dequive/Rotas/issues/26), via OTLP e sem agentes duplicados |
+| Ruff, Pyright, pytest, Vitest, Playwright | Configuracao e CI existentes, com cobertura desigual por jornada | preservar gates e fechar lacunas por Issue |
+| Arch-contract | Parcial: guardas Python e verificadores de fronteira especificos | [Issue #27](https://github.com/dequive/Rotas/issues/27) |
+| Biome, Commitlint, Knip | Nao configurados | [Issue #28](https://github.com/dequive/Rotas/issues/28) |
+| Stryker | Nao configurado | [Issue #29](https://github.com/dequive/Rotas/issues/29) |
+| Codecov / coverage thresholds | Nao configurados | [Issue #30](https://github.com/dequive/Rotas/issues/30) |
+
+Esta tabela distingue implementacao local de certificacao. Nao promover uma linha para
+"certificada" sem evidencia do ambiente, SHA e jornada descritos no gate correspondente.

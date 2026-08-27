@@ -6,7 +6,7 @@
 # Run Alembic migrations before new version accepts traffic
 # WARNING: update path must be app.main:app — verify module path matches project layout
 preDeployCommand = "alembic upgrade head"
-startCommand = "gunicorn -k uvicorn.workers.UvicornWorker -w 4 --timeout 30 --bind 0.0.0.0:$PORT app.main:app"
+startCommand = "gunicorn --config python:app.gunicorn_conf --no-control-socket -k uvicorn.workers.UvicornWorker -w 4 --timeout 30 --bind 0.0.0.0:$PORT app.main:app"
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

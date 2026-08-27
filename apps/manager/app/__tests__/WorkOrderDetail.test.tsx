@@ -7,7 +7,10 @@ import { WorkOrderDetailClient } from "../oficina/components/WorkOrderDetailClie
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("../oficina/ordens-servico/[id]/actions", () => ({
   addLaborSession: vi.fn(),
+  completeWorkOrderTask: vi.fn(),
+  confirmWorkshopInvoice: vi.fn(),
   issuePart: vi.fn(),
+  releaseVehicle: vi.fn(),
   retryBilling: vi.fn(),
   returnPart: vi.fn(),
   transitionWorkOrder: vi.fn(),
@@ -105,16 +108,104 @@ describe("WorkOrderDetailClient", () => {
     expect(screen.getByText("OS-2026-0042")).toBeDefined();
     expect(screen.getByText("Substituir filtro")).toBeDefined();
     expect(screen.getByText(/1 tarefa\(s\) incompleta\(s\)/)).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Concluir tarefa" }));
+    expect(screen.getByRole("dialog", { name: "Concluir tarefa" })).toBeDefined();
+    expect(screen.getByLabelText("Minutos efetivos *")).toHaveValue(30);
 
-    fireEvent.click(screen.getByRole("button", { name: "Peças" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Peças" }));
     expect(screen.getByText("FLT-001")).toBeDefined();
     expect(screen.getByText("2")).toBeDefined();
     expect(screen.getByText("1 unit")).toBeDefined();
 
-    fireEvent.click(screen.getByRole("button", { name: "Rentabilidade" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Rentabilidade" }));
     expect(screen.getByText("Margem bruta")).toBeDefined();
     expect(
       screen.getByText((_, element) => element?.textContent === "2100,00 MT"),
     ).toBeDefined();
+  });
+
+  it("mantém entrega bloqueada até emissão fiscal", () => {
+    const closedDetail: WorkOrderDetail = {
+      ...detail,
+      work_order: {
+        ...detail.work_order,
+        status: "closed",
+        billing_status: "draft_created",
+        document_id: "document-1",
+        invoice_status: "draft",
+      },
+      reception: {
+        id: "reception-1",
+        reception_number: "REC-2026-0042",
+        reported_issues: "Revisão",
+        client_signature_file_id: null,
+        photos: [],
+      },
+      tasks: [{ ...detail.tasks[0], status: "completed" }],
+      blockers: { incomplete_tasks: 0, unreturned_tools: 0 },
+    };
+    const { rerender } = render(
+      <WorkOrderDetailClient
+        detail={closedDetail}
+        profitability={profitability}
+        role="manager"
+        userId="user-1"
+      />,
+    );
+
+    expect(screen.getByText(/Entrega bloqueada:/)).toBeDefined();
+    expect(screen.getByRole("button", { name: "Emitir fatura" })).toBeDefined();
+    expect(
+      screen.queryByRole("button", { name: "Confirmar entrega" }),
+    ).toBeNull();
+
+    rerender(
+      <WorkOrderDetailClient
+        detail={{
+          ...closedDetail,
+          work_order: {
+            ...closedDetail.work_order,
+            invoice_status: "issued",
+            invoice_number: "FT-2026-0042",
+          },
+        }}
+        profitability={profitability}
+        role="manager"
+        userId="user-1"
+      />,
+    );
+
+    expect(screen.queryByText(/Entrega bloqueada:/)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Confirmar entrega" }),
+    ).toBeDefined();
+  });
+
+  it("implementa navegação de abas com setas, Home e End", () => {
+    render(
+      <WorkOrderDetailClient
+        detail={detail}
+        profitability={profitability}
+        role="manager"
+        userId="user-1"
+      />,
+    );
+
+    const tasks = screen.getByRole("tab", { name: "Tarefas & Mão-de-obra" });
+    tasks.focus();
+    fireEvent.keyDown(tasks, { key: "ArrowRight" });
+    expect(screen.getByRole("tab", { name: "Peças" })).toHaveFocus();
+    expect(screen.getByRole("tabpanel")).toHaveAttribute(
+      "aria-labelledby",
+      "work-order-tab-parts",
+    );
+
+    fireEvent.keyDown(screen.getByRole("tab", { name: "Peças" }), { key: "End" });
+    expect(screen.getByRole("tab", { name: "Receção & Origem" })).toHaveFocus();
+
+    fireEvent.keyDown(screen.getByRole("tab", { name: "Receção & Origem" }), {
+      key: "Home",
+    });
+    expect(tasks).toHaveFocus();
   });
 });

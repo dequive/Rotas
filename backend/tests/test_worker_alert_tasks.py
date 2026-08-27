@@ -80,7 +80,7 @@ async def test_task_check_driver_document_expiry_skips_non_expiring(db, tenant_i
 
     from app.worker import task_check_driver_document_expiry
 
-    result = await task_check_driver_document_expiry(_make_ctx(db))
+    await task_check_driver_document_expiry(_make_ctx(db))
 
     alert = await db.scalar(
         select(Alert).where(
@@ -127,8 +127,8 @@ async def test_task_check_driver_document_expiry_idempotent(db, tenant_id):
 
 
 @pytest.mark.asyncio
-async def test_task_check_hos_violations_generates_warning(db, tenant_id):
-    """Driver with trip departing 8.5 hours ago in in_progress → hos warning alert."""
+async def test_task_check_hos_violations_generates_warning(db, tenant_id, monkeypatch):
+    """An active driver classified as HOS warning receives a high-priority alert."""
     vehicle = Vehicle(
         tenant_id=tenant_id,
         plate=f"MZ-{uuid4().hex[:6].upper()}",
@@ -144,7 +144,6 @@ async def test_task_check_hos_violations_generates_warning(db, tenant_id):
     db.add(driver)
     await db.flush()
 
-    departure = datetime.now(UTC) - timedelta(hours=8, minutes=30)
     trip = Trip(
         tenant_id=tenant_id,
         vehicle_id=vehicle.id,
@@ -152,10 +151,30 @@ async def test_task_check_hos_violations_generates_warning(db, tenant_id):
         origin="Maputo",
         destination="Beira",
         status="in_progress",
-        actual_departure=departure,
+        actual_departure=datetime.now(UTC) - timedelta(hours=2),
     )
     db.add(trip)
     await db.commit()
+
+    async def warning_for_test_driver(candidate_driver_id, *_args, **_kwargs):
+        if candidate_driver_id == driver.id:
+            return {
+                "hours_today": 8.5,
+                "hours_this_week": 8.5,
+                "status": "warning",
+                "violation_reason": None,
+            }
+        return {
+            "hours_today": 0.0,
+            "hours_this_week": 0.0,
+            "status": "ok",
+            "violation_reason": None,
+        }
+
+    monkeypatch.setattr(
+        "app.modules.drivers.hos_service.calculate_driving_hours",
+        warning_for_test_driver,
+    )
 
     from app.worker import task_check_hos_violations
 
@@ -211,7 +230,7 @@ async def test_task_check_hos_violations_ok_driver_no_alert(db, tenant_id):
 
     from app.worker import task_check_hos_violations
 
-    result = await task_check_hos_violations(_make_ctx(db))
+    await task_check_hos_violations(_make_ctx(db))
 
     # Warnings and violations for this driver should be 0
     # (other test data may have produced alerts, check this driver specifically)
